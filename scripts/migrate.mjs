@@ -3,25 +3,31 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { migrateMarkerFile } from "../dist/adapters/outbound/filesystem/marker-migrator.js";
+import { parseStrictArguments } from "../dist/adapters/inbound/cli/strict-arguments.js";
 
 export async function runMigrate(argv) {
   const json = argv.includes("--json");
-  const apply = argv.includes("--apply");
-  const targetIndex = argv.indexOf("--target");
-  const projectIndex = argv.indexOf("--project");
-  const allowed = new Set(["--json", "--apply", "--dry-run", "--target", "--project"]);
-  const unknown = argv.filter((value, index) => !allowed.has(value) && argv[index - 1] !== "--target" && argv[index - 1] !== "--project");
-  if (unknown.length > 0 || (targetIndex !== -1 && !argv[targetIndex + 1]) || (projectIndex !== -1 && !argv[projectIndex + 1])) {
-    return usage("migrate [--target <path>] [--project <project-id>] [--dry-run|--apply] [--json]");
+  let parsed;
+  try {
+    parsed = parseStrictArguments(argv, {
+      options: { json: "boolean", apply: "boolean", "dry-run": "boolean", target: "string", project: "string" },
+      minPositionals: 0,
+      maxPositionals: 0,
+      exclusiveGroups: [["apply", "dry-run"]],
+    });
+  } catch (error) {
+    return usage(`migrate [--target <path>] [--project <project-id>] [--dry-run|--apply] [--json]\nERREUR — ${error instanceof Error ? error.message : String(error)}`);
   }
-  const target = path.resolve(targetIndex === -1 ? process.cwd() : argv[targetIndex + 1]);
+  const apply = parsed.booleans.has("apply");
+  const target = path.resolve(parsed.values.get("target") ?? process.cwd());
+  const projectId = parsed.values.get("project");
   try {
     const candidates = findMarkers(target, 3);
     const results = [];
     for (const candidate of candidates) {
       const result = await migrateMarkerFile(candidate.kind === "project"
         ? { kind: "project", sourcePath: candidate.source, destinationPath: candidate.destination, apply }
-        : { kind: "feature", sourcePath: candidate.source, ...(projectIndex === -1 ? {} : { projectId: argv[projectIndex + 1] }), apply });
+        : { kind: "feature", sourcePath: candidate.source, ...(projectId === undefined ? {} : { projectId }), apply });
       results.push({ kind: candidate.kind, source: candidate.source, destination: candidate.destination ?? candidate.source, changed: result.plan.changed, fromVersion: result.plan.fromVersion, toVersion: result.plan.toVersion, applied: apply && result.plan.changed, ...(result.backupPath ? { backupPath: result.backupPath } : {}) });
     }
     const data = { mode: apply ? "apply" : "dry-run", target, results };

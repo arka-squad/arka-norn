@@ -1,6 +1,11 @@
 {
+  "schema_version": 2,
   "id": "plan-memoire-evenementielle-notion-linear-v2.2",
+  "feature_id": "connecteurs-notion-linear",
   "type": "plan",
+  "sequence": 1,
+  "created_at": "2026-06-30T08:30:00.000Z",
+  "depends_on_document_ids": ["concept-notion-linear-anti-tokens"],
   "titre": "PLAN — Mémoire événementielle et atomique au-dessus de Notion / Linear",
   "version": "v2.2",
   "cible": "cortex-lite/ (workspace Rust hexagonal + Tauri 2 + React, SurrealDB 2.6 embarqué kv-surrealkv)",

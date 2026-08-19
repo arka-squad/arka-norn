@@ -1,13 +1,13 @@
+import { mapConcurrent } from "../../application/shared/map-concurrent.js";
 export function listFeaturesUseCaseFactory(deps) {
     const { featureStore, indexStore, logger } = deps;
     return async () => {
         const entries = await indexStore.load();
-        const features = [];
-        for (const entry of entries) {
+        const features = await mapConcurrent(entries, 8, async (entry) => {
             try {
                 const feature = await featureStore.load(entry.root);
                 const reconciled = feature.updatedAt.getTime() === entry.updatedAt.getTime() ? feature : feature.touched(entry.updatedAt);
-                features.push(reconciled);
+                return reconciled;
             }
             catch (err) {
                 logger.warn("listFeatures: index entry has no readable marker — skipped", {
@@ -15,9 +15,10 @@ export function listFeaturesUseCaseFactory(deps) {
                     root: entry.root,
                     error: err instanceof Error ? err.message : String(err),
                 });
+                return undefined;
             }
-        }
-        return features;
+        });
+        return features.filter((feature) => feature !== undefined);
     };
 }
 //# sourceMappingURL=list-features.js.map

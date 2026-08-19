@@ -9,6 +9,7 @@
  * marker si la propagation a été interrompue).
  */
 import type { Feature } from "../../domain/feature/feature.js";
+import { mapConcurrent } from "../../application/shared/map-concurrent.js";
 import type { FeaturesDeps } from "./_shared/features-deps.js";
 
 export type ListFeaturesUseCase = () => Promise<readonly Feature[]>;
@@ -18,21 +19,21 @@ export function listFeaturesUseCaseFactory(deps: FeaturesDeps): ListFeaturesUseC
 
   return async (): Promise<readonly Feature[]> => {
     const entries = await indexStore.load();
-    const features: Feature[] = [];
-    for (const entry of entries) {
+    const features = await mapConcurrent(entries, 8, async (entry): Promise<Feature | undefined> => {
       try {
         const feature = await featureStore.load(entry.root);
         const reconciled =
           feature.updatedAt.getTime() === entry.updatedAt.getTime() ? feature : feature.touched(entry.updatedAt);
-        features.push(reconciled);
+        return reconciled;
       } catch (err) {
         logger.warn("listFeatures: index entry has no readable marker — skipped", {
           id: entry.id,
           root: entry.root,
           error: err instanceof Error ? err.message : String(err),
         });
+        return undefined;
       }
-    }
-    return features;
+    });
+    return features.filter((feature): feature is Feature => feature !== undefined);
   };
 }

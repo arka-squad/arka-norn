@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, lstatSync, readFileSync } from "node:fs";
 import path from "node:path";
 
+import { parseStrictArguments } from "../dist/adapters/inbound/cli/strict-arguments.js";
 import { loadCatalog, loadSkillDefs, renderOpenaiYaml, renderRepoSkillMd, runInstall } from "./install.mjs";
 
 export async function runSkills(argv) {
@@ -37,17 +38,11 @@ export async function runSkills(argv) {
 }
 
 function parseOptions(argv) {
-  const targetIndex = argv.indexOf("--target");
-  const profileIndex = argv.indexOf("--profile");
-  const allowed = new Set(["--target", "--profile", "--installed", "--json"]);
-  const unknown = argv.filter((value, index) => !allowed.has(value) && argv[index - 1] !== "--target" && argv[index - 1] !== "--profile");
-  if (unknown.length > 0) throw new Error(`Option inconnue : ${unknown[0]}`);
-  if (targetIndex !== -1 && !argv[targetIndex + 1]) throw new Error("--target exige un chemin");
-  if (profileIndex !== -1 && !argv[profileIndex + 1]) throw new Error("--profile exige une valeur");
+  const parsed = parseStrictArguments(argv, { options: { target: "string", profile: "string", installed: "boolean", json: "boolean" }, minPositionals: 0, maxPositionals: 0 });
   return {
-    target: path.resolve(targetIndex === -1 ? process.cwd() : argv[targetIndex + 1]),
-    profile: profileIndex === -1 ? "all" : argv[profileIndex + 1],
-    installed: argv.includes("--installed"),
+    target: path.resolve(parsed.values.get("target") ?? process.cwd()),
+    profile: parsed.values.get("profile") ?? "all",
+    installed: parsed.booleans.has("installed"),
   };
 }
 

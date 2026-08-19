@@ -4,7 +4,8 @@
   "title": "Plan",
   "description": "Document de cadrage d'architecture ou de production dans le cycle de vie d'une feature (concept → plan → (annexe) → audit → invariants → dettes → tâches → spec d'intégration → CR de dev → recette QA). Un plan fusionne un ou plusieurs concepts sources en une architecture cible actionnable : il fixe le stack technique, distingue explicitement ce qui est verrouillé (décisions non renégociables) de ce qui reste un objectif à prouver, et découpe le travail en lots dépendants les uns des autres. Ce schéma doit pouvoir être validé et suivi mécaniquement par n'importe quel agent (Claude Code, Codex CLI, Antigravity, etc.).",
   "type": "object",
-  "additionalProperties": false,
+  "allOf": [{ "$ref": "document-envelope.schema.json" }],
+  "unevaluatedProperties": false,
   "required": [
     "id",
     "type",
@@ -146,8 +147,13 @@
   },
   "examples": [
     {
+      "schema_version": 2,
       "id": "plan-architecture-memoire-evenementielle",
+      "feature_id": "example-feature",
       "type": "plan",
+      "sequence": 1,
+      "created_at": "2026-08-18T09:00:00.000Z",
+      "depends_on_document_ids": ["concept-001"],
       "titre": "Plan d'architecture — Mémoire événementielle au-dessus de Notion/Linear",
       "version": "v2.2",
       "cible": "cortex-lite/",

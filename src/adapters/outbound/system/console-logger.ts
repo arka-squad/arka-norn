@@ -82,11 +82,24 @@ export class ConsoleLogger implements Logger {
 
   private emit(level: LogLevel, message: string, fields: LogFields | undefined): void {
     if (LEVEL_ORDER[level] < LEVEL_ORDER[this.state.threshold]) return;
-    const merged: LogFields = { ...this.state.bindings, ...(fields ?? {}) };
+    const merged = redactFields({ ...this.state.bindings, ...(fields ?? {}) });
     const ts = this.state.now().toISOString();
     const line = this.state.format === "json" ? formatJson(ts, level, message, merged) : formatPretty(ts, level, message, merged);
     this.state.sink.write(line);
   }
+}
+
+function redactFields(fields: LogFields): LogFields {
+  return Object.fromEntries(Object.entries(fields).map(([key, value]) => [key, redactValue(key, value, new WeakSet<object>())]));
+}
+
+function redactValue(key: string, value: unknown, seen: WeakSet<object>): unknown {
+  if (/(?:authorization|cookie|credential|password|secret|token|api[_-]?key)/i.test(key)) return "[REDACTED]";
+  if (Array.isArray(value)) return value.map((item) => redactValue("item", item, seen));
+  if (typeof value !== "object" || value === null) return value;
+  if (seen.has(value)) return "[CIRCULAR]";
+  seen.add(value);
+  return Object.fromEntries(Object.entries(value).map(([childKey, child]) => [childKey, redactValue(childKey, child, seen)]));
 }
 
 function formatJson(ts: string, level: LogLevel, message: string, fields: LogFields): string {

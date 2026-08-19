@@ -1,6 +1,11 @@
 {
+  "schema_version": 2,
   "id": "spec-lot4-5-connecteurs-extraction",
+  "feature_id": "connecteurs-notion-linear",
   "type": "spec_integration_technique",
+  "sequence": 1,
+  "created_at": "2026-07-01T08:00:00.000Z",
+  "depends_on_document_ids": ["tache-19-specifier-le-domaine-cortex-connect-core"],
   "titre": "SPEC VAGUE 4+5 — Connecteurs + extraction event-sourced",
   "lots_couverts": ["lot-4-5"],
   "sources": ["plan §3", "plan §5", "plan §7", "plan §8", "plan §12", "ANNEXE A", "lot 1 (event_inbox, MemoryAtom, idempotence)"],

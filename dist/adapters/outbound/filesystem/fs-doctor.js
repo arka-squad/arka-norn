@@ -1,6 +1,10 @@
 import * as fs from "node:fs/promises";
 import { join } from "node:path";
+import { isFeatureMarkerV2, isProjectMarkerV2 } from "../../../domain/shared/marker-formats.js";
 import { readRaw, writeJsonAtomic } from "./_shared/atomic-json.js";
+import { inspectFileLock, repairAbandonedFileLock } from "./_shared/file-lock.js";
+import { isFeatureIndexFile, isIndexFile, isProjectIndexFile } from "./_shared/index-codec.js";
+import { FsAuditTrail } from "./fs-audit-trail.js";
 export class FsDoctor {
     home;
     constructor(homeDir) {
@@ -20,7 +24,7 @@ export class FsDoctor {
         }
         try {
             const value = JSON.parse(raw);
-            if (!isIndex(value))
+            if (!isIndexFile(kind, value))
                 return this.invalidIndex(kind, target, "schema invalid", repair, apply);
             const mode = (await fs.stat(target)).mode & 0o777;
             if (mode !== 0o600) {
@@ -36,6 +40,90 @@ export class FsDoctor {
         catch (error) {
             return this.invalidIndex(kind, target, error instanceof Error ? error.message : String(error), repair, apply);
         }
+    }
+    async inspectRuntime(repair, apply) {
+        const [projectMarkers, featureMarkers, locks, audit] = await Promise.all([
+            this.inspectMarkers("projects"),
+            this.inspectMarkers("features"),
+            this.inspectLocks(repair, apply),
+            this.inspectAudit(),
+        ]);
+        return [projectMarkers, featureMarkers, ...locks, audit];
+    }
+    async inspectMarkers(kind) {
+        const target = join(this.home, ".arka-norn", "index", `${kind}.json`);
+        const raw = await readRaw(target).catch((error) => {
+            return error instanceof Error ? error : new Error(String(error));
+        });
+        if (raw instanceof Error) {
+            return { check: { id: `markers.${kind}`, status: "fail", message: `index unreadable: ${raw.message}`, repairable: false } };
+        }
+        if (raw === undefined) {
+            return { check: { id: `markers.${kind}`, status: "warn", message: "index absent; no marker references to verify", repairable: false } };
+        }
+        let value;
+        try {
+            value = JSON.parse(raw);
+        }
+        catch {
+            return { check: { id: `markers.${kind}`, status: "fail", message: "index invalid; marker integrity cannot be verified", repairable: false } };
+        }
+        if (kind === "projects" && isProjectIndexFile(value))
+            return this.inspectProjectMarkers(value.entries);
+        if (kind === "features" && isFeatureIndexFile(value))
+            return this.inspectFeatureMarkers(value.entries);
+        return { check: { id: `markers.${kind}`, status: "fail", message: "index invalid; marker integrity cannot be verified", repairable: false } };
+    }
+    async inspectProjectMarkers(entries) {
+        const failures = (await Promise.all(entries.map(async (entry) => {
+            const marker = await readJsonUnknown(join(entry.root, ".arka-norn", "project.json"));
+            return isProjectMarkerV2(marker) && marker.id === entry.id && marker.root === entry.root ? undefined : `${entry.id}@${entry.root}`;
+        }))).filter((failure) => failure !== undefined);
+        return markerInspection("projects", entries.length, failures);
+    }
+    async inspectFeatureMarkers(entries) {
+        const failures = (await Promise.all(entries.map(async (entry) => {
+            const marker = await readJsonUnknown(join(entry.root, ".arka-norn", "feature.json"));
+            return isFeatureMarkerV2(marker) && marker.id === entry.id && marker.projectId === entry.projectId && marker.root === entry.root
+                ? undefined
+                : `${entry.id}@${entry.root}`;
+        }))).filter((failure) => failure !== undefined);
+        return markerInspection("features", entries.length, failures);
+    }
+    async inspectLocks(repair, apply) {
+        const indexDir = join(this.home, ".arka-norn", "index");
+        const entries = await fs.readdir(indexDir).catch((error) => {
+            if (isNodeError(error, "ENOENT"))
+                return [];
+            throw error;
+        });
+        const locks = entries.filter((entry) => entry.endsWith(".lock")).map((entry) => join(indexDir, entry));
+        if (locks.length === 0) {
+            return [{ check: { id: "locks", status: "pass", message: "no active or abandoned index locks", repairable: false } }];
+        }
+        return Promise.all(locks.map(async (lockPath) => {
+            const inspection = await inspectFileLock(lockPath);
+            if (inspection.status === "abandoned") {
+                const applied = repair && apply ? await repairAbandonedFileLock(lockPath) : false;
+                return {
+                    check: {
+                        id: `lock.${lockPath.split("/").pop() ?? "unknown"}`,
+                        status: applied ? "pass" : "fail",
+                        message: applied ? "abandoned lock removed" : `abandoned lock (${Math.round(inspection.ageMs ?? 0)}ms old)`,
+                        repairable: true,
+                    },
+                    ...(repair ? { repair: { target: lockPath, action: "remove_abandoned_lock", applied } } : {}),
+                };
+            }
+            if (inspection.status === "invalid") {
+                return { check: { id: `lock.${lockPath.split("/").pop() ?? "unknown"}`, status: "fail", message: "lock metadata invalid; manual review required", repairable: false } };
+            }
+            return { check: { id: `lock.${lockPath.split("/").pop() ?? "unknown"}`, status: "warn", message: `active lock owned by pid ${inspection.ownerPid ?? "unknown"}`, repairable: false } };
+        }));
+    }
+    async inspectAudit() {
+        const health = await new FsAuditTrail(this.home).inspect();
+        return { check: { id: "audit.trail", status: health.ok ? "pass" : "fail", message: health.message, repairable: false } };
     }
     async invalidIndex(kind, target, reason, repair, apply) {
         let backupPath;
@@ -58,10 +146,21 @@ export class FsDoctor {
         };
     }
 }
-function isIndex(value) {
-    if (typeof value !== "object" || value === null || Array.isArray(value))
-        return false;
-    const candidate = value;
-    return candidate["schemaVersion"] === 2 && Array.isArray(candidate["entries"]);
+function markerInspection(kind, total, failures) {
+    return failures.length === 0
+        ? { check: { id: `markers.${kind}`, status: "pass", message: `${total}/${total} indexed marker(s) valid`, repairable: false } }
+        : { check: { id: `markers.${kind}`, status: "fail", message: `${failures.length}/${total} invalid or missing marker(s): ${failures.slice(0, 3).join(", ")}`, repairable: false } };
+}
+async function readJsonUnknown(path) {
+    try {
+        const raw = await readRaw(path);
+        return raw === undefined ? undefined : JSON.parse(raw);
+    }
+    catch {
+        return undefined;
+    }
+}
+function isNodeError(error, code) {
+    return error instanceof Error && "code" in error && error.code === code;
 }
 //# sourceMappingURL=fs-doctor.js.map

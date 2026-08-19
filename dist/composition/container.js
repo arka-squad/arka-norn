@@ -31,8 +31,10 @@ import { createResultView } from "../adapters/inbound/tui/views/result-view.js";
 import { pipelineExitCode, presentPipelineReport } from "../adapters/inbound/cli/presenters/pipeline-report-presenter.js";
 import { FsFilesystem } from "../adapters/outbound/filesystem/fs-filesystem.js";
 import { DirectSkillManager } from "../adapters/outbound/skills/direct-skill-manager.js";
+import { mapConcurrent } from "../application/shared/map-concurrent.js";
 import { createManagementRuntime } from "./management-runtime.js";
 import { createPipelineRuntime } from "./pipeline-runtime.js";
+import { createDoctorRuntime } from "./doctor-runtime.js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // dist/composition/container.js -> remonte de 2 niveaux vers la racine du framework.
 const FRAMEWORK_ROOT = resolve(__dirname, "..", "..");
@@ -208,10 +210,10 @@ export function createContainer(env) {
     async function openProjectDetail(project) {
         uiState.currentProject = project;
         const initialFeatures = (await features.list()).filter((feature) => feature.belongsTo(project.id));
-        const initialMetrics = new Map(await Promise.all(initialFeatures.map(async (feature) => {
+        const initialMetrics = new Map(await mapConcurrent(initialFeatures, 4, async (feature) => {
             const report = await pipeline.inspect({ featureRoot: feature.root, featureId: feature.id.value });
             return [feature.id.value, metricsFromReport(report)];
-        })));
+        }));
         const initialStatuses = new Map([...initialMetrics].map(([id, metrics]) => [id, metrics.status]));
         app.push(createProjectDetailView({
             project,
@@ -226,7 +228,6 @@ export function createContainer(env) {
                 uiState.currentFeature = feature;
             },
             onOpenFeature: (feature) => openFeatureDetail(feature),
-            statusForFeature: async (feature) => (await pipeline.inspect({ featureRoot: feature.root, featureId: feature.id.value })).overallStatus,
             metricsForFeature: async (feature) => metricsFromReport(await pipeline.inspect({ featureRoot: feature.root, featureId: feature.id.value })),
             onForget: (selectedProject) => {
                 confirmForgetProject(selectedProject);
@@ -252,7 +253,10 @@ export function createContainer(env) {
         },
         async createHomeView() {
             const initialProjects = await projects.list();
-            const skillHealth = await skillManager.inspect(env.cwd);
+            const [skillHealth, systemHealth] = await Promise.all([
+                skillManager.inspect(env.cwd),
+                createDoctorRuntime(homeDir, env.cwd).run(),
+            ]);
             return createHomeView({
                 initialProjects,
                 projects,
@@ -260,6 +264,7 @@ export function createContainer(env) {
                 cwd: env.cwd,
                 contextRoot: uiState.contextRoot,
                 skillHealth: `${skillHealth.healthy}/${skillHealth.total} sains · ${skillHealth.missing} absents · ${skillHealth.divergent} divergents`,
+                systemHealth: `${systemHealth.summary.pass} PASS · ${systemHealth.summary.warn} WARN · ${systemHealth.summary.fail} FAIL`,
                 redraw: () => app.redraw(),
                 onProjectFocused: (project) => {
                     uiState.currentProject = project;
@@ -279,7 +284,7 @@ function metricsFromReport(report) {
         status: report.overallStatus,
         debtDocuments: debts?.documents.length ?? 0,
         qaFailures: qa?.documents.filter((document) => document.businessVerdict === "fail").length ?? 0,
-        handoffSignals: report.warnings.filter((warning) => warning.toLowerCase().includes("handoff")).length,
+        handoffSignals: report.transversalDocuments.find((state) => state.type === "handoff")?.documents.length ?? 0,
         invalidDocuments: report.steps.reduce((count, step) => count + step.documents.filter((document) => !document.valid).length, 0),
     };
 }

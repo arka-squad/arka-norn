@@ -1,4 +1,5 @@
 import { homedir } from "node:os";
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 
 import { FeatureAlreadyExistsError, FeatureNotFoundError } from "../../../domain/errors.js";
@@ -8,19 +9,7 @@ import type { Logger } from "../../../ports/outbound/logger.js";
 
 import { readJson, readRaw, writeJsonAtomic } from "./_shared/atomic-json.js";
 import { withFileLock } from "./_shared/file-lock.js";
-
-interface IndexFileV2 {
-  readonly schemaVersion: 2;
-  readonly entries: readonly IndexEntryRaw[];
-}
-
-interface IndexEntryRaw {
-  readonly id: string;
-  readonly projectId: string;
-  readonly root: string;
-  readonly name: string;
-  readonly updatedAt: string;
-}
+import { isFeatureIndexFile, type FeatureIndexEntryRaw, type FeatureIndexFileV2 } from "./_shared/index-codec.js";
 
 export class FsFeatureIndexStore implements FeatureIndexStore {
   private readonly home: string;
@@ -78,10 +67,10 @@ export class FsFeatureIndexStore implements FeatureIndexStore {
   }
 
   private async saveUnlocked(entries: readonly FeatureIndexEntry[]): Promise<void> {
-    await writeJsonAtomic(this.indexPath(), { schemaVersion: 2, entries: entries.map(serialize) } satisfies IndexFileV2, { mode: 0o600 });
+    await writeJsonAtomic(this.indexPath(), { schemaVersion: 2, entries: entries.map(serialize) } satisfies FeatureIndexFileV2, { mode: 0o600 });
   }
 
-  private async readIndexSafe(): Promise<IndexFileV2 | undefined> {
+  private async readIndexSafe(): Promise<FeatureIndexFileV2 | undefined> {
     let value: unknown;
     try {
       value = await readJson<unknown>(this.indexPath());
@@ -91,7 +80,7 @@ export class FsFeatureIndexStore implements FeatureIndexStore {
       return undefined;
     }
     if (value === undefined) return undefined;
-    if (!isIndex(value)) {
+    if (!isFeatureIndexFile(value)) {
       await this.backupCorruption("schema validation failed");
       return undefined;
     }
@@ -101,29 +90,16 @@ export class FsFeatureIndexStore implements FeatureIndexStore {
   private async backupCorruption(reason: string): Promise<void> {
     const raw = await readRaw(this.indexPath());
     if (raw === undefined) return;
-    const backupPath = join(this.home, ".arka-norn", "backups", "last-feature-index-corruption.json");
+    const backupPath = join(this.home, ".arka-norn", "backups", `feature-index-${Date.now()}-${randomUUID()}-corruption.json`);
     this.logger?.warn("feature-index corruption; using empty cache", { reason, backupPath });
     await writeJsonAtomic(backupPath, { schemaVersion: 1, savedAt: new Date().toISOString(), reason, raw });
   }
 }
 
-function serialize(entry: FeatureIndexEntry): IndexEntryRaw {
+function serialize(entry: FeatureIndexEntry): FeatureIndexEntryRaw {
   return { id: entry.id, projectId: entry.projectId, root: entry.root, name: entry.name, updatedAt: entry.updatedAt.toISOString() };
 }
 
-function deserialize(entry: IndexEntryRaw): FeatureIndexEntry {
+function deserialize(entry: FeatureIndexEntryRaw): FeatureIndexEntry {
   return { ...entry, updatedAt: new Date(entry.updatedAt) };
-}
-
-function isIndex(value: unknown): value is IndexFileV2 {
-  if (typeof value !== "object" || value === null) return false;
-  const index = value as { readonly schemaVersion?: unknown; readonly entries?: unknown };
-  return index.schemaVersion === 2 && Array.isArray(index.entries) && index.entries.every(isEntry);
-}
-
-function isEntry(value: unknown): value is IndexEntryRaw {
-  if (typeof value !== "object" || value === null) return false;
-  const entry = value as Record<string, unknown>;
-  return typeof entry.id === "string" && typeof entry.projectId === "string" && typeof entry.root === "string" &&
-    typeof entry.name === "string" && typeof entry.updatedAt === "string" && !Number.isNaN(new Date(entry.updatedAt).getTime());
 }

@@ -16,7 +16,7 @@ export function createFeatureCockpitViewModel(feature, report) {
         qaRuns: qaStep?.documents.length ?? 0,
         qaFailures: qaStep?.documents.filter((document) => document.businessVerdict === "fail").length ?? 0,
         debtDocuments: debtStep?.documents.length ?? 0,
-        handoffSignals: report.warnings.filter((warning) => warning.toLowerCase().includes("handoff")).length,
+        handoffSignals: report.transversalDocuments.find((state) => state.type === "handoff")?.documents.length ?? 0,
     };
 }
 function symbol(status) {

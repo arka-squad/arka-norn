@@ -24,6 +24,9 @@ export function presentPipelineReport(report: PipelineReport): string {
       `${count > 0 ? ` documents=${count}` : ""}`,
     );
   }
+  for (const transversal of report.transversalDocuments) {
+    lines.push(`[--] ${transversal.type.padEnd(30)} transversal documents=${transversal.documents.length}`);
+  }
   if (report.latestCrDevId !== undefined) lines.push("", `Dernier CR Dev : ${report.latestCrDevId}`);
   if (report.selectedQaId !== undefined) lines.push(`Recette retenue : ${report.selectedQaId}`);
   if (report.errors.length > 0) lines.push("", "Erreurs :", ...report.errors.map((error) => `- ${error}`));

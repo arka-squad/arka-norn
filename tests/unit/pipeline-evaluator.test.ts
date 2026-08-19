@@ -71,7 +71,14 @@ test("la sélection multiple est indépendante de l'ordre disque", () => {
 test("une QA vers un CR inconnu invalide le graphe", () => {
   const report = evaluate([concept(), cr("cr-1", 1, "2026-08-19T10:00:00.000Z"), qa("qa-forged", 1, "cr-unknown", "pass")]);
   assert.equal(report.overallStatus, "invalid");
-  assert.match(report.errors[0] ?? "", /unknown CR Dev/);
+  assert.ok(report.errors.some((error) => /unknown CR Dev/.test(error)));
+});
+
+test("les identifiants dupliqués et les cardinalités singleton invalident le graphe", () => {
+  const report = evaluate([concept(), document("concept", "concept-1")]);
+  assert.equal(report.overallStatus, "invalid");
+  assert.ok(report.errors.some((error) => error.includes("Duplicate document id")));
+  assert.ok(report.errors.some((error) => error.includes("allows one document")));
 });
 
 test("les fichiers inconnus sont signalés sans disparaître", () => {
@@ -106,11 +113,17 @@ function concept(): EvaluatedDocument {
 }
 
 function cr(id: string, sequence: number, createdAt: string): EvaluatedDocument {
-  return document("cr_dev", id, { sequence, createdAt, businessVerdict: "livre" });
+  return document("cr_dev", id, { sequence, createdAt, businessVerdict: "livre", dependencyDocumentIds: ["concept-1"] });
 }
 
 function qa(id: string, sequence: number, crDevId: string, businessVerdict: string): EvaluatedDocument {
-  return document("recette_qa", id, { sequence, createdAt: `2026-08-19T${String(sequence + 12).padStart(2, "0")}:00:00.000Z`, crDevId, businessVerdict });
+  return document("recette_qa", id, {
+    sequence,
+    createdAt: `2026-08-19T${String(sequence + 12).padStart(2, "0")}:00:00.000Z`,
+    crDevId,
+    businessVerdict,
+    dependencyDocumentIds: [crDevId],
+  });
 }
 
 function document(
@@ -125,6 +138,7 @@ function document(
     filePath: `/feature/${type}-${id}.json`,
     valid: true,
     errors: [],
+    dependencyDocumentIds: [],
     content: {},
     ...options,
   };

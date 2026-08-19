@@ -1,8 +1,10 @@
 import { homedir } from "node:os";
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { FeatureAlreadyExistsError, FeatureNotFoundError } from "../../../domain/errors.js";
 import { readJson, readRaw, writeJsonAtomic } from "./_shared/atomic-json.js";
 import { withFileLock } from "./_shared/file-lock.js";
+import { isFeatureIndexFile } from "./_shared/index-codec.js";
 export class FsFeatureIndexStore {
     home;
     logger;
@@ -67,7 +69,7 @@ export class FsFeatureIndexStore {
         }
         if (value === undefined)
             return undefined;
-        if (!isIndex(value)) {
+        if (!isFeatureIndexFile(value)) {
             await this.backupCorruption("schema validation failed");
             return undefined;
         }
@@ -77,7 +79,7 @@ export class FsFeatureIndexStore {
         const raw = await readRaw(this.indexPath());
         if (raw === undefined)
             return;
-        const backupPath = join(this.home, ".arka-norn", "backups", "last-feature-index-corruption.json");
+        const backupPath = join(this.home, ".arka-norn", "backups", `feature-index-${Date.now()}-${randomUUID()}-corruption.json`);
         this.logger?.warn("feature-index corruption; using empty cache", { reason, backupPath });
         await writeJsonAtomic(backupPath, { schemaVersion: 1, savedAt: new Date().toISOString(), reason, raw });
     }
@@ -87,18 +89,5 @@ function serialize(entry) {
 }
 function deserialize(entry) {
     return { ...entry, updatedAt: new Date(entry.updatedAt) };
-}
-function isIndex(value) {
-    if (typeof value !== "object" || value === null)
-        return false;
-    const index = value;
-    return index.schemaVersion === 2 && Array.isArray(index.entries) && index.entries.every(isEntry);
-}
-function isEntry(value) {
-    if (typeof value !== "object" || value === null)
-        return false;
-    const entry = value;
-    return typeof entry.id === "string" && typeof entry.projectId === "string" && typeof entry.root === "string" &&
-        typeof entry.name === "string" && typeof entry.updatedAt === "string" && !Number.isNaN(new Date(entry.updatedAt).getTime());
 }
 //# sourceMappingURL=fs-feature-index-store.js.map

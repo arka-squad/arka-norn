@@ -4,7 +4,8 @@
   "title": "Invariants figés avant code",
   "description": "Document du framework méthodologique agent-agnostique qui fige les invariants d'une feature avant toute spec technique. Un invariant N1 fige un contrat non interprétable à l'implémentation (rôles, structures, ordres d'arbitrage, politiques). Un invariant N2 fige des valeurs ou seuils qui doivent être recettés sur données réelles avant toute généralisation. Ce document ne fige jamais de valeur N2 : il ne fait que déclarer, pour chaque N1, à quelle section du plan il se rattache et de quelle tâche il dépend.",
   "type": "object",
-  "additionalProperties": false,
+  "allOf": [{ "$ref": "document-envelope.schema.json" }],
+  "unevaluatedProperties": false,
   "properties": {
     "id": {
       "type": "string",
@@ -73,8 +74,13 @@
   "required": ["id", "type", "tache_id", "sources_plan", "depend_de", "date", "invariants"],
   "examples": [
     {
+      "schema_version": 2,
       "id": "invariants-figes-t02",
+      "feature_id": "example-feature",
       "type": "invariants_figes",
+      "sequence": 1,
+      "created_at": "2026-08-18T12:00:00.000Z",
+      "depends_on_document_ids": ["audit-etat-reel-p2-041"],
       "tache_id": "T02",
       "sources_plan": ["PLAN v2.2 §16", "§5"],
       "depend_de": ["T01"],

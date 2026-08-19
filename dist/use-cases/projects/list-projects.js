@@ -1,10 +1,11 @@
+import { mapConcurrent } from "../../application/shared/map-concurrent.js";
 export function listProjectsUseCaseFactory(deps) {
     return async () => {
-        const projects = [];
-        for (const entry of await deps.indexStore.load()) {
+        const entries = await deps.indexStore.load();
+        const projects = await mapConcurrent(entries, 8, async (entry) => {
             try {
                 const project = await deps.projectStore.load(entry.root);
-                projects.push(project.updatedAt.getTime() === entry.updatedAt.getTime() ? project : project.touched(entry.updatedAt));
+                return project.updatedAt.getTime() === entry.updatedAt.getTime() ? project : project.touched(entry.updatedAt);
             }
             catch (error) {
                 deps.logger.warn("listProjects: unreadable marker skipped", {
@@ -12,9 +13,10 @@ export function listProjectsUseCaseFactory(deps) {
                     root: entry.root,
                     error: error instanceof Error ? error.message : String(error),
                 });
+                return undefined;
             }
-        }
-        return projects;
+        });
+        return projects.filter((project) => project !== undefined);
     };
 }
 //# sourceMappingURL=list-projects.js.map

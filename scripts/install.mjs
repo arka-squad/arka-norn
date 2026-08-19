@@ -29,6 +29,7 @@ import path from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { FRAMEWORK_ROOT } from "./lib.mjs";
+import { parseStrictArguments } from "../dist/adapters/inbound/cli/strict-arguments.js";
 
 // arka-norn est un outil central (installé une fois, lié globalement via
 // `npm link`, commande `arka-norn` dans le PATH) -- PAS copié dans chaque
@@ -169,25 +170,28 @@ policy:
 }
 
 export function runInstall(argv, runtime = {}) {
-  const global = argv.includes("--global");
-  const dryRun = argv.includes("--dry-run");
-  const force = argv.includes("--force");
   const json = argv.includes("--json");
-  const targetIdx = argv.indexOf("--target");
-  const profileIdx = argv.indexOf("--profile");
-  const profile = profileIdx === -1 ? "all" : argv[profileIdx + 1];
+  let parsed;
+  try {
+    parsed = parseStrictArguments(argv, {
+      options: { global: "boolean", "dry-run": "boolean", force: "boolean", json: "boolean", target: "string", profile: "string" },
+      minPositionals: 0,
+      maxPositionals: 0,
+    });
+  } catch (error) {
+    console.error(`Usage : arka-norn install [--target <repo>] [--global] [--profile all|core|delivery] [--dry-run] [--force] [--json]\nERREUR — ${error instanceof Error ? error.message : String(error)}`);
+    process.exitCode = 64;
+    return;
+  }
+  const global = parsed.booleans.has("global");
+  const dryRun = parsed.booleans.has("dry-run");
+  const force = parsed.booleans.has("force");
+  const profile = parsed.values.get("profile") ?? "all";
   // Défaut = dossier courant (cwd), PAS un chemin lié à où vit arka-norn
   // lui-même (installé une fois, ailleurs, indépendant du dépôt cible).
   // Comportement standard d'un outil CLI global : agir sur le cwd sauf
   // --target explicite.
-  const targetRoot = targetIdx !== -1 && argv[targetIdx + 1] ? path.resolve(argv[targetIdx + 1]) : process.cwd();
-  const allowed = new Set(["--global", "--dry-run", "--force", "--json", "--target", "--profile"]);
-  const unknown = argv.filter((value, index) => !allowed.has(value) && argv[index - 1] !== "--target" && argv[index - 1] !== "--profile");
-  if (unknown.length > 0 || (targetIdx !== -1 && !argv[targetIdx + 1]) || (profileIdx !== -1 && !argv[profileIdx + 1])) {
-    console.error("Usage : arka-norn install [--target <repo>] [--global] [--profile all|core|delivery] [--dry-run] [--force] [--json]");
-    process.exitCode = 64;
-    return;
-  }
+  const targetRoot = path.resolve(parsed.values.get("target") ?? process.cwd());
 
   let defs;
   try {

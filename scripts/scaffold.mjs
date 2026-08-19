@@ -2,19 +2,22 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createPipelineRuntime } from "../dist/composition/pipeline-runtime.js";
+import { parseStrictArguments } from "../dist/adapters/inbound/cli/strict-arguments.js";
 
 const FRAMEWORK_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 export async function runScaffold(argv) {
-  const force = argv.includes("--force");
   const json = argv.includes("--json");
-  const positional = argv.filter((value) => value !== "--force" && value !== "--json");
-  if (positional.length !== 2) {
-    console.error("Usage : arka-norn scaffold [--force] [--json] <step-id> <fichier-sortie.json>");
+  let parsed;
+  try {
+    parsed = parseStrictArguments(argv, { options: { force: "boolean", json: "boolean" }, minPositionals: 2, maxPositionals: 2 });
+  } catch (error) {
+    console.error(`Usage : arka-norn scaffold [--force] [--json] <step-id> <fichier-sortie.json>\nERREUR — ${error instanceof Error ? error.message : String(error)}`);
     process.exitCode = 64;
     return;
   }
-  const [stepId, output] = positional;
+  const force = parsed.booleans.has("force");
+  const [stepId, output] = parsed.positionals;
   const outputPath = path.resolve(output);
   try {
     const result = await createPipelineRuntime(FRAMEWORK_ROOT).scaffold({ stepId, outputPath, force });

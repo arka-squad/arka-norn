@@ -26,8 +26,8 @@ export function loadPipeline() {
 export function findStepForType(pipeline, type) {
   const step = pipeline.steps.find((s) => s.id === type);
   if (step) return step;
-  if (pipeline.transversal && type === "handoff") {
-    return { id: "handoff", ...pipeline.transversal.handoff, obligatoire: false, multiple: true, depend_de: [] };
+  if (pipeline.transversal && pipeline.transversal[type]) {
+    return { id: type, ...pipeline.transversal[type], obligatoire: false, multiple: true, depend_de: [] };
   }
   return null;
 }
@@ -41,6 +41,7 @@ ajv.addFormat("date-time", {
   type: "string",
   validate: (value) => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/.test(value) && !Number.isNaN(Date.parse(value)),
 });
+ajv.addSchema(loadJson(path.join(FRAMEWORK_ROOT, "schemas", "document-envelope.schema.json")));
 const validatorCache = new Map();
 
 /** Compile (avec cache) le validateur Ajv pour un schema donné, référencé relativement à FRAMEWORK_ROOT. */

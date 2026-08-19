@@ -39,9 +39,11 @@ import type { ForFeatures } from "../ports/inbound/for-features.js";
 import type { ForScan } from "../ports/inbound/for-scan.js";
 import type { ForScanProjects } from "../ports/inbound/for-scan-projects.js";
 import type { ForPipeline } from "../ports/inbound/for-pipeline.js";
+import { mapConcurrent } from "../application/shared/map-concurrent.js";
 import type { Env } from "./env.js";
 import { createManagementRuntime } from "./management-runtime.js";
 import { createPipelineRuntime } from "./pipeline-runtime.js";
+import { createDoctorRuntime } from "./doctor-runtime.js";
 
 export interface Container {
   readonly env: Env;
@@ -276,10 +278,10 @@ export function createContainer(env: Env): Container {
   async function openProjectDetail(project: Project): Promise<void> {
     uiState.currentProject = project;
     const initialFeatures = (await features.list()).filter((feature) => feature.belongsTo(project.id));
-    const initialMetrics = new Map(await Promise.all(initialFeatures.map(async (feature) => {
+    const initialMetrics = new Map(await mapConcurrent(initialFeatures, 4, async (feature) => {
       const report = await pipeline.inspect({ featureRoot: feature.root, featureId: feature.id.value });
       return [feature.id.value, metricsFromReport(report)] as const;
-    })));
+    }));
     const initialStatuses = new Map([...initialMetrics].map(([id, metrics]) => [id, metrics.status] as const));
     app.push(
       createProjectDetailView({
@@ -295,7 +297,6 @@ export function createContainer(env: Env): Container {
           uiState.currentFeature = feature;
         },
         onOpenFeature: (feature) => openFeatureDetail(feature),
-        statusForFeature: async (feature) => (await pipeline.inspect({ featureRoot: feature.root, featureId: feature.id.value })).overallStatus,
         metricsForFeature: async (feature) => metricsFromReport(await pipeline.inspect({ featureRoot: feature.root, featureId: feature.id.value })),
         onForget: (selectedProject) => {
           confirmForgetProject(selectedProject);
@@ -323,7 +324,10 @@ export function createContainer(env: Env): Container {
     },
     async createHomeView(): Promise<HomeView> {
       const initialProjects = await projects.list();
-      const skillHealth = await skillManager.inspect(env.cwd);
+      const [skillHealth, systemHealth] = await Promise.all([
+        skillManager.inspect(env.cwd),
+        createDoctorRuntime(homeDir, env.cwd).run(),
+      ]);
       return createHomeView({
         initialProjects,
         projects,
@@ -331,6 +335,7 @@ export function createContainer(env: Env): Container {
         cwd: env.cwd,
         contextRoot: uiState.contextRoot,
         skillHealth: `${skillHealth.healthy}/${skillHealth.total} sains · ${skillHealth.missing} absents · ${skillHealth.divergent} divergents`,
+        systemHealth: `${systemHealth.summary.pass} PASS · ${systemHealth.summary.warn} WARN · ${systemHealth.summary.fail} FAIL`,
         redraw: () => app.redraw(),
         onProjectFocused: (project) => {
           uiState.currentProject = project;
@@ -351,7 +356,7 @@ function metricsFromReport(report: Awaited<ReturnType<ForPipeline["inspect"]>>):
     status: report.overallStatus,
     debtDocuments: debts?.documents.length ?? 0,
     qaFailures: qa?.documents.filter((document) => document.businessVerdict === "fail").length ?? 0,
-    handoffSignals: report.warnings.filter((warning) => warning.toLowerCase().includes("handoff")).length,
+    handoffSignals: report.transversalDocuments.find((state) => state.type === "handoff")?.documents.length ?? 0,
     invalidDocuments: report.steps.reduce((count, step) => count + step.documents.filter((document) => !document.valid).length, 0),
   };
 }

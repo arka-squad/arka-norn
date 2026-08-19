@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -112,6 +112,49 @@ test("la TUI refuse un environnement non interactif sans écrire sur stdout", ()
   assert.equal(result.status, 1);
   assert.equal(result.stdout, "");
   assert.match(result.stderr, /nécessite un terminal interactif/);
+});
+
+test("doctor respecte ARKA_NORN_HOME et refuse toute option inconnue", (context) => {
+  const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-doctor-cli-"));
+  context.after(() => rmSync(sandbox, { recursive: true, force: true }));
+  const operatingSystemHome = resolve(sandbox, "os-home");
+  const configuredHome = resolve(sandbox, "configured-home");
+  mkdirSync(resolve(operatingSystemHome, ".arka-norn", "index"), { recursive: true });
+  mkdirSync(resolve(configuredHome, ".arka-norn", "index"), { recursive: true });
+  writeFileSync(resolve(operatingSystemHome, ".arka-norn", "index", "projects.json"), '{"schemaVersion":2,"entries":[]}\n', { mode: 0o600 });
+  writeFileSync(resolve(configuredHome, ".arka-norn", "index", "projects.json"), '{"schemaVersion":2,"entries":[{}]}\n', { mode: 0o600 });
+
+  const configured = spawnSync(process.execPath, [BIN, "doctor", "--json"], {
+    cwd: ROOT,
+    encoding: "utf8",
+    env: { ...process.env, HOME: operatingSystemHome, ARKA_NORN_HOME: configuredHome },
+  });
+  assert.equal(configured.status, 3);
+  assert.match(configured.stdout, /schema invalid/);
+
+  const unknown = spawnSync(process.execPath, [BIN, "doctor", "--bogus", "--json"], {
+    cwd: ROOT,
+    encoding: "utf8",
+    env: { ...process.env, HOME: operatingSystemHome, ARKA_NORN_HOME: configuredHome },
+  });
+  assert.equal(unknown.status, 64);
+  assert.match(unknown.stdout, /unknown option/);
+});
+
+test("toutes les commandes scriptées refusent les options inconnues", () => {
+  const commands = [
+    ["status", EXAMPLE, "--bogus"],
+    ["scaffold", "concept", resolve(ROOT, ".input", "unused.json"), "--bogus"],
+    ["validate", resolve(EXAMPLE, "01-concept.json"), "--bogus"],
+    ["pipeline", "status", EXAMPLE, "--bogus"],
+    ["skills", "list", "--bogus"],
+    ["migrate", "--bogus"],
+    ["install", "--bogus"],
+  ];
+  for (const args of commands) {
+    const result = runCli(args);
+    assert.equal(result.status, 64, `${args.join(" ")}\n${result.stdout}\n${result.stderr}`);
+  }
 });
 
 function runCli(args: readonly string[]) {

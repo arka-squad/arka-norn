@@ -13,6 +13,9 @@ export function presentPipelineReport(report) {
             `presence=${step.presenceStatus} schema=${step.schemaStatus} métier=${step.businessStatus} dépendances=${step.dependencyStatus} final=${step.completionStatus}` +
             `${count > 0 ? ` documents=${count}` : ""}`);
     }
+    for (const transversal of report.transversalDocuments) {
+        lines.push(`[--] ${transversal.type.padEnd(30)} transversal documents=${transversal.documents.length}`);
+    }
     if (report.latestCrDevId !== undefined)
         lines.push("", `Dernier CR Dev : ${report.latestCrDevId}`);
     if (report.selectedQaId !== undefined)

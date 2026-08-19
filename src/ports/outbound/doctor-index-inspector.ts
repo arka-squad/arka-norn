@@ -7,4 +7,5 @@ export interface IndexInspection {
 
 export interface DoctorIndexInspector {
   inspectIndex(kind: "projects" | "features", repair: boolean, apply: boolean): Promise<IndexInspection>;
+  inspectRuntime(repair: boolean, apply: boolean): Promise<readonly IndexInspection[]>;
 }

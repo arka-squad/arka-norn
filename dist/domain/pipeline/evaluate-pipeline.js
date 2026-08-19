@@ -8,9 +8,16 @@ export function evaluatePipeline(input) {
     ].sort();
     const warnings = unknownFiles.map((file) => `Unknown pipeline document: ${file}`);
     const errors = [...(input.sourceErrors ?? [])];
+    const transversalTypes = new Set(input.transversalDocumentTypes ?? []);
+    for (const document of knownDocuments.filter((candidate) => candidate.type !== undefined && transversalTypes.has(candidate.type) && !candidate.valid)) {
+        errors.push(...document.errors.map((error) => `${document.filePath}: ${error}`));
+    }
+    validateDocumentGraph(input, knownDocuments, errors);
     for (const document of knownDocuments) {
-        if (input.featureId !== undefined && document.featureId !== undefined && document.featureId !== input.featureId) {
-            errors.push(`Document ${document.filePath} belongs to feature ${document.featureId}, expected ${input.featureId}.`);
+        if (input.featureId !== undefined && document.featureId !== input.featureId) {
+            errors.push(document.featureId === undefined
+                ? `Document ${document.filePath} has no feature_id; expected ${input.featureId}.`
+                : `Document ${document.filePath} belongs to feature ${document.featureId}, expected ${input.featureId}.`);
         }
     }
     const crDocuments = validDocuments(knownDocuments, "cr_dev");
@@ -30,6 +37,9 @@ export function evaluatePipeline(input) {
     const states = new Map();
     for (const definition of [...input.steps].sort((a, b) => a.order - b.order)) {
         const documents = knownDocuments.filter((document) => document.type === definition.id);
+        if (!definition.multiple && documents.length > 1) {
+            errors.push(`Step ${definition.id} allows one document, found ${documents.length}.`);
+        }
         const dependencyStatus = definition.dependsOn.every((dependency) => states.get(dependency)?.completionStatus === "completed")
             ? "satisfied"
             : "unsatisfied";
@@ -55,6 +65,10 @@ export function evaluatePipeline(input) {
         });
     }
     const steps = [...states.values()];
+    const transversalDocuments = [...transversalTypes].sort().map((type) => ({
+        type,
+        documents: knownDocuments.filter((document) => document.type === type).map(withoutContent),
+    }));
     const nextActions = steps.flatMap((step) => step.nextActions).slice(0, 1);
     const overallStatus = overallStatusFor(steps, errors);
     return {
@@ -66,11 +80,72 @@ export function evaluatePipeline(input) {
         ...(latestCr?.id !== undefined ? { latestCrDevId: latestCr.id } : {}),
         ...(selectedQa?.id !== undefined ? { selectedQaId: selectedQa.id } : {}),
         steps,
+        transversalDocuments,
         nextActions,
         errors,
         warnings,
         unknownFiles,
     };
+}
+function validateDocumentGraph(input, documents, errors) {
+    const byId = new Map();
+    for (const document of documents) {
+        if (document.id === undefined) {
+            errors.push(`Document ${document.filePath} has no id.`);
+            continue;
+        }
+        const previous = byId.get(document.id);
+        if (previous !== undefined)
+            errors.push(`Duplicate document id ${document.id}: ${previous.filePath} and ${document.filePath}.`);
+        else
+            byId.set(document.id, document);
+    }
+    for (const document of documents) {
+        for (const dependencyId of document.dependencyDocumentIds) {
+            if (dependencyId === document.id)
+                errors.push(`Document ${document.filePath} depends on itself.`);
+            else if (!byId.has(dependencyId))
+                errors.push(`Document ${document.filePath} references unknown document ${dependencyId}.`);
+        }
+    }
+    validateRequiredStepRelations(input, documents, byId, errors);
+    validateAcyclicGraph(byId, errors);
+}
+function validateRequiredStepRelations(input, documents, byId, errors) {
+    for (const step of input.steps) {
+        for (const document of documents.filter((candidate) => candidate.type === step.id)) {
+            const referencedTypes = new Set(document.dependencyDocumentIds.map((id) => byId.get(id)?.type).filter((type) => type !== undefined));
+            for (const dependencyType of step.dependsOn) {
+                if (!referencedTypes.has(dependencyType)) {
+                    errors.push(`Document ${document.filePath} must reference a ${dependencyType} document.`);
+                }
+            }
+            if (document.type === "recette_qa" && document.crDevId !== undefined && !document.dependencyDocumentIds.includes(document.crDevId)) {
+                errors.push(`QA ${document.filePath} must include cr_dev_id ${document.crDevId} in depends_on_document_ids.`);
+            }
+        }
+    }
+}
+function validateAcyclicGraph(byId, errors) {
+    const visiting = new Set();
+    const visited = new Set();
+    const visit = (id) => {
+        if (visited.has(id))
+            return;
+        if (visiting.has(id)) {
+            errors.push(`Document dependency cycle detected at ${id}.`);
+            return;
+        }
+        visiting.add(id);
+        for (const dependencyId of byId.get(id)?.dependencyDocumentIds ?? []) {
+            if (byId.has(dependencyId))
+                visit(dependencyId);
+        }
+        visiting.delete(id);
+        visited.add(id);
+    };
+    for (const id of byId.keys())
+        visit(id);
 }
 export function selectLatestRun(documents) {
     return [...documents].sort((left, right) => {

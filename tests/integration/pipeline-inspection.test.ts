@@ -49,11 +49,27 @@ test("un nouveau CR rend une ancienne QA pass obsolète jusqu'à la nouvelle rec
     ref: "REC-CORTEX-ingestion_t23-20260701-02",
     sequence: 2,
     created_at: "2026-07-01T19:00:00.000Z",
-    cr_dev_id: "cr-dev-cortex-lot5-connecteurs-20260701-02"
+    cr_dev_id: "cr-dev-cortex-lot5-connecteurs-20260701-02",
+    depends_on_document_ids: ["cr-dev-cortex-lot5-connecteurs-20260701-02"]
   }, null, 2)}\n`, "utf8");
   const current = await runtime.inspect({ featureRoot: sandbox });
   assert.equal(current.overallStatus, "completed");
   assert.equal(current.selectedQaId, "rec-cortex-ingestion-t23-20260701-02");
+});
+
+test("les handoffs sont validés et exposés comme documents transversaux", async (context) => {
+  const sandbox = copyExample(context);
+  const runtime = createPipelineRuntime(ROOT);
+  const valid = await runtime.inspect({ featureRoot: sandbox, featureId: "connecteurs-notion-linear" });
+  const handoffs = valid.transversalDocuments.find((state) => state.type === "handoff");
+  assert.equal(handoffs?.documents.length, 1);
+  assert.equal(handoffs?.documents[0]?.valid, true);
+
+  writeFileSync(resolve(sandbox, "11-handoff.json"), '{"type":"handoff"}\n', "utf8");
+  const invalid = await runtime.inspect({ featureRoot: sandbox, featureId: "connecteurs-notion-linear" });
+  assert.equal(invalid.overallStatus, "invalid");
+  assert.equal(invalid.transversalDocuments[0]?.documents[0]?.valid, false);
+  assert.ok(invalid.errors.some((error) => error.includes("11-handoff.json")));
 });
 
 test("JSON malformé invalide le rapport et type inconnu reste visible", async (context) => {

@@ -20,6 +20,9 @@ test("la CLI couvre le cycle Project/Feature et reconstruit les index", (context
   assert.equal(project.status, 0, project.stderr);
   assert.equal(project.json.data.id, "product");
   assert.equal(run<readonly unknown[]>(["project", "list", "--json"], home, workspace).json.data.length, 1);
+  const ignoredOption = run(["project", "list", "--name", "ignored", "--json"], home, workspace);
+  assert.equal(ignoredOption.status, 64);
+  assert.equal(ignoredOption.json.ok, false);
   const humanList = runRaw(["project", "list"], home, workspace);
   assert.equal(humanList.status, 0);
   assert.match(humanList.stdout, /^product\tProduct\t/);

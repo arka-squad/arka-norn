@@ -27,6 +27,7 @@ export interface HomeViewDeps {
   readonly onOpenProject?: (project: Project) => Promise<void> | void;
   readonly onInstallSkills?: () => Promise<void> | void;
   readonly skillHealth?: string;
+  readonly systemHealth?: string;
 }
 
 export interface HomeView extends Scene {}
@@ -91,10 +92,11 @@ export function createHomeView(deps: HomeViewDeps): HomeView {
       });
       return;
     }
-    await deps.onInstallSkills?.();
+    await run(async () => { await deps.onInstallSkills?.(); });
   }
 
   async function submitCreate(): Promise<void> {
+    if (busy) return;
     const root = createPath.trim();
     if (root.length === 0) {
       message = "Le chemin ne peut pas être vide.";
@@ -150,7 +152,7 @@ export function createHomeView(deps: HomeViewDeps): HomeView {
       if (mode === "create") {
         if (event.kind === "escape") {
           mode = "menu";
-        } else if (event.kind === "enter") {
+        } else if (event.kind === "enter" && !busy) {
           void submitCreate();
         } else if (event.kind === "backspace") {
           createPath = createPath.slice(0, -1);
@@ -179,7 +181,7 @@ export function createHomeView(deps: HomeViewDeps): HomeView {
 
   function renderHome(theme: Theme): readonly string[] {
     const lines = [
-      ...titledBox("Bienvenue", [`Runtime : Node ${process.version}`, `Racine  : ${deps.contextRoot}`], theme, { border: theme.arkaRed }).split("\n"),
+      ...titledBox("Bienvenue", [`Runtime : Node ${process.version}`, `Racine  : ${deps.contextRoot}`, `Santé   : ${deps.systemHealth ?? "inconnue"}`], theme, { border: theme.arkaRed }).split("\n"),
       "",
       `  ${theme.bold("Projets")}`,
     ];

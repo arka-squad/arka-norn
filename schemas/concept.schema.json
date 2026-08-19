@@ -4,7 +4,8 @@
   "title": "Concept fonctionnel",
   "description": "Schéma d'un document de concept fonctionnel dans le framework méthodologique cortex.deck. Ce document ouvre le cycle de vie d'une feature : il fixe le périmètre, les hypothèses tranchées, le principe directeur et le résumé exécutif avant tout travail de plan ou d'audit. Ce schéma est destiné à être suivi mécaniquement par tout agent (Claude Code, Codex CLI, Antigravity, ou autre) — la structure des champs fait autorité, indépendamment de la prose qui peut l'accompagner.",
   "type": "object",
-  "additionalProperties": false,
+  "allOf": [{ "$ref": "document-envelope.schema.json" }],
+  "unevaluatedProperties": false,
   "required": [
     "id",
     "type",
@@ -123,8 +124,13 @@
   },
   "examples": [
     {
+      "schema_version": 2,
       "id": "concept-001",
+      "feature_id": "example-feature",
       "type": "concept",
+      "sequence": 1,
+      "created_at": "2026-08-18T08:00:00.000Z",
+      "depends_on_document_ids": [],
       "titre": "Concept fonctionnel — exemple minimal",
       "version": "1.0",
       "date": "2026-08-18",

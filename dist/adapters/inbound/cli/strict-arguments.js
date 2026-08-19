@@ -1,0 +1,78 @@
+export class CliUsageError extends Error {
+    constructor(message) {
+        super(message);
+        this.name = "CliUsageError";
+    }
+}
+export function parseStrictArguments(argv, spec = {}) {
+    const definitions = spec.options ?? {};
+    const positionals = [];
+    const values = new Map();
+    const booleans = new Set();
+    let positionalOnly = false;
+    for (let index = 0; index < argv.length; index += 1) {
+        const token = argv[index];
+        if (positionalOnly) {
+            positionals.push(token);
+            continue;
+        }
+        if (token === "--") {
+            positionalOnly = true;
+            continue;
+        }
+        if (!token.startsWith("--")) {
+            if (token.startsWith("-"))
+                throw new CliUsageError(`unknown option: ${token}`);
+            positionals.push(token);
+            continue;
+        }
+        const separator = token.indexOf("=");
+        const name = token.slice(2, separator === -1 ? undefined : separator);
+        const inlineValue = separator === -1 ? undefined : token.slice(separator + 1);
+        const kind = definitions[name];
+        if (kind === undefined)
+            throw new CliUsageError(`unknown option: --${name}`);
+        if (values.has(name) || booleans.has(name))
+            throw new CliUsageError(`--${name} may only be provided once`);
+        if (kind === "boolean") {
+            if (inlineValue !== undefined)
+                throw new CliUsageError(`--${name} does not accept a value`);
+            booleans.add(name);
+            continue;
+        }
+        const value = inlineValue ?? argv[index + 1];
+        if (value === undefined || value.length === 0 || (inlineValue === undefined && value.startsWith("--"))) {
+            throw new CliUsageError(`--${name} requires a value`);
+        }
+        values.set(name, value);
+        if (inlineValue === undefined)
+            index += 1;
+    }
+    validatePositionals(positionals, spec);
+    validateOptionRelations(values, booleans, spec);
+    return { positionals, values, booleans };
+}
+function validatePositionals(positionals, spec) {
+    const minimum = spec.minPositionals ?? 0;
+    const maximum = spec.maxPositionals ?? Number.POSITIVE_INFINITY;
+    if (positionals.length < minimum || positionals.length > maximum) {
+        const expected = minimum === maximum ? String(minimum) : `${minimum}..${maximum === Number.POSITIVE_INFINITY ? "n" : maximum}`;
+        throw new CliUsageError(`expected ${expected} positional argument(s), received ${positionals.length}`);
+    }
+}
+function validateOptionRelations(values, booleans, spec) {
+    const present = (name) => values.has(name) || booleans.has(name);
+    for (const group of spec.exclusiveGroups ?? []) {
+        const selected = group.filter(present);
+        if (selected.length > 1)
+            throw new CliUsageError(`options ${selected.map((name) => `--${name}`).join(" and ")} are mutually exclusive`);
+    }
+    for (const [name, requirements] of Object.entries(spec.requires ?? {})) {
+        if (!present(name))
+            continue;
+        const missing = requirements.filter((requirement) => !present(requirement));
+        if (missing.length > 0)
+            throw new CliUsageError(`--${name} requires ${missing.map((requirement) => `--${requirement}`).join(", ")}`);
+    }
+}
+//# sourceMappingURL=strict-arguments.js.map

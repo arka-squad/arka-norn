@@ -7,6 +7,7 @@ import type { Feature } from "../../../domain/feature/feature.js";
 import { ProjectId } from "../../../domain/project/project-id.js";
 import type { Project } from "../../../domain/project/project.js";
 import { createManagementRuntime } from "../../../composition/management-runtime.js";
+import { CliUsageError, parseStrictArguments, type StrictArguments, type StrictArgumentSpec } from "./strict-arguments.js";
 
 export interface CliExecution {
   readonly code: number;
@@ -29,7 +30,7 @@ export async function runManagementCommand(argv: readonly string[], context: Man
   try {
     if (resource !== "project" && resource !== "feature") throw new UsageError("resource must be project or feature");
     if (action === undefined) throw new UsageError(`missing ${resource} action`);
-    const parsed = parseArguments(argv.slice(2));
+    const parsed = parseStrictArguments(argv.slice(2), argumentSpec(resource, action));
     const runtime = createManagementRuntime({ homeDir: context.homeDir });
     const data = resource === "project"
       ? await executeProject(action, parsed, runtime, context)
@@ -137,32 +138,30 @@ async function executeFeature(action: string, args: ParsedArguments, runtime: Ru
   }
 }
 
-interface ParsedArguments {
-  readonly positionals: readonly string[];
-  readonly values: ReadonlyMap<string, string>;
-  readonly booleans: ReadonlySet<string>;
-}
+type ParsedArguments = StrictArguments;
 
-const VALUE_OPTIONS = new Set(["name", "id", "project", "path"]);
-const BOOLEAN_OPTIONS = new Set(["json", "yes"]);
-
-function parseArguments(argv: readonly string[]): ParsedArguments {
-  const positionals: string[] = [];
-  const values = new Map<string, string>();
-  const booleans = new Set<string>();
-  for (let index = 0; index < argv.length; index++) {
-    const token = argv[index]!;
-    if (!token.startsWith("--")) { positionals.push(token); continue; }
-    const name = token.slice(2);
-    if (BOOLEAN_OPTIONS.has(name)) { booleans.add(name); continue; }
-    if (!VALUE_OPTIONS.has(name)) throw new UsageError(`unknown option: ${token}`);
-    const value = argv[index + 1];
-    if (value === undefined || value.startsWith("--")) throw new UsageError(`${token} requires a value`);
-    if (values.has(name)) throw new UsageError(`${token} may only be provided once`);
-    values.set(name, value);
-    index++;
-  }
-  return { positionals, values, booleans };
+function argumentSpec(resource: "project" | "feature", action: string): StrictArgumentSpec {
+  const json = { json: "boolean" as const };
+  const key = `${resource}.${action}`;
+  const specs: Readonly<Record<string, StrictArgumentSpec>> = {
+    "project.list": { options: json, minPositionals: 0, maxPositionals: 0 },
+    "project.add": { options: { ...json, name: "string", id: "string" }, minPositionals: 1, maxPositionals: 1 },
+    "project.import": { options: json, minPositionals: 1, maxPositionals: 1 },
+    "project.show": { options: json, minPositionals: 1, maxPositionals: 1 },
+    "project.use": { options: json, minPositionals: 1, maxPositionals: 1 },
+    "project.forget": { options: { ...json, yes: "boolean" }, minPositionals: 1, maxPositionals: 1 },
+    "project.scan": { options: json, minPositionals: 0, maxPositionals: 1 },
+    "project.reconcile": { options: json, minPositionals: 0, maxPositionals: 1 },
+    "feature.list": { options: { ...json, project: "string" }, minPositionals: 0, maxPositionals: 0 },
+    "feature.create": { options: { ...json, project: "string", path: "string", id: "string" }, minPositionals: 1, maxPositionals: 1 },
+    "feature.import": { options: { ...json, project: "string" }, minPositionals: 1, maxPositionals: 1 },
+    "feature.show": { options: json, minPositionals: 1, maxPositionals: 1 },
+    "feature.use": { options: json, minPositionals: 1, maxPositionals: 1 },
+    "feature.forget": { options: { ...json, yes: "boolean" }, minPositionals: 1, maxPositionals: 1 },
+    "feature.scan": { options: { ...json, project: "string", path: "string" }, minPositionals: 0, maxPositionals: 0 },
+    "feature.reconcile": { options: { ...json, project: "string", path: "string" }, minPositionals: 0, maxPositionals: 0 },
+  };
+  return specs[key] ?? { options: json };
 }
 
 function requiredValue(args: ParsedArguments, name: string): string {
@@ -217,7 +216,7 @@ function failure(command: string, error: unknown, json: boolean, warnings: reado
 }
 
 function errorCode(error: unknown): number {
-  if (error instanceof UsageError) return 64;
+  if (error instanceof UsageError || error instanceof CliUsageError) return 64;
   if (error instanceof DomainError) {
     if (error.code === "PROJECT_NOT_FOUND" || error.code === "FEATURE_NOT_FOUND" || error.code === "FILE_NOT_FOUND") return 4;
     if (error.code === "PROJECT_ALREADY_EXISTS" || error.code === "FEATURE_ALREADY_EXISTS" || error.code === "LOCK_CONFLICT") return 5;

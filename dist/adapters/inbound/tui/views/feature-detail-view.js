@@ -82,6 +82,8 @@ export function createFeatureDetailView(deps) {
     }
     return {
         onKey(event) {
+            if (busy)
+                return "consumed";
             const result = menu.onKey(event);
             if (event.kind === "enter")
                 return "consumed";

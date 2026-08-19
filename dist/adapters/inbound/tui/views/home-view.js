@@ -60,9 +60,11 @@ export function createHomeView(deps) {
             });
             return;
         }
-        await deps.onInstallSkills?.();
+        await run(async () => { await deps.onInstallSkills?.(); });
     }
     async function submitCreate() {
+        if (busy)
+            return;
         const root = createPath.trim();
         if (root.length === 0) {
             message = "Le chemin ne peut pas être vide.";
@@ -119,7 +121,7 @@ export function createHomeView(deps) {
                 if (event.kind === "escape") {
                     mode = "menu";
                 }
-                else if (event.kind === "enter") {
+                else if (event.kind === "enter" && !busy) {
                     void submitCreate();
                 }
                 else if (event.kind === "backspace") {
@@ -153,7 +155,7 @@ export function createHomeView(deps) {
     };
     function renderHome(theme) {
         const lines = [
-            ...titledBox("Bienvenue", [`Runtime : Node ${process.version}`, `Racine  : ${deps.contextRoot}`], theme, { border: theme.arkaRed }).split("\n"),
+            ...titledBox("Bienvenue", [`Runtime : Node ${process.version}`, `Racine  : ${deps.contextRoot}`, `Santé   : ${deps.systemHealth ?? "inconnue"}`], theme, { border: theme.arkaRed }).split("\n"),
             "",
             `  ${theme.bold("Projets")}`,
         ];

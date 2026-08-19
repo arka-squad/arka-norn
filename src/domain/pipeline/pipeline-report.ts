@@ -31,6 +31,7 @@ export interface DocumentSummary {
   readonly featureId?: string;
   readonly crDevId?: string;
   readonly businessVerdict?: string;
+  readonly dependencyDocumentIds: readonly string[];
 }
 
 export interface StepState {
@@ -48,6 +49,11 @@ export interface StepState {
   readonly nextActions: readonly NextAction[];
 }
 
+export interface TransversalDocumentState {
+  readonly type: string;
+  readonly documents: readonly DocumentSummary[];
+}
+
 export interface PipelineReport {
   readonly schemaVersion: 1;
   readonly pipelineId: string;
@@ -57,6 +63,7 @@ export interface PipelineReport {
   readonly latestCrDevId?: string;
   readonly selectedQaId?: string;
   readonly steps: readonly StepState[];
+  readonly transversalDocuments: readonly TransversalDocumentState[];
   readonly nextActions: readonly NextAction[];
   readonly errors: readonly string[];
   readonly warnings: readonly string[];

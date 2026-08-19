@@ -4,7 +4,8 @@
   "title": "Recette QA",
   "description": "Document de recette QA du framework méthodologique cortex.deck. Consigne le résultat d'une campagne de tests fonctionnels menée sur une feature ou un lot : identité du testeur, environnement et version testés, statut global, périmètre couvert, prérequis, et le détail cas de test par cas de test (étapes, résultat attendu vs obtenu, statut). Ce document est produit après un audit et alimente le suivi des dettes et des tâches. Conçu pour être suivi mécaniquement par tout agent (Claude Code, Codex CLI, Antigravity, ou autre) sans connaissance préalable du projet.",
   "type": "object",
-  "additionalProperties": false,
+  "allOf": [{ "$ref": "document-envelope.schema.json" }],
+  "unevaluatedProperties": false,
   "required": [
     "schema_version",
     "id",
@@ -172,6 +173,7 @@
       "type": "recette_qa",
       "sequence": 1,
       "created_at": "2026-08-18T13:00:00.000Z",
+      "depends_on_document_ids": ["cr-dev-001"],
       "cr_dev_id": "cr-dev-001",
       "ref": "P2-042",
       "date": "2026-08-18",

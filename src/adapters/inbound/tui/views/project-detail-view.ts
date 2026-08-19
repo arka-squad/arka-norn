@@ -7,6 +7,7 @@ import type { Feature } from "../../../../domain/feature/feature.js";
 import type { Project } from "../../../../domain/project/project.js";
 import type { ForFeatures } from "../../../../ports/inbound/for-features.js";
 import type { ForScan } from "../../../../ports/inbound/for-scan.js";
+import { mapConcurrent } from "../../../../application/shared/map-concurrent.js";
 import { titledBox } from "../components/box.js";
 import { createMenuScene, type MenuItem, type MenuScene } from "../components/menu.js";
 import type { KeyEvent } from "../runtime/input.js";
@@ -28,7 +29,6 @@ export interface ProjectDetailViewDeps {
   readonly onFeatureFocused?: (feature: Feature | undefined) => void;
   readonly onOpenFeature?: (feature: Feature) => Promise<void> | void;
   readonly onForget?: (project: Project) => Promise<void> | void;
-  readonly statusForFeature?: (feature: Feature) => Promise<string>;
   readonly metricsForFeature?: (feature: Feature) => Promise<ProjectFeatureMetrics>;
 }
 
@@ -49,6 +49,7 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
   let mode: "menu" | "create" = "menu";
   let createPath = `${deps.project.root}/`;
   let message: string | undefined;
+  let busy = false;
   let menu = buildMenu();
 
   function items(): readonly MenuItem<ProjectAction>[] {
@@ -74,31 +75,37 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
   }
 
   async function select(value: ProjectAction): Promise<void> {
+    if (busy) return;
     if (value.startsWith("feature:")) {
-      const feature = await deps.features.switchTo(FeatureId.of(value.slice("feature:".length)));
-      await deps.onOpenFeature?.(feature);
+      await run(async () => {
+        const feature = await deps.features.switchTo(FeatureId.of(value.slice("feature:".length)));
+        await deps.onOpenFeature?.(feature);
+      });
     } else if (value === "action:create") {
       mode = "create";
       deps.redraw();
     } else if (value === "action:scan") {
-      const results = await deps.scan.scan({ target: deps.project.root, projectId: deps.project.id });
-      await refresh();
-      message = `Scan terminé : ${results.filter((entry) => entry.feature !== undefined).length} feature(s).`;
+      await run(async () => {
+        const results = await deps.scan.scan({ target: deps.project.root, projectId: deps.project.id });
+        await refresh();
+        message = `Scan terminé : ${results.filter((entry) => entry.feature !== undefined).length} feature(s).`;
+      });
     } else if (value === "action:forget") {
-      await deps.onForget?.(deps.project);
+      await run(() => deps.onForget?.(deps.project));
     } else {
       deps.onBack();
     }
   }
 
   async function submit(): Promise<void> {
+    if (busy) return;
     const root = resolve(createPath.trim());
     if (!isContained(deps.project.root, root)) {
       message = `La Feature doit rester dans le Project "${deps.project.root}".`;
       deps.redraw();
       return;
     }
-    try {
+    await run(async () => {
       const name = basename(root);
       try {
         await deps.features.importFrom({ root, projectId: deps.project.id });
@@ -108,22 +115,31 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
       }
       mode = "menu";
       await refresh();
-    } catch (error) {
-      message = error instanceof Error ? error.message : String(error);
-      deps.redraw();
-    }
+    });
   }
 
   async function refresh(): Promise<void> {
     features = (await deps.features.list()).filter((feature) => feature.belongsTo(deps.project.id));
-    if (deps.statusForFeature !== undefined) {
-      statuses = new Map(await Promise.all(features.map(async (feature) => [feature.id.value, await deps.statusForFeature!(feature)] as const)));
-    }
     if (deps.metricsForFeature !== undefined) {
-      metrics = new Map(await Promise.all(features.map(async (feature) => [feature.id.value, await deps.metricsForFeature!(feature)] as const)));
+      metrics = new Map(await mapConcurrent(features, 4, async (feature) => [feature.id.value, await deps.metricsForFeature!(feature)] as const));
+      statuses = new Map([...metrics].map(([id, value]) => [id, value.status] as const));
     }
     menu = buildMenu();
     deps.redraw();
+  }
+
+  async function run(task: () => Promise<void> | void): Promise<void> {
+    if (busy) return;
+    busy = true;
+    deps.redraw();
+    try {
+      await task();
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    } finally {
+      busy = false;
+      deps.redraw();
+    }
   }
 
   return {
@@ -131,7 +147,7 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
     onKey(event: KeyEvent): "pop" | "consumed" | undefined {
       if (mode === "create") {
         if (event.kind === "escape") mode = "menu";
-        else if (event.kind === "enter") void submit();
+        else if (event.kind === "enter" && !busy) void submit();
         else if (event.kind === "backspace") createPath = createPath.slice(0, -1);
         else if (event.kind === "char") createPath += event.value;
         else if (event.kind === "filter") createPath += "/";
@@ -164,6 +180,7 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
           `États : ${groups}`,
           `Dettes : ${totals.debts} · anomalies QA : ${totals.qa} · handoffs : ${totals.handoffs} · documents invalides : ${totals.invalid}`,
         ], theme, { border: theme.arkaRed }).split("\n")) line(value);
+        if (busy) line(`  ${theme.dim("Chargement…")}`);
         if (message !== undefined) line(`  ${theme.arkaAccent(message)}`);
         for (const value of menu.renderLines(theme)) line(value);
       });

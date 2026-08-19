@@ -108,6 +108,7 @@ export function createFeatureDetailView(deps: FeatureDetailViewDeps): FeatureDet
 
   return {
     onKey(event: KeyEvent): "pop" | "consumed" | undefined {
+      if (busy) return "consumed";
       const result = menu.onKey(event);
       if (event.kind === "enter") return "consumed";
       if (event.kind === "escape") {

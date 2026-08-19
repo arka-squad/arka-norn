@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
@@ -58,7 +58,10 @@ test("un index corrompu est isolé avant retour à un cache vide", async (contex
 
   const entries = await new FsProjectIndexStore({ homeDir: home, logger }).load();
   assert.deepEqual(entries, []);
-  const backup = JSON.parse(readFileSync(resolve(home, ".arka-norn", "backups", "last-project-index-corruption.json"), "utf8")) as { readonly raw: string };
+  const backupNames = readdirSync(resolve(home, ".arka-norn", "backups"));
+  assert.equal(backupNames.length, 1);
+  assert.match(backupNames[0] ?? "", /^project-index-\d+-[0-9a-f-]+-corruption\.json$/);
+  const backup = JSON.parse(readFileSync(resolve(home, ".arka-norn", "backups", backupNames[0]!), "utf8")) as { readonly raw: string };
   assert.equal(backup.raw, "{broken");
 });
 
@@ -75,4 +78,42 @@ test("la contention explicite retourne LOCK_CONFLICT", async (context) => {
     withFileLock(indexPath, async () => undefined, { timeoutMs: 30, pollMs: 5, staleMs: 60_000 }),
     (error: unknown) => error instanceof Error && "code" in error && error.code === "LOCK_CONFLICT",
   );
+});
+
+test("un lock vivant devenu ancien conserve l'exclusion mutuelle", async (context) => {
+  const home = mkdtempSync(join(tmpdir(), "arka-norn-lock-owner-"));
+  context.after(() => rmSync(home, { recursive: true, force: true }));
+  const target = resolve(home, "shared.json");
+  const { withFileLock } = await import("../../src/adapters/outbound/filesystem/_shared/file-lock.ts");
+  let active = 0;
+  let maximumActive = 0;
+  const operation = async (duration: number): Promise<void> => {
+    active += 1;
+    maximumActive = Math.max(maximumActive, active);
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, duration));
+    active -= 1;
+  };
+
+  const first = withFileLock(target, () => operation(60), { staleMs: 5, timeoutMs: 500, pollMs: 2 });
+  await new Promise((resolveDelay) => setTimeout(resolveDelay, 15));
+  const second = withFileLock(target, () => operation(30), { staleMs: 5, timeoutMs: 500, pollMs: 2 });
+  const third = withFileLock(target, () => operation(10), { staleMs: 5, timeoutMs: 500, pollMs: 2 });
+  await Promise.all([first, second, third]);
+
+  assert.equal(maximumActive, 1);
+});
+
+test("un lock stale dont le processus est mort est récupéré", async (context) => {
+  const home = mkdtempSync(join(tmpdir(), "arka-norn-lock-dead-"));
+  context.after(() => rmSync(home, { recursive: true, force: true }));
+  const target = resolve(home, "shared.json");
+  const lockPath = `${target}.lock`;
+  writeFileSync(lockPath, `${JSON.stringify({ token: "dead-owner", pid: 2_147_483_647, createdAt: "2020-01-01T00:00:00.000Z" })}\n`, { mode: 0o600 });
+  utimesSync(lockPath, new Date(0), new Date(0));
+  const { withFileLock } = await import("../../src/adapters/outbound/filesystem/_shared/file-lock.ts");
+  let entered = false;
+
+  await withFileLock(target, async () => { entered = true; }, { staleMs: 1, timeoutMs: 500, pollMs: 2 });
+
+  assert.equal(entered, true);
 });

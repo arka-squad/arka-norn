@@ -77,6 +77,11 @@ export class LockConflictError extends DomainError {
         super("LOCK_CONFLICT", `Lock conflict for "${path}" after ${timeoutMs}ms.`);
     }
 }
+export class AuditUnavailableError extends DomainError {
+    constructor(action, reason) {
+        super("AUDIT_UNAVAILABLE", `Audit trail unavailable for "${action}": ${reason}. The operation was not started unless an intent record exists.`);
+    }
+}
 export class FileTooLargeError extends DomainError {
     constructor(path, maxBytes) {
         super("FILE_TOO_LARGE", `File "${path}" exceeds the ${maxBytes} byte limit.`);

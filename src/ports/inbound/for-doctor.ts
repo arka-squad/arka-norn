@@ -9,7 +9,7 @@ export interface DoctorCheck {
 
 export interface DoctorRepair {
   readonly target: string;
-  readonly action: "backup_and_reset" | "chmod_0600";
+  readonly action: "backup_and_reset" | "chmod_0600" | "remove_abandoned_lock";
   readonly applied: boolean;
   readonly backupPath?: string;
 }
@@ -20,6 +20,7 @@ export interface DoctorReport {
   readonly mode: "inspect" | "repair-dry-run" | "repair-apply";
   readonly checks: readonly DoctorCheck[];
   readonly repairs: readonly DoctorRepair[];
+  readonly summary: { readonly pass: number; readonly warn: number; readonly fail: number };
 }
 
 export interface ForDoctor {

@@ -7,11 +7,13 @@ import { FsProjectIndexStore } from "../adapters/outbound/filesystem/fs-project-
 import { FsProjectStore } from "../adapters/outbound/filesystem/fs-project-store.js";
 import { ConsoleLogger } from "../adapters/outbound/system/console-logger.js";
 import { SystemClock } from "../adapters/outbound/system/system-clock.js";
+import { AuditUnavailableError } from "../domain/errors.js";
 import type { ForFeatures } from "../ports/inbound/for-features.js";
 import type { ForProjects } from "../ports/inbound/for-projects.js";
 import type { ForScan } from "../ports/inbound/for-scan.js";
 import type { ForScanProjects } from "../ports/inbound/for-scan-projects.js";
 import type { AuditEvent, AuditTrail } from "../ports/outbound/audit-trail.js";
+import type { Clock } from "../ports/outbound/clock.js";
 import type { Logger, LogLevel } from "../ports/outbound/logger.js";
 import { createFeatureUseCaseFactory } from "../use-cases/features/create-feature.js";
 import { forgetFeatureUseCaseFactory } from "../use-cases/features/forget-feature.js";
@@ -35,12 +37,20 @@ export interface ManagementRuntime {
   readonly scanFeatures: ForScan;
 }
 
-export function createManagementRuntime(options: { readonly homeDir: string; readonly logLevel?: LogLevel }): ManagementRuntime {
-  const logger = new ConsoleLogger({ threshold: options.logLevel ?? "error" });
+export interface ManagementRuntimeOptions {
+  readonly homeDir: string;
+  readonly logLevel?: LogLevel;
+  readonly logger?: Logger;
+  readonly auditTrail?: AuditTrail;
+  readonly clock?: Clock;
+}
+
+export function createManagementRuntime(options: ManagementRuntimeOptions): ManagementRuntime {
+  const logger = options.logger ?? new ConsoleLogger({ threshold: options.logLevel ?? "warn" });
   const filesystem = new FsFilesystem();
-  const clock = new SystemClock();
+  const clock = options.clock ?? new SystemClock();
   const pathPolicy = new FsPathPolicy();
-  const audit = new FsAuditTrail(options.homeDir);
+  const audit = options.auditTrail ?? new FsAuditTrail(options.homeDir);
   const projectIndexStore = new FsProjectIndexStore({ homeDir: options.homeDir, logger });
   const projectStore = new FsProjectStore(pathPolicy);
   const featureIndexStore = new FsFeatureIndexStore({ homeDir: options.homeDir, logger });
@@ -72,47 +82,88 @@ export function createManagementRuntime(options: { readonly homeDir: string; rea
     features: auditFeatures(rawFeatures, audit, logger, clock),
     scanProjects: {
       async scan(options) {
-        const results = await rawScanProjects(options);
-        await appendSafely(audit, logger, { occurredAt: clock.now(), action: "project.scan", entityType: "system", details: { discovered: results.filter((item) => item.project !== undefined).length } });
-        return results;
+        return auditedOperation(audit, logger, clock, { action: "project.scan", entityType: "system" }, async () => {
+          const results = await rawScanProjects(options);
+          return { value: results, details: { discovered: results.filter((item) => item.project !== undefined).length } };
+        });
       },
     },
     scanFeatures: {
       async scan(options) {
-        const results = await rawScanFeatures(options);
-        await appendSafely(audit, logger, { occurredAt: clock.now(), action: "feature.scan", entityType: "system", details: { discovered: results.filter((item) => item.feature !== undefined).length } });
-        return results;
+        return auditedOperation(audit, logger, clock, { action: "feature.scan", entityType: "system" }, async () => {
+          const results = await rawScanFeatures(options);
+          return { value: results, details: { discovered: results.filter((item) => item.feature !== undefined).length } };
+        });
       },
     },
   };
 }
 
-function auditProjects(base: ForProjects, audit: AuditTrail, logger: Logger, clock: SystemClock): ForProjects {
+function auditProjects(base: ForProjects, audit: AuditTrail, logger: Logger, clock: Clock): ForProjects {
   return {
     list: () => base.list(),
     show: (id) => base.show(id),
-    async create(input) { const value = await base.create(input); await entityAudit(audit, logger, clock, "project.create", "project", value.id.value, value.root); return value; },
-    async importFrom(input) { const value = await base.importFrom(input); await entityAudit(audit, logger, clock, "project.import", "project", value.id.value, value.root); return value; },
-    async switchTo(id) { const value = await base.switchTo(id); await entityAudit(audit, logger, clock, "project.use", "project", value.id.value, value.root); return value; },
-    async forget(id) { const value = await base.show(id); await base.forget(id); await entityAudit(audit, logger, clock, "project.forget", "project", id.value, value.root); },
+    create: (input) => auditedValue(audit, logger, clock, { action: "project.create", entityType: "project", entityId: input.id.value, root: input.root }, () => base.create(input)),
+    importFrom: (input) => auditedValue(audit, logger, clock, { action: "project.import", entityType: "project", root: input.root }, () => base.importFrom(input)),
+    async switchTo(id) { const current = await base.show(id); return auditedValue(audit, logger, clock, { action: "project.use", entityType: "project", entityId: id.value, root: current.root }, () => base.switchTo(id)); },
+    async forget(id) { const current = await base.show(id); await auditedValue(audit, logger, clock, { action: "project.forget", entityType: "project", entityId: id.value, root: current.root }, async () => { await base.forget(id); }); },
   };
 }
 
-function auditFeatures(base: ForFeatures, audit: AuditTrail, logger: Logger, clock: SystemClock): ForFeatures {
+function auditFeatures(base: ForFeatures, audit: AuditTrail, logger: Logger, clock: Clock): ForFeatures {
   return {
     list: () => base.list(),
     show: (id) => base.show(id),
-    async create(input) { const value = await base.create(input); await entityAudit(audit, logger, clock, "feature.create", "feature", value.id.value, value.root); return value; },
-    async importFrom(input) { const value = await base.importFrom(input); await entityAudit(audit, logger, clock, "feature.import", "feature", value.id.value, value.root); return value; },
-    async switchTo(id) { const value = await base.switchTo(id); await entityAudit(audit, logger, clock, "feature.use", "feature", value.id.value, value.root); return value; },
-    async forget(id) { const value = await base.show(id); await base.forget(id); await entityAudit(audit, logger, clock, "feature.forget", "feature", id.value, value.root); },
+    create: (input) => auditedValue(audit, logger, clock, { action: "feature.create", entityType: "feature", entityId: input.id.value, root: input.root }, () => base.create(input)),
+    importFrom: (input) => auditedValue(audit, logger, clock, { action: "feature.import", entityType: "feature", root: input.root }, () => base.importFrom(input)),
+    async switchTo(id) { const current = await base.show(id); return auditedValue(audit, logger, clock, { action: "feature.use", entityType: "feature", entityId: id.value, root: current.root }, () => base.switchTo(id)); },
+    async forget(id) { const current = await base.show(id); await auditedValue(audit, logger, clock, { action: "feature.forget", entityType: "feature", entityId: id.value, root: current.root }, async () => { await base.forget(id); }); },
   };
 }
 
-async function entityAudit(audit: AuditTrail, logger: Logger, clock: SystemClock, action: string, entityType: "project" | "feature", entityId: string, root: string): Promise<void> {
-  await appendSafely(audit, logger, { occurredAt: clock.now(), action, entityType, entityId, root });
+async function auditedValue<T>(
+  audit: AuditTrail,
+  logger: Logger,
+  clock: Clock,
+  event: Omit<AuditEvent, "occurredAt" | "outcome">,
+  operation: () => Promise<T>,
+): Promise<T> {
+  return auditedOperation(audit, logger, clock, event, async () => ({ value: await operation() }));
 }
 
-async function appendSafely(audit: AuditTrail, logger: Logger, event: AuditEvent): Promise<void> {
-  try { await audit.append(event); } catch (error) { logger.warn("audit trail unavailable", { action: event.action, error: error instanceof Error ? error.message : String(error) }); }
+async function auditedOperation<T>(
+  audit: AuditTrail,
+  logger: Logger,
+  clock: Clock,
+  event: Omit<AuditEvent, "occurredAt" | "outcome">,
+  operation: () => Promise<{ readonly value: T; readonly details?: AuditEvent["details"] }>,
+): Promise<T> {
+  await appendRequired(audit, logger, { ...event, occurredAt: clock.now(), outcome: "intent" });
+  try {
+    const result = await operation();
+    await appendRequired(audit, logger, { ...event, occurredAt: clock.now(), outcome: "success", ...(result.details === undefined ? {} : { details: result.details }) });
+    return result.value;
+  } catch (error) {
+    try {
+      await appendRequired(audit, logger, {
+        ...event,
+        occurredAt: clock.now(),
+        outcome: "failure",
+        details: { error: error instanceof Error ? error.message : String(error) },
+      });
+    } catch (auditError) {
+      logger.error("audit failure record unavailable", { action: event.action, error: auditError instanceof Error ? auditError.message : String(auditError) });
+    }
+    throw error;
+  }
+}
+
+async function appendRequired(audit: AuditTrail, logger: Logger, event: AuditEvent): Promise<void> {
+  try {
+    await audit.append(event);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    logger.error("audit trail unavailable", { action: event.action, error: reason });
+    throw new AuditUnavailableError(event.action, reason);
+  }
 }
