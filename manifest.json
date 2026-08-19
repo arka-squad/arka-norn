@@ -15,6 +15,7 @@
   "contracts": {
     "pipeline": "pipeline.json",
     "schemas": "schemas/",
+    "conceptBrainstormingGuide": "docs/concept-brainstorming-web.md",
     "adrs": [
       "docs/adr/ADR-001-project-canonique.md",
       "docs/adr/ADR-002-sources-de-verite.md",

@@ -4,9 +4,9 @@
 |---------------|--------|
 | Ref           | REC-ARKANORN-project_feature_platform-20260819-01 |
 | Date          | 2026-08-19 |
-| Testeur       | Codex |
+| Testeur       | `OpenAI-Codex_dev-audit_20260819` |
 | Environnement | local macOS, Node v24.7.0 |
-| Version       | `main` sur baseline `a11087b`, worktree final |
+| Version       | `main` sur jalon `95913ba`, correctifs finaux validés |
 | Statut global | PASS |
 
 ---
@@ -34,7 +34,7 @@ Recette directe de la plateforme locale Project/Feature, de ses interfaces CLI/T
 | Priorité | P0 |
 | Entrée   | `npm run typecheck`, `npm run lint`, `npm run build`, `npm run selftest` |
 | Attendu  | 0 erreur et toutes les vérifications selftest PASS |
-| Obtenu   | 0 erreur TypeScript, 0 warning ESLint, build exit 0, 51/51 vérifications selftest passées |
+| Obtenu   | 0 erreur TypeScript, 0 warning ESLint, build exit 0, 52/52 vérifications selftest passées |
 | Verdict  | PASS |
 | Trace    | Commandes exécutées le 2026-08-19 ; `package.json:38-61`, `scripts/selftest.mjs:1-156` |
 | Écart    | — |
@@ -47,11 +47,11 @@ Recette directe de la plateforme locale Project/Feature, de ses interfaces CLI/T
 | Priorité | P0 |
 | Entrée   | `npm test` via `npm run test:coverage` |
 | Attendu  | 0 régression sur unitaires, intégration et E2E |
-| Obtenu   | 81 tests comptés : 81 PASS, 0 PARTIAL, 0 FAIL |
+| Obtenu   | 93 tests exécutés : 40 unitaires + 31 intégration + 22 E2E ; 93 PASS, 0 PARTIAL, 0 FAIL |
 | Verdict  | PASS |
-| Trace    | Sortie TAP directe ; `tests/run-tests.mjs`, 81 déclarations `test(...)` sous `tests/` |
+| Trace    | Sortie TAP directe ; `tests/run-tests.mjs`, 93 déclarations `test(...)` sous `tests/` |
 | Écart    | — |
-| Note     | 5 nouveaux cas de non-régression, dont conversion CRLF du catalogue |
+| Note     | Couverture du domaine Agent, de la concurrence, de Doctor, de la réparation TUI, du parcours Agent complet et du rendu des skills |
 
 ### CT-03 — Couverture minimale
 
@@ -60,7 +60,7 @@ Recette directe de la plateforme locale Project/Feature, de ses interfaces CLI/T
 | Priorité | P1 |
 | Entrée   | `npm run test:coverage` |
 | Attendu  | lignes ≥ 70 %, fonctions ≥ 70 %, branches ≥ 60 % |
-| Obtenu   | 7 265 lignes : 5 336 couvertes, 73,44 % ; 527 fonctions : 389 couvertes, 73,81 % ; 1 570 branches : 1 167 couvertes, 74,33 % |
+| Obtenu   | 8 927 lignes : 6 442 couvertes, 72,16 % ; 640 fonctions : 475 couvertes, 74,21 % ; 1 943 branches : 1 455 couvertes, 74,88 % |
 | Verdict  | PASS |
 | Trace    | `coverage/coverage-summary.json` généré directement par c8 |
 | Écart    | — |
@@ -73,7 +73,7 @@ Recette directe de la plateforme locale Project/Feature, de ses interfaces CLI/T
 | Priorité | P0 |
 | Entrée   | JSON > 2 Mio, sortie de racine, symlink fichier/dossier, index corrompu, contention et lock stale |
 | Attendu  | Rejet explicite sans écriture hors périmètre ni perte d'index |
-| Obtenu   | 10 scénarios critiques comptés : taille, confinement, symlink fichier, symlink dossier, marker forgé, index concurrents, index corrompu, contention, lock vivant, lock mort ; 10 PASS |
+| Obtenu   | 13 scénarios critiques : les 10 contrôles initiaux, inscriptions Agent concurrentes, registre corrompu, détection Doctor registre/session ; 13 PASS |
 | Verdict  | PASS |
 | Trace    | `tests/integration/security-input-limits.test.ts:12`, `tests/integration/security-persistence.test.ts:16` |
 | Écart    | — |
@@ -86,11 +86,11 @@ Recette directe de la plateforme locale Project/Feature, de ses interfaces CLI/T
 | Priorité | P0 |
 | Entrée   | Événements clavier Home → Project → Feature → scaffold |
 | Attendu  | Navigation réelle, action sérialisée et document écrit par le moteur de production |
-| Obtenu   | 4 niveaux franchis : Home, Project, Feature, résultat ; `concept.json` créé avec type `concept` ; double Entrée sérialisé |
+| Obtenu   | Home → Project → Feature → scaffold signé, plus Project → registre → cinq saisies Agent → sélection courante ; aide `?` et recommandations rendues |
 | Verdict  | PASS |
 | Trace    | `tests/e2e/tui-navigation.test.ts:16-69`, `tests/unit/tui-runtime.test.ts:1` |
 | Écart    | — |
-| Note     | Santé système et installation des skills sont séparées sur l'accueil |
+| Note     | Santé système et réparation des skills sont séparées ; les divergences proposent explicitement la réparation avec sauvegarde |
 
 ### CT-06 — Gestion CLI et parité métier
 
@@ -99,7 +99,7 @@ Recette directe de la plateforme locale Project/Feature, de ses interfaces CLI/T
 | Priorité | P0 |
 | Entrée   | Cycle CLI Project/Feature, Pipeline, migration, doctor et options inconnues |
 | Attendu  | Une seule logique métier, sorties/codes stables et options strictes |
-| Obtenu   | 12 commandes publiques comptées : project, depot, feature, pipeline, status, scaffold, validate, doctor, install, skills, migrate, selftest ; cycles et codes validés |
+| Obtenu   | Routes Project, Feature, Agent, Pipeline, Doctor, Skills, migration, selftest et `guide` validées ; enveloppes JSON et codes stables |
 | Verdict  | PASS |
 | Trace    | `src/adapters/inbound/cli/main-cli.ts:40-95`, `tests/e2e/cli.test.ts:1-166` |
 | Écart    | — |
@@ -111,12 +111,12 @@ Recette directe de la plateforme locale Project/Feature, de ses interfaces CLI/T
 |----------|--------|
 | Priorité | P0 |
 | Entrée   | `ARKA_NORN_HOME=<temp> arka-norn install --target <temp> --profile all` |
-| Attendu  | 14 skills installés dans les deux providers, dont audit, dev et recette QA |
-| Obtenu   | 14 skills `.agents` et 14 skills `.claude` comptés : [annexe-technique, audit, concept, dettes, dev, handoff, invariants, plan, recette-qa, scaffold, spec-integration, statut, taches, valider] |
+| Attendu  | 15 skills installés dans les deux providers, dont maîtrise, audit, dev et recette QA ; divergence réparable avec backup |
+| Obtenu   | État reproduit à 13/15 avec 2 divergences (`maitrise`, `concept`), réparation forcée exit 0, 5 fichiers sauvegardés, puis 15/15 sains ; 15/15 passent le validateur officiel skill-creator |
 | Verdict  | PASS |
-| Trace    | Installation temporaire directe exit 0 ; `src/adapters/outbound/skills/skill-installer.ts:1-193` |
+| Trace    | `skills doctor/install --force`, `.arka-norn/backups/skills/`, `tests/integration/skill-manager.test.ts` |
 | Écart    | — |
-| Note     | Le dépôt temporaire a été supprimé après comptage |
+| Note     | Frontmatter YAML quoté et `short_description` OpenAI bornée à 25–64 caractères |
 
 ### CT-08 — Paquet consommable hors worktree
 
@@ -125,7 +125,7 @@ Recette directe de la plateforme locale Project/Feature, de ses interfaces CLI/T
 | Priorité | P0 |
 | Entrée   | Consumer vierge offline + `npm pack --dry-run --ignore-scripts` avec cache isolé |
 | Attendu  | Installation sans `node_modules` du dépôt, CLI et selftest fonctionnels |
-| Obtenu   | Tarball de 274 fichiers, 158,0 kB compressés et 731,1 kB décompressés ; consumer vierge PASS ; `src/`, `tests/` et `.input/` absents |
+| Obtenu   | Tarball de 305 fichiers, 193,4 kB compressés et 898,7 kB décompressés ; consumer vierge PASS ; `src/`, `tests/` et `.input/` absents |
 | Verdict  | PASS |
 | Trace    | `tests/e2e/packaging.test.ts:11-87`, sortie npm pack directe |
 | Écart    | — |
@@ -138,7 +138,7 @@ Recette directe de la plateforme locale Project/Feature, de ses interfaces CLI/T
 | Priorité | P2 |
 | Entrée   | `npm run benchmark` |
 | Attendu  | 50 Projects < 1 500 ms, 200 Features < 2 500 ms, 50 rapports < 3 000 ms, total < 5 000 ms |
-| Obtenu   | 50 Projects en 71,83 ms ; 200 Features en 110,75 ms ; 50 rapports en 44,34 ms ; total 226,92 ms |
+| Obtenu   | 50 Projects en 26,26 ms ; 200 Features en 30,42 ms ; 50 rapports en 14,35 ms ; total 71,04 ms |
 | Verdict  | PASS |
 | Trace    | Sortie directe `scripts/benchmark.mjs` |
 | Écart    | — |
@@ -170,6 +170,32 @@ Recette directe de la plateforme locale Project/Feature, de ses interfaces CLI/T
 | Écart    | — |
 | Note     | La CI distante est vérifiée après push |
 
+### CT-12 — Identité Agent et provenance documentaire
+
+| Champ    | Valeur |
+|----------|--------|
+| Priorité | P0 |
+| Entrée   | Enregistrement, scope, sélection, scaffold v3, désactivation/remplacement et corruption du registre |
+| Attendu  | ID humain `Provider_role_YYYYMMDD`, activité explicite, lineage bidirectionnelle et `author_agent_id` obligatoire |
+| Obtenu   | Domaine, CLI et TUI produisent la même identité ; scaffold signé ; ancien agent inactif après remplacement ; registre atomique et strict |
+| Verdict  | PASS |
+| Trace    | `tests/unit/agent-domain.test.ts`, `tests/integration/agent-registry.test.ts`, `tests/e2e/management-cli.test.ts`, `tests/e2e/tui-navigation.test.ts` |
+| Écart    | — |
+| Note     | Agent de ce lot : `OpenAI-Codex_dev-audit_20260819` |
+
+### CT-13 — Brainstorming Concept via ChatGPT/Claude.ai
+
+| Champ    | Valeur |
+|----------|--------|
+| Priorité | P1 |
+| Entrée   | Skill Concept et guide de transfert vers un chat web |
+| Attendu  | Conseil optionnel, prompt prérempli, mode d’emploi, garde de confidentialité, retour complet et réconciliation locale |
+| Obtenu   | Kit `PROMPT À COPIER` avec format `DOSSIER_CONCEPT`; réponse externe marquée non fiable avant validation humaine et scaffold signé |
+| Verdict  | PASS |
+| Trace    | `skills-src/arka-framework-concept.json`, `docs/concept-brainstorming-web.md`, `tests/unit/skills-catalog.test.ts` |
+| Écart    | — |
+| Note     | Aucun secret ou contenu confidentiel ne doit être transféré sans autorisation explicite |
+
 ---
 
 ## Incohérences spec détectées
@@ -193,6 +219,9 @@ Aucune incohérence spec détectée.
 | ANO-09 | Mineur | Identifiant doctor construit avec un séparateur POSIX | CT-04 | Corrigé |
 | ANO-10 | Mineur | Assertion CLI sensible aux noms courts Windows 8.3 | CT-06 | Corrigé |
 | ANO-11 | Majeur | Course Node 20 entre `open` du reaper et `lstat` après disparition concurrente | CT-04 | Corrigé |
+| ANO-12 | Majeur | Le TUI d’installation ne permettait pas de réparer explicitement des skills divergentes | CT-07 | Corrigé |
+| ANO-13 | Majeur | Une erreur asynchrone du scaffold géré échappait à l’enveloppe JSON et retournait 70 | CT-06 | Corrigé |
+| ANO-14 | Majeur | Une description contenant `:` rendait le frontmatter YAML de la skill Maîtrise invalide ; descriptions OpenAI non bornées | CT-07 | Corrigé |
 
 ---
 
@@ -200,12 +229,12 @@ Aucune incohérence spec détectée.
 
 | Métrique          | Valeur |
 |-------------------|--------|
-| Total CT          | 11 |
-| PASS              | 11 |
+| Total CT          | 13 |
+| PASS              | 13 |
 | PARTIAL           | 0 |
 | FAIL              | 0 |
 | Taux PASS         | 100% |
-| Anomalies         | 11 corrigées, 0 ouverte |
+| Anomalies         | 14 corrigées, 0 ouverte |
 | Bloquants         | 0 |
 | Incohérences spec | 0 |
 
@@ -221,5 +250,5 @@ Composant validé, prêt pour intégration/déploiement.
 
 | Rôle     | Nom | Date |
 |----------|-----|------|
-| Testeur  | Codex | 2026-08-19 |
+| Testeur  | `OpenAI-Codex_dev-audit_20260819` | 2026-08-19 |
 | Valideur | — | — |

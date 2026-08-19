@@ -4,7 +4,10 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
 
+import type { Scene, TuiApp } from "../../src/adapters/inbound/tui/runtime/tui-app.ts";
 import { DirectSkillManager } from "../../src/adapters/outbound/skills/direct-skill-manager.ts";
+import { showSkillInstallation } from "../../src/composition/tui/skill-scene-controller.ts";
+import type { SkillManager } from "../../src/ports/outbound/skill-manager.ts";
 
 const ROOT = resolve(import.meta.dirname, "..", "..");
 
@@ -26,6 +29,7 @@ test("les skills audit, dev et QA générés portent un workflow exécutable san
   await manager.install({ target });
 
   const audit = skill(target, "arka-framework-audit");
+  const concept = skill(target, "arka-framework-concept");
   const dev = skill(target, "arka-framework-dev");
   const qa = skill(target, "arka-framework-recette-qa");
   assert.match(audit, /Vérifier directement/);
@@ -35,7 +39,39 @@ test("les skills audit, dev et QA générés portent un workflow exécutable san
   assert.match(dev, /cr_dev/);
   assert.match(qa, /dernier `cr_dev_id`/);
   assert.match(qa, /Ne pas modifier le code pendant la recette indépendante/);
+  assert.match(concept, /ChatGPT ou Claude\.ai/);
+  assert.match(concept, /prompt complètement prérempli/);
+  assert.match(concept, /proposition non fiable/);
   assert.doesNotMatch(`${audit}${dev}${qa}`, /\/Users\/|À_REMPLIR|résultat attendu de cette Feature/);
+});
+
+test("le parcours TUI de réparation force le remplacement après sauvegarde", async () => {
+  const calls: { readonly target: string; readonly global?: boolean; readonly force?: boolean }[] = [];
+  const manager: SkillManager = {
+    inspect: async () => ({ total: 15, healthy: 13, missing: 0, divergent: 2 }),
+    async install(input) {
+      calls.push(input);
+      return { code: 0, output: "15/15 skills healthy" };
+    },
+  };
+  const stack: Scene[] = [];
+  const app: TuiApp = {
+    push(scene) { stack.push(scene); },
+    pop() { stack.pop(); },
+    topScene: () => stack.at(-1),
+    redraw() {},
+    run: async () => {},
+  };
+
+  await showSkillInstallation(app, manager, "/workspace/project");
+  const menu = app.topScene();
+  assert.ok(menu);
+  menu.onKey({ kind: "down" });
+  menu.onKey({ kind: "enter" });
+  await new Promise((resolvePromise) => setImmediate(resolvePromise));
+
+  assert.deepEqual(calls, [{ target: "/workspace/project", global: false, force: true }]);
+  assert.ok(app.topScene());
 });
 
 function skill(target: string, name: string): string {

@@ -71,6 +71,59 @@ test("la composition TUI pilote Home → Project → Feature → scaffold réel"
   await running;
 });
 
+test("la TUI enregistre et sélectionne une identité Agent sans connaissance implicite", async (context) => {
+  const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-tui-agent-"));
+  const projectRoot = resolve(sandbox, "project");
+  mkdirSync(projectRoot, { recursive: true });
+  context.after(() => rmSync(sandbox, { recursive: true, force: true }));
+
+  const management = createManagementRuntime({ homeDir: sandbox });
+  const project = await management.projects.create({ id: ProjectId.of("project"), name: "Project", root: projectRoot });
+  const input = controlledInput();
+  const renderer = createRenderer({ write: () => true, isTTY: false });
+  const container = createContainer(readEnv({ ARKA_NORN_HOME: sandbox }, projectRoot), {
+    input: input.source,
+    renderer,
+    theme: createTheme({}, false),
+    viewport: () => ({ columns: 120, rows: 50 }),
+  });
+  const home = await container.createHomeView();
+  container.app.push(home);
+  const running = container.app.run({ registerProcessHandlers: false });
+
+  input.send({ kind: "down" });
+  input.send({ kind: "enter" });
+  await waitUntil(() => container.app.topScene() !== home, "ouverture Project pour registre Agent");
+  const projectScene = container.app.topScene();
+  assert.ok(projectScene);
+  input.send({ kind: "down" });
+  input.send({ kind: "enter" });
+  await waitUntil(() => container.app.topScene() !== projectScene, "ouverture registre Agent");
+  const registryScene = container.app.topScene();
+  assert.ok(registryScene);
+  input.send({ kind: "enter" });
+  await waitUntil(() => container.app.topScene() !== registryScene, "saisie provider Agent");
+
+  sendText(input.send, "Codex CLI");
+  input.send({ kind: "enter" });
+  input.send({ kind: "enter" });
+  input.send({ kind: "enter" });
+  input.send({ kind: "enter" });
+  sendText(input.send, "implémentation;QA");
+  input.send({ kind: "enter" });
+
+  await waitUntil(async () => (await management.agents.current(project)) !== undefined, "persistance et sélection Agent");
+  const agents = await management.agents.list(project);
+  const current = await management.agents.current(project);
+  assert.equal(agents.length, 1);
+  assert.match(agents[0]!.id.value, /^Codex-CLI_dev_\d{8}$/);
+  assert.equal(current?.id.value, agents[0]!.id.value);
+  assert.deepEqual(agents[0]!.scope.responsibilities, ["implémentation", "QA"]);
+
+  input.send({ kind: "interrupt" });
+  await running;
+});
+
 function controlledInput(): { readonly source: InputSource; readonly send: (event: KeyEvent) => void } {
   const listeners = new Set<KeyListener>();
   return {
@@ -88,9 +141,13 @@ function controlledInput(): { readonly source: InputSource; readonly send: (even
   };
 }
 
-async function waitUntil(predicate: () => boolean, label: string): Promise<void> {
+function sendText(send: (event: KeyEvent) => void, value: string): void {
+  for (const character of value) send({ kind: "char", value: character });
+}
+
+async function waitUntil(predicate: () => boolean | Promise<boolean>, label: string): Promise<void> {
   for (let attempt = 0; attempt < 200; attempt++) {
-    if (predicate()) return;
+    if (await predicate()) return;
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 5));
   }
   throw new Error(`Timeout TUI : ${label}`);

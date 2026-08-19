@@ -65,6 +65,8 @@ L’exemple [`examples/feature-notion-linear/`](examples/feature-notion-linear/)
 
 Les définitions sources vivent uniquement dans [`skills-src/`](skills-src/). Le catalogue versionné contient exactement 15 skills, dont maîtrise du framework, audit, développement et recette QA. L’installation supporte les profils `core` (5), `delivery` (13) et `all` (15, défaut), un dry-run, les backups et le diagnostic par checksum.
 
+À l’étape Concept, l’agent peut proposer un brainstorming optionnel dans ChatGPT ou Claude.ai pour économiser son contexte d’exécution. Il remet alors un prompt entièrement prérempli et un mode d’emploi ; la réponse externe est contrôlée et réconciliée localement avant de devenir un document produit.
+
 ```bash
 arka-norn skills install --target . --profile all --dry-run
 arka-norn skills install --target . --profile all
@@ -78,6 +80,7 @@ arka-norn skills doctor --target . --json
 - [CLI](docs/cli.md)
 - [Cockpit TUI](docs/tui.md)
 - [Registre Agents](docs/agent-registry.md)
+- [Brainstorming Concept avec ChatGPT ou Claude.ai](docs/concept-brainstorming-web.md)
 - [Skills](docs/skills.md)
 - [Sécurité](docs/security.md)
 - [Dépannage](docs/troubleshooting.md)

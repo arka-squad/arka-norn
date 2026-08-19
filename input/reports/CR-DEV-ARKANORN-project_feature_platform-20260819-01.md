@@ -4,7 +4,7 @@
 |---|---|
 | Ref | CR-DEV-ARKANORN-project_feature_platform-20260819-01 |
 | Date | 2026-08-19 |
-| Agent | Codex |
+| Agent | `OpenAI-Codex_dev-audit_20260819` |
 | Spec source | `.input/plan/PLAN-ARKA-NORN-PLATEFORME-PROJETS-FEATURES-20260819-01.md` + `input/audit/AUDIT-TECHNIQUE-ARKA-NORN-20260819.md` |
 | Statut | LIVRÉ |
 
@@ -53,6 +53,9 @@
 | E08 | Installer des gates vérifiables sans dette de qualité | OUI | `package.json:38`, `eslint.config.mjs:1` |
 | E09 | Prouver packaging, performance et livraison interne | OUI | `tests/e2e/packaging.test.ts:11`, `scripts/benchmark.mjs:1`, `.github/workflows/ci.yml:1` |
 | E10 | Créer le plan sous `.input/plan` et ignorer `.input/` | OUI | `.gitignore:1`, `.input/plan/PLAN-ARKA-NORN-PLATEFORME-PROJETS-FEATURES-20260819-01.md:1` |
+| E11 | Identifier chaque Agent, son scope, son activité et son remplacement | OUI | `src/domain/agent/agent.ts:1`, `src/use-cases/agents/manage-agents.ts:1`, `schemas/agent-registry.schema.json:1` |
+| E12 | Accompagner utilisateurs et Agents dans la TUI sans connaissance implicite | OUI | `src/adapters/inbound/tui/components/guidance.ts:1`, `src/composition/tui/agent-scene-controller.ts:1`, `tests/e2e/tui-navigation.test.ts:72` |
+| E13 | Proposer un brainstorming Concept économe avec un paquet ChatGPT/Claude.ai réconcilié | OUI | `skills-src/arka-framework-concept.json:1`, `docs/concept-brainstorming-web.md:1` |
 
 ---
 
@@ -61,8 +64,11 @@
 | Check | Résultat |
 |---|---|
 | Build | 0 erreur — TypeScript 6.0.3, build reproductible |
-| Tests total | 81/81 passed |
-| Nouveaux tests | 5 cas ajoutés |
+| Tests total | 93/93 passed — 40 unitaires, 31 intégration, 22 E2E |
+| Couverture | 72,16 % lignes · 74,21 % fonctions · 74,88 % branches |
+| Skills | 15/15 sains ; 15/15 valides avec `skill-creator/quick_validate.py` |
+| Doctor | Code 0 · 9 PASS · 0 WARN · 0 FAIL |
+| Nouveaux tests | 12 cas ajoutés depuis le précédent CR |
 | Régressions | 0 |
 | Grep `any` | 0 dans `src/**/*.ts` et `tests/**/*.ts` |
 | Grep `TODO/stub` | 0 dans `src/**/*.ts` et `tests/**/*.ts` |
@@ -77,6 +83,9 @@
 | Routeur CLI TypeScript unique avec wrappers MJS minces | Éliminer les implémentations parallèles |
 | Contrôleurs TUI injectables | Partager les cas d'usage et tester le clavier réel sans subprocess |
 | Installation de skills transactionnelle et multi-cible | Éviter les installations partielles et garantir Claude/Codex |
+| Frontmatter YAML JSON-quoté et descriptions UI bornées | Garantir le chargement des 15 skills et le contrat `openai.yaml` |
+| Registre Agent portable + session locale privée | Partager identité/scope/historique sans versionner la sélection personnelle |
+| Brainstorming Concept web optionnel et non fiable par défaut | Réserver les tokens d’exécution sans confondre exploration externe et source de vérité |
 | Lecture `O_NOFOLLOW` et parent d'écriture canonique | Fermer les contournements symlink/TOCTOU portables |
 | `fsync` dossier best-effort sous Windows et modes privés POSIX | Respecter les garanties réellement offertes par chaque plateforme |
 | Checksums normalisés LF et npm lancé par son module JavaScript | Rendre skills et packaging indépendants de CRLF et des shims Windows |

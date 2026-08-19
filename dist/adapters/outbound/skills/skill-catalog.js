@@ -38,17 +38,26 @@ export function createSkillCatalogRuntime(frameworkRoot, profile = "all") {
         definitions,
         renderRepoSkillMd(definition) {
             const description = `${substitute(definition.description_courte)} ${definition.description_do_use} ${definition.description_do_not_use}`;
-            return `---\nname: ${definition.name}\ndescription: ${description}\n---\n\n# ${definition.titre_h1_repo}\n\n${substitute(definition.description_courte)}\n\n${renderBody(definition, substitute, frameworkName, frameworkReference)}`;
+            return `---\nname: ${definition.name}\ndescription: ${JSON.stringify(description)}\n---\n\n# ${definition.titre_h1_repo}\n\n${substitute(definition.description_courte)}\n\n${renderBody(definition, substitute, frameworkName, frameworkReference)}`;
         },
         renderGlobalSkillMd(definition) {
             const tools = definition.allowed_tools.map((tool) => `  - ${tool}`).join("\n");
             return `---\nname: ${definition.name}\nversion: 1.0.0\ndescription: |\n${wrapYamlBlock(substitute(definition.declencheurs_globaux))}\ncompatibility: claude-code opencode claude-ai\nallowed-tools:\n${tools}\n---\n\n# ${definition.titre_h1_global}\n\n${substitute(definition.description_courte)}\n\n${renderBody(definition, substitute, frameworkName, frameworkReference)}`;
         },
         renderOpenaiYaml(definition) {
-            const shortDescription = substitute(definition.description_courte).replaceAll('"', '\\"');
-            return `interface:\n  display_name: "Arka — ${definition.name}"\n  short_description: "${shortDescription}"\n  default_prompt: "Utilise $${definition.name} pour exécuter cette étape avec les gates arka-norn."\n\npolicy:\n  allow_implicit_invocation: true\n`;
+            const shortDescription = compactDescription(substitute(definition.description_courte));
+            return `interface:\n  display_name: ${JSON.stringify(`Arka — ${definition.name}`)}\n  short_description: ${JSON.stringify(shortDescription)}\n  default_prompt: ${JSON.stringify(`Utilise $${definition.name} pour exécuter cette étape avec les gates arka-norn.`)}\n\npolicy:\n  allow_implicit_invocation: true\n`;
         },
     };
+}
+function compactDescription(value) {
+    const normalized = value.replace(/\s+/g, " ").trim();
+    if (normalized.length <= 64)
+        return normalized;
+    const candidate = normalized.slice(0, 63);
+    const lastSpace = candidate.lastIndexOf(" ");
+    const cut = lastSpace >= 24 ? candidate.slice(0, lastSpace) : candidate;
+    return `${cut}…`;
 }
 function loadDefinition(frameworkRoot, entry) {
     const sourcePath = join(frameworkRoot, "skills-src", entry.source);

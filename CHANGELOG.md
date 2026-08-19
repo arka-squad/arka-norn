@@ -11,6 +11,7 @@ tags `vX.Y.Z`.
 - commandes Agent et guide CLI, scaffold lié à l’agent courant actif ;
 - espace TUI Agents et aide contextuelle `?`, actions recommandées, formulaires expliqués et suites explicites ;
 - skill `arka-framework-maitrise`, catalogue porté à 15 skills et réparation avec backup depuis la TUI ;
+- parcours Concept optionnel via un kit prérempli ChatGPT/Claude.ai, avec garde de confidentialité et réconciliation locale ;
 - `doctor` vérifie les registres Agents en plus des index, markers, locks, audit et skills.
 
 ## 1.0.0 — 2026-08-19

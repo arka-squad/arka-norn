@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "projectId": "arka-norn",
+  "updatedAt": "2026-08-19T21:21:50.740Z",
+  "agents": [
+    {
+      "id": "OpenAI-Codex_dev-audit_20260819",
+      "provider": "OpenAI Codex",
+      "role": "dev-audit",
+      "active": true,
+      "scope": {
+        "projectId": "arka-norn",
+        "featureIds": [],
+        "paths": [],
+        "responsibilities": [
+          "architecture modulaire",
+          "sécurité",
+          "UX TUI",
+          "CLI",
+          "QA"
+        ]
+      },
+      "registeredAt": "2026-08-19T21:21:50.740Z",
+      "updatedAt": "2026-08-19T21:21:50.740Z"
+    }
+  ]
+}

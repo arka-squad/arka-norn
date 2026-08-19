@@ -70,6 +70,9 @@ test("chaque définition est complète et les skills audit/dev/QA imposent leurs
   assert.match(byName.get("arka-framework-recette-qa") ?? "", /partial|fail/);
   assert.match(byName.get("arka-framework-maitrise") ?? "", /agent register/);
   assert.match(byName.get("arka-framework-maitrise") ?? "", /Ne jamais déduire|ne pas.*deviner/i);
+  assert.match(byName.get("arka-framework-concept") ?? "", /ChatGPT.*Claude\.ai/);
+  assert.match(byName.get("arka-framework-concept") ?? "", /PROMPT À COPIER|kit prêt à transmettre/);
+  assert.match(byName.get("arka-framework-concept") ?? "", /proposition non fiable/);
 });
 
 test("le catalogue reste vérifiable après une conversion Git en CRLF", (context) => {
@@ -82,4 +85,19 @@ test("le catalogue reste vérifiable après une conversion Git en CRLF", (contex
     writeFileSync(sourcePath, crlf);
   }
   assert.equal(createSkillCatalogRuntime(frameworkRoot).definitions.length, 15);
+});
+
+test("les rendus Agents ont un frontmatter YAML sûr et une description UI bornée", () => {
+  const runtime = createSkillCatalogRuntime(ROOT);
+  for (const definition of runtime.definitions) {
+    const markdown = runtime.renderRepoSkillMd(definition);
+    const descriptionLine = markdown.split("\n").find((line) => line.startsWith("description: "));
+    assert.ok(descriptionLine);
+    assert.doesNotThrow(() => JSON.parse(descriptionLine.slice("description: ".length)));
+    const yaml = runtime.renderOpenaiYaml(definition);
+    const shortLine = yaml.split("\n").find((line) => line.startsWith("  short_description: "));
+    assert.ok(shortLine);
+    const shortDescription = JSON.parse(shortLine.slice("  short_description: ".length)) as string;
+    assert.ok(shortDescription.length >= 25 && shortDescription.length <= 64, `${definition.name}: ${shortDescription.length}`);
+  }
 });

@@ -2,20 +2,29 @@
   "name": "arka-framework-concept",
   "titre_h1_repo": "Arka — Concept",
   "titre_h1_global": "Skill Concept — Arka Labs",
-  "description_courte": "Cadre le besoin, la valeur et les limites d'une Feature arka-norn dans un document concept vérifiable.",
+  "description_courte": "Cadre le besoin, la valeur et les limites d'une Feature arka-norn, avec un kit optionnel de brainstorming à transmettre à ChatGPT ou Claude.ai, puis produit un document concept vérifiable.",
   "description_do_use": "Use when une nouvelle Feature doit être cadrée avant toute planification.",
   "description_do_not_use": "Do NOT use pour définir la solution technique ou commencer le développement.",
   "declencheurs_globaux": "Déclencher pour cadrer une nouvelle Feature, formaliser son objectif ou sur arka-framework-concept.",
   "allowed_tools": ["Read", "Write", "Bash", "Grep", "Glob"],
   "quand_utiliser": ["nouvelle Feature", "objectif ou périmètre encore ambigu"],
   "quand_ne_pas_utiliser": ["solution technique déjà à implémenter", "recette QA"],
-  "inputs": [{ "obligatoire": true, "nom": "besoin", "description": "problème et résultat attendu" }],
-  "note_inputs": "Distinguer faits, hypothèses et décisions attendues.",
-  "referentiel_extra": ["`{{FRAMEWORK_DIR}}/schemas/concept.schema.json`"],
+  "inputs": [
+    { "obligatoire": true, "nom": "besoin", "description": "problème et résultat attendu" },
+    { "obligatoire": false, "nom": "brainstorm_web", "description": "choix explicite de déléguer l'exploration à ChatGPT ou Claude.ai avec un paquet préparé par l'agent" }
+  ],
+  "note_inputs": "Distinguer faits, hypothèses et décisions attendues. Ne jamais transmettre secret, donnée personnelle ou contenu confidentiel à un chat web sans autorisation explicite.",
+  "referentiel_extra": [
+    "`{{FRAMEWORK_DIR}}/schemas/concept.schema.json`",
+    "`{{FRAMEWORK_DIR}}/docs/concept-brainstorming-web.md` — modèle et mode d'emploi du brainstorming externe"
+  ],
   "procedure": [
     { "titre": "Lire le contexte", "contenu": "Inspecter les sources disponibles et ne rien inventer." },
-    { "titre": "Produire", "contenu": "Générer le scaffold concept, renseigner valeur, acteurs, périmètre, hors-périmètre, contraintes et succès mesurable." },
+    { "titre": "Proposer le brainstorming web", "contenu": "Si le besoin exige une exploration créative, conseiller à l'utilisateur de mener cette phase dans ChatGPT ou Claude.ai afin de réserver le contexte et les tokens de l'agent d'exécution aux vérifications et à la livraison. Présenter ce choix comme optionnel. Avant tout transfert, exclure secrets, données personnelles et contenu non autorisé." },
+    { "titre": "Fournir un kit prêt à transmettre", "contenu": "Lire `{{FRAMEWORK_DIR}}/docs/concept-brainstorming-web.md`, puis fournir dans la réponse un mode d'emploi court et un prompt complètement prérempli avec les faits vérifiés, les hypothèses signalées, les contraintes, les questions et le format `DOSSIER_CONCEPT`. Ne jamais renvoyer l'utilisateur vers un chat web sans ce paquet copiable. Demander de rapporter la réponse finale complète dans la conversation agent." },
+    { "titre": "Réconcilier la réponse", "contenu": "Traiter la sortie du chat web comme une proposition non fiable : la comparer aux sources locales, séparer faits/hypothèses, signaler les contradictions et obtenir la validation humaine des décisions. Ne copier aucun conseil directement dans le Project sans cette revue." },
+    { "titre": "Produire", "contenu": "Générer le scaffold concept signé, puis renseigner valeur, acteurs, périmètre, hors-périmètre, contraintes et succès mesurable à partir des seules décisions validées." },
     { "titre": "Valider", "contenu": "Lancer `arka-norn validate <fichier>` puis `arka-norn pipeline next <feature>`." }
   ],
-  "format_sortie": "Document JSON `concept` validé, accompagné des hypothèses et décisions ouvertes."
+  "format_sortie": "Si brainstorming web choisi : (1) recommandation ChatGPT/Claude.ai et garde de confidentialité, (2) mode d'emploi en quatre actions, (3) bloc `PROMPT À COPIER` prérempli exigeant une sortie `DOSSIER_CONCEPT`, (4) consigne de retour. Ensuite : document JSON `concept` signé et validé, accompagné des hypothèses et décisions ouvertes."
 }

@@ -5,6 +5,8 @@ import { join, resolve } from "node:path";
 import { test } from "node:test";
 
 import { createDoctorRuntime } from "../../src/composition/doctor-runtime.ts";
+import { createManagementRuntime } from "../../src/composition/management-runtime.ts";
+import { ProjectId } from "../../src/domain/project/project-id.ts";
 
 test("doctor planifie puis applique une récupération avec backup", async (context) => {
   const home = mkdtempSync(join(tmpdir(), "arka-norn-doctor-"));
@@ -72,4 +74,24 @@ test("doctor expose les markers cassés, les locks abandonnés, l'audit et les s
   assert.equal(existsSync(lockPath), false);
   assert.ok(repaired.repairs.some((repair) => repair.action === "remove_abandoned_lock" && repair.applied));
   assert.equal(repaired.checks.find((check) => check.id === "markers.projects")?.status, "fail");
+});
+
+test("doctor valide les registres Agent puis expose toute corruption", async (context) => {
+  const home = mkdtempSync(join(tmpdir(), "arka-norn-doctor-agents-"));
+  const projectRoot = resolve(home, "project");
+  mkdirSync(projectRoot, { recursive: true });
+  context.after(() => rmSync(home, { recursive: true, force: true }));
+  const management = createManagementRuntime({ homeDir: home });
+  const project = await management.projects.create({ id: ProjectId.of("project"), name: "Project", root: projectRoot });
+  await management.agents.register({ project, provider: "Codex", role: "audit" });
+
+  const healthy = await createDoctorRuntime(home, home).run();
+  assert.equal(healthy.checks.find((check) => check.id === "agents.registries")?.status, "pass");
+  assert.equal(healthy.checks.find((check) => check.id === "agents.session")?.status, "pass");
+
+  writeFileSync(resolve(projectRoot, ".arka-norn", "agents.json"), "{corrupt");
+  writeFileSync(resolve(home, ".arka-norn", "context", "agents.json"), "{}", { mode: 0o600 });
+  const corrupted = await createDoctorRuntime(home, home).run();
+  assert.equal(corrupted.checks.find((check) => check.id === "agents.registries")?.status, "fail");
+  assert.equal(corrupted.checks.find((check) => check.id === "agents.session")?.status, "fail");
 });

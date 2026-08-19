@@ -13,6 +13,8 @@ Profils : `core` (5), `delivery` (13), `all` (15, défaut). Le catalogue version
 
 Le skill audit impose observation directe et absence de correction silencieuse. Le skill dev impose lecture de la spec, scope fichiers, tests, CR de dev et handoff. Le skill QA cible le dernier CR, conserve les preuves et sépare structure, verdict métier, anomalies et décision.
 
+Le skill Concept propose, lorsque l’exploration le justifie, un brainstorming optionnel dans ChatGPT ou Claude.ai pour réserver le contexte de l’agent d’exécution. Il doit toujours fournir un prompt prérempli et un mode d’emploi ; la réponse externe est ensuite réconciliée avec les sources locales avant toute écriture. Le modèle est décrit dans [`concept-brainstorming-web.md`](concept-brainstorming-web.md).
+
 Le catalogue, le rendu, le plan d’installation, les checksums, les backups et le
 rollback sont implémentés dans les adapters TypeScript. La TUI et la CLI
 consomment ce même installateur ; aucun module JS n’est chargé dynamiquement.
