@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "spec-integration-technique.schema.json",
+  "title": "Spec d'intégration technique",
+  "description": "Document du framework méthodologique cortex.deck qui fige, avant implémentation, le contrat technique partagé d'un ou plusieurs lots : structure de crates/adapters concernée, contrats d'interface à respecter, décisions figées non renégociables et invariants dont ce contrat dépend. Ce document se situe entre les tâches et le compte-rendu de dev dans le cycle de vie concept → plan → (annexe) → audit → invariants → dettes → tâches → spec d'intégration → CR de dev → recette QA. Il doit pouvoir être suivi mécaniquement par un agent (Claude Code, Codex CLI, Antigravity ou tout autre agent) sans connaissance préalable du projet.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "type",
+    "titre",
+    "lots_couverts",
+    "sources",
+    "decisions_figees",
+    "date",
+    "nature",
+    "structure",
+    "contrats",
+    "invariants_ref"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Identifiant unique de ce document de spec d'intégration technique."
+    },
+    "type": {
+      "const": "spec_integration_technique",
+      "description": "Type fixe du document, identifie ce schéma parmi les autres types du framework."
+    },
+    "titre": {
+      "type": "string",
+      "description": "Titre humain de la spec d'intégration technique."
+    },
+    "lots_couverts": {
+      "type": "array",
+      "description": "Liste des lots (identifiants ou noms de lots) couverts par cette spec d'intégration.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "sources": {
+      "type": "array",
+      "description": "Références (sections du plan, de l'annexe, ou tâches) dont cette spec dérive.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "decisions_figees": {
+      "type": "array",
+      "description": "Décisions techniques figées et non renégociables que cette spec impose, avec leur identifiant. Peut être vide si aucune décision n'a été figée au-delà des contrats eux-mêmes.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "description"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Identifiant de la décision figée, par exemple \"D15\"."
+          },
+          "description": {
+            "type": "string",
+            "description": "Description de la décision figée."
+          }
+        }
+      }
+    },
+    "date": {
+      "type": "string",
+      "description": "Date de rédaction ou de dernière mise à jour de cette spec d'intégration."
+    },
+    "nature": {
+      "type": "string",
+      "description": "Nature du document, par exemple \"contrat partagé à figer avant implémentation\"."
+    },
+    "structure": {
+      "type": "object",
+      "description": "Structure technique concernée par cette spec : crates et adapters impliqués.",
+      "additionalProperties": false,
+      "required": [
+        "crates",
+        "adapters"
+      ],
+      "properties": {
+        "crates": {
+          "type": "array",
+          "description": "Liste des crates concernées par cette spec d'intégration.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "adapters": {
+          "type": "array",
+          "description": "Liste des adapters concernés par cette spec d'intégration.",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "contrats": {
+      "type": "array",
+      "description": "Contrats d'interface figés par cette spec, à respecter par toute implémentation des lots couverts. Doit contenir au moins un contrat.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "nom",
+          "definition"
+        ],
+        "properties": {
+          "nom": {
+            "type": "string",
+            "description": "Nom du contrat (type, trait, fonction, endpoint, etc.)."
+          },
+          "definition": {
+            "type": "string",
+            "description": "Définition du contrat : signature, forme, comportement attendu."
+          }
+        }
+      }
+    },
+    "invariants_ref": {
+      "type": "array",
+      "description": "Identifiants des invariants dont cette spec d'intégration dépend.",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "examples": [
+    {
+      "id": "spec-integration-connecteurs-notion-linear",
+      "type": "spec_integration_technique",
+      "titre": "Spec d'intégration des connecteurs Notion et Linear",
+      "lots_couverts": [
+        "P2-014"
+      ],
+      "sources": [
+        "plan.md#section-connecteurs",
+        "taches.md#P2-014"
+      ],
+      "decisions_figees": [
+        {
+          "id": "D15",
+          "description": "Les connecteurs Notion et Linear partagent une même interface d'authentification OAuth."
+        }
+      ],
+      "date": "2026-08-18",
+      "nature": "contrat partagé à figer avant implémentation",
+      "structure": {
+        "crates": [
+          "cortex-connectors-core"
+        ],
+        "adapters": [
+          "adapter_notion",
+          "adapter_linear"
+        ]
+      },
+      "contrats": [
+        {
+          "nom": "ConnectorAdapter",
+          "definition": "Trait Rust exposant authenticate(), fetch_items() et push_item(), implémenté par chaque adapter de connecteur."
+        }
+      ],
+      "invariants_ref": [
+        "INV-007"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "$schema": "manifest.json",
+  "schemaVersion": 2,
+  "name": "arka-norn",
+  "version": "1.0.0",
+  "description": "Cockpit local et agent-agnostique pour gérer Project, Feature, Pipeline, documents, runs et handoffs.",
+  "entryPoint": "bin/arka-norn.mjs",
+  "domain": {
+    "relation": "Project -> Feature -> Pipeline -> Document/Run",
+    "projectMarker": ".arka-norn/project.json",
+    "featureMarker": ".arka-norn/feature.json",
+    "vocabulary": "docs/domain/vocabulaire.md"
+  },
+  "contracts": {
+    "pipeline": "pipeline.json",
+    "schemas": "schemas/",
+    "adrs": [
+      "docs/adr/ADR-001-project-canonique.md",
+      "docs/adr/ADR-002-sources-de-verite.md",
+      "docs/adr/ADR-003-versionnement-migrations.md",
+      "docs/adr/ADR-004-contrat-cli.md"
+    ]
+  },
+  "cli": {
+    "tui": "arka-norn",
+    "project": "arka-norn project <list|add|import|scan|show|use|forget|reconcile>",
+    "feature": "arka-norn feature <list|create|import|scan|show|use|forget|reconcile>",
+    "pipeline": "arka-norn pipeline <status|next|scaffold|validate>",
+    "skills": "arka-norn skills <list|install|doctor>",
+    "doctor": "arka-norn doctor [--repair [--apply]]",
+    "migrate": "arka-norn migrate [--target <path>] [--dry-run|--apply]",
+    "status": "arka-norn status <feature-root>",
+    "scaffold": "arka-norn scaffold <step-id> <output.json>",
+    "validate": "arka-norn validate <document.json>",
+    "install": "arka-norn install [--global] [--target <project>] [--profile all|core|delivery] [--dry-run]",
+    "selftest": "arka-norn selftest"
+  },
+  "quality": {
+    "gate": "npm run check",
+    "typecheck": "npm run typecheck",
+    "tests": ["npm run test:unit", "npm run test:integration", "npm run test:e2e"]
+  },
+  "rules": [
+    "Markers portables are sources of truth; local indexes are reconstructible caches.",
+    "A Feature always references its owning Project with projectId.",
+    "A structurally valid document is not automatically business-complete.",
+    "QA completion requires pass for the latest valid development report.",
+    "Generated skills are compiled from skills-src and never edited in place."
+  ]
+}

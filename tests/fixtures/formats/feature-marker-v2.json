@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 2,
+  "id": "project-cockpit",
+  "projectId": "arka-norn",
+  "name": "Project cockpit",
+  "root": "/workspace/arka-norn/features/project-cockpit",
+  "pipelineId": "arka-norn-default",
+  "createdAt": "2026-08-19T09:00:00.000Z",
+  "updatedAt": "2026-08-19T09:00:00.000Z"
+}

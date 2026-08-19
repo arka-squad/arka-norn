@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "invariants-figes.schema.json",
+  "title": "Invariants figés avant code",
+  "description": "Document du framework méthodologique agent-agnostique qui fige les invariants d'une feature avant toute spec technique. Un invariant N1 fige un contrat non interprétable à l'implémentation (rôles, structures, ordres d'arbitrage, politiques). Un invariant N2 fige des valeurs ou seuils qui doivent être recettés sur données réelles avant toute généralisation. Ce document ne fige jamais de valeur N2 : il ne fait que déclarer, pour chaque N1, à quelle section du plan il se rattache et de quelle tâche il dépend.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Identifiant unique de ce document dans le framework."
+    },
+    "type": {
+      "const": "invariants_figes",
+      "description": "Type fixe du document, identifie ce schema parmi les types du cycle de vie feature."
+    },
+    "tache_id": {
+      "type": "string",
+      "description": "Identifiant de la tâche du plan qui produit ce figeage d'invariants (ex: \"T02\")."
+    },
+    "sources_plan": {
+      "type": "array",
+      "description": "Sections du plan (ou d'autres documents sources) dont les invariants sont extraits.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "depend_de": {
+      "type": "array",
+      "description": "Identifiants d'autres documents du framework dont ce document dépend (ex: un audit confirmé). Peut être vide si aucune dépendance.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "date": {
+      "type": "string",
+      "description": "Date de figeage des invariants."
+    },
+    "invariants": {
+      "type": "array",
+      "description": "Liste des invariants figés, chacun classé N1 (contrat figé avant code, non interprétable) ou N2 (valeurs/seuils à recetter avant généralisation).",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Identifiant de l'invariant (ex: \"INV-1\")."
+          },
+          "titre": {
+            "type": "string",
+            "description": "Titre court de l'invariant."
+          },
+          "description": {
+            "type": "string",
+            "description": "Énoncé complet de l'invariant : ce qui est figé et non interprétable à l'implémentation."
+          },
+          "niveau": {
+            "type": "string",
+            "enum": ["N1", "N2"],
+            "description": "N1 = contrat figé avant code (non interprétable). N2 = valeurs/seuils recettés avant généralisation."
+          },
+          "source_section": {
+            "type": "string",
+            "description": "Section du plan (ou du document source) d'où provient cet invariant."
+          }
+        },
+        "required": ["id", "titre", "description", "niveau", "source_section"]
+      }
+    }
+  },
+  "required": ["id", "type", "tache_id", "sources_plan", "depend_de", "date", "invariants"],
+  "examples": [
+    {
+      "id": "invariants-figes-t02",
+      "type": "invariants_figes",
+      "tache_id": "T02",
+      "sources_plan": ["PLAN v2.2 §16", "§5"],
+      "depend_de": ["T01"],
+      "date": "2026-06-30",
+      "invariants": [
+        {
+          "id": "INV-1",
+          "titre": "Clé d'idempotence unique et stable",
+          "description": "Un objet source a une seule identité ; un atome extrait a une seule ancre durable. Aucune autre clé d'idempotence n'existe.",
+          "niveau": "N1",
+          "source_section": "§5, §5.2"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "recette-qa.schema.json",
+  "title": "Recette QA",
+  "description": "Document de recette QA du framework méthodologique cortex.deck. Consigne le résultat d'une campagne de tests fonctionnels menée sur une feature ou un lot : identité du testeur, environnement et version testés, statut global, périmètre couvert, prérequis, et le détail cas de test par cas de test (étapes, résultat attendu vs obtenu, statut). Ce document est produit après un audit et alimente le suivi des dettes et des tâches. Conçu pour être suivi mécaniquement par tout agent (Claude Code, Codex CLI, Antigravity, ou autre) sans connaissance préalable du projet.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "feature_id",
+    "type",
+    "sequence",
+    "created_at",
+    "cr_dev_id",
+    "ref",
+    "date",
+    "testeur",
+    "environnement",
+    "version",
+    "statut_global",
+    "perimetre",
+    "prerequis",
+    "cas_de_test"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 2,
+      "description": "Version du format de document."
+    },
+    "id": {
+      "type": "string",
+      "description": "Identifiant unique du document de recette QA."
+    },
+    "feature_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identifiant de la Feature propriétaire."
+    },
+    "type": {
+      "const": "recette_qa",
+      "description": "Type fixe du document, identifie ce document comme une recette QA dans le cycle de vie du framework."
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Ordre explicite de cette exécution QA."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Instant de création du run QA."
+    },
+    "cr_dev_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identifiant exact du CR de développement testé."
+    },
+    "ref": {
+      "type": "string",
+      "description": "Référence du document (par exemple identifiant de la feature, du lot ou du ticket recetté)."
+    },
+    "date": {
+      "type": "string",
+      "description": "Date à laquelle la recette QA a été exécutée."
+    },
+    "testeur": {
+      "type": "object",
+      "description": "Identité de l'agent ou de la personne ayant exécuté la recette.",
+      "additionalProperties": false,
+      "required": [
+        "nom",
+        "provider"
+      ],
+      "properties": {
+        "nom": {
+          "type": "string",
+          "description": "Nom du testeur (personne ou agent)."
+        },
+        "provider": {
+          "type": "string",
+          "description": "Fournisseur ou plateforme d'exécution du testeur (par exemple Claude Code, Codex CLI, Antigravity, humain)."
+        }
+      }
+    },
+    "environnement": {
+      "type": "string",
+      "description": "Environnement dans lequel la recette a été exécutée (par exemple local macOS, staging, production)."
+    },
+    "version": {
+      "type": "string",
+      "description": "Version ou commit du logiciel testé."
+    },
+    "statut_global": {
+      "type": "string",
+      "description": "Statut global de la recette après exécution de l'ensemble des cas de test.",
+      "enum": [
+        "pass",
+        "fail",
+        "partial"
+      ]
+    },
+    "perimetre": {
+      "type": "string",
+      "description": "Périmètre fonctionnel couvert par la recette QA."
+    },
+    "prerequis": {
+      "type": "array",
+      "description": "Liste des prérequis nécessaires à l'exécution de la recette (données, configuration, état initial).",
+      "items": {
+        "type": "string"
+      }
+    },
+    "cas_de_test": {
+      "type": "array",
+      "description": "Liste des cas de test exécutés durant la recette, avec leur résultat individuel.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "nom",
+          "etapes",
+          "resultat_attendu",
+          "resultat_obtenu",
+          "statut"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Identifiant unique du cas de test au sein de la recette."
+          },
+          "nom": {
+            "type": "string",
+            "description": "Nom court décrivant le cas de test."
+          },
+          "etapes": {
+            "type": "array",
+            "description": "Séquence des étapes exécutées pour ce cas de test.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "resultat_attendu": {
+            "type": "string",
+            "description": "Résultat attendu à l'issue des étapes du cas de test."
+          },
+          "resultat_obtenu": {
+            "type": "string",
+            "description": "Résultat effectivement observé à l'issue des étapes du cas de test."
+          },
+          "statut": {
+            "type": "string",
+            "description": "Statut individuel du cas de test.",
+            "enum": [
+              "pass",
+              "fail",
+              "partial",
+              "skip"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "schema_version": 2,
+      "id": "recette-qa-2026-08-18-001",
+      "feature_id": "capteur-clic",
+      "type": "recette_qa",
+      "sequence": 1,
+      "created_at": "2026-08-18T13:00:00.000Z",
+      "cr_dev_id": "cr-dev-001",
+      "ref": "P2-042",
+      "date": "2026-08-18",
+      "testeur": {
+        "nom": "Claude Code",
+        "provider": "claude-code"
+      },
+      "environnement": "local macOS",
+      "version": "49e9f5c",
+      "statut_global": "fail",
+      "perimetre": "Capteur : validation des clics sans réponse",
+      "prerequis": [
+        "Application démarrée en mode debug",
+        "Capteur activé sur la fenêtre cible"
+      ],
+      "cas_de_test": [
+        {
+          "id": "CT-01",
+          "nom": "Clic capturé déclenche une réponse visible",
+          "etapes": [
+            "Ouvrir la fenêtre capteur",
+            "Effectuer un clic sur l'élément cible"
+          ],
+          "resultat_attendu": "Une confirmation visuelle apparaît sous 1 seconde",
+          "resultat_obtenu": "Aucune confirmation visuelle après 5 secondes",
+          "statut": "fail"
+        }
+      ]
+    }
+  ]
+}

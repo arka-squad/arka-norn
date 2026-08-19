@@ -1,0 +1,20 @@
+{
+  "id": "audit-t01-etat-reel-cortex-lite",
+  "type": "audit_etat_reel",
+  "tache_id": "T01 (bloc-00) — Confirmer l'état réel du dépôt",
+  "sources_plan": ["PLAN v2.2 §2 (état réel)", "PLAN v2.2 §17 lot 0 (audit de confirmation)"],
+  "depot_audite": "cortex-lite/",
+  "reference_auditee": "aff2722 feat: stabilize launch chat and worker wiring",
+  "date_audit": "2026-06-30",
+  "methode": "Vérification fichier:ligne directe (grep + lecture) sur le disque réel",
+  "verdict_global": "Aucun constat infirmé. 6/6 briques §2.1 confirmées, 8/8 manques §2.2 confirmés, drift de lignes mineur non bloquant, 1 famille de briques découverte hors §2.",
+  "constats": [
+    { "id": "brique-1-extraction-structuree", "description": "worker-core FormTool (model.rs:49) et FormFiller.fill→Value (service.rs:42) sont exacts au HEAD audité ; retry vers SchemaInvalid confirmé.", "statut": "confirme" },
+    { "id": "brique-4-providers-secrets", "description": "provider-core ProviderEndpoint::{RemoteHttp,Cli,Local} (model.rs:138) confirmé ; KeychainSecretVault via keyring::Entry confirmé.", "statut": "confirme" },
+    { "id": "manque-1-aucun-connecteur", "description": "0 occurrence de notion|linear|connector (hors commentaires/tests) dans crates/ et src-tauri/src/.", "statut": "confirme" },
+    { "id": "manque-2-store-non-ecrivable", "description": "Le graphe est une projection read-only ; aucune table memory_atom/memory_edge/event_inbox ; GraphRepository n'expose aucune méthode d'écriture de relation.", "statut": "confirme" },
+    { "id": "manque-5-idempotence-ingestion", "description": "Seul atom.source_id UNIQUE existe (catalogue public) ; aucune clé (source, external_id), aucun event_inbox.", "statut": "confirme" },
+    { "id": "manque-7-embeddings-resonance", "description": "0 occurrence embedding/fastembed/resonance/hnsw/bm25/rrf dans le backend ; isResonance vit uniquement au front, affiché jamais calculé.", "statut": "confirme" },
+    { "id": "drift-positif-ingestion-run", "description": "Table ingestion_run SCHEMALESS (engine.rs:108) et sync_meta SCHEMALESS (engine.rs:105) déjà présentes, non mentionnées au plan §2 — à articuler avec event_inbox en spec du lot 5.", "statut": "decouvert" }
+  ]
+}

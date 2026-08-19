@@ -1,0 +1,59 @@
+{
+  "id": "invariants-n1-figes-t02",
+  "type": "invariants_figes",
+  "tache_id": "T02 (bloc-00) — Figer les 7 invariants N1 avant code",
+  "sources_plan": ["PLAN v2.2 §16 (deux niveaux N1/N2)", "§5", "§6.2", "§6.4", "§1bis", "§10", "§13"],
+  "depend_de": ["audit-t01-etat-reel-cortex-lite"],
+  "date": "2026-06-30",
+  "invariants": [
+    {
+      "id": "INV-1",
+      "titre": "Clé d'idempotence unique et stable",
+      "description": "Un objet source a une seule identité ; un atome extrait a une seule ancre durable. Ordre d'arbitrage déterministe figé : (0) normalizer_version différent → re-normalisation forcée ; (1) sinon source_version inchangé → skip total ; (2) sinon content_hash identique → pas de révision fantôme ; (3) sinon content_hash changé → diff → révision.",
+      "niveau": "N1",
+      "source_section": "§5, §5.2"
+    },
+    {
+      "id": "INV-2",
+      "titre": "Politique d'usage des atomes par statut",
+      "description": "Ce qu'un atome peut faire (affichage, résonance, pack, consolidation, write-back) est fonction de son état, sans exception locale. Un atome Proposé peut nourrir une réponse mais toujours étiqueté non validé, et ne déclenche jamais d'écriture externe.",
+      "niveau": "N1",
+      "source_section": "§6.2"
+    },
+    {
+      "id": "INV-3",
+      "titre": "Source de vérité des versions normalisées = event_inbox",
+      "description": "La référence N-1 normalisée d'un objet source est persistée explicitement dans event_inbox, clé (source, external_id). Le Change Resolver diffe le nouveau normalized_snapshot contre le stocké pour produire un ChangeSet.",
+      "niveau": "N1",
+      "source_section": "§5"
+    },
+    {
+      "id": "INV-4",
+      "titre": "Budget gate opérationnel avant injection LLM",
+      "description": "Rien n'est envoyé au LLM sans plafond : comptage tokens réel par tokenizer du provider, hiérarchie de réduction déterministe au dépassement, pondération par état, part réservée à la réponse, refus explicite au-delà du critique.",
+      "niveau": "N1",
+      "source_section": "§10"
+    },
+    {
+      "id": "INV-5",
+      "titre": "Stratégie complète de write-back",
+      "description": "L'écriture externe est idempotente, traçable, rejouable : cycle propose → preview → confirm → execute → result → rattachement → resync. Avant toute création, vérifier le lien durable existant ; jamais d'état incohérent silencieux en cas d'échec partiel.",
+      "niveau": "N1",
+      "source_section": "§13"
+    },
+    {
+      "id": "INV-6",
+      "titre": "Mémoire de sujet = synthèse maintenue, jamais une liste",
+      "description": "La mémoire d'un sujet n'est pas l'empilement de ses canaux, c'est un organisme entretenu. La consolidation est constitutive, pas un lot tardif optionnel. Un lot produisant une accumulation au niveau d'un sujet est considéré non fini.",
+      "niveau": "N1",
+      "source_section": "§6.4, verrouillé v2.2"
+    },
+    {
+      "id": "INV-7",
+      "titre": "Modèle de portée Workspace → Sujet typé",
+      "description": "La mémoire n'est pas globale, elle est organisée par sujet. Workspace = classeur sans mémoire propre ; Sujet/Contenant typé = nœud d'entrée ; résonance intra-sujet par défaut, inter-sujets proposée sous validation, étanchéité inter-workspaces par défaut.",
+      "niveau": "N1",
+      "source_section": "§1bis, verrouillé v2.2"
+    }
+  ]
+}

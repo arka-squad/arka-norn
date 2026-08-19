@@ -1,0 +1,25 @@
+{
+  "name": "arka-framework-recette-qa",
+  "titre_h1_repo": "Arka — Recette QA",
+  "titre_h1_global": "Skill Recette QA — Arka Labs",
+  "description_courte": "Recette indépendamment le dernier CR de dev, sépare conformité structurelle, résultats métier, anomalies et décision finale.",
+  "description_do_use": "Use when un CR de dev valide doit être testé avant clôture ou retour en développement.",
+  "description_do_not_use": "Do NOT use pour corriger le code pendant la recette ni valider un ancien CR quand un plus récent existe.",
+  "declencheurs_globaux": "Déclencher pour QA, recette, validation fonctionnelle, PV de test ou sur arka-framework-recette-qa.",
+  "allowed_tools": ["Read", "Write", "Bash", "Grep", "Glob"],
+  "quand_utiliser": ["dernier CR de dev disponible", "campagne de tests fonctionnels ou automatisés"],
+  "quand_ne_pas_utiliser": ["corriger silencieusement un écart", "tester un CR obsolète", "confondre schema valide et résultat métier pass"],
+  "inputs": [
+    { "obligatoire": true, "nom": "cr_dev_id", "description": "identifiant exact du dernier CR testé" },
+    { "obligatoire": true, "nom": "criteres", "description": "critères, cas et preuves attendues" }
+  ],
+  "note_inputs": "Le verdict pass exige zéro bloquant et des preuves directes ; partial/fail garde le pipeline ouvert.",
+  "referentiel_extra": ["`{{FRAMEWORK_DIR}}/schemas/recette-qa.schema.json`"],
+  "procedure": [
+    { "titre": "Figer la cible", "contenu": "Confirmer la Feature, le dernier `cr_dev_id`, la spec couverte et l'environnement. Refuser une QA sur un run obsolète." },
+    { "titre": "Exécuter", "contenu": "Tester structure, comportement métier, erreurs, sécurité et non-régression. Conserver chaque commande, entrée et résultat utile." },
+    { "titre": "Classer sans corriger", "contenu": "Enregistrer anomalies avec sévérité, reproduction, attendu et obtenu. Ne pas modifier le code pendant la recette indépendante." },
+    { "titre": "Décider", "contenu": "Produire `pass`, `partial` ou `fail` selon les résultats réels, référencer exactement le CR testé, valider le JSON puis relancer le statut Pipeline." }
+  ],
+  "format_sortie": "Document JSON `recette_qa` validé, cas de test, preuves, anomalies et verdict métier explicite."
+}

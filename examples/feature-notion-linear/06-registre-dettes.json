@@ -1,0 +1,18 @@
+{
+  "id": "registre-dettes-spec-t03",
+  "type": "registre_dettes",
+  "tache_id": "T03 (bloc-00) — Clarifier les dettes de spec bloquantes",
+  "sources_plan": ["PLAN v2.2 §16 (dettes complémentaires)", "§18", "MANIFESTE « Points à bloquer »", "découverte T01"],
+  "depend_de": ["audit-t01-etat-reel-cortex-lite", "invariants-n1-figes-t02"],
+  "date": "2026-06-30",
+  "regle_dor": "Toute spec qui rencontre une dette ci-dessous DOIT bloquer (« non spécifié dans le plan ») et demander une décision. Aucune dette ne se convertit en choix technique implicite.",
+  "dettes": [
+    { "id": "D01", "description": "Modèle d'embedding exact et comportement de panne (dépôt Pending/Failed, rattrapage).", "classification": "bloquante", "decision_requise": "Décision cœur produit — bloque T14 / lot 3." },
+    { "id": "D02", "description": "Liste fermée exacte des AtomType et arbitrage des recouvrements (ex. Décision vivante vs DécisionProjet vs Contrainte/Exigence).", "classification": "bloquante", "decision_requise": "Décision cœur produit (catalogue gouverné) — bloque T05 / lot 1." },
+    { "id": "D05", "description": "Articulation ingestion_run / sync_meta / public_sync existants avec event_inbox à bâtir (découverte de l'audit T01) : réutiliser ou créer séparément.", "classification": "bloquante", "decision_requise": "Décision technique explicite en spec du lot 5, à trancher, pas par déduction — nouvelle dette issue de l'audit." },
+    { "id": "D15", "description": "Forme exacte de ChangeSet (sortie du Change Resolver, entrée de l'extraction).", "classification": "bloquante", "decision_requise": "Figer la forme exacte en spec des lots 4+5 avant tout code d'extraction." },
+    { "id": "D09", "description": "Seuils de résonance / cross-pollination (référence 0.3 / 0.7) — recette bloquante avant toute généralisation.", "classification": "recette", "decision_requise": "À recetter sur données réelles avant généralisation (lot 3)." },
+    { "id": "D14", "description": "Périmètre pilote de recette Notion / Linear.", "classification": "recette", "decision_requise": "À cadrer avant la recette du lot 8 (T35)." },
+    { "id": "D23", "description": "Connecteurs au-delà du pilote (Drive/Gmail/Slack/GitHub) — même modèle Annexe A, hors périmètre cœur.", "classification": "extension", "decision_requise": "Parquée : à cadrer plus tard sans toucher au cœur, sans inventer le mécanisme maintenant." }
+  ]
+}

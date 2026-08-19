@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cr-dev.schema.json",
+  "title": "Compte-rendu de développement",
+  "description": "Document produit par un agent développeur à l'issue d'une session d'implémentation, quel que soit le provider (Claude Code, Codex CLI, Antigravity, ou tout autre agent). Il déclare ce qui a été livré, par qui, en référence à quelles specs, avec quels fichiers modifiés et quelles exigences couvertes ou non. Ce document doit pouvoir être suivi et validé mécaniquement par un autre agent ou un humain sans contexte préalable sur le projet.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "feature_id",
+    "type",
+    "sequence",
+    "created_at",
+    "ref",
+    "date",
+    "agent",
+    "spec_source",
+    "statut",
+    "fichiers_livres",
+    "exigences_couvertes"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 2,
+      "description": "Version du format de document."
+    },
+    "id": {
+      "type": "string",
+      "description": "Identifiant unique de ce compte-rendu de développement."
+    },
+    "feature_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identifiant de la Feature propriétaire."
+    },
+    "type": {
+      "const": "cr_dev",
+      "description": "Type fixe du document, permet à un agent de reconnaître mécaniquement ce format sans ambiguïté."
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Ordre explicite de cette exécution de développement."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Instant de création utilisé pour départager les runs de même séquence."
+    },
+    "ref": {
+      "type": "string",
+      "description": "Référence courte du CR (ex: numéro, code de lot ou de ticket associé)."
+    },
+    "date": {
+      "type": "string",
+      "description": "Date de production du compte-rendu."
+    },
+    "agent": {
+      "type": "object",
+      "description": "Identité de l'agent ayant produit ce CR — champ central pour la traçabilité multiprovider, permettant de savoir précisément qui (quel agent, sur quel provider) a réalisé le travail décrit.",
+      "additionalProperties": false,
+      "required": ["nom", "provider"],
+      "properties": {
+        "nom": {
+          "type": "string",
+          "description": "Nom de l'agent ayant produit ce CR."
+        },
+        "provider": {
+          "type": "string",
+          "description": "Provider ou environnement d'exécution de l'agent (ex: Claude Code, Codex CLI, Antigravity)."
+        }
+      }
+    },
+    "spec_source": {
+      "type": "array",
+      "description": "Liste des chemins ou identifiants des documents de spécification suivis pour produire ce CR.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "statut": {
+      "type": "string",
+      "description": "État global de la livraison décrite par ce CR.",
+      "enum": ["livre", "partiel", "bloque"]
+    },
+    "fichiers_livres": {
+      "type": "array",
+      "description": "Liste des fichiers créés, modifiés ou supprimés dans le cadre de cette livraison.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["chemin", "action", "lignes", "role"],
+        "properties": {
+          "chemin": {
+            "type": "string",
+            "description": "Chemin du fichier concerné."
+          },
+          "action": {
+            "type": "string",
+            "description": "Nature de l'action réalisée sur ce fichier.",
+            "enum": ["cree", "modifie", "supprime"]
+          },
+          "lignes": {
+            "type": "integer",
+            "description": "Nombre de lignes affectées par l'action sur ce fichier."
+          },
+          "role": {
+            "type": "string",
+            "description": "Rôle ou fonction de ce fichier dans la livraison."
+          }
+        }
+      }
+    },
+    "exigences_couvertes": {
+      "type": "array",
+      "description": "Liste des exigences de la spec suivie, avec leur statut de couverture et la preuve associée.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "exigence", "couvert", "preuve"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Identifiant de l'exigence, tel que défini dans la spec source."
+          },
+          "exigence": {
+            "type": "string",
+            "description": "Libellé de l'exigence à couvrir."
+          },
+          "couvert": {
+            "type": "boolean",
+            "description": "Indique si l'exigence est effectivement couverte par cette livraison."
+          },
+          "preuve": {
+            "type": "string",
+            "description": "Preuve concrète de la couverture (ou de l'absence de couverture) de l'exigence."
+          }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "schema_version": 2,
+      "id": "cr-dev-001",
+      "feature_id": "connecteurs-notion-linear",
+      "type": "cr_dev",
+      "sequence": 1,
+      "created_at": "2026-08-18T12:00:00.000Z",
+      "ref": "15-cr-dev-implementation-connecteurs",
+      "date": "2026-08-18",
+      "agent": {
+        "nom": "agent-dev-connecteurs",
+        "provider": "Claude Code"
+      },
+      "spec_source": ["specs/14-spec-integration-connecteurs.md"],
+      "statut": "livre",
+      "fichiers_livres": [
+        {
+          "chemin": "src-tauri/src/connectors/http.rs",
+          "action": "cree",
+          "lignes": 120,
+          "role": "implémentation du connecteur HTTP"
+        }
+      ],
+      "exigences_couvertes": [
+        {
+          "id": "EXG-01",
+          "exigence": "Le connecteur doit gérer les erreurs de timeout",
+          "couvert": true,
+          "preuve": "test unitaire test_timeout_error dans http.rs"
+        }
+      ]
+    }
+  ]
+}

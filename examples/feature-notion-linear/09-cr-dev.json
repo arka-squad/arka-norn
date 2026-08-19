@@ -1,0 +1,33 @@
+{
+  "schema_version": 2,
+  "id": "cr-dev-cortex-lot5-connecteurs-20260701-01",
+  "feature_id": "connecteurs-notion-linear",
+  "type": "cr_dev",
+  "sequence": 1,
+  "created_at": "2026-07-01T12:00:00.000Z",
+  "ref": "CR-DEV-CORTEX-lot5_connecteurs-20260701-01",
+  "date": "2026-07-01",
+  "agent": { "nom": "Claude (Sonnet 4.6)", "provider": "claude-code" },
+  "spec_source": ["spec-lot4-5-connecteurs-extraction", "annexe-a-extensibilite-connecteurs"],
+  "statut": "livre",
+  "fichiers_livres": [
+    { "chemin": "src-tauri/Cargo.toml", "action": "modifie", "lignes": 1, "role": "Ajout dépendance cortex-connect-core" },
+    { "chemin": "src-tauri/src/lib.rs", "action": "modifie", "lignes": 1, "role": "Déclaration pub mod connect" },
+    { "chemin": "src-tauri/src/connect/mod.rs", "action": "cree", "lignes": 67, "role": "Registre immuable ConnectorRegistry (2 entrées)" },
+    { "chemin": "src-tauri/src/connect/notion/mod.rs", "action": "cree", "lignes": 451, "role": "Adapter Notion REST : ConnectorSource + parsers purs + tests" },
+    { "chemin": "src-tauri/src/connect/notion/normalize.rs", "action": "cree", "lignes": 267, "role": "Normalisation pure page/database vers ExternalDocument + tests" },
+    { "chemin": "src-tauri/src/connect/linear/mod.rs", "action": "cree", "lignes": 615, "role": "Adapter Linear GraphQL : ConnectorSource + parsers purs + tests" },
+    { "chemin": "src-tauri/src/connect/linear/normalize.rs", "action": "cree", "lignes": 335, "role": "Normalisation pure issue/cycle/comment vers ExternalDocument + tests" }
+  ],
+  "exigences_couvertes": [
+    { "id": "T21-1", "exigence": "Adapter Notion : impl ConnectorSource", "couvert": true, "preuve": "notion/mod.rs : impl ConnectorSource for NotionConnector" },
+    { "id": "T21-4", "exigence": "Notion pagination start_cursor", "couvert": true, "preuve": "NotionCursorState.page + corps start_cursor" },
+    { "id": "T21-8", "exigence": "Notion normalisation pure testable hors réseau", "couvert": true, "preuve": "normalize.rs : 7 tests purs, 0 I/O" },
+    { "id": "T22-1", "exigence": "Adapter Linear : impl ConnectorSource", "couvert": true, "preuve": "linear/mod.rs : impl ConnectorSource for LinearConnector" },
+    { "id": "T22-3", "exigence": "Linear read issues : GraphQL, cursor after: + updatedAt", "couvert": true, "preuve": "ISSUES_QUERY + LinearCursorState.after/updated_at_after" },
+    { "id": "A.6.1", "exigence": "Idempotence clé (source, external_id, source_version)", "couvert": true, "preuve": "UUID source sans tirets + last_edited_time/updatedAt" },
+    { "id": "A.6.4", "exigence": "content_hash = SHA-256 du payload normalisé", "couvert": true, "preuve": "compute_hash(payload) dans les deux normalize.rs" },
+    { "id": "A.4", "exigence": "WriteNotAllowed sur write(), manifest write=None", "couvert": true, "preuve": "Les deux adapters renvoient Err(ConnectorError::WriteNotAllowed)" },
+    { "id": "A.9", "exigence": "Test live marqué #[ignore] avec commentaire explicite", "couvert": true, "preuve": "live_discover dans linear/tests" }
+  ]
+}

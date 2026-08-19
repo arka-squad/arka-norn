@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "registre-dettes.schema.json",
+  "title": "Registre des dettes de spec",
+  "description": "Document du cycle de vie feature (concept → plan → annexe → audit → invariants → dettes → tâches → spec d'intégration → CR de dev → recette QA) qui recense, pour une tâche donnée, les dettes de spécification identifiées avant le passage au code : zones non tranchées, ambiguïtés ou hypothèses implicites que l'agent développeur ne doit jamais combler de lui-même. Ce fichier est destiné à être suivi mécaniquement par n'importe quel agent (Claude Code, Codex CLI, Antigravity, etc.), pas seulement lu par un humain.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "type",
+    "tache_id",
+    "sources_plan",
+    "depend_de",
+    "date",
+    "regle_dor",
+    "dettes"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Identifiant unique du document dans le dépôt méthodologique."
+    },
+    "type": {
+      "const": "registre_dettes",
+      "description": "Discriminant fixe du type de document : identifie ce fichier comme un registre de dettes de spec."
+    },
+    "tache_id": {
+      "type": "string",
+      "description": "Identifiant de la tâche à laquelle ce registre de dettes se rattache."
+    },
+    "sources_plan": {
+      "type": "array",
+      "description": "Liste des identifiants ou références des documents de plan dont ce registre de dettes découle.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "depend_de": {
+      "type": "array",
+      "description": "Liste des identifiants des documents dont ce registre de dettes dépend directement. Peut être vide si aucune dépendance n'est déclarée.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "date": {
+      "type": "string",
+      "description": "Date de rédaction ou de dernière mise à jour du registre de dettes."
+    },
+    "regle_dor": {
+      "type": "string",
+      "description": "Énoncé de la règle d'or du registre : elle interdit de combler une dette de spec par une hypothèse implicite non tranchée."
+    },
+    "dettes": {
+      "type": "array",
+      "description": "Liste des dettes de spécification identifiées pour la tâche. Peut être vide si aucune dette n'a été détectée.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "description",
+          "classification",
+          "decision_requise"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Identifiant unique de la dette au sein du registre."
+          },
+          "description": {
+            "type": "string",
+            "description": "Description de la dette de spécification : ce qui n'est pas tranché ou ce qui repose sur une hypothèse implicite."
+          },
+          "classification": {
+            "type": "string",
+            "enum": [
+              "bloquante",
+              "recette",
+              "extension"
+            ],
+            "description": "Niveau de criticité de la dette : bloquante (empêche le développement de la tâche tant qu'elle n'est pas tranchée), recette (à trancher avant ou pendant la recette QA), extension (peut être reportée à une évolution ultérieure)."
+          },
+          "decision_requise": {
+            "type": "string",
+            "description": "Décision explicite qui doit être prise, et par qui si pertinent, pour résorber cette dette."
+          }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "id": "registre-dettes-connect-core-001",
+      "type": "registre_dettes",
+      "tache_id": "tache-domaine-connect-core",
+      "sources_plan": [
+        "plan-architecture-memoire-evenementielle-001"
+      ],
+      "depend_de": [],
+      "date": "2026-08-18",
+      "regle_dor": "Aucune dette listée ici ne peut être comblée par une hypothèse implicite : elle doit être tranchée explicitement avant d'être considérée comme résolue.",
+      "dettes": [
+        {
+          "id": "dette-001",
+          "description": "Le format exact de l'identifiant externe des connecteurs n'est pas fixé dans le plan.",
+          "classification": "bloquante",
+          "decision_requise": "Le porteur du plan doit choisir et documenter le format d'identifiant externe avant le début du développement."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "tache-19-specifier-le-domaine-cortex-connect-core",
+  "type": "tache_agent",
+  "numero": 19,
+  "titre": "Spécifier le domaine cortex-connect-core",
+  "bloc": "06 — Contrat connecteur et ingestion Notion / Linear",
+  "statut": "fait",
+  "sources_internes_du_plan": ["Plan §12", "Annexe A.1", "Annexe A.2"],
+  "dependances": [],
+  "objectif": "Formaliser le port unique de connecteur.",
+  "ce_qui_est_ecrit_dans_le_plan": "Le domaine cortex-connect-core est pur ; le port ConnectorSource expose manifest, discover, read, subscribe, write ; les types normalisés incluent ConnectorManifest, Resource, ReadBatch, ExternalDocument, Cursor, ExternalEvent.",
+  "decoupage_recommande": [
+    "Vérifier que les types du plan sont repris.",
+    "Séparer domaine pur et adapters.",
+    "Inclure trust_tier dans ConnectorManifest."
+  ],
+  "sortie_attendue": "Une spec du contrat connecteur.",
+  "agent_assigne": {
+    "nom": "Claude (Sonnet 4.6)",
+    "provider": "claude-code"
+  }
+}

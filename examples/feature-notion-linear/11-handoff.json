@@ -1,0 +1,28 @@
+{
+  "id": "handoff-cr-dev-lot5-vers-t23",
+  "type": "handoff",
+  "ref": "CR-DEV-CORTEX-lot5_connecteurs-20260701-01#handoff",
+  "date": "2026-07-01",
+  "agent_emetteur": { "nom": "Claude (Sonnet 4.6)", "provider": "claude-code" },
+  "agent_destinataire": { "nom": "agent-dev-suivant", "provider": "any" },
+  "type_message": "handoff",
+  "sujet": "Passation du lot 5 (connecteurs Notion/Linear) vers l'ingestion event-sourced T23",
+  "etape_pipeline_concernee": "cr_dev",
+  "etat_actuel": "Adapters Notion (REST) et Linear (GraphQL) livrés et testés (32/32 tests passés, 0 régression, clippy 0 warning). Prêts à être branchés dans l'ingestion event-sourced.",
+  "travail_effectue": [
+    "Implémentation de ConnectorSource pour Notion et Linear",
+    "Normalisation pure page/database et issue/cycle/comment vers ExternalDocument",
+    "Registre ConnectorRegistry à 2 entrées",
+    "Gestion d'erreurs explicite (RequiresReauth, RateLimited, Unavailable) dans les deux adapters"
+  ],
+  "travail_restant": [
+    "T23 : ingestion event-sourced (ConnectorRegistry + event_inbox + Change Resolver + extraction) peut démarrer",
+    "Activer live_discover quand des credentials sont fournis via keychain (LINEAR_TEST_TOKEN)",
+    "Recette QA du lot 5 connecteurs"
+  ],
+  "blocages": [],
+  "fichiers_reference": [
+    "cr-dev-cortex-lot5-connecteurs-20260701-01.json",
+    "spec-lot4-5-connecteurs-extraction.json"
+  ]
+}

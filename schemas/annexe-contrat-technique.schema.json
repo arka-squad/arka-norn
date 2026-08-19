@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "annexe-contrat-technique.schema.json",
+  "title": "Annexe — Contrat technique d'extensibilité",
+  "description": "Document de type 'annexe_contrat_technique' du framework méthodologique cortex.deck. Une annexe rattachée à un document 'plan' qui documente un point d'extension du système : le principe qui permet d'étendre sans casser le cœur, le contrat (port/interface) que toute implémentation doit respecter, et la frontière entre le domaine pur (agnostique de toute infra) et les adapters (spécifiques à une implémentation concrète). Destiné à être lu et suivi mécaniquement par un agent (Claude Code, Codex CLI, Antigravity, ou tout autre agent) sans connaissance préalable du projet.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "type",
+    "titre",
+    "annexe_de",
+    "principe_extensibilite",
+    "contrat",
+    "frontiere",
+    "statut"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Identifiant unique du document."
+    },
+    "type": {
+      "const": "annexe_contrat_technique",
+      "description": "Type fixe de ce document dans le framework méthodologique."
+    },
+    "titre": {
+      "type": "string",
+      "description": "Titre humain de l'annexe."
+    },
+    "annexe_de": {
+      "type": "string",
+      "description": "Identifiant ou chemin du document 'plan' dont cette annexe dépend."
+    },
+    "principe_extensibilite": {
+      "type": "string",
+      "description": "Le principe qui permet d'étendre le système sans casser le cœur (le domaine pur)."
+    },
+    "contrat": {
+      "type": "object",
+      "description": "Le contrat technique (port/interface) que toute implémentation doit respecter.",
+      "additionalProperties": false,
+      "required": ["nom", "methodes", "invariants"],
+      "properties": {
+        "nom": {
+          "type": "string",
+          "description": "Nom du port ou de l'interface concerné par le contrat."
+        },
+        "methodes": {
+          "type": "array",
+          "description": "Liste des méthodes exposées par le contrat.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "invariants": {
+          "type": "array",
+          "description": "Liste des invariants que toute implémentation du contrat doit respecter.",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "frontiere": {
+      "type": "object",
+      "description": "La frontière entre ce qui est agnostique de toute infrastructure (domaine pur) et ce qui est spécifique à une implémentation concrète (adapter).",
+      "additionalProperties": false,
+      "required": ["domaine_pur", "adapter"],
+      "properties": {
+        "domaine_pur": {
+          "type": "array",
+          "description": "Ce qui ne dépend d'aucune infrastructure.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "adapter": {
+          "type": "array",
+          "description": "Ce qui est spécifique à une implémentation concrète.",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "statut": {
+      "type": "string",
+      "description": "Statut de validation de l'annexe.",
+      "enum": ["brouillon", "valide", "obsolete"]
+    }
+  },
+  "examples": [
+    {
+      "id": "annexe-contrat-extensibilite-connecteurs",
+      "type": "annexe_contrat_technique",
+      "titre": "Contrat d'extensibilité des connecteurs",
+      "annexe_de": "plan-connecteurs-providers",
+      "principe_extensibilite": "Tout nouveau provider s'ajoute en implémentant le port ProviderConnector sans modifier le domaine pur.",
+      "contrat": {
+        "nom": "ProviderConnector",
+        "methodes": ["connect", "send_message", "disconnect"],
+        "invariants": [
+          "connect doit être idempotent",
+          "send_message ne doit jamais lever d'exception non typée"
+        ]
+      },
+      "frontiere": {
+        "domaine_pur": ["ConversationState", "MessageEnvelope"],
+        "adapter": ["adapter_cli.rs", "adapter_antigravity.rs"]
+      },
+      "statut": "valide"
+    }
+  ]
+}

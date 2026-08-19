@@ -1,0 +1,22 @@
+{
+  "id": "spec-lot4-5-connecteurs-extraction",
+  "type": "spec_integration_technique",
+  "titre": "SPEC VAGUE 4+5 — Connecteurs + extraction event-sourced",
+  "lots_couverts": ["lot-4-5"],
+  "sources": ["plan §3", "plan §5", "plan §7", "plan §8", "plan §12", "ANNEXE A", "lot 1 (event_inbox, MemoryAtom, idempotence)"],
+  "decisions_figees": [
+    { "id": "D15", "description": "Forme du ChangeSet : source, external_id, object_kind, change_kind, source_version, content_hash, normalizer_version, diff_text, normalized_after, structural_refs." },
+    { "id": "D05", "description": "Articulation entre event_inbox (nouveau) et ingestion_run/sync_meta (existants) — tranchée en spec avant implémentation." }
+  ],
+  "date": "2026-07-01",
+  "nature": "Contrat partagé des deux lots (4 extraction, 5 connecteurs+ingestion), à figer AVANT implémentation. Production, effet réel = DoD.",
+  "structure": {
+    "crates": ["cortex-connect-core (domaine pur, nouveau)"],
+    "adapters": ["src-tauri/src/connect/notion/ (REST)", "src-tauri/src/connect/linear/ (GraphQL)", "src-tauri/src/connect/mod.rs (registre)"]
+  },
+  "contrats": [
+    { "nom": "ConnectorSource", "definition": "Trait exposant manifest, discover, read, subscribe, write ; types normalisés ExternalDocument, ExternalEvent, ConnectorManifest, Resource, ReadBatch, Cursor, capabilities. Invariants : idempotence (source, external_id, source_version), curseur opaque, hash sur contenu normalisé, sans LLM par défaut, erreurs explicites RequiresReauth/RateLimited, fail-closed sur capacité non déclarée." },
+    { "nom": "ChangeSet", "definition": "Sortie du Change Resolver (classe 0, pur), entrée de l'extraction (classe 1). Champs : source, external_id, object_kind, change_kind (Created/Updated/Deleted), source_version, content_hash, normalizer_version, diff_text (seul champ injecté au LLM à l'extraction), normalized_after, structural_refs (relations déterministes ID↔ID posées par le connecteur)." }
+  ],
+  "invariants_ref": ["INV-1", "INV-3"]
+}

@@ -1,0 +1,31 @@
+{
+  "name": "arka-framework-valider",
+  "titre_h1_repo": "Arka — arka-framework-valider",
+  "titre_h1_global": "Skill Framework Valider — Arka Labs",
+  "description_courte": "Valide un document JSON du framework méthodologique {{FRAMEWORK_NAME}} contre son schema — structure ET absence de valeurs sentinelles de scaffold non remplacées.",
+  "description_do_use": "Use when avant de déclarer une étape terminée, juste après avoir rempli un scaffold, ou pour diagnostiquer précisément pourquoi arka-framework-statut rapporte une étape invalide.",
+  "description_do_not_use": "Do NOT use pour juger si le contenu métier est pertinent, complet ou bien argumenté sur le fond — ce skill vérifie uniquement la forme, jamais le jugement.",
+  "declencheurs_globaux": "Déclencher avant de déclarer une étape terminée, juste après avoir rempli un scaffold, pour diagnostiquer précisément pourquoi arka-framework-statut rapporte une étape invalide, ou sur \"arka-framework-valider\". Ne PAS déclencher pour juger si le contenu métier est pertinent, complet ou bien argumenté sur le fond — ce skill vérifie uniquement la forme, jamais le jugement. Ne s'applique que si la commande `{{FRAMEWORK_NAME}}` est disponible dans le PATH ; sinon ce skill ne s'applique pas.",
+  "allowed_tools": ["Read", "Bash", "Grep", "Glob"],
+  "quand_utiliser": [
+    "après avoir rempli un squelette produit par `arka-framework-scaffold`",
+    "avant de déclarer une étape du pipeline terminée",
+    "pour obtenir le détail exact d'une erreur de structure signalée par `arka-framework-statut`"
+  ],
+  "quand_ne_pas_utiliser": [
+    "pour juger si le contenu rédigé est pertinent, complet ou convaincant sur le fond",
+    "comme substitut à `arka-framework-statut` pour une vue d'ensemble de toute une feature — ce skill traite un seul fichier à la fois"
+  ],
+  "inputs": [
+    { "obligatoire": true, "nom": "fichier", "description": "chemin du fichier JSON à valider" }
+  ],
+  "note_inputs": "",
+  "referentiel_extra": [],
+  "procedure": [
+    { "titre": "Vérifier la présence de la commande", "contenu": "Confirmer que `{{FRAMEWORK_NAME}}` est disponible : `command -v {{FRAMEWORK_NAME}}`. Si absente, arrêter et le signaler — ce skill ne s'applique pas tant que {{FRAMEWORK_NAME}} n'est pas installé et lié globalement (voir `{{FRAMEWORK_DIR}}`, `npm link`)." },
+    { "titre": "Valider", "contenu": "```bash\narka-norn validate <fichier>\n```" },
+    { "titre": "Interpréter le résultat sans l'adoucir", "contenu": "`VALIDE` signifie uniquement que la structure est conforme au schema et qu'aucune sentinelle de scaffold ne subsiste — cela ne juge pas si le contenu métier est correct, ni si un statut métier négatif (par exemple `recette_qa.statut_global = \"fail\"`) rend l'étape réellement terminée au sens du pipeline. `INVALIDE` liste chaque champ en cause avec son chemin exact (`instancePath`) et le message d'erreur : corriger précisément ces champs, ne pas réécrire tout le document." },
+    { "titre": "Ne jamais déclarer « fait » sur un fichier INVALIDE", "contenu": "Si le fichier reste invalide après une tentative de correction, le signaler explicitement plutôt que de continuer comme si l'étape était terminée." }
+  ],
+  "format_sortie": "```markdown\n## Validation — <fichier>\nRésultat : VALIDE | INVALIDE\n\n## Erreurs (si INVALIDE)\n| Champ (instancePath) | Message |\n|---|---|\n```"
+}

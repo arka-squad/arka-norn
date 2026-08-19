@@ -1,0 +1,36 @@
+{
+  "name": "arka-framework-scaffold",
+  "titre_h1_repo": "Arka — arka-framework-scaffold",
+  "titre_h1_global": "Skill Framework Scaffold — Arka Labs",
+  "description_courte": "Génère le squelette JSON conforme au schema d'une étape du framework méthodologique {{FRAMEWORK_NAME}} (concept, plan, annexe_contrat_technique, audit_etat_reel, invariants_figes, registre_dettes, tache_agent, spec_integration_technique, cr_dev, recette_qa, ou handoff transversal), avec des valeurs sentinelles explicites à remplacer.",
+  "description_do_use": "Use when le statut de la feature indique qu'une étape obligatoire manque, ou pour démarrer le tout premier document (concept) d'une nouvelle feature.",
+  "description_do_not_use": "Do NOT use pour valider un document déjà rempli (→ arka-framework-valider) ni pour choisir quelle étape produire sans avoir consulté le statut réel (→ arka-framework-statut d'abord, sauf pour le tout premier concept).",
+  "declencheurs_globaux": "Déclencher quand le statut de la feature indique qu'une étape obligatoire manque, pour démarrer le tout premier document (concept) d'une nouvelle feature, ou sur \"arka-framework-scaffold\". Ne PAS déclencher pour valider un document déjà rempli (→ arka-framework-valider) ni pour choisir quelle étape produire sans avoir consulté le statut réel (→ arka-framework-statut d'abord, sauf pour le tout premier concept). Ne s'applique que si la commande `{{FRAMEWORK_NAME}}` est disponible dans le PATH ; sinon ce skill ne s'applique pas.",
+  "allowed_tools": ["Read", "Write", "Bash", "Grep", "Glob"],
+  "quand_utiliser": [
+    "démarrer le document concept d'une toute nouvelle feature",
+    "produire le squelette d'une étape manquante identifiée par `arka-framework-statut`",
+    "obtenir la liste exacte des champs requis d'un type de document sans lire le schema JSON brut"
+  ],
+  "quand_ne_pas_utiliser": [
+    "valider un document déjà rempli → `arka-framework-valider`",
+    "écraser un document déjà validé et rempli — scaffold produit toujours un squelette vide, jamais une mise à jour d'un document existant",
+    "deviner quelle étape produire sans avoir vérifié le statut réel de la feature (sauf le tout premier concept) → `arka-framework-statut`"
+  ],
+  "inputs": [
+    { "obligatoire": true, "nom": "step_id", "description": "un parmi `concept`, `plan`, `annexe_contrat_technique`, `audit_etat_reel`, `invariants_figes`, `registre_dettes`, `tache_agent`, `spec_integration_technique`, `cr_dev`, `recette_qa`, `handoff`" },
+    { "obligatoire": true, "nom": "fichier_sortie", "description": "chemin du fichier JSON à créer" }
+  ],
+  "note_inputs": "Si un input obligatoire manque, demander avant d'exécuter.",
+  "referentiel_extra": [
+    "`{{FRAMEWORK_DIR}}/schemas/` — le détail exact des champs par type de document",
+    "`{{FRAMEWORK_DIR}}/examples/feature-notion-linear/` — un exemple réel entièrement rempli, à consulter pour calibrer le niveau de détail attendu, jamais à copier tel quel"
+  ],
+  "procedure": [
+    { "titre": "Vérifier la présence de la commande", "contenu": "Confirmer que `{{FRAMEWORK_NAME}}` est disponible : `command -v {{FRAMEWORK_NAME}}`. Si absente, arrêter et le signaler — ce skill ne s'applique pas tant que {{FRAMEWORK_NAME}} n'est pas installé et lié globalement (voir `{{FRAMEWORK_DIR}}`, `npm link`)." },
+    { "titre": "Générer le squelette", "contenu": "```bash\narka-norn scaffold <step_id> <fichier_sortie>\n```" },
+    { "titre": "Remplacer chaque sentinelle par du contenu réel", "contenu": "Le squelette contient des valeurs `\"À_REMPLIR\"` (texte libre à rédiger) et `\"À_CHOISIR::valeur_a|valeur_b\"` (choisir une des valeurs listées, jamais en inventer une autre). Ne jamais laisser une sentinelle dans le fichier final. Consulter l'exemple réel correspondant dans `{{FRAMEWORK_DIR}}/examples/feature-notion-linear/` pour calibrer le niveau de détail attendu, sans copier son contenu métier propre à une autre feature." },
+    { "titre": "Valider avant de considérer l'étape faite", "contenu": "Ne jamais s'arrêter après le scaffold seul : enchaîner systématiquement avec `arka-framework-valider` sur le fichier rempli." }
+  ],
+  "format_sortie": "```markdown\n## Squelette généré — <step_id>\nFichier : <fichier_sortie>\n\n## Sentinelles à remplacer\n<liste des valeurs À_REMPLIR / À_CHOISIR:: trouvées dans le fichier>\n\n## Prochaine étape\nRemplir chaque champ puis lancer arka-framework-valider sur ce fichier.\n```"
+}

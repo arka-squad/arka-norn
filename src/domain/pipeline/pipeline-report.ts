@@ -1,0 +1,85 @@
+export type PresenceStatus = "absent" | "present";
+export type SchemaStatus = "valid" | "invalid";
+export type BusinessStatus = "not_started" | "in_progress" | "passed" | "failed" | "blocked";
+export type DependencyStatus = "satisfied" | "unsatisfied";
+export type CompletionStatus = "not_started" | "in_progress" | "completed" | "failed" | "blocked";
+export type PipelineOverallStatus = "incomplete" | "completed" | "failed" | "invalid";
+
+export type NextActionKind =
+  | "create_document"
+  | "fix_document"
+  | "continue_development"
+  | "run_qa"
+  | "return_to_development"
+  | "resolve_qa";
+
+export interface NextAction {
+  readonly kind: NextActionKind;
+  readonly stepId: string;
+  readonly reason: string;
+  readonly relatedDocumentId?: string;
+}
+
+export interface DocumentSummary {
+  readonly id?: string;
+  readonly type?: string;
+  readonly filePath: string;
+  readonly valid: boolean;
+  readonly errors: readonly string[];
+  readonly sequence?: number;
+  readonly createdAt?: string;
+  readonly featureId?: string;
+  readonly crDevId?: string;
+  readonly businessVerdict?: string;
+}
+
+export interface StepState {
+  readonly id: string;
+  readonly order: number;
+  readonly required: boolean;
+  readonly multiple: boolean;
+  readonly presenceStatus: PresenceStatus;
+  readonly schemaStatus: SchemaStatus;
+  readonly businessStatus: BusinessStatus;
+  readonly dependencyStatus: DependencyStatus;
+  readonly completionStatus: CompletionStatus;
+  readonly documents: readonly DocumentSummary[];
+  readonly selectedDocumentId?: string;
+  readonly nextActions: readonly NextAction[];
+}
+
+export interface PipelineReport {
+  readonly schemaVersion: 1;
+  readonly pipelineId: string;
+  readonly featureRoot: string;
+  readonly featureId?: string;
+  readonly overallStatus: PipelineOverallStatus;
+  readonly latestCrDevId?: string;
+  readonly selectedQaId?: string;
+  readonly steps: readonly StepState[];
+  readonly nextActions: readonly NextAction[];
+  readonly errors: readonly string[];
+  readonly warnings: readonly string[];
+  readonly unknownFiles: readonly string[];
+}
+
+export interface EvaluatedDocument extends DocumentSummary {
+  readonly content: Readonly<Record<string, unknown>>;
+}
+
+export interface PipelineEvaluationInput {
+  readonly pipelineId: string;
+  readonly featureRoot: string;
+  readonly featureId?: string;
+  readonly steps: readonly {
+    readonly id: string;
+    readonly order: number;
+    readonly required: boolean;
+    readonly multiple: boolean;
+    readonly dependsOn: readonly string[];
+  }[];
+  readonly documents: readonly EvaluatedDocument[];
+  readonly unknownFiles?: readonly string[];
+  readonly sourceErrors?: readonly string[];
+  readonly transversalDocumentTypes?: readonly string[];
+}

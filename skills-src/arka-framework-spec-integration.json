@@ -1,0 +1,21 @@
+{
+  "name": "arka-framework-spec-integration",
+  "titre_h1_repo": "Arka — Spec d'intégration",
+  "titre_h1_global": "Skill Spec intégration — Arka Labs",
+  "description_courte": "Rédige la spécification technique exécutable reliant tâches, contrats, invariants et tests.",
+  "description_do_use": "Use when les tâches sont validées et qu'un contrat d'implémentation précis est requis.",
+  "description_do_not_use": "Do NOT use pour décrire après coup un code déjà produit.",
+  "declencheurs_globaux": "Déclencher pour une spec d'intégration technique ou sur arka-framework-spec-integration.",
+  "allowed_tools": ["Read", "Write", "Bash", "Grep", "Glob"],
+  "quand_utiliser": ["avant développement", "plusieurs composants à intégrer"],
+  "quand_ne_pas_utiliser": ["tâches non validées", "rétrodocumentation opportuniste"],
+  "inputs": [{ "obligatoire": true, "nom": "taches", "description": "tâches, contrats et invariants applicables" }],
+  "note_inputs": "Les interfaces, erreurs, migrations, observabilité et tests doivent être explicites.",
+  "referentiel_extra": ["`{{FRAMEWORK_DIR}}/schemas/spec-integration-technique.schema.json`"],
+  "procedure": [
+    { "titre": "Relier", "contenu": "Mapper chaque tâche aux composants, contrats et invariants concernés." },
+    { "titre": "Spécifier", "contenu": "Définir données, flux, erreurs, compatibilité, sécurité, migration et stratégie de test." },
+    { "titre": "Valider", "contenu": "Valider la spec et conserver les décisions ouvertes comme blocages." }
+  ],
+  "format_sortie": "Document JSON `spec_integration_technique` validé et exécutable."
+}

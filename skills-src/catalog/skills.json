@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "catalogVersion": "1.0.0",
+  "profiles": {
+    "all": "14 skills, catalogue complet",
+    "core": "4 skills de socle",
+    "delivery": "12 skills de préparation, développement et QA"
+  },
+  "skills": [
+    { "name": "arka-framework-statut", "version": "1.0.0", "source": "arka-framework-statut.json", "checksum": "5cda80db55abf00ab0eeeec53c3186d86816c7ad45e5d5987b46253ededa62fa", "step": "core.status", "profiles": ["all", "core", "delivery"] },
+    { "name": "arka-framework-scaffold", "version": "1.0.0", "source": "arka-framework-scaffold.json", "checksum": "438aa0df69db38185fdc17039723990f67f3bb31cd1b24f41152dccddb41ff6a", "step": "core.scaffold", "profiles": ["all", "core", "delivery"] },
+    { "name": "arka-framework-valider", "version": "1.0.0", "source": "arka-framework-valider.json", "checksum": "b3553534193c0d1fa6fa8c32c546761c5bc692e175efeee4d8797aee194c5302", "step": "core.validate", "profiles": ["all", "core", "delivery"] },
+    { "name": "arka-framework-handoff", "version": "1.0.0", "source": "arka-framework-handoff.json", "checksum": "d0524829900d4259442913cf3907e1622a65262511d8e664b837ff6d31d5e64a", "step": "transversal.handoff", "profiles": ["all", "core", "delivery"] },
+    { "name": "arka-framework-concept", "version": "1.0.0", "source": "arka-framework-concept.json", "checksum": "cf8763f8512ca4c553a0cb886bb90b62d172a6ab711ffed0a88c9c43a5084c97", "step": "concept", "profiles": ["all"] },
+    { "name": "arka-framework-plan", "version": "1.0.0", "source": "arka-framework-plan.json", "checksum": "ac5db89430e7665e5e11e580e873d649285bf0fea7fdba4b5ee9bf0d5c3ba614", "step": "plan", "profiles": ["all", "delivery"] },
+    { "name": "arka-framework-annexe-technique", "version": "1.0.0", "source": "arka-framework-annexe-technique.json", "checksum": "604d32332126b420d76412893b19d8d5a36b71861cb68885db6bf6b1472e3f02", "step": "annexe_contrat_technique", "profiles": ["all"] },
+    { "name": "arka-framework-audit", "version": "1.0.0", "source": "arka-framework-audit.json", "checksum": "57216ec415dc552224184725b8c100c196516c8dcc6b5e76f4f504f3ac995a82", "step": "audit_etat_reel", "profiles": ["all", "delivery"] },
+    { "name": "arka-framework-invariants", "version": "1.0.0", "source": "arka-framework-invariants.json", "checksum": "e41b979a8b57ad79d9c8c137976ef8b04a8eb31d1bcf7ab52583b0deac809417", "step": "invariants_figes", "profiles": ["all", "delivery"] },
+    { "name": "arka-framework-dettes", "version": "1.0.0", "source": "arka-framework-dettes.json", "checksum": "4b3bcc39bf5a53bdaeb892edd78d77e107cced585145ef65eae30426b8521fc8", "step": "registre_dettes", "profiles": ["all", "delivery"] },
+    { "name": "arka-framework-taches", "version": "1.0.0", "source": "arka-framework-taches.json", "checksum": "7a7f4abc7329e0595fe8238846047d5fce4132ab616d544f829f55d3f14be2fb", "step": "tache_agent", "profiles": ["all", "delivery"] },
+    { "name": "arka-framework-spec-integration", "version": "1.0.0", "source": "arka-framework-spec-integration.json", "checksum": "c43c5783f82151437d28733028004728985604276e0ff1591a8bba2dfb51ff3c", "step": "spec_integration_technique", "profiles": ["all", "delivery"] },
+    { "name": "arka-framework-dev", "version": "1.0.0", "source": "arka-framework-dev.json", "checksum": "5b717d28b0269529c557db1739571677d9c3c78800a8ac489c4ba086465e6362", "step": "cr_dev", "profiles": ["all", "delivery"] },
+    { "name": "arka-framework-recette-qa", "version": "1.0.0", "source": "arka-framework-recette-qa.json", "checksum": "ebca437c4a20a1d0cb8ffa8ea0ded2ca3c7045c9e4fc05441add45283be3b5b7", "step": "recette_qa", "profiles": ["all", "delivery"] }
+  ]
+}

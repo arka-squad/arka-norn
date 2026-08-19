@@ -1,0 +1,32 @@
+{
+  "schema_version": 2,
+  "id": "rec-cortex-ingestion-t23-20260701-01",
+  "feature_id": "connecteurs-notion-linear",
+  "type": "recette_qa",
+  "sequence": 1,
+  "created_at": "2026-07-01T16:00:00.000Z",
+  "cr_dev_id": "cr-dev-cortex-lot5-connecteurs-20260701-01",
+  "ref": "REC-CORTEX-ingestion_t23-20260701-01",
+  "date": "2026-07-01",
+  "testeur": { "nom": "Codex", "provider": "codex-cli" },
+  "environnement": "local",
+  "version": "aff2722 + worktree non commit",
+  "statut_global": "fail",
+  "perimetre": "Recette T23 de la vague 4+5 : orchestration connecteur -> event_inbox -> ChangeResolver -> extraction form-tool -> atom_store -> relations structurelles.",
+  "prerequis": [
+    "Workspace local cortex-lite",
+    "Rust/Cargo, Node/npm",
+    "Pas de credentials Notion/Linear disponibles pour live tests"
+  ],
+  "cas_de_test": [
+    { "id": "CT-01", "nom": "Vérifications workspace", "etapes": ["cargo build --workspace", "cargo test --workspace", "cargo clippy --workspace --all-targets -- -D warnings", "npm run build"], "resultat_attendu": "Build/test/clippy/front verts.", "resultat_obtenu": "cargo test --workspace : 260 passés, 0 échec, 8 ignorés. Le reste PASS.", "statut": "pass" },
+    { "id": "CT-02", "nom": "Contrat connecteur D15/A.1", "etapes": ["Lecture crates/cortex-connect-core/src/ports.rs, model.rs, change.rs"], "resultat_attendu": "Port unique ConnectorSource, types normalisés, ChangeSet figé, sans budget LLM dans ConnectorManifest.", "resultat_obtenu": "ConnectorSource : 5 méthodes comptées. ChangeSet : 10 champs comptés, conformes à D15.", "statut": "pass" },
+    { "id": "CT-03", "nom": "Tests connect-core et extract-core", "etapes": ["cargo test -p cortex-connect-core", "cargo test -p cortex-extract-core"], "resultat_attendu": "ChangeResolver pur et extraction form-tool testés sans I/O.", "resultat_obtenu": "cortex-connect-core : 16 tests passés. cortex-extract-core : 27 tests passés. 0 échec.", "statut": "pass" },
+    { "id": "CT-04", "nom": "FormTools AtomType", "etapes": ["Lecture crates/cortex-atom-core/src/atom_type.rs + crates/cortex-extract-core/src/schemas.rs"], "resultat_attendu": "1 FormTool par AtomType, catalogue fermé de 19 types.", "resultat_obtenu": "19 types comptés, form_tool_for matche ces 19 types.", "statut": "pass" },
+    { "id": "CT-05", "nom": "Effet réel fixture -> store", "etapes": ["cargo test -p cortex-lite-shell ingest"], "resultat_attendu": "Fixture connecteur -> inbox/resolver/extraction/store produit atomes persistés, idempotents, révisés, obsolètes et reliés.", "resultat_obtenu": "7 tests T23 passés, 0 échec, 2 ignorés. Effet réel prouvé sur store SurrealDB Mem avec FakeConnector, pas avec API Notion/Linear live.", "statut": "pass" },
+    { "id": "CT-06", "nom": "Atomicité inbox -> extraction -> store", "etapes": ["Lecture src-tauri/src/connect/ingest.rs + recherche tests d'échec extraction"], "resultat_attendu": "Le snapshot N devient source de vérité N-1 seulement après extraction et persistance réussies, ou un mécanisme de reprise rejoue le ChangeSet après erreur.", "resultat_obtenu": "inbox.put_snapshot est exécuté avant extract et avant store.upsert_atom. Aucun test T23 ne couvre l'échec d'extraction après put_snapshot puis retry.", "statut": "fail" },
+    { "id": "CT-07", "nom": "Live Notion/Linear", "etapes": ["Lecture tests live T23", "cargo test -p cortex-lite-shell ingest"], "resultat_attendu": "Spec DoD lot 5 : sync réelle d'une ressource réelle -> atomes réels typés, idempotents, reliés.", "resultat_obtenu": "2 tests live T23 comptés, tous deux #[ignore] et corps vide. Aucun credential live fourni dans l'environnement QA.", "statut": "partial" },
+    { "id": "CT-08", "nom": "Journalisation D05 ingestion_run", "etapes": ["rg ingestion_run|IngestionRun|atoms_fetched|atoms_created|atoms_updated|atoms_skipped dans src-tauri/src/connect crates/cortex-connect-core crates/cortex-extract-core"], "resultat_attendu": "D05 : réutiliser ingestion_run pour journaliser les runs et métriques fetched/created/updated/skipped.", "resultat_obtenu": "0 occurrence trouvée. IngestionOutcome retourne 7 compteurs en mémoire, non persistés dans ingestion_run.", "statut": "fail" },
+    { "id": "CT-09", "nom": "Limite 700 lignes", "etapes": ["wc -l sur fichiers lot 4/5 + audit global"], "resultat_attendu": "Fichiers touchés <= 700 lignes.", "resultat_obtenu": "Fichier max du lot : linear/mod.rs = 615 lignes < 700. Un fichier hors lot (GraphView.tsx = 831) dépasse mais est préexistant.", "statut": "pass" }
+  ]
+}

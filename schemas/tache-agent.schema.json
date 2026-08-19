@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tache-agent.schema.json",
+  "title": "Tâche agent",
+  "description": "Découpe atomique et exécutable d'un plan de feature, destinée à être suivie mécaniquement par un agent (Claude Code, Codex CLI, Antigravity ou tout autre agent). Une tâche agent documente le périmètre confié à l'agent : ce que le plan dit, ce qu'il faut en faire concrètement, et ce que l'agent doit produire en sortie. Le champ optionnel agent_assigne est le seul endroit du document où le provider d'exécution est tracé, afin que le contenu métier de la tâche reste indépendant du provider qui l'exécute.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "type",
+    "numero",
+    "titre",
+    "bloc",
+    "statut",
+    "sources_internes_du_plan",
+    "dependances",
+    "objectif",
+    "ce_qui_est_ecrit_dans_le_plan",
+    "decoupage_recommande",
+    "sortie_attendue"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Identifiant unique et stable de cette tâche agent, utilisé pour la référencer depuis d'autres documents du framework (dépendances, specs d'intégration, handoffs)."
+    },
+    "type": {
+      "const": "tache_agent",
+      "description": "Discriminant fixe du type de document dans le framework méthodologique."
+    },
+    "numero": {
+      "type": "integer",
+      "description": "Numéro d'ordre de la tâche dans le plan ou le backlog dont elle est issue."
+    },
+    "titre": {
+      "type": "string",
+      "description": "Titre court et explicite de la tâche."
+    },
+    "bloc": {
+      "type": "string",
+      "description": "Bloc ou groupe fonctionnel du plan auquel appartient la tâche (ex: nom et numéro du bloc dans le backlog)."
+    },
+    "statut": {
+      "type": "string",
+      "enum": [
+        "a_faire",
+        "en_cours",
+        "fait",
+        "bloque"
+      ],
+      "description": "État d'avancement courant de la tâche."
+    },
+    "sources_internes_du_plan": {
+      "type": "array",
+      "description": "Références internes au plan (sections, paragraphes, annexes) qui fondent le contenu de cette tâche.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "dependances": {
+      "type": "array",
+      "description": "Identifiants d'autres tâches agent dont dépend l'exécution de celle-ci. Peut être vide si la tâche n'a aucune dépendance connue.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "objectif": {
+      "type": "string",
+      "description": "Objectif fonctionnel ou technique poursuivi par la tâche, en une phrase claire."
+    },
+    "ce_qui_est_ecrit_dans_le_plan": {
+      "type": "string",
+      "description": "Contenu du plan (ou de son annexe) qui décrit cette tâche, restitué fidèlement sans ajout ni interprétation de l'agent."
+    },
+    "decoupage_recommande": {
+      "type": "array",
+      "description": "Étapes concrètes recommandées pour guider l'agent qui exécute la tâche, dans un ordre d'exécution logique.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "sortie_attendue": {
+      "type": "string",
+      "description": "Description de ce que l'agent doit produire à l'issue de l'exécution de la tâche."
+    },
+    "agent_assigne": {
+      "type": "object",
+      "description": "Trace explicite de l'agent et du provider qui ont été assignés à cette tâche ou qui l'ont exécutée. Champ optionnel et seul endroit du document où le provider est nommé, afin que le contenu de la tâche reste agnostique du provider.",
+      "additionalProperties": false,
+      "required": [
+        "nom",
+        "provider"
+      ],
+      "properties": {
+        "nom": {
+          "type": "string",
+          "description": "Nom de l'agent assigné ou ayant exécuté la tâche."
+        },
+        "provider": {
+          "type": "string",
+          "description": "Nom du provider/outil ayant fait tourner l'agent (ex: claude_code, codex_cli, antigravity)."
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "id": "tache-19-specifier-le-domaine-cortex-connect-core",
+      "type": "tache_agent",
+      "numero": 19,
+      "titre": "Spécifier le domaine cortex-connect-core",
+      "bloc": "06 — Contrat connecteur et ingestion Notion / Linear",
+      "statut": "fait",
+      "sources_internes_du_plan": [
+        "Plan §12",
+        "Annexe A.1",
+        "Annexe A.2"
+      ],
+      "dependances": [],
+      "objectif": "Formaliser le port unique de connecteur.",
+      "ce_qui_est_ecrit_dans_le_plan": "Le domaine cortex-connect-core est pur ; le port ConnectorSource expose manifest, discover, read, subscribe, write ; les types normalisés incluent ConnectorManifest, Resource, ReadBatch, ExternalDocument, Cursor, ExternalEvent.",
+      "decoupage_recommande": [
+        "Vérifier que les types du plan sont repris.",
+        "Séparer domaine pur et adapters.",
+        "Inclure trust_tier dans ConnectorManifest."
+      ],
+      "sortie_attendue": "Une spec du contrat connecteur."
+    }
+  ]
+}

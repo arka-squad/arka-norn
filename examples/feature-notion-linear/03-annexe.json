@@ -1,0 +1,32 @@
+{
+  "id": "annexe-a-extensibilite-connecteurs",
+  "type": "annexe_contrat_technique",
+  "titre": "Annexe A — Extensibilité des connecteurs (ajout d'une nouvelle source)",
+  "annexe_de": "plan-memoire-evenementielle-notion-linear-v2.2",
+  "principe_extensibilite": "Ajouter une source = écrire un adapter qui implémente un contrat unique. Le cœur (event inbox, change resolver, extraction, store d'atomes, résonance, context pack, action broker) ne change jamais. N connecteurs partagent 100% de la chaîne aval ; chaque nouveau provider n'ajoute que son adapter, son manifest et son mapping vers les atomes.",
+  "contrat": {
+    "nom": "ConnectorSource",
+    "methodes": ["manifest", "discover", "read", "subscribe", "write"],
+    "invariants": [
+      "Idempotence sur (source, external_id, source_version)",
+      "Curseur opaque, décodé exclusivement par l'adapter",
+      "Hash sur le contenu normalisé",
+      "Sans LLM par défaut (classe 0)",
+      "Erreurs explicites : RequiresReauth, RateLimited",
+      "Fail-closed sur toute capacité non déclarée",
+      "Aucun AtomType n'est décidé par le connecteur — il pose seulement l'ancre relationnelle (structural_ref)"
+    ]
+  },
+  "frontiere": {
+    "domaine_pur": [
+      "cortex-connect-core : trait ConnectorSource",
+      "cortex-connect-core : types normalisés (ExternalEvent, Resource, ReadBatch, Cursor, ConnectorManifest)",
+      "Aucune dépendance HTTP/OAuth/GraphQL/Tauri dans ce domaine"
+    ],
+    "adapter": [
+      "src-tauri/src/connect/notion/ : implémentation REST + OAuth + pagination + mapping",
+      "src-tauri/src/connect/linear/ : implémentation GraphQL + OAuth + pagination + mapping"
+    ]
+  },
+  "statut": "valide"
+}

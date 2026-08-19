@@ -1,0 +1,31 @@
+{
+  "id": "concept-notion-linear-anti-tokens",
+  "type": "concept",
+  "titre": "Cortex — Concept fonctionnel : intégration Notion et Linear sans gouffre à tokens",
+  "version": "0.1",
+  "date": "2026-06-30",
+  "perimetre": "Cortex, Notion, Linear, mémoire projet, orchestration IA, maîtrise des coûts en tokens",
+  "objectif": "Définir comment Cortex peut travailler avec Notion et Linear sans transformer chaque requête en lecture complète des sources.",
+  "hypotheses": [
+    { "sujet": "Rôle de Cortex", "position_retenue": "Cortex est une couche de mémoire, de contexte et de gouvernance située au-dessus des outils existants. Il ne remplace ni Notion ni Linear." },
+    { "sujet": "Rôle de Notion", "position_retenue": "Notion reste la source principale pour la documentation, les PRD, les notes de recherche, les comptes rendus et le wiki projet." },
+    { "sujet": "Rôle de Linear", "position_retenue": "Linear reste la source principale pour le backlog, les epics, les tickets, les cycles, les bugs et le suivi d'exécution." },
+    { "sujet": "Rôle du LLM", "position_retenue": "Le LLM ne lit pas les espaces de travail bruts. Il intervient ponctuellement sur des diff, des atomes de connaissance ou des context packs préparés." },
+    { "sujet": "Priorité produit", "position_retenue": "Conserver un contexte projet fiable sans explosion du coût en tokens, même lorsque le volume documentaire augmente." },
+    { "sujet": "Mode d'intégration", "position_retenue": "Les intégrations sont d'abord en lecture seule, puis progressivement autorisées en écriture sous validation humaine." },
+    { "sujet": "Sources futures", "position_retenue": "Slack, GitHub, GitLab, Figma ou Drive pourront être connectés selon le même modèle événementiel." }
+  ],
+  "resume_executif": "Cortex doit pouvoir travailler avec Notion et Linear sans faire de ces outils des blocs de contexte envoyés intégralement au LLM. Le principe central est de traiter Notion et Linear comme des producteurs d'événements, pas comme des documents à relire en permanence. Chaque modification utile produit un événement ; Cortex le transforme en mémoire atomique, versionnée, sourcée et reliée. Les requêtes utilisateur ne mobilisent ensuite que les éléments pertinents, regroupés dans une vue courte appelée context pack. Notion documente le pourquoi, Linear pilote le quoi et le quand, Cortex maintient le lien entre les deux.",
+  "principe_directeur": "Le LLM ne doit jamais recevoir tout Notion, tout Linear ou tout l'historique projet. Il doit recevoir uniquement le contexte utile, déjà préparé, sourcé, dédupliqué et plafonné par budget.",
+  "sections": [
+    {
+      "titre": "Intention du document",
+      "contenu": "Ce document pose le concept fonctionnel cible. Il ne décrit pas encore une architecture technique détaillée ni un choix d'infrastructure. Il sert de base pour cadrer un MVP, aligner le produit et préparer une future spécification fonctionnelle ou technique."
+    },
+    {
+      "titre": "Référence complète",
+      "contenu": "Ce document JSON est un condensé fidèle de la structure et des décisions du concept, pas une retranscription intégrale. Le détail complet (17 sections : contexte, objectifs fonctionnels, principes de conception, positionnement Notion/Linear/Cortex, architecture fonctionnelle cible, modèle de mémoire atomique, cycle de vie des données, flux fonctionnels, stratégie anti-gouffre à tokens, expérience utilisateur, gouvernance, observabilité, mise en place progressive, risques et arbitrages, recommandation) vit dans .input/concepte/Cortex_Concept_Fonctionnel_Notion_Linear_Tokens.md."
+    }
+  ],
+  "statut": "valide"
+}

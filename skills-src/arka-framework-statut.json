@@ -1,0 +1,36 @@
+{
+  "name": "arka-framework-statut",
+  "titre_h1_repo": "Arka — arka-framework-statut",
+  "titre_h1_global": "Skill Framework Statut — Arka Labs",
+  "description_courte": "Vérifie l'état d'avancement d'une feature dans le framework méthodologique JSON multiprovider {{FRAMEWORK_NAME}} (concept → plan → audit → invariants → dettes → tâches → spec d'intégration → CR de dev → recette QA) et indique la prochaine étape à produire.",
+  "description_do_use": "Use when tu reprends le travail sur une feature déjà commencée dans ce framework, avant de continuer un lot, ou pour savoir si une étape est bloquée.",
+  "description_do_not_use": "Do NOT use pour créer le tout premier document d'une feature qui n'existe pas encore (→ arka-framework-scaffold directement) ni pour remplacer une recette indépendante ; ce skill calcule les verdicts déclarés, pas la qualité intrinsèque des preuves.",
+  "declencheurs_globaux": "Déclencher quand l'utilisateur reprend le travail sur une feature déjà commencée dans ce framework, avant de continuer un lot, ou demande \"où en est cette feature\", \"statut du framework\", \"arka-framework-statut\". Ne PAS déclencher pour créer le tout premier document d'une feature qui n'existe pas encore (→ arka-framework-scaffold) ni pour remplacer une recette indépendante. Ne s'applique que si la commande `{{FRAMEWORK_NAME}}` est disponible dans le PATH ; sinon ce skill ne s'applique pas.",
+  "allowed_tools": ["Read", "Bash", "Grep", "Glob"],
+  "quand_utiliser": [
+    "reprendre le travail sur une feature qui a déjà des documents JSON produits dans le framework",
+    "savoir quelle étape du pipeline (concept, plan, audit, invariants, dettes, tâches, spec, CR-dev, recette) est valide, invalide ou absente",
+    "déterminer la prochaine action avant de continuer un lot",
+    "diagnostiquer un handoff reçu d'un autre agent ou provider qui semble incomplet"
+  ],
+  "quand_ne_pas_utiliser": [
+    "créer le tout premier document (concept) d'une feature qui n'existe pas encore → utiliser directement `arka-framework-scaffold`",
+    "valider le contenu d'un document précis après l'avoir rempli → `arka-framework-valider`",
+    "remplacer les preuves d'une recette QA par le seul verdict déclaré dans son JSON"
+  ],
+  "inputs": [
+    { "obligatoire": true, "nom": "dossier_feature", "description": "chemin du dossier contenant les fichiers JSON de la feature à auditer" }
+  ],
+  "note_inputs": "Si l'input obligatoire manque, demander où vivent (ou vivront) les documents JSON de la feature avant d'exécuter.",
+  "referentiel_extra": [
+    "`{{FRAMEWORK_DIR}}/manifest.json` — mode d'emploi machine du framework",
+    "`{{FRAMEWORK_DIR}}/pipeline.json` — ordre des étapes et dépendances"
+  ],
+  "procedure": [
+    { "titre": "Vérifier la présence de la commande", "contenu": "Confirmer que `{{FRAMEWORK_NAME}}` est disponible : `command -v {{FRAMEWORK_NAME}}`. Si absente, arrêter et le signaler — ce skill ne s'applique pas tant que {{FRAMEWORK_NAME}} n'est pas installé et lié globalement (voir `{{FRAMEWORK_DIR}}`, `npm link`)." },
+    { "titre": "Exécuter le statut", "contenu": "Lancer, depuis n'importe quel dossier :\n\n```bash\narka-norn status <dossier_feature>\n```" },
+    { "titre": "Lire les six dimensions", "contenu": "Le rapport sépare présence, schéma, verdict métier, dépendances, complétude et prochaine action. Une QA `fail` ou `partial`, même structurellement valide, ne termine jamais le pipeline. Seule une QA `pass` rattachée au dernier CR valide permet la clôture." },
+    { "titre": "Agir sur la prochaine action indiquée", "contenu": "Si le script indique une étape à produire, utiliser `arka-framework-scaffold` sur cette étape précise. Si une étape est `invalide`, corriger le fichier signalé puis relancer ce skill pour confirmer." }
+  ],
+  "format_sortie": "```markdown\n## Statut de la feature — <dossier_feature>\n\n## Étapes\n| Étape | Statut | Détail |\n|---|---|---|\n\n## Prochaine action\n<étape à produire, ou \"pipeline complet\">\n```"
+}

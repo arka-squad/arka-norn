@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "concept.schema.json",
+  "title": "Concept fonctionnel",
+  "description": "Schéma d'un document de concept fonctionnel dans le framework méthodologique cortex.deck. Ce document ouvre le cycle de vie d'une feature : il fixe le périmètre, les hypothèses tranchées, le principe directeur et le résumé exécutif avant tout travail de plan ou d'audit. Ce schéma est destiné à être suivi mécaniquement par tout agent (Claude Code, Codex CLI, Antigravity, ou autre) — la structure des champs fait autorité, indépendamment de la prose qui peut l'accompagner.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "type",
+    "titre",
+    "version",
+    "date",
+    "perimetre",
+    "objectif",
+    "hypotheses",
+    "resume_executif",
+    "principe_directeur",
+    "sections",
+    "statut"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Identifiant unique du document de concept."
+    },
+    "type": {
+      "const": "concept",
+      "description": "Type fixe du document, permettant à un agent de reconnaître mécaniquement ce schéma."
+    },
+    "titre": {
+      "type": "string",
+      "description": "Titre du document de concept."
+    },
+    "version": {
+      "type": "string",
+      "description": "Version du document (ex: \"1.0\")."
+    },
+    "date": {
+      "type": "string",
+      "description": "Date du document, format libre type AAAA-MM-JJ."
+    },
+    "perimetre": {
+      "type": "string",
+      "description": "Le périmètre fonctionnel couvert par ce concept."
+    },
+    "objectif": {
+      "type": "string",
+      "description": "Objectif du document en une ou deux phrases."
+    },
+    "hypotheses": {
+      "type": "array",
+      "description": "Liste des hypothèses tranchées pour ce concept, chacune avec le sujet traité et la position retenue.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sujet",
+          "position_retenue"
+        ],
+        "properties": {
+          "sujet": {
+            "type": "string",
+            "description": "Le sujet ou la question sur laquelle une position a été tranchée."
+          },
+          "position_retenue": {
+            "type": "string",
+            "description": "La position retenue pour ce sujet."
+          }
+        }
+      }
+    },
+    "resume_executif": {
+      "type": "string",
+      "description": "Résumé exécutif du document de concept."
+    },
+    "principe_directeur": {
+      "type": "string",
+      "description": "Le principe central à retenir, souvent mis en avant dans le document source."
+    },
+    "sections": {
+      "type": "array",
+      "description": "Contenu narratif libre du document (contexte, objectifs fonctionnels, architecture cible, cycle de vie, flux, gouvernance, observabilité, risques, recommandation, etc.), sans imposer de liste de sections figée. Peut être vide.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "titre",
+          "contenu"
+        ],
+        "properties": {
+          "titre": {
+            "type": "string",
+            "description": "Titre de la section."
+          },
+          "contenu": {
+            "type": "string",
+            "description": "Contenu textuel de la section."
+          }
+        }
+      }
+    },
+    "statut": {
+      "type": "string",
+      "enum": [
+        "brouillon",
+        "valide",
+        "obsolete"
+      ],
+      "description": "Statut du document de concept."
+    },
+    "recommandation": {
+      "type": "string",
+      "description": "Recommandation finale associée au concept (optionnel)."
+    },
+    "risques": {
+      "type": "array",
+      "description": "Liste des risques identifiés pour ce concept (optionnel).",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "examples": [
+    {
+      "id": "concept-001",
+      "type": "concept",
+      "titre": "Concept fonctionnel — exemple minimal",
+      "version": "1.0",
+      "date": "2026-08-18",
+      "perimetre": "Périmètre fonctionnel minimal du concept.",
+      "objectif": "Décrire l'objectif du document en une phrase.",
+      "hypotheses": [
+        {
+          "sujet": "Choix de l'approche technique",
+          "position_retenue": "Approche A retenue."
+        }
+      ],
+      "resume_executif": "Résumé exécutif minimal du concept.",
+      "principe_directeur": "Un seul principe central à retenir.",
+      "sections": [],
+      "statut": "brouillon"
+    }
+  ]
+}

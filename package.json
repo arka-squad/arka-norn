@@ -1,0 +1,52 @@
+{
+  "name": "arka-norn",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=20.11"
+  },
+  "files": [
+    "bin/",
+    "dist/",
+    "docs/",
+    "examples/",
+    "schemas/",
+    "skills-src/",
+    "scripts/",
+    "README.md",
+    "manifest.json",
+    "pipeline.json"
+  ],
+  "type": "module",
+  "description": "Framework agent-agnostique et multiprovider : schémas JSON + CLI Node pour piloter le cycle concept -> plan -> audit -> invariants -> dettes -> tâches -> spec -> CR-dev -> recette QA, et déployer les skills associés vers .claude/skills et .agents/skills.",
+  "bin": {
+    "arka-norn": "./bin/arka-norn.mjs"
+  },
+  "scripts": {
+    "build": "node scripts/clean-dist.mjs && tsc",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.tests.json",
+    "lint": "node tests/lint.mjs",
+    "test": "node tests/run-tests.mjs",
+    "test:unit": "node tests/run-tests.mjs unit",
+    "test:integration": "node tests/run-tests.mjs integration",
+    "test:e2e": "node tests/run-tests.mjs e2e",
+    "check": "npm run lint && npm run selftest",
+    "prepare": "npm run build",
+    "prepack": "npm run build",
+    "install-skills": "node bin/arka-norn.mjs install",
+    "status": "node bin/arka-norn.mjs status",
+    "scaffold": "node bin/arka-norn.mjs scaffold",
+    "validate": "node bin/arka-norn.mjs validate",
+    "selftest": "node bin/arka-norn.mjs selftest",
+    "doctor": "node bin/arka-norn.mjs doctor",
+    "skills": "node bin/arka-norn.mjs skills list",
+    "audit:dependencies": "npm audit --omit=dev"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  }
+}

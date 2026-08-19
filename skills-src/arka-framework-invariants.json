@@ -1,0 +1,21 @@
+{
+  "name": "arka-framework-invariants",
+  "titre_h1_repo": "Arka — Invariants",
+  "titre_h1_global": "Skill Invariants — Arka Labs",
+  "description_courte": "Fige les règles non négociables dérivées d'un audit réel validé.",
+  "description_do_use": "Use when l'audit est terminé et les contraintes stables doivent gouverner la suite.",
+  "description_do_not_use": "Do NOT use pour transformer une préférence non arbitrée en règle absolue.",
+  "declencheurs_globaux": "Déclencher pour figer des invariants ou sur arka-framework-invariants.",
+  "allowed_tools": ["Read", "Write", "Bash", "Grep", "Glob"],
+  "quand_utiliser": ["audit validé", "frontières ou comportements à protéger"],
+  "quand_ne_pas_utiliser": ["hypothèses non prouvées", "préférences esthétiques"],
+  "inputs": [{ "obligatoire": true, "nom": "audit", "description": "audit état réel validé" }],
+  "note_inputs": "Chaque invariant doit être testable et justifié par une preuve ou décision.",
+  "referentiel_extra": ["`{{FRAMEWORK_DIR}}/schemas/invariants-figes.schema.json`"],
+  "procedure": [
+    { "titre": "Extraire", "contenu": "Dériver les invariants des preuves et décisions explicites." },
+    { "titre": "Rendre testable", "contenu": "Décrire condition, portée, contrôle et conséquence d'une violation." },
+    { "titre": "Valider", "contenu": "Valider le JSON sans ajouter de règle implicite." }
+  ],
+  "format_sortie": "Document JSON `invariants_figes` validé."
+}

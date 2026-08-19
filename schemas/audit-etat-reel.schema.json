@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "audit-etat-reel.schema.json",
+  "title": "Audit de l'état réel avant spécification",
+  "description": "Document attestant qu'un agent a vérifié, en confrontant le plan à l'état réel du dépôt (code, disque, commit précis), ce qui est effectivement en place avant de rédiger la spécification d'intégration. Chaque constat est classé confirmé, infirmé ou découvert par rapport aux hypothèses du plan.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Identifiant unique du document d'audit."
+    },
+    "type": {
+      "const": "audit_etat_reel",
+      "description": "Type fixe identifiant ce document comme un audit de l'état réel avant spécification."
+    },
+    "tache_id": {
+      "type": "string",
+      "description": "Identifiant de la tâche ou du lot dont l'état réel est audité."
+    },
+    "sources_plan": {
+      "type": "array",
+      "description": "Sections ou références du plan qui ont été vérifiées lors de cet audit.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "depot_audite": {
+      "type": "string",
+      "description": "Dépôt de code source qui a fait l'objet de l'audit."
+    },
+    "reference_auditee": {
+      "type": "string",
+      "description": "Commit ou version exacte du dépôt sur laquelle l'audit a été mené."
+    },
+    "date_audit": {
+      "type": "string",
+      "description": "Date à laquelle l'audit a été réalisé."
+    },
+    "methode": {
+      "type": "string",
+      "description": "Méthode employée pour mener l'audit, par exemple grep et lecture directe du disque."
+    },
+    "verdict_global": {
+      "type": "string",
+      "description": "Conclusion d'ensemble de l'audit sur l'écart entre le plan et l'état réel constaté."
+    },
+    "constats": {
+      "type": "array",
+      "description": "Liste des constats individuels de l'audit, chacun rattaché à un statut par rapport aux hypothèses du plan.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Identifiant unique du constat."
+          },
+          "description": {
+            "type": "string",
+            "description": "Description factuelle du constat observé."
+          },
+          "statut": {
+            "type": "string",
+            "enum": ["confirme", "infirme", "decouvert"],
+            "description": "Statut du constat : confirme une hypothèse du plan, l'infirme, ou révèle un élément découvert non anticipé par le plan."
+          }
+        },
+        "required": ["id", "description", "statut"]
+      }
+    }
+  },
+  "required": [
+    "id",
+    "type",
+    "tache_id",
+    "sources_plan",
+    "depot_audite",
+    "reference_auditee",
+    "date_audit",
+    "methode",
+    "verdict_global",
+    "constats"
+  ],
+  "examples": [
+    {
+      "id": "audit-etat-reel-p2-041",
+      "type": "audit_etat_reel",
+      "tache_id": "P2-041",
+      "sources_plan": ["plan.md#section-3-stockage-capteur"],
+      "depot_audite": "cortex.deck",
+      "reference_auditee": "49e9f5c",
+      "date_audit": "2026-08-18",
+      "methode": "grep + lecture directe du disque",
+      "verdict_global": "Le plan suppose une table store_rows déjà migrée, ce n'est pas le cas : la migration existe en code mais n'a jamais été exécutée sur les bases de test.",
+      "constats": [
+        {
+          "id": "c1",
+          "description": "Le fichier store_rows.rs définit bien le schéma attendu par le plan.",
+          "statut": "confirme"
+        },
+        {
+          "id": "c2",
+          "description": "Aucune base de test locale ne contient la table store_rows au moment de l'audit.",
+          "statut": "infirme"
+        },
+        {
+          "id": "c3",
+          "description": "Un mécanisme de fallback vers l'ancien format de stockage existe et n'était documenté nulle part dans le plan.",
+          "statut": "decouvert"
+        }
+      ]
+    }
+  ]
+}

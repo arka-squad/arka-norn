@@ -1,0 +1,21 @@
+{
+  "name": "arka-framework-plan",
+  "titre_h1_repo": "Arka — Plan",
+  "titre_h1_global": "Skill Plan — Arka Labs",
+  "description_courte": "Transforme un concept validé en lots ordonnés, dépendances, risques et critères de fin.",
+  "description_do_use": "Use when le concept est valide et qu'un plan exécutable est requis.",
+  "description_do_not_use": "Do NOT use avant validation du concept ni pour coder les lots.",
+  "declencheurs_globaux": "Déclencher pour planifier une Feature arka-norn ou sur arka-framework-plan.",
+  "allowed_tools": ["Read", "Write", "Bash", "Grep", "Glob"],
+  "quand_utiliser": ["concept validé", "découpage en lots nécessaire"],
+  "quand_ne_pas_utiliser": ["concept incomplet", "implémentation directe"],
+  "inputs": [{ "obligatoire": true, "nom": "concept", "description": "document concept validé" }],
+  "note_inputs": "Chaque lot doit avoir dépendances, livrables, risques et DoD.",
+  "referentiel_extra": ["`{{FRAMEWORK_DIR}}/schemas/plan.schema.json`"],
+  "procedure": [
+    { "titre": "Vérifier", "contenu": "Valider le concept et lire ses décisions ouvertes." },
+    { "titre": "Découper", "contenu": "Créer des lots petits, ordonnés et vérifiables sans masquer les dépendances." },
+    { "titre": "Valider", "contenu": "Valider le JSON plan et publier la prochaine action réelle." }
+  ],
+  "format_sortie": "Document JSON `plan` validé avec lots, dépendances, risques et critères d'acceptation."
+}

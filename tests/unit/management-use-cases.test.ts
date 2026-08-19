@@ -1,0 +1,165 @@
+import assert from "node:assert/strict";
+import { posix } from "node:path";
+import { test } from "node:test";
+
+import { FeatureId } from "../../src/domain/feature/feature-id.ts";
+import type { Feature } from "../../src/domain/feature/feature.ts";
+import { ProjectId } from "../../src/domain/project/project-id.ts";
+import type { Project } from "../../src/domain/project/project.ts";
+import type { FeatureIndexEntry, FeatureIndexStore } from "../../src/ports/outbound/feature-index-store.ts";
+import type { FeatureStore } from "../../src/ports/outbound/feature-store.ts";
+import type { Filesystem } from "../../src/ports/outbound/filesystem.ts";
+import type { Logger } from "../../src/ports/outbound/logger.ts";
+import type { PathPolicy } from "../../src/ports/outbound/path-policy.ts";
+import type { ProjectIndexEntry, ProjectIndexStore } from "../../src/ports/outbound/project-index-store.ts";
+import type { ProjectStore } from "../../src/ports/outbound/project-store.ts";
+import { createFeatureUseCaseFactory } from "../../src/use-cases/features/create-feature.ts";
+import { forgetFeatureUseCaseFactory } from "../../src/use-cases/features/forget-feature.ts";
+import { importFeatureUseCaseFactory } from "../../src/use-cases/features/import-feature.ts";
+import { listFeaturesUseCaseFactory } from "../../src/use-cases/features/list-features.ts";
+import { scanFeaturesUseCaseFactory } from "../../src/use-cases/features/scan-features.ts";
+import { showFeatureUseCaseFactory } from "../../src/use-cases/features/show-feature.ts";
+import { switchToFeatureUseCaseFactory } from "../../src/use-cases/features/switch-to-feature.ts";
+import { createProjectUseCaseFactory } from "../../src/use-cases/projects/create-project.ts";
+import { forgetProjectUseCaseFactory } from "../../src/use-cases/projects/forget-project.ts";
+import { importProjectUseCaseFactory } from "../../src/use-cases/projects/import-project.ts";
+import { listProjectsUseCaseFactory } from "../../src/use-cases/projects/list-projects.ts";
+import { scanProjectsUseCaseFactory } from "../../src/use-cases/projects/scan-projects.ts";
+import { showProjectUseCaseFactory } from "../../src/use-cases/projects/show-project.ts";
+import { switchToProjectUseCaseFactory } from "../../src/use-cases/projects/switch-to-project.ts";
+
+const first = new Date("2026-08-19T10:00:00.000Z");
+const second = new Date("2026-08-19T11:00:00.000Z");
+
+test("tous les cas d'usage Project fonctionnent derrière des ports fake", async () => {
+  const harness = createHarness();
+  const deps = harness.projectDeps;
+  const id = ProjectId.of("project-alpha");
+
+  const created = await createProjectUseCaseFactory(deps)({ id, name: "Project Alpha", root: "/work/project" });
+  assert.equal(created.root, "/work/project");
+  assert.deepEqual(await listProjectsUseCaseFactory(deps)(), [created]);
+  assert.equal((await showProjectUseCaseFactory(deps)(id)).name, "Project Alpha");
+
+  const selected = await switchToProjectUseCaseFactory(deps)(id);
+  assert.equal(selected.updatedAt.toISOString(), second.toISOString());
+  await forgetProjectUseCaseFactory(deps)(id);
+  assert.equal((await deps.indexStore.load()).length, 0);
+  assert.equal(harness.projects.has(created.root), true, "forget ne supprime pas le marker");
+
+  await importProjectUseCaseFactory(deps)({ root: created.root });
+  await deps.indexStore.remove(id);
+  const discovered = await scanProjectsUseCaseFactory(deps)({ target: "/work" });
+  assert.equal(discovered[0]?.project?.id.value, id.value);
+  assert.equal((await deps.indexStore.find(id))?.root, created.root);
+});
+
+test("tous les cas d'usage Feature fonctionnent derrière des ports fake", async () => {
+  const harness = createHarness();
+  const projectId = ProjectId.of("project-alpha");
+  await createProjectUseCaseFactory(harness.projectDeps)({ id: projectId, name: "Project Alpha", root: "/work/project" });
+  const deps = harness.featureDeps;
+  const id = FeatureId.of("feature-alpha");
+
+  const created = await createFeatureUseCaseFactory(deps)({ id, projectId, name: "Feature Alpha", root: "/work/project/feature" });
+  assert.equal(created.projectId.value, projectId.value);
+  assert.deepEqual(await listFeaturesUseCaseFactory(deps)(), [created]);
+  assert.equal((await showFeatureUseCaseFactory(deps)(id)).name, "Feature Alpha");
+
+  const selected = await switchToFeatureUseCaseFactory(deps)(id);
+  assert.equal(selected.updatedAt.toISOString(), second.toISOString());
+  await forgetFeatureUseCaseFactory(deps)(id);
+  assert.equal((await deps.indexStore.load()).length, 0);
+  assert.equal(harness.features.has(created.root), true, "forget ne supprime pas le marker");
+
+  await importFeatureUseCaseFactory(deps)({ root: created.root, projectId });
+  await deps.indexStore.remove(id);
+  const discovered = await scanFeaturesUseCaseFactory(deps)({ target: "/work/project", projectId });
+  assert.equal(discovered[0]?.feature?.id.value, id.value);
+  assert.equal((await deps.indexStore.find(id))?.root, created.root);
+});
+
+function createHarness() {
+  const projects = new Map<string, Project>();
+  const features = new Map<string, Feature>();
+  let projectEntries: ProjectIndexEntry[] = [];
+  let featureEntries: FeatureIndexEntry[] = [];
+  const directories = new Set(["/work", "/work/project"]);
+  const clockValues = [first, second, second, second];
+
+  const projectStore: ProjectStore = {
+    exists: async (root) => projects.has(root),
+    hasLegacyMarker: async () => false,
+    init: async (project) => { projects.set(project.root, project); directories.add(project.root); },
+    load: async (root) => required(projects.get(root), root),
+    save: async (project) => { projects.set(project.root, project); },
+  };
+  const featureStore: FeatureStore = {
+    exists: async (root) => features.has(root),
+    hasLegacyMarker: async () => false,
+    init: async (feature) => { features.set(feature.root, feature); directories.add(feature.root); },
+    load: async (root) => required(features.get(root), root),
+    save: async (feature) => { features.set(feature.root, feature); },
+  };
+  const projectIndexStore: ProjectIndexStore = {
+    load: async () => [...projectEntries],
+    save: async (entries) => { projectEntries = [...entries]; },
+    add: async (entry) => { projectEntries = [...projectEntries.filter((item) => item.id !== entry.id), entry]; },
+    remove: async (id) => { projectEntries = projectEntries.filter((entry) => entry.id !== id.value); },
+    touch: async (id, at) => { projectEntries = projectEntries.map((entry) => entry.id === id.value ? { ...entry, updatedAt: at } : entry); },
+    find: async (id) => projectEntries.find((entry) => entry.id === id.value),
+  };
+  const featureIndexStore: FeatureIndexStore = {
+    load: async () => [...featureEntries],
+    save: async (entries) => { featureEntries = [...entries]; },
+    add: async (entry) => { featureEntries = [...featureEntries.filter((item) => item.id !== entry.id), entry]; },
+    remove: async (id) => { featureEntries = featureEntries.filter((entry) => entry.id !== id.value); },
+    touch: async (id, at) => { featureEntries = featureEntries.map((entry) => entry.id === id.value ? { ...entry, updatedAt: at } : entry); },
+    find: async (id) => featureEntries.find((entry) => entry.id === id.value),
+  };
+  const filesystem: Filesystem = {
+    exists: async (path) => directories.has(path) || projects.has(markerRoot(path, "project.json")) || features.has(markerRoot(path, "feature.json")),
+    mkdir: async (path) => { directories.add(path); },
+    readFile: async () => "",
+    writeFile: async () => {},
+    readDir: async (path) => [...directories]
+      .filter((entry) => posix.dirname(entry) === path)
+      .map((entry) => posix.basename(entry)),
+    remove: async () => {},
+    stat: async (path) => ({ isFile: false, isDirectory: directories.has(path), size: 0, mtime: first }),
+    resolve: (...segments) => posix.resolve(...segments),
+    homeDir: () => "/home/test",
+  };
+  const pathPolicy: PathPolicy = {
+    canonicalDirectory: async (candidate) => posix.resolve(candidate),
+    assertContained: async (parent, child) => {
+      const canonicalParent = posix.resolve(parent);
+      const canonicalChild = posix.resolve(child);
+      const relation = posix.relative(canonicalParent, canonicalChild);
+      if (relation === "" || relation.startsWith("..")) throw new Error("outside parent");
+      return { parent: canonicalParent, child: canonicalChild };
+    },
+    assertMarkerRoot: async (declaredRoot) => declaredRoot,
+    assertWritableFile: async (filePath) => filePath,
+  };
+  const logger: Logger = {
+    debug() {}, info() {}, warn() {}, error() {}, child() { return this; },
+  };
+  const clock = { now: () => clockValues.shift() ?? second };
+
+  return {
+    projects,
+    features,
+    projectDeps: { projectStore, indexStore: projectIndexStore, filesystem, clock, logger, pathPolicy },
+    featureDeps: { featureStore, indexStore: featureIndexStore, projectIndexStore, filesystem, clock, logger, pathPolicy },
+  };
+}
+
+function markerRoot(path: string, marker: string): string {
+  return path.endsWith(`/.arka-norn/${marker}`) ? posix.dirname(posix.dirname(path)) : "";
+}
+
+function required<T>(value: T | undefined, key: string): T {
+  if (value === undefined) throw new Error(`missing fake value: ${key}`);
+  return value;
+}

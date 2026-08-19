@@ -1,0 +1,131 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+
+import { evaluatePipeline, selectLatestRun } from "../../src/domain/pipeline/evaluate-pipeline.ts";
+import type { EvaluatedDocument, PipelineEvaluationInput } from "../../src/domain/pipeline/pipeline-report.ts";
+
+const steps = [
+  { id: "concept", order: 1, required: true, multiple: false, dependsOn: [] },
+  { id: "cr_dev", order: 2, required: true, multiple: true, dependsOn: ["concept"] },
+  { id: "recette_qa", order: 3, required: true, multiple: true, dependsOn: ["cr_dev"] },
+] as const;
+
+test("un Pipeline vide propose concept", () => {
+  const report = evaluate([]);
+  assert.equal(report.overallStatus, "incomplete");
+  assert.deepEqual(report.nextActions.map((action) => [action.kind, action.stepId]), [["create_document", "concept"]]);
+});
+
+test("un document invalide est bloqué avec une action de correction", () => {
+  const report = evaluate([document("concept", "concept-1", { valid: false, errors: ["objectif is required"] })]);
+  assert.equal(report.overallStatus, "invalid");
+  assert.equal(report.steps[0]?.schemaStatus, "invalid");
+  assert.equal(report.nextActions[0]?.kind, "fix_document");
+});
+
+test("QA fail sur le dernier CR boucle vers le développement", () => {
+  const report = evaluate(baseRuns("fail"));
+  assert.equal(report.latestCrDevId, "cr-2");
+  assert.equal(report.selectedQaId, "qa-2");
+  assert.equal(report.overallStatus, "failed");
+  assert.deepEqual(report.nextActions.map((action) => action.kind), ["return_to_development"]);
+});
+
+test("QA partial reste incomplète", () => {
+  const report = evaluate(baseRuns("partial"));
+  assert.equal(report.overallStatus, "incomplete");
+  assert.equal(report.nextActions[0]?.kind, "resolve_qa");
+});
+
+test("QA pass sur un ancien CR ne termine pas le Pipeline", () => {
+  const documents = [
+    concept(),
+    cr("cr-2", 2, "2026-08-19T12:00:00.000Z"),
+    qa("qa-old", 9, "cr-1", "pass"),
+    cr("cr-1", 1, "2026-08-19T10:00:00.000Z"),
+  ];
+  const report = evaluate(documents);
+  assert.equal(report.latestCrDevId, "cr-2");
+  assert.equal(report.selectedQaId, undefined);
+  assert.equal(report.overallStatus, "incomplete");
+  assert.equal(report.nextActions[0]?.kind, "run_qa");
+  assert.equal(report.warnings.length, 1);
+});
+
+test("QA pass sur le dernier CR termine le Pipeline", () => {
+  const report = evaluate(baseRuns("pass"));
+  assert.equal(report.overallStatus, "completed");
+  assert.equal(report.nextActions.length, 0);
+});
+
+test("la sélection multiple est indépendante de l'ordre disque", () => {
+  const runs = [
+    cr("cr-z", 2, "2026-08-19T10:00:00.000Z"),
+    cr("cr-a", 3, "2026-08-19T09:00:00.000Z"),
+    cr("cr-b", 3, "2026-08-19T11:00:00.000Z"),
+  ];
+  assert.equal(selectLatestRun(runs)?.id, "cr-b");
+  assert.equal(selectLatestRun([...runs].reverse())?.id, "cr-b");
+});
+
+test("une QA vers un CR inconnu invalide le graphe", () => {
+  const report = evaluate([concept(), cr("cr-1", 1, "2026-08-19T10:00:00.000Z"), qa("qa-forged", 1, "cr-unknown", "pass")]);
+  assert.equal(report.overallStatus, "invalid");
+  assert.match(report.errors[0] ?? "", /unknown CR Dev/);
+});
+
+test("les fichiers inconnus sont signalés sans disparaître", () => {
+  const report = evaluate([concept(), document("mystery", "x")]);
+  assert.deepEqual(report.unknownFiles, ["/feature/mystery-x.json"]);
+  assert.equal(report.warnings.length, 1);
+});
+
+function evaluate(documents: readonly EvaluatedDocument[]) {
+  const input: PipelineEvaluationInput = {
+    pipelineId: "test-pipeline",
+    featureRoot: "/feature",
+    featureId: "feature-1",
+    steps,
+    documents,
+    transversalDocumentTypes: ["handoff"],
+  };
+  return evaluatePipeline(input);
+}
+
+function baseRuns(verdict: "pass" | "fail" | "partial"): readonly EvaluatedDocument[] {
+  return [
+    qa("qa-2", 2, "cr-2", verdict),
+    cr("cr-1", 1, "2026-08-19T10:00:00.000Z"),
+    concept(),
+    cr("cr-2", 2, "2026-08-19T12:00:00.000Z"),
+  ];
+}
+
+function concept(): EvaluatedDocument {
+  return document("concept", "concept-1");
+}
+
+function cr(id: string, sequence: number, createdAt: string): EvaluatedDocument {
+  return document("cr_dev", id, { sequence, createdAt, businessVerdict: "livre" });
+}
+
+function qa(id: string, sequence: number, crDevId: string, businessVerdict: string): EvaluatedDocument {
+  return document("recette_qa", id, { sequence, createdAt: `2026-08-19T${String(sequence + 12).padStart(2, "0")}:00:00.000Z`, crDevId, businessVerdict });
+}
+
+function document(
+  type: string,
+  id: string,
+  options: Partial<Omit<EvaluatedDocument, "content" | "filePath" | "type" | "id">> = {},
+): EvaluatedDocument {
+  return {
+    type,
+    id,
+    featureId: "feature-1",
+    filePath: `/feature/${type}-${id}.json`,
+    valid: true,
+    errors: [],
+    content: {},
+    ...options,
+  };
+}

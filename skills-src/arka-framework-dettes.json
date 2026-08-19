@@ -1,0 +1,21 @@
+{
+  "name": "arka-framework-dettes",
+  "titre_h1_repo": "Arka — Registre des dettes",
+  "titre_h1_global": "Skill Dettes — Arka Labs",
+  "description_courte": "Transforme les écarts acceptés en registre de dettes explicite, priorisé et traçable.",
+  "description_do_use": "Use when des écarts de l'audit ne seront pas corrigés immédiatement.",
+  "description_do_not_use": "Do NOT use pour cacher un bloquant ou une violation d'invariant.",
+  "declencheurs_globaux": "Déclencher pour enregistrer ou prioriser des dettes ou sur arka-framework-dettes.",
+  "allowed_tools": ["Read", "Write", "Bash", "Grep", "Glob"],
+  "quand_utiliser": ["écart accepté temporairement", "risque à suivre"],
+  "quand_ne_pas_utiliser": ["bloquant immédiat", "anomalie non arbitrée"],
+  "inputs": [{ "obligatoire": true, "nom": "audit_et_invariants", "description": "preuves, écarts et règles figées" }],
+  "note_inputs": "Aucune dette sans impact, owner, priorité et condition de sortie.",
+  "referentiel_extra": ["`{{FRAMEWORK_DIR}}/schemas/registre-dettes.schema.json`"],
+  "procedure": [
+    { "titre": "Qualifier", "contenu": "Documenter origine, impact, probabilité, priorité et décision d'acceptation." },
+    { "titre": "Rendre actionnable", "contenu": "Définir owner, échéance ou déclencheur et critère de clôture." },
+    { "titre": "Valider", "contenu": "Valider le registre et refuser tout bloquant déguisé en dette." }
+  ],
+  "format_sortie": "Document JSON `registre_dettes` validé."
+}
