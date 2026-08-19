@@ -1,5 +1,6 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
+  "author_agent_id": "Codex_dev_20260819",
   "id": "tache-19-specifier-le-domaine-cortex-connect-core",
   "feature_id": "connecteurs-notion-linear",
   "type": "tache_agent",

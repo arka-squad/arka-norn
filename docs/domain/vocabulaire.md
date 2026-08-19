@@ -8,8 +8,9 @@
 | Document | Artefact JSON versionné rattaché à une Feature et une étape. |
 | Run | Exécution répétable, notamment développement ou recette QA. |
 | Handoff | Transmission structurée entre agents ou humains. |
+| Agent | Identité humaine d’un provider et d’un rôle, bornée par un scope Project/Feature et un état actif. |
 | Skill | Procédure installable et versionnée associée à une activité. |
 
-Relation canonique : `Project -> Feature -> Pipeline -> Document/Run`.
+Relation canonique : `Project -> Agent + Feature -> Pipeline -> Document/Run`.
 
 `Depot` est un nom historique accepté uniquement pour migrer les données v1. Il ne doit apparaître dans aucune nouvelle commande, vue, entité ou écriture persistée.

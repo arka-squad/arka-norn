@@ -134,7 +134,8 @@
   },
   "examples": [
     {
-      "schema_version": 2,
+      "schema_version": 3,
+      "author_agent_id": "Codex_dev_20260819",
       "id": "spec-integration-connecteurs-notion-linear",
       "feature_id": "example-feature",
       "type": "spec_integration_technique",

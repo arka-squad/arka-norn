@@ -3,3 +3,6 @@ node_modules/
 .DS_Store
 *.log
 coverage/
+.agents/skills/arka-framework-*/
+.claude/skills/arka-framework-*/
+.arka-norn/backups/skills/

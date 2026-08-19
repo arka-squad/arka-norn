@@ -27,7 +27,10 @@ test("le scaffold Feature ne peut pas sortir de sa racine autorisée", async (co
   mkdirSync(outside);
 
   await assert.rejects(
-    createPipelineRuntime(ROOT).scaffold({ stepId: "concept", outputPath: resolve(outside, "concept.json"), allowedRoot: featureRoot }),
+    createPipelineRuntime(ROOT).scaffold({
+      stepId: "concept", outputPath: resolve(outside, "concept.json"), allowedRoot: featureRoot,
+      authorAgentId: "Codex_security_20260819",
+    }),
     (error: unknown) => error instanceof Error && "code" in error && error.code === "PATH_SECURITY",
   );
 });

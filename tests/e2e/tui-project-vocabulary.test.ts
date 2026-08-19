@@ -27,17 +27,17 @@ test("la vraie vue d'accueil expose uniquement le vocabulaire Project", () => {
     scan: { scan: async () => [] },
     cwd: "/workspace",
     contextRoot: "/workspace",
-    skillHealth: "14/14 sains · 0 absents · 0 divergents",
+    skillHealth: "15/15 sains · 0 absents · 0 divergents",
     redraw: () => {},
   });
 
   view.render(renderer, createTheme({ NO_COLOR: "1" }, false));
   assert.match(output, /Projets/);
-  assert.match(output, /Créer ou importer un projet/);
+  assert.match(output, /Créer ou importer un Project/);
   assert.doesNotMatch(output, /Dépôt|dépôt/);
   assert.match(output, /Santé du système/);
   assert.match(output, /Installer \/ réparer les skills/);
-  assert.match(output, /14\/14 sains/);
+  assert.match(output, /15\/15 sains/);
 });
 
 test("la composition TUI et le runtime CLI consomment le même PipelineReport", async () => {

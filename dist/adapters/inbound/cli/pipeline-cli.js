@@ -3,6 +3,8 @@ import { relative, resolve } from "node:path";
 import { createManagementRuntime } from "../../../composition/management-runtime.js";
 import { createPipelineRuntime } from "../../../composition/pipeline-runtime.js";
 import { FeatureId } from "../../../domain/feature/feature-id.js";
+import { AgentId } from "../../../domain/agent/agent-id.js";
+import { AgentInactiveError, AgentScopeViolationError } from "../../../domain/errors.js";
 import { pipelineExitCode, pipelineReportEnvelope, presentPipelineReport } from "./presenters/pipeline-report-presenter.js";
 import { CliUsageError, parseStrictArguments } from "./strict-arguments.js";
 export async function runStatusCommand(argv, context) {
@@ -23,10 +25,19 @@ export async function runStatusCommand(argv, context) {
 export async function runScaffoldCommand(argv, context) {
     const json = argv.includes("--json");
     try {
-        const parsed = parseStrictArguments(argv, { options: { force: "boolean", json: "boolean" }, minPositionals: 2, maxPositionals: 2 });
+        const parsed = parseStrictArguments(argv, { options: { force: "boolean", json: "boolean", agent: "string", "feature-id": "string" }, minPositionals: 2, maxPositionals: 2 });
+        const authorAgentId = parsed.values.get("agent");
+        if (authorAgentId === undefined)
+            throw new CliUsageError("scaffold requires --agent <Provider_role_YYYYMMDD>");
         const stepId = parsed.positionals[0];
         const outputPath = resolve(context.cwd, parsed.positionals[1]);
-        const result = await createPipelineRuntime(context.frameworkRoot).scaffold({ stepId, outputPath, force: parsed.booleans.has("force") });
+        const result = await createPipelineRuntime(context.frameworkRoot).scaffold({
+            stepId,
+            outputPath,
+            authorAgentId: AgentId.of(authorAgentId).value,
+            ...(parsed.values.get("feature-id") === undefined ? {} : { featureId: parsed.values.get("feature-id") }),
+            force: parsed.booleans.has("force"),
+        });
         return {
             code: 0,
             stdout: json
@@ -81,14 +92,7 @@ export async function runPipelineCommand(argv, context) {
             return { code: pipelineExitCode(report), stdout: json ? `${JSON.stringify({ schemaVersion: 1, command: "pipeline.next", ok: report.overallStatus === "completed", data, errors: report.errors, warnings: report.warnings })}\n` : human, stderr: "" };
         }
         if (action === "scaffold") {
-            const parsed = parseStrictArguments(rest, { options: { feature: "string", output: "string", json: "boolean", force: "boolean" }, minPositionals: 1, maxPositionals: 1 });
-            const featureId = parsed.values.get("feature");
-            if (featureId === undefined)
-                throw new CliUsageError("pipeline scaffold requires --feature <id>");
-            const feature = await management.features.show(FeatureId.of(featureId));
-            const outputPath = resolve(context.cwd, parsed.values.get("output") ?? resolve(feature.root, `${parsed.positionals[0]}.json`));
-            const result = await pipeline.scaffold({ stepId: parsed.positionals[0], outputPath, allowedRoot: feature.root, force: parsed.booleans.has("force") });
-            return { code: 0, stdout: json ? `${JSON.stringify({ schemaVersion: 1, command: "pipeline.scaffold", ok: true, data: result, errors: [], warnings: [] })}\n` : `Squelette écrit : ${result.outputPath}\n`, stderr: "" };
+            return await runManagedScaffold(rest, context, management, pipeline, json);
         }
         if (action === "validate") {
             const parsed = parseStrictArguments(rest, { options: { document: "string", json: "boolean" }, minPositionals: 1, maxPositionals: 1 });
@@ -108,6 +112,33 @@ export async function runPipelineCommand(argv, context) {
         const code = error instanceof CliUsageError ? 64 : hasCode(error, "EEXIST") || hasCode(error, "LOCK_CONFLICT") ? 5 : hasCode(error, "FEATURE_NOT_FOUND") || hasCode(error, "FILE_NOT_FOUND") ? 4 : 3;
         return pipelineFailure(`pipeline.${action ?? "unknown"}`, error, json, code);
     }
+}
+async function runManagedScaffold(argv, context, management, pipeline, json) {
+    const parsed = parseStrictArguments(argv, { options: { feature: "string", output: "string", agent: "string", json: "boolean", force: "boolean" }, minPositionals: 1, maxPositionals: 1 });
+    const featureId = parsed.values.get("feature");
+    if (featureId === undefined)
+        throw new CliUsageError("pipeline scaffold requires --feature <id>");
+    const feature = await management.features.show(FeatureId.of(featureId));
+    const project = await management.projects.show(feature.projectId);
+    const explicitAgentId = parsed.values.get("agent");
+    const agent = explicitAgentId === undefined
+        ? await management.agents.current(project)
+        : await management.agents.show(project, AgentId.of(explicitAgentId));
+    if (agent === undefined)
+        throw new CliUsageError(`no active agent selected for project ${project.id.value}; use agent register/use or --agent`);
+    if (!agent.active)
+        throw new AgentInactiveError(agent.id.value);
+    if (!agent.coversFeature(feature.id))
+        throw new AgentScopeViolationError(agent.id.value, `feature:${feature.id.value}`);
+    const outputPath = resolve(context.cwd, parsed.values.get("output") ?? resolve(feature.root, `${parsed.positionals[0]}.json`));
+    const projectRelativeOutput = relative(project.root, outputPath);
+    if (!agent.coversProjectPath(projectRelativeOutput))
+        throw new AgentScopeViolationError(agent.id.value, `path:${projectRelativeOutput}`);
+    const result = await pipeline.scaffold({
+        stepId: parsed.positionals[0], outputPath, allowedRoot: feature.root,
+        authorAgentId: agent.id.value, featureId: feature.id.value, force: parsed.booleans.has("force"),
+    });
+    return { code: 0, stdout: json ? `${JSON.stringify({ schemaVersion: 1, command: "pipeline.scaffold", ok: true, data: result, errors: [], warnings: [] })}\n` : `Squelette écrit : ${result.outputPath}\n`, stderr: "" };
 }
 async function resolveFeatureTarget(value, cwd, management) {
     const candidate = resolve(cwd, value);

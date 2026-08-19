@@ -27,7 +27,7 @@
 | SEC3 | Dépendances | Préservé | Une dépendance runtime directe ; audits npm production et complet intégrés à la CI. |
 | T1 | Pyramide de tests | Renforcé | Suites unitaires, intégration et E2E conservées et enrichies des reproductions de l’audit. |
 | T2 | Parcours TUI incomplet | Fermé | Test clavier avec adapters réels : Home → Project → Feature → scaffold écrit sur disque ; double Entrée sérialisé. |
-| T3 | Packaging lié au worktree | Fermé | Consumer vierge, tarballs indépendants et aucun symlink `node_modules`; smoke `help` et catalogue 14 skills. Un second smoke online est dans le job de release. |
+| T3 | Packaging lié au worktree | Fermé | Consumer vierge, tarballs indépendants et aucun symlink `node_modules`; smoke `help` et catalogue 15 skills. Un second smoke online est dans le job de release. |
 | P1 | Double inspection Feature | Fermé | Un `PipelineReport` fournit statut et métriques ; concurrence bornée à 4 pour le dashboard. |
 | P2 | Réhydratation séquentielle | Fermé | `mapConcurrent` borné à 8, ordre déterministe. Benchmark : 50 Projects, 200 Features, 50 rapports, budget total 5 s. |
 | O1 | Faux PASS doctor | Fermé | Codec d’index partagé avec les stores ; entrées mal formées testées. |

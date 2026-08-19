@@ -8,7 +8,7 @@ export interface InspectPipelineInput {
 export interface ForPipeline {
   inspect(input: InspectPipelineInput): Promise<PipelineReport>;
   validate(input: { readonly filePath: string }): Promise<PipelineDocumentValidation>;
-  scaffold(input: { readonly stepId: string; readonly outputPath: string; readonly force?: boolean; readonly allowedRoot?: string }): Promise<PipelineScaffoldResult>;
+  scaffold(input: { readonly stepId: string; readonly outputPath: string; readonly authorAgentId: string; readonly featureId?: string; readonly force?: boolean; readonly allowedRoot?: string }): Promise<PipelineScaffoldResult>;
   listSteps(): Promise<readonly PipelineStepOption[]>;
 }
 

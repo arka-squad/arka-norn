@@ -124,7 +124,8 @@
   },
   "examples": [
     {
-      "schema_version": 2,
+      "schema_version": 3,
+      "author_agent_id": "Codex_dev_20260819",
       "id": "concept-001",
       "feature_id": "example-feature",
       "type": "concept",

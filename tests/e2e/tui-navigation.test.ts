@@ -23,6 +23,7 @@ test("la composition TUI pilote Home → Project → Feature → scaffold réel"
   const management = createManagementRuntime({ homeDir: sandbox });
   const project = await management.projects.create({ id: ProjectId.of("project"), name: "Project", root: projectRoot });
   await management.features.create({ id: FeatureId.of("feature"), projectId: project.id, name: "Feature", root: featureRoot });
+  const author = await management.agents.register({ project, provider: "Codex", role: "dev", featureIds: [FeatureId.of("feature")] });
 
   const input = controlledInput();
   const renderer = createRenderer({ write: () => true, isTTY: false });
@@ -61,9 +62,10 @@ test("la composition TUI pilote Home → Project → Feature → scaffold réel"
   await waitUntil(() => existsSync(conceptPath), "écriture scaffold");
   await waitUntil(() => container.app.topScene() !== inputScene && container.app.topScene() !== featureScene, "résultat scaffold");
 
-  const document = JSON.parse(readFileSync(conceptPath, "utf8")) as { readonly type: string; readonly feature_id: string };
+  const document = JSON.parse(readFileSync(conceptPath, "utf8")) as { readonly type: string; readonly feature_id: string; readonly author_agent_id: string };
   assert.equal(document.type, "concept");
-  assert.equal(document.feature_id, "À_REMPLIR");
+  assert.equal(document.feature_id, "feature");
+  assert.equal(document.author_agent_id, author.id.value);
 
   input.send({ kind: "interrupt" });
   await running;

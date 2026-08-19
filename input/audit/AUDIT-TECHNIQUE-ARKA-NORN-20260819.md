@@ -10,7 +10,7 @@
 
 # 1. Résumé exécutif
 
-arka-norn est un outil local-first en Node.js/TypeScript qui combine une CLI et une TUI pour gérer des `Project`, leurs `Feature`, un pipeline documentaire en dix étapes, des runs de développement/QA et un catalogue de 14 skills multiprovider. Le stockage repose sur des markers portables dans les projets et des index locaux reconstructibles sous le home utilisateur.
+arka-norn est un outil local-first en Node.js/TypeScript qui combine une CLI et une TUI pour gérer des `Project`, leurs `Feature`, un registre Agents, un pipeline documentaire en dix étapes, des runs de développement/QA et un catalogue de 15 skills multiprovider. Le stockage repose sur des markers et registres portables dans les projets et des index locaux reconstructibles sous le home utilisateur.
 
 **Fait observé — confiance élevée.** Le cœur TypeScript suit une architecture hexagonale lisible : domaine pur, ports, cas d’usage, adapters filesystem/CLI/TUI et composition. Le projet dispose de schémas JSON stricts, d’un moteur de décision métier qui distingue validation structurelle et verdict QA, de protections de chemin, d’écritures atomiques, de tests unitaires/intégration/E2E et d’une documentation cohérente sur l’intention générale.
 

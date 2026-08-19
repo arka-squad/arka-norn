@@ -12,6 +12,41 @@ export class DomainError extends Error {
         Object.setPrototypeOf(this, new.target.prototype);
     }
 }
+export class InvalidAgentIdError extends DomainError {
+    constructor(value, reason) {
+        super("INVALID_AGENT_ID", `Invalid agent id "${value}": ${reason}`);
+    }
+}
+export class InvalidAgentOptionError extends DomainError {
+    constructor(field, reason) {
+        super("INVALID_AGENT_OPTION", `Invalid agent option "${field}": ${reason}`);
+    }
+}
+export class AgentAlreadyExistsError extends DomainError {
+    constructor(id) {
+        super("AGENT_ALREADY_EXISTS", `Agent "${id}" already exists in this project.`);
+    }
+}
+export class AgentNotFoundError extends DomainError {
+    constructor(id) {
+        super("AGENT_NOT_FOUND", `Agent "${id}" not found in this project.`);
+    }
+}
+export class AgentInactiveError extends DomainError {
+    constructor(id) {
+        super("AGENT_INACTIVE", `Agent "${id}" is inactive and cannot author new product documents.`);
+    }
+}
+export class AgentScopeViolationError extends DomainError {
+    constructor(id, target) {
+        super("AGENT_SCOPE_VIOLATION", `Agent "${id}" is not authorized for "${target}" by its declared project scope.`);
+    }
+}
+export class InvalidAgentRegistryError extends DomainError {
+    constructor(path, reason) {
+        super("INVALID_AGENT_REGISTRY", `Invalid agent registry "${path}": ${reason}`);
+    }
+}
 export class InvalidFeatureIdError extends DomainError {
     constructor(value, reason) {
         super("INVALID_FEATURE_ID", `Invalid feature id "${value}": ${reason}`);

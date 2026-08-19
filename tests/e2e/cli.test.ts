@@ -13,6 +13,7 @@ interface QaDocument {
 const ROOT = resolve(import.meta.dirname, "..", "..");
 const BIN = resolve(ROOT, "bin", "arka-norn.mjs");
 const EXAMPLE = resolve(ROOT, "examples", "feature-notion-linear");
+const AUTHOR = "Codex_e2e_20260819";
 
 test("status refuse de déclarer complet l'exemple dont la QA échoue", () => {
   const result = runCli(["status", EXAMPLE]);
@@ -77,24 +78,39 @@ test("scaffold refuse l'écrasement sans --force", (context) => {
   const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-scaffold-safe-"));
   context.after(() => rmSync(sandbox, { recursive: true, force: true }));
   const output = resolve(sandbox, "concept.json");
-  const created = runCli(["scaffold", "concept", output]);
+  const unidentified = runCli(["scaffold", "concept", output]);
+  assert.equal(unidentified.status, 64);
+  assert.match(unidentified.stderr, /--agent/);
+  const created = runCli(["scaffold", "concept", output, "--agent", AUTHOR]);
   assert.equal(created.status, 0, created.stderr);
   const original = readFileSync(output, "utf8");
 
-  const conflict = runCli(["scaffold", "concept", output]);
+  const conflict = runCli(["scaffold", "concept", output, "--agent", AUTHOR]);
   assert.equal(conflict.status, 5);
   assert.match(conflict.stderr, /--force/);
   assert.equal(readFileSync(output, "utf8"), original);
 
-  const forced = runCli(["scaffold", "--force", "concept", output]);
+  const forced = runCli(["scaffold", "--force", "concept", output, "--agent", AUTHOR]);
   assert.equal(forced.status, 0, forced.stderr);
+});
+
+test("guide accompagne le parcours Project → Agent → Feature sans argument caché", () => {
+  const guide = runCli(["guide"]);
+  assert.equal(guide.status, 0, guide.stderr);
+  assert.match(guide.stdout, /S'identifier avant de produire/);
+  assert.match(guide.stdout, /agent current/);
+  assert.match(guide.stdout, /pipeline next/);
+  assert.match(guide.stdout, /ne devinez jamais/i);
+  const agentHelp = runCli(["agent", "help"]);
+  assert.equal(agentHelp.status, 0, agentHelp.stderr);
+  assert.match(agentHelp.stdout, /agent replace/);
 });
 
 test("validate --json sépare conformité et sentinelles", (context) => {
   const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-validate-json-"));
   context.after(() => rmSync(sandbox, { recursive: true, force: true }));
   const output = resolve(sandbox, "concept.json");
-  assert.equal(runCli(["scaffold", "concept", output]).status, 0);
+  assert.equal(runCli(["scaffold", "concept", output, "--agent", AUTHOR]).status, 0);
   const invalid = runCli(["validate", "--json", output]);
   assert.equal(invalid.status, 3);
   const envelope = JSON.parse(invalid.stdout) as { readonly schemaVersion: number; readonly ok: boolean; readonly errors: readonly string[] };

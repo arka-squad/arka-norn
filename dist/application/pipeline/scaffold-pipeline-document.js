@@ -1,6 +1,8 @@
 import { findScaffoldSentinels, scaffoldFromSchema } from "../../domain/pipeline/scaffold-schema.js";
+import { AgentId } from "../../domain/agent/agent-id.js";
 export function scaffoldPipelineDocumentUseCaseFactory(deps) {
     return async (input) => {
+        const authorAgentId = AgentId.of(input.authorAgentId).value;
         const definition = await deps.source.loadDefinition();
         const schemaPath = definition.steps.find((step) => step.id === input.stepId)?.schemaPath
             ?? definition.transversalDocuments.find((document) => document.type === input.stepId)?.schemaPath;
@@ -10,7 +12,13 @@ export function scaffoldPipelineDocumentUseCaseFactory(deps) {
             deps.source.loadSchema(schemaPath),
             deps.source.loadSchema("schemas/document-envelope.schema.json"),
         ]);
-        const scaffold = scaffoldFromSchema(mergeObjectSchemas(envelope, schema), input.stepId);
+        const generated = scaffoldFromSchema(mergeObjectSchemas(envelope, schema), input.stepId);
+        const scaffold = {
+            ...generated,
+            schema_version: 3,
+            author_agent_id: authorAgentId,
+            ...(input.featureId === undefined ? {} : { feature_id: input.featureId }),
+        };
         await deps.source.write(input.outputPath, scaffold, {
             ...(input.force === undefined ? {} : { force: input.force }),
             ...(input.allowedRoot === undefined ? {} : { allowedRoot: input.allowedRoot }),

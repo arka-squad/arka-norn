@@ -37,6 +37,15 @@ test("la CLI couvre le cycle Project/Feature et reconstruit les index", (context
   assert.equal(run<{ readonly root: string }>(["feature", "show", "secure-cockpit", "--json"], home, workspace).json.data.root, realpathSync.native(featureRoot));
   assert.equal(run(["feature", "use", "secure-cockpit", "--json"], home, workspace).status, 0);
 
+  const agent = run<{ readonly id: string; readonly active: boolean }>([
+    "agent", "register", "--project", "product", "--provider", "Codex CLI", "--role", "dev",
+    "--features", "secure-cockpit", "--responsibilities", "implémentation;tests", "--json",
+  ], home, workspace);
+  assert.equal(agent.status, 0, agent.stderr);
+  assert.match(agent.json.data.id, /^Codex-CLI_dev_\d{8}$/);
+  assert.equal(agent.json.data.active, true);
+  assert.equal(run<{ readonly id: string }>(["agent", "current", "--project", "product", "--json"], home, workspace).json.data.id, agent.json.data.id);
+
   const emptyStatus = run(["pipeline", "status", "secure-cockpit", "--json"], home, workspace);
   assert.equal(emptyStatus.status, 2);
   const next = run<{ readonly nextAction: { readonly stepId: string } }>(["pipeline", "next", "secure-cockpit", "--json"], home, workspace);
@@ -44,6 +53,20 @@ test("la CLI couvre le cycle Project/Feature et reconstruit les index", (context
   assert.equal(run(["pipeline", "scaffold", "concept", "--feature", "secure-cockpit", "--json"], home, workspace).status, 0);
   assert.equal(run(["pipeline", "scaffold", "concept", "--feature", "secure-cockpit", "--json"], home, workspace).status, 5);
   assert.equal(run(["pipeline", "validate", "secure-cockpit", "--document", "concept.json", "--json"], home, workspace).status, 3);
+  const scaffold = JSON.parse(readFileSync(resolve(featureRoot, "concept.json"), "utf8")) as { readonly schema_version: number; readonly author_agent_id: string; readonly feature_id: string };
+  assert.equal(scaffold.schema_version, 3);
+  assert.equal(scaffold.author_agent_id, agent.json.data.id);
+  assert.equal(scaffold.feature_id, "secure-cockpit");
+
+  const replacement = run<{ readonly id: string; readonly replacesAgentId: string }>([
+    "agent", "replace", agent.json.data.id, "--project", "product", "--provider", "Claude Code", "--role", "dev", "--json",
+  ], home, workspace);
+  assert.equal(replacement.status, 0, replacement.stderr);
+  assert.equal(replacement.json.data.replacesAgentId, agent.json.data.id);
+  const oldAgent = run<{ readonly active: boolean; readonly replacedByAgentId: string }>(["agent", "show", agent.json.data.id, "--project", "product", "--json"], home, workspace);
+  assert.equal(oldAgent.json.data.active, false);
+  assert.equal(oldAgent.json.data.replacedByAgentId, replacement.json.data.id);
+  assert.equal(run<{ readonly id: string }>(["agent", "current", "--project", "product", "--json"], home, workspace).json.data.id, replacement.json.data.id);
 
   const refusedForget = run(["feature", "forget", "secure-cockpit", "--json"], home, workspace);
   assert.equal(refusedForget.status, 64);
@@ -73,6 +96,8 @@ test("la CLI couvre le cycle Project/Feature et reconstruit les index", (context
   assert.ok(audit.some((event) => event.action === "project.create"));
   assert.ok(audit.some((event) => event.action === "feature.create"));
   assert.ok(audit.some((event) => event.action === "feature.forget"));
+  assert.ok(audit.some((event) => event.action === "agent.register"));
+  assert.ok(audit.some((event) => event.action === "agent.replace"));
 });
 
 interface RunResult<T> {
@@ -83,6 +108,7 @@ interface RunResult<T> {
 
 function run<T = unknown>(args: readonly string[], home: string, cwd: string): RunResult<T> {
   const result = runRaw(args, home, cwd);
+  assert.notEqual(result.stdout.trim(), "", `aucune sortie JSON pour ${args.join(" ")} (status=${String(result.status)}): ${result.stderr}`);
   return { status: result.status, stderr: result.stderr, json: JSON.parse(result.stdout) as RunResult<T>["json"] };
 }
 

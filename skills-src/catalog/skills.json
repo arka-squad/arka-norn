@@ -1,12 +1,13 @@
 {
   "schemaVersion": 1,
-  "catalogVersion": "1.0.0",
+  "catalogVersion": "1.1.0",
   "profiles": {
-    "all": "14 skills, catalogue complet",
-    "core": "4 skills de socle",
-    "delivery": "12 skills de préparation, développement et QA"
+    "all": "15 skills, catalogue complet",
+    "core": "5 skills de socle",
+    "delivery": "13 skills de préparation, développement et QA"
   },
   "skills": [
+    { "name": "arka-framework-maitrise", "version": "1.0.0", "source": "arka-framework-maitrise.json", "checksum": "401139ac7d239ac012eea84bb8f25f979cc76c5c4a0f188f5e5c78d07a2bf2f8", "step": "core.mastery", "profiles": ["all", "core", "delivery"] },
     { "name": "arka-framework-statut", "version": "1.0.0", "source": "arka-framework-statut.json", "checksum": "5cda80db55abf00ab0eeeec53c3186d86816c7ad45e5d5987b46253ededa62fa", "step": "core.status", "profiles": ["all", "core", "delivery"] },
     { "name": "arka-framework-scaffold", "version": "1.0.0", "source": "arka-framework-scaffold.json", "checksum": "438aa0df69db38185fdc17039723990f67f3bb31cd1b24f41152dccddb41ff6a", "step": "core.scaffold", "profiles": ["all", "core", "delivery"] },
     { "name": "arka-framework-valider", "version": "1.0.0", "source": "arka-framework-valider.json", "checksum": "b3553534193c0d1fa6fa8c32c546761c5bc692e175efeee4d8797aee194c5302", "step": "core.validate", "profiles": ["all", "core", "delivery"] },

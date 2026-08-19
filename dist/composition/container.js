@@ -25,6 +25,7 @@ import { createTuiApp } from "../adapters/inbound/tui/runtime/tui-app.js";
 import { createProjectDetailView } from "../adapters/inbound/tui/views/project-detail-view.js";
 import { createFeatureDetailView } from "../adapters/inbound/tui/views/feature-detail-view.js";
 import { createHomeView } from "../adapters/inbound/tui/views/home-view.js";
+import { createResultView } from "../adapters/inbound/tui/views/result-view.js";
 import { FsFilesystem } from "../adapters/outbound/filesystem/fs-filesystem.js";
 import { DirectSkillManager } from "../adapters/outbound/skills/direct-skill-manager.js";
 import { createManagementRuntime } from "./management-runtime.js";
@@ -34,6 +35,7 @@ import { createPipelineSceneController } from "./tui/pipeline-scene-controller.j
 import { loadProjectMetrics, metricsFromReport } from "./tui/project-dashboard.js";
 import { createResourceConfirmationController } from "./tui/resource-confirmation-controller.js";
 import { showHealthReport, showSkillInstallation } from "./tui/skill-scene-controller.js";
+import { createAgentSceneController } from "./tui/agent-scene-controller.js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // dist/composition/container.js -> remonte de 2 niveaux vers la racine du framework.
 const FRAMEWORK_ROOT = resolve(__dirname, "..", "..");
@@ -51,6 +53,7 @@ export function createContainer(env, ui = {}) {
         contextRoot: env.cwd,
         currentProject: undefined,
         currentFeature: undefined,
+        currentAgent: undefined,
     };
     const appTheme = ui.theme ?? createTheme(process.env, process.stdout.isTTY);
     const app = createTuiApp({
@@ -65,10 +68,12 @@ export function createContainer(env, ui = {}) {
                 root: uiState.contextRoot,
                 ...(uiState.currentProject !== undefined ? { project: { name: uiState.currentProject.name } } : {}),
                 ...(uiState.currentFeature !== undefined ? { feature: { name: uiState.currentFeature.name } } : {}),
+                ...(uiState.currentAgent !== undefined ? { agent: { id: uiState.currentAgent.id.value } } : {}),
             }),
         },
     });
     const pipelineScenes = createPipelineSceneController(app, pipeline);
+    const agentScenes = createAgentSceneController(app, management.agents);
     const confirmations = createResourceConfirmationController({
         app,
         projects,
@@ -84,14 +89,31 @@ export function createContainer(env, ui = {}) {
     });
     async function openFeatureDetail(feature) {
         uiState.currentFeature = feature;
+        const project = await projects.show(feature.projectId);
+        const currentAgent = await management.agents.current(project);
+        uiState.currentAgent = currentAgent;
         const report = await pipeline.inspect({ featureRoot: feature.root, featureId: feature.id.value });
         app.push(createFeatureDetailView({
             feature,
             report,
+            ...(currentAgent === undefined ? {} : { currentAgentId: currentAgent.id.value }),
             redraw: () => app.redraw(),
             onBack: () => app.pop(),
             onShowStatus: (selected) => pipelineScenes.showStatus(selected),
-            onScaffold: (selected) => pipelineScenes.scaffold(selected),
+            onScaffold: async (selected) => {
+                const project = await projects.show(selected.projectId);
+                const agent = await management.agents.current(project);
+                if (agent === undefined) {
+                    app.push(createResultView({
+                        title: "Identité agent requise",
+                        code: 64,
+                        output: "Aucun agent actif sélectionné pour ce projet. Revenez au Project, ouvrez le registre Agents, puis enregistrez ou sélectionnez votre identité avant de générer un document.\n",
+                        onBack: () => { },
+                    }));
+                    return;
+                }
+                await pipelineScenes.scaffold(selected, agent, project.root);
+            },
             onValidate: (selected) => pipelineScenes.validate(selected),
             onForget: (selected) => confirmations.forgetFeature(selected),
         }));
@@ -101,11 +123,15 @@ export function createContainer(env, ui = {}) {
         const initialFeatures = (await features.list()).filter((feature) => feature.belongsTo(project.id));
         const initialMetrics = await loadProjectMetrics(initialFeatures, pipeline);
         const initialStatuses = new Map([...initialMetrics].map(([id, metrics]) => [id, metrics.status]));
-        app.push(createProjectDetailView({
+        const [initialAgents, currentAgent] = await Promise.all([management.agents.list(project), management.agents.current(project)]);
+        uiState.currentAgent = currentAgent;
+        const projectView = createProjectDetailView({
             project,
             initialFeatures,
             initialStatuses,
             initialMetrics,
+            initialAgents,
+            ...(currentAgent === undefined ? {} : { currentAgentId: currentAgent.id.value }),
             features,
             scan,
             redraw: () => app.redraw(),
@@ -116,7 +142,12 @@ export function createContainer(env, ui = {}) {
             onOpenFeature: (feature) => openFeatureDetail(feature),
             metricsForFeature: async (feature) => metricsFromReport(await pipeline.inspect({ featureRoot: feature.root, featureId: feature.id.value })),
             onForget: (selected) => confirmations.forgetProject(selected),
-        }));
+            onManageAgents: (selected) => agentScenes.open(selected, (agents, current) => {
+                uiState.currentAgent = current;
+                projectView.setAgents(agents, current?.id.value);
+            }),
+        });
+        app.push(projectView);
     }
     return {
         env,
@@ -157,9 +188,7 @@ export function createContainer(env, ui = {}) {
                 onShowHealth: () => {
                     showHealthReport(app, systemHealth, skillHealth);
                 },
-                onInstallSkills: () => {
-                    showSkillInstallation(app, skillManager, env.cwd);
-                },
+                onInstallSkills: () => showSkillInstallation(app, skillManager, env.cwd),
             });
         },
     };

@@ -42,7 +42,7 @@ export const ARKA_LOGO = Object.freeze(LOGO_CODED.map(decodeLogoLine));
  * démarrage de la TUI (chrome persistant, cf. tui-app.ts).
  */
 export function renderArkaHeader(theme, opts = {}) {
-    const version = opts.version ?? "1.0.0";
+    const version = opts.version ?? "1.1.0";
     const tagline = opts.tagline ?? "Framework méthodologique multiprovider";
     const runtimeLabel = opts.runtimeLabel ?? "";
     const runtimePart = runtimeLabel ? ` ${theme.dim("-")} ${theme.arkaAccent(runtimeLabel)}` : "";
@@ -56,7 +56,7 @@ export function renderArkaHeader(theme, opts = {}) {
 }
 /** Bandeau compact -- en-tête de sous-vues secondaires. */
 export function renderArkaBanner(theme, opts = {}) {
-    const version = opts.version ?? "1.0.0";
+    const version = opts.version ?? "1.1.0";
     const sectionPart = opts.section ? ` ${theme.dim(">")} ${theme.bold(opts.section)}` : "";
     const line = `  ${theme.dim("arkalabs")} ${theme.dim("-")} ${theme.bold("arka-norn")} ${theme.gray(`v${version}`)}${sectionPart}`;
     const rule = `  ${theme.dim(HORIZONTAL.repeat(40))}`;
@@ -72,6 +72,9 @@ export function renderContextBanner(ctx, theme) {
     }
     if (ctx.feature !== undefined) {
         lines.push(`${theme.dim("Feature :")} ${ctx.feature.name}`);
+    }
+    if (ctx.agent !== undefined) {
+        lines.push(`${theme.dim("Agent   :")} ${ctx.agent.id}`);
     }
     const titleSuffix = ctx.feature !== undefined
         ? `Feature : ${ctx.feature.name}`

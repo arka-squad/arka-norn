@@ -2,13 +2,14 @@
   "$schema": "manifest.json",
   "schemaVersion": 2,
   "name": "arka-norn",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Cockpit local et agent-agnostique pour gérer Project, Feature, Pipeline, documents, runs et handoffs.",
   "entryPoint": "bin/arka-norn.mjs",
   "domain": {
     "relation": "Project -> Feature -> Pipeline -> Document/Run",
     "projectMarker": ".arka-norn/project.json",
     "featureMarker": ".arka-norn/feature.json",
+    "agentRegistry": ".arka-norn/agents.json",
     "vocabulary": "docs/domain/vocabulaire.md"
   },
   "contracts": {
@@ -18,13 +19,15 @@
       "docs/adr/ADR-001-project-canonique.md",
       "docs/adr/ADR-002-sources-de-verite.md",
       "docs/adr/ADR-003-versionnement-migrations.md",
-      "docs/adr/ADR-004-contrat-cli.md"
+      "docs/adr/ADR-004-contrat-cli.md",
+      "docs/adr/ADR-005-registre-agents-identite-documentaire.md"
     ]
   },
   "cli": {
     "tui": "arka-norn",
     "project": "arka-norn project <list|add|import|scan|show|use|forget|reconcile>",
     "feature": "arka-norn feature <list|create|import|scan|show|use|forget|reconcile>",
+    "agent": "arka-norn agent <list|register|show|current|use|deactivate|replace>",
     "pipeline": "arka-norn pipeline <status|next|scaffold|validate>",
     "skills": "arka-norn skills <list|install|doctor>",
     "doctor": "arka-norn doctor [--repair [--apply]]",
@@ -43,6 +46,8 @@
   "rules": [
     "Markers portables are sources of truth; local indexes are reconstructible caches.",
     "A Feature always references its owning Project with projectId.",
+    "Every new v3 document names an active author_agent_id from the Project registry.",
+    "Agent replacement deactivates the old identity and preserves bidirectional lineage.",
     "A structurally valid document is not automatically business-complete.",
     "QA completion requires pass for the latest valid development report.",
     "Generated skills are compiled from skills-src and never edited in place."

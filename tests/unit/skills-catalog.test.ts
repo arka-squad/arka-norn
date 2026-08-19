@@ -29,28 +29,28 @@ const ROOT = resolve(import.meta.dirname, "..", "..");
 const SOURCE = resolve(ROOT, "skills-src");
 const catalog = JSON.parse(readFileSync(resolve(SOURCE, "catalog", "skills.json"), "utf8")) as { readonly skills: readonly CatalogEntry[] };
 
-test("le catalogue contient exactement les 14 skills requis et des checksums exacts", () => {
+test("le catalogue contient exactement les 15 skills requis et des checksums exacts", () => {
   const required = [
-    "arka-framework-statut", "arka-framework-scaffold", "arka-framework-valider", "arka-framework-handoff",
+    "arka-framework-maitrise", "arka-framework-statut", "arka-framework-scaffold", "arka-framework-valider", "arka-framework-handoff",
     "arka-framework-concept", "arka-framework-plan", "arka-framework-annexe-technique", "arka-framework-audit",
     "arka-framework-invariants", "arka-framework-dettes", "arka-framework-taches", "arka-framework-spec-integration",
     "arka-framework-dev", "arka-framework-recette-qa",
   ].sort();
   assert.deepEqual(catalog.skills.map((entry) => entry.name).sort(), required);
-  assert.equal(new Set(catalog.skills.map((entry) => entry.name)).size, 14);
+  assert.equal(new Set(catalog.skills.map((entry) => entry.name)).size, 15);
   for (const entry of catalog.skills) {
     const raw = readFileSync(resolve(SOURCE, entry.source), "utf8").replace(/\r\n?/g, "\n");
     assert.equal(createHash("sha256").update(raw, "utf8").digest("hex"), entry.checksum, entry.name);
     assert.ok(entry.profiles.includes("all"));
     assert.ok(entry.step.length > 0);
   }
-  assert.equal(catalog.skills.filter((entry) => entry.profiles.includes("core")).length, 4);
-  assert.equal(catalog.skills.filter((entry) => entry.profiles.includes("delivery")).length, 12);
+  assert.equal(catalog.skills.filter((entry) => entry.profiles.includes("core")).length, 5);
+  assert.equal(catalog.skills.filter((entry) => entry.profiles.includes("delivery")).length, 13);
 });
 
 test("chaque définition est complète et les skills audit/dev/QA imposent leurs gates", () => {
   const files = readdirSync(SOURCE).filter((name) => name.endsWith(".json"));
-  assert.equal(files.length, 14);
+  assert.equal(files.length, 15);
   const definitions = files.map((file) => JSON.parse(readFileSync(resolve(SOURCE, file), "utf8")) as SkillDefinition);
   for (const definition of definitions) {
     assert.match(definition.name, /^arka-framework-[a-z-]+$/);
@@ -68,6 +68,8 @@ test("chaque définition est complète et les skills audit/dev/QA imposent leurs
   assert.match(byName.get("arka-framework-dev") ?? "", /CR de dev|cr_dev/);
   assert.match(byName.get("arka-framework-recette-qa") ?? "", /dernier CR|cr_dev_id/);
   assert.match(byName.get("arka-framework-recette-qa") ?? "", /partial|fail/);
+  assert.match(byName.get("arka-framework-maitrise") ?? "", /agent register/);
+  assert.match(byName.get("arka-framework-maitrise") ?? "", /Ne jamais déduire|ne pas.*deviner/i);
 });
 
 test("le catalogue reste vérifiable après une conversion Git en CRLF", (context) => {
@@ -79,5 +81,5 @@ test("le catalogue reste vérifiable après une conversion Git en CRLF", (contex
     const crlf = readFileSync(sourcePath, "utf8").replace(/\r\n?/g, "\n").replace(/\n/g, "\r\n");
     writeFileSync(sourcePath, crlf);
   }
-  assert.equal(createSkillCatalogRuntime(frameworkRoot).definitions.length, 14);
+  assert.equal(createSkillCatalogRuntime(frameworkRoot).definitions.length, 15);
 });

@@ -8,15 +8,15 @@ import { DirectSkillManager } from "../../src/adapters/outbound/skills/direct-sk
 
 const ROOT = resolve(import.meta.dirname, "..", "..");
 
-test("le manager TUI installe directement les 14 skills sans sous-processus", async (context) => {
+test("le manager TUI installe directement les 15 skills sans sous-processus", async (context) => {
   const target = mkdtempSync(join(tmpdir(), "arka-norn-direct-skills-"));
   context.after(() => rmSync(target, { recursive: true, force: true }));
   const manager = new DirectSkillManager(ROOT);
 
-  assert.deepEqual(await manager.inspect(target), { total: 14, healthy: 0, missing: 14, divergent: 0 });
+  assert.deepEqual(await manager.inspect(target), { total: 15, healthy: 0, missing: 15, divergent: 0 });
   const installed = await manager.install({ target });
   assert.equal(installed.code, 0, installed.output);
-  assert.deepEqual(await manager.inspect(target), { total: 14, healthy: 14, missing: 0, divergent: 0 });
+  assert.deepEqual(await manager.inspect(target), { total: 15, healthy: 15, missing: 0, divergent: 0 });
 });
 
 test("les skills audit, dev et QA générés portent un workflow exécutable sans réponse métier préremplie", async (context) => {

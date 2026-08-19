@@ -1,5 +1,6 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
+  "author_agent_id": "Codex_dev_20260819",
   "id": "handoff-cr-dev-lot5-vers-t23",
   "feature_id": "connecteurs-notion-linear",
   "type": "handoff",

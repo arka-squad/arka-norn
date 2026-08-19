@@ -11,6 +11,7 @@ export function createFeatureCockpitViewModel(feature, report) {
         overallStatus: report.overallStatus,
         progress: `${completed}/${required} étapes obligatoires terminées`,
         nextAction: next === undefined ? "Aucune — pipeline terminé" : `${next.kind} → ${next.stepId}`,
+        nextReason: next === undefined ? "toutes les étapes obligatoires et la dernière QA sont concluantes" : next.reason,
         timeline: report.steps.map((step) => `${String(step.order).padStart(2, "0")} ${symbol(step.completionStatus)} ${step.id} · ${step.schemaStatus}/${step.businessStatus}`),
         developmentRuns: crStep?.documents.length ?? 0,
         qaRuns: qaStep?.documents.length ?? 0,

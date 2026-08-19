@@ -5,6 +5,13 @@
  */
 
 export type DomainErrorCode =
+  | "INVALID_AGENT_ID"
+  | "INVALID_AGENT_OPTION"
+  | "AGENT_ALREADY_EXISTS"
+  | "AGENT_NOT_FOUND"
+  | "AGENT_INACTIVE"
+  | "AGENT_SCOPE_VIOLATION"
+  | "INVALID_AGENT_REGISTRY"
   | "INVALID_FEATURE_ID"
   | "INVALID_FEATURE_OPTION"
   | "FEATURE_ALREADY_EXISTS"
@@ -32,6 +39,48 @@ export class DomainError extends Error {
     this.code = code;
     this.name = new.target.name;
     Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+export class InvalidAgentIdError extends DomainError {
+  public constructor(value: string, reason: string) {
+    super("INVALID_AGENT_ID", `Invalid agent id "${value}": ${reason}`);
+  }
+}
+
+export class InvalidAgentOptionError extends DomainError {
+  public constructor(field: string, reason: string) {
+    super("INVALID_AGENT_OPTION", `Invalid agent option "${field}": ${reason}`);
+  }
+}
+
+export class AgentAlreadyExistsError extends DomainError {
+  public constructor(id: string) {
+    super("AGENT_ALREADY_EXISTS", `Agent "${id}" already exists in this project.`);
+  }
+}
+
+export class AgentNotFoundError extends DomainError {
+  public constructor(id: string) {
+    super("AGENT_NOT_FOUND", `Agent "${id}" not found in this project.`);
+  }
+}
+
+export class AgentInactiveError extends DomainError {
+  public constructor(id: string) {
+    super("AGENT_INACTIVE", `Agent "${id}" is inactive and cannot author new product documents.`);
+  }
+}
+
+export class AgentScopeViolationError extends DomainError {
+  public constructor(id: string, target: string) {
+    super("AGENT_SCOPE_VIOLATION", `Agent "${id}" is not authorized for "${target}" by its declared project scope.`);
+  }
+}
+
+export class InvalidAgentRegistryError extends DomainError {
+  public constructor(path: string, reason: string) {
+    super("INVALID_AGENT_REGISTRY", `Invalid agent registry "${path}": ${reason}`);
   }
 }
 

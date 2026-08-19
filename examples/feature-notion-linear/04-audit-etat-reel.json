@@ -1,5 +1,6 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
+  "author_agent_id": "Codex_dev_20260819",
   "id": "audit-t01-etat-reel-cortex-lite",
   "feature_id": "connecteurs-notion-linear",
   "type": "audit_etat_reel",

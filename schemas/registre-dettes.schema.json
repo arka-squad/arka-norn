@@ -91,7 +91,8 @@
   },
   "examples": [
     {
-      "schema_version": 2,
+      "schema_version": 3,
+      "author_agent_id": "Codex_dev_20260819",
       "id": "registre-dettes-connect-core-001",
       "feature_id": "example-feature",
       "type": "registre_dettes",

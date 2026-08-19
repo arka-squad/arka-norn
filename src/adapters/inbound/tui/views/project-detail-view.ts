@@ -5,23 +5,27 @@ import { DomainError } from "../../../../domain/errors.js";
 import { FeatureId } from "../../../../domain/feature/feature-id.js";
 import type { Feature } from "../../../../domain/feature/feature.js";
 import type { Project } from "../../../../domain/project/project.js";
+import type { AgentRegistration } from "../../../../domain/agent/agent.js";
 import type { ForFeatures } from "../../../../ports/inbound/for-features.js";
 import type { ForScan } from "../../../../ports/inbound/for-scan.js";
 import { mapConcurrent } from "../../../../application/shared/map-concurrent.js";
 import { titledBox } from "../components/box.js";
+import { GUIDED_SHORTCUTS, nextActionLine, renderGuidance } from "../components/guidance.js";
 import { createMenuScene, type MenuItem, type MenuScene } from "../components/menu.js";
 import type { KeyEvent } from "../runtime/input.js";
 import type { Renderer } from "../runtime/render.js";
 import type { Theme } from "../runtime/theme.js";
 import type { Scene } from "../runtime/tui-app.js";
 
-type ProjectAction = "action:create" | "action:scan" | "action:forget" | "action:back" | `feature:${string}`;
+type ProjectAction = "action:create" | "action:agents" | "action:scan" | "action:forget" | "action:back" | `feature:${string}`;
 
 export interface ProjectDetailViewDeps {
   readonly project: Project;
   readonly initialFeatures: readonly Feature[];
   readonly initialStatuses?: ReadonlyMap<string, string>;
   readonly initialMetrics?: ReadonlyMap<string, ProjectFeatureMetrics>;
+  readonly initialAgents?: readonly AgentRegistration[];
+  readonly currentAgentId?: string;
   readonly features: ForFeatures;
   readonly scan: ForScan;
   readonly redraw: () => void;
@@ -29,6 +33,7 @@ export interface ProjectDetailViewDeps {
   readonly onFeatureFocused?: (feature: Feature | undefined) => void;
   readonly onOpenFeature?: (feature: Feature) => Promise<void> | void;
   readonly onForget?: (project: Project) => Promise<void> | void;
+  readonly onManageAgents?: (project: Project) => Promise<void> | void;
   readonly metricsForFeature?: (feature: Feature) => Promise<ProjectFeatureMetrics>;
 }
 
@@ -40,16 +45,21 @@ export interface ProjectFeatureMetrics {
   readonly invalidDocuments: number;
 }
 
-export type ProjectDetailView = Scene;
+export interface ProjectDetailView extends Scene {
+  setAgents(agents: readonly AgentRegistration[], currentAgentId: string | undefined): void;
+}
 
 export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDetailView {
   let features = [...deps.initialFeatures];
   let statuses = new Map(deps.initialStatuses ?? []);
   let metrics = new Map(deps.initialMetrics ?? []);
+  let agents = [...(deps.initialAgents ?? [])];
+  let currentAgentId = deps.currentAgentId;
   let mode: "menu" | "create" = "menu";
   let createPath = `${deps.project.root}/`;
   let message: string | undefined;
   let busy = false;
+  let helpVisible = false;
   let menu = buildMenu();
 
   function items(): readonly MenuItem<ProjectAction>[] {
@@ -60,6 +70,7 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
     return [
       { label: "Créer ou importer une feature", value: "action:create" },
       ...groupedFeatures.map((feature) => ({ label: `● [${statuses.get(feature.id.value) ?? "inconnu"}] ${feature.name}`, value: `feature:${feature.id.value}` as const, description: feature.root })),
+      { label: "Gérer les agents du projet", value: "action:agents", description: "identités, périmètres, agent courant et remplacements" },
       { label: "Rescanner le projet", value: "action:scan" },
       { label: "Retirer ce projet de l’index", value: "action:forget" },
       { label: "← Retour", value: "action:back" },
@@ -68,7 +79,7 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
 
   function buildMenu(): MenuScene {
     return createMenuScene<ProjectAction>(items(), {
-      hint: "Flèches naviguer, Entrée sélectionner, Échap retour",
+      hint: "↑/↓ naviguer · Entrée ouvrir · / filtrer · ? aide · Échap retour",
       maxVisible: 12,
       onSelect: (value) => void select(value),
     });
@@ -84,6 +95,8 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
     } else if (value === "action:create") {
       mode = "create";
       deps.redraw();
+    } else if (value === "action:agents") {
+      await run(async () => { await deps.onManageAgents?.(deps.project); });
     } else if (value === "action:scan") {
       await run(async () => {
         const results = await deps.scan.scan({ target: deps.project.root, projectId: deps.project.id });
@@ -145,6 +158,16 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
   return {
     chrome: { contextBanner: false },
     onKey(event: KeyEvent): "pop" | "consumed" | undefined {
+      if (event.kind === "help" && mode === "menu") {
+        helpVisible = !helpVisible;
+        deps.redraw();
+        return "consumed";
+      }
+      if (helpVisible) {
+        if (event.kind === "escape") helpVisible = false;
+        deps.redraw();
+        return "consumed";
+      }
       if (mode === "create") {
         if (event.kind === "escape") mode = "menu";
         else if (event.kind === "enter" && !busy) void submit();
@@ -162,8 +185,29 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
     },
     render(renderer: Renderer, theme: Theme): void {
       renderer.redraw((line) => {
+        if (helpVisible) {
+          for (const value of renderGuidance({
+            title: "Aide — espace Project",
+            purpose: "Un Project regroupe ses Features et son registre d’agents. Rien n’est produit avant d’avoir choisi une identité active.",
+            steps: [
+              "Ouvrez « Gérer les agents » et enregistrez ou sélectionnez votre identité.",
+              "Créez/importez une Feature dans la racine du Project.",
+              "Ouvrez la Feature prioritaire et suivez l’action recommandée par son Pipeline.",
+              "Utilisez le scan pour reconstruire l’index depuis les marqueurs portables.",
+            ],
+            shortcuts: GUIDED_SHORTCUTS,
+          }, theme)) line(value);
+          return;
+        }
         if (mode === "create") {
-          for (const value of titledBox("Créer ou importer une feature", [`Sous ${deps.project.root}`, `${createPath}${theme.dim("_")}`, message ?? ""], theme).split("\n")) line(value);
+          for (const value of titledBox("Créer ou importer une Feature", [
+            "Indiquez un dossier enfant du Project. Un marqueur existant sera importé ; sinon une nouvelle Feature sera créée.",
+            `Racine autorisée : ${deps.project.root}`,
+            `Exemple : ${deps.project.root}/ma-feature`,
+            "",
+            `${createPath}${theme.dim("_")}`,
+            message ?? "Entrée confirme · Échap annule sans modifier",
+          ], theme).split("\n")) line(value);
           return;
         }
         const health = [...statuses.values()].reduce<Record<string, number>>((counts, status) => ({ ...counts, [status]: (counts[status] ?? 0) + 1 }), {});
@@ -179,11 +223,24 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
           `Features : ${features.length}`,
           `États : ${groups}`,
           `Dettes : ${totals.debts} · anomalies QA : ${totals.qa} · handoffs : ${totals.handoffs} · documents invalides : ${totals.invalid}`,
+          `Agents : ${agents.filter((agent) => agent.active).length} actif(s) / ${agents.length} · courant : ${currentAgentId ?? "aucun"}`,
         ], theme, { border: theme.arkaRed }).split("\n")) line(value);
+        line("");
+        line(nextActionLine(
+          currentAgentId === undefined ? "Gérer les agents du projet" : features.length === 0 ? "Créer ou importer une Feature" : "Ouvrir une Feature",
+          currentAgentId === undefined ? "une identité active est requise avant tout document" : features.length === 0 ? "aucun pipeline n’est encore piloté" : "le Pipeline indiquera quoi faire et pourquoi",
+          theme,
+        ));
+        if (features.length === 0) line(`  ${theme.dim("Démarrage guidé : identité → Feature → statut Pipeline → scaffold signé → validation.")}`);
         if (busy) line(`  ${theme.dim("Chargement…")}`);
         if (message !== undefined) line(`  ${theme.arkaAccent(message)}`);
         for (const value of menu.renderLines(theme)) line(value);
       });
+    },
+    setAgents(updatedAgents, updatedCurrentAgentId): void {
+      agents = [...updatedAgents];
+      currentAgentId = updatedCurrentAgentId;
+      deps.redraw();
     },
   };
 }

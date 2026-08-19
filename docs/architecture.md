@@ -18,15 +18,19 @@ arka-norn est un plan de contrôle local-first pour des Projects et leurs Featur
 
 - Project : `<project>/.arka-norn/project.json`.
 - Feature : `<feature>/.arka-norn/feature.json`.
+- Registre Agents : `<project>/.arka-norn/agents.json`.
+- Agent courant : `~/.arka-norn/context/agents.json`, contexte privé reconstructible.
 - Documents : JSON de la Feature, validés par les schémas et le graphe Pipeline.
 - Index : `~/.arka-norn/index/*.json`, caches privés reconstructibles.
-- Catalogue skills : `skills-src/catalog/skills.json` et les 14 sources JSON référencées.
+- Catalogue skills : `skills-src/catalog/skills.json` et les 15 sources JSON référencées.
 
 Le `PipelineReport` sépare présence, conformité de schéma, verdict métier, dépendances, complétude et prochaines actions. Une QA `pass` ne termine la Feature que si elle référence le dernier CR de développement valide.
 
-Tous les documents utilisent l’enveloppe v2 commune : `id`, `feature_id`,
+Les documents historiques utilisent l’enveloppe v2. Tout nouveau scaffold utilise la v3 commune : `id`, `feature_id`, `author_agent_id`,
 `schema_version`, `sequence`, `created_at` et relations explicites. Le moteur
 rejette IDs dupliqués, cardinalités interdites, relations inconnues et cycles.
+
+Le domaine Agent est séparé des marqueurs pour ne pas coupler leur version. Son adapter sérialise les inscriptions et remplacements sous un lock par Project ; les use cases CLI/TUI partagent exactement les mêmes transitions.
 
 ## Transactions locales
 

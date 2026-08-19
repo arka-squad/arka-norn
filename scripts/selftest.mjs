@@ -49,7 +49,7 @@ export async function runSelftest() {
     for (const typeId of typeIds) {
       const output = path.join(sandbox, `${typeId}.json`);
       try {
-        await pipeline.scaffold({ stepId: typeId, outputPath: output });
+        await pipeline.scaffold({ stepId: typeId, outputPath: output, authorAgentId: "Selftest_validation_20260819" });
         check(`scaffold(${typeId}) ne lève pas d'exception`, true);
       } catch (error) {
         check(`scaffold(${typeId}) ne lève pas d'exception`, false, error instanceof Error ? error.message : String(error));
@@ -106,17 +106,18 @@ export async function runSelftest() {
     check("TUI hors TTY : message explicite sur stderr", (result.stderr ?? "").includes("nécessite un terminal interactif"), result.stderr ?? "");
   }
 
-  console.log("\n=== 7. Catalogue partagé : exactement 14 skills, dont audit/dev/QA ===");
+  console.log("\n=== 7. Catalogue partagé : exactement 15 skills, dont maîtrise/audit/dev/QA ===");
   {
     const catalog = loadJson(path.join(FRAMEWORK_ROOT, "skills-src", "catalog", "skills.json"));
     const names = catalog.skills.map((skill) => skill.name);
-    check("catalogue contient exactement 14 skills", names.length === 14 && new Set(names).size === 14, names.join(", "));
+    check("catalogue contient exactement 15 skills", names.length === 15 && new Set(names).size === 15, names.join(", "));
+    check("catalogue contient maîtrise", names.includes("arka-framework-maitrise"), names.join(", "));
     check("catalogue contient audit", names.includes("arka-framework-audit"), names.join(", "));
     check("catalogue contient dev", names.includes("arka-framework-dev"), names.join(", "));
     check("catalogue contient recette QA", names.includes("arka-framework-recette-qa"), names.join(", "));
     const listed = spawnSync(process.execPath, [BIN, "skills", "list", "--json"], { cwd: FRAMEWORK_ROOT, encoding: "utf8" });
     const listedData = listed.status === 0 ? JSON.parse(listed.stdout).data : [];
-    check("CLI skills list consomme les mêmes 14 entrées", listed.status === 0 && listedData.length === 14, `${listed.stdout ?? ""}${listed.stderr ?? ""}`);
+    check("CLI skills list consomme les mêmes 15 entrées", listed.status === 0 && listedData.length === 15, `${listed.stdout ?? ""}${listed.stderr ?? ""}`);
   }
 
   console.log("\n=== 8. Intégrité de l'environnement ===");

@@ -82,7 +82,7 @@ test("un consumer vierge installe le tarball sans node_modules du worktree", (co
   assert.match(help.stdout, /project <list\|add\|import/);
   const skills = spawnSync(process.execPath, [command, "skills", "list", "--json"], { cwd: consumer, encoding: "utf8" });
   assert.equal(skills.status, 0, `${skills.stdout}\n${skills.stderr}`);
-  assert.equal((JSON.parse(skills.stdout) as { readonly data: readonly unknown[] }).data.length, 14);
+  assert.equal((JSON.parse(skills.stdout) as { readonly data: readonly unknown[] }).data.length, 15);
   const selftest = spawnSync(process.execPath, [command, "selftest"], { cwd: consumer, encoding: "utf8" });
   assert.equal(selftest.status, 0, `${selftest.stdout}\n${selftest.stderr}`);
   assert.match(selftest.stdout, /Toutes les vérifications réelles passent/);

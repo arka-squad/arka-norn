@@ -11,6 +11,8 @@ Les markers v1 utilisent `version`, n’enregistrent pas les relations et n’of
 
 - Tous les nouveaux formats utilisent `schemaVersion`, entier strictement positif.
 - La version courante des markers Project et Feature est `2`.
+- La version courante des nouveaux documents produit est `3`; le validateur conserve la lecture v2.
+- La version du registre Agents est `1`, indépendante des markers.
 - Une migration est une suite ordonnée, déterministe et idempotente.
 - `dry-run` est la valeur par défaut et ne modifie aucun octet.
 - L’application crée une sauvegarde adjacente avant remplacement atomique.

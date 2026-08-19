@@ -4,6 +4,15 @@ Toutes les modifications notables d’arka-norn sont consignées ici. Le projet
 utilise le versionnement sémantique ; les artefacts sont produits à partir des
 tags `vX.Y.Z`.
 
+## 1.1.0 — 2026-08-19
+
+- registre Agents portable par Project, identités lisibles, scopes, activation et remplacement traçable ;
+- documents v3 signés par `author_agent_id`, avec lecture rétrocompatible des documents v2 ;
+- commandes Agent et guide CLI, scaffold lié à l’agent courant actif ;
+- espace TUI Agents et aide contextuelle `?`, actions recommandées, formulaires expliqués et suites explicites ;
+- skill `arka-framework-maitrise`, catalogue porté à 15 skills et réparation avec backup depuis la TUI ;
+- `doctor` vérifie les registres Agents en plus des index, markers, locks, audit et skills.
+
 ## 1.0.0 — 2026-08-19
 
 - cockpit local Project/Feature disponible en CLI et TUI ;

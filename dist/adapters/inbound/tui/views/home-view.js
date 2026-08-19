@@ -3,6 +3,7 @@ import { basename } from "node:path";
 import { DomainError } from "../../../../domain/errors.js";
 import { ProjectId } from "../../../../domain/project/project-id.js";
 import { titledBox } from "../components/box.js";
+import { GUIDED_SHORTCUTS, nextActionLine, renderGuidance } from "../components/guidance.js";
 import { createMenuScene, filterItems } from "../components/menu.js";
 const CIRCLE = "●";
 const IDENTITY = (value) => value;
@@ -13,24 +14,25 @@ export function createHomeView(deps) {
     let createPath = deps.cwd;
     let message;
     let busy = false;
+    let helpVisible = false;
     let menu = buildMenu();
     syncFocus();
     function items() {
         return [
-            { label: "Créer ou importer un projet", value: "action:create" },
+            { label: "Créer ou importer un Project", value: "action:create", description: "déclare la racine qui contiendra Features et registre Agents" },
             ...projects.map((project) => ({
                 label: `${CIRCLE} ${project.name}`,
                 value: `project:${project.id.value}`,
                 description: `${project.root}  ${formatActivity(project.updatedAt, now())}`,
             })),
-            { label: "Rescanner ce dossier", value: "action:scan" },
-            { label: "Santé du système", value: "action:health", description: deps.systemHealth ?? "état inconnu" },
-            { label: "Installer / réparer les skills", value: "action:install", description: deps.skillHealth ?? "état inconnu" },
+            { label: "Rescanner ce dossier", value: "action:scan", description: "reconstruit l’index depuis les marqueurs sans supprimer les données" },
+            { label: "Santé du système", value: "action:health", description: `${deps.systemHealth ?? "état inconnu"} · détail et réparations sûres` },
+            { label: "Installer / réparer les skills", value: "action:install", description: `${deps.skillHealth ?? "état inconnu"} · guide les agents dans le framework` },
         ];
     }
     function buildMenu() {
         return createMenuScene(items(), {
-            hint: "Flèches naviguer, Entrée sélectionner, / filtrer, q quitter",
+            hint: "↑/↓ naviguer · Entrée ouvrir · / filtrer · ? aide · q quitter",
             maxVisible: 12,
             onSelect: (value) => void select(value),
         });
@@ -121,6 +123,17 @@ export function createHomeView(deps) {
     return {
         chrome: { contextBanner: false },
         onKey(event) {
+            if (event.kind === "help" && mode === "menu") {
+                helpVisible = !helpVisible;
+                deps.redraw();
+                return "consumed";
+            }
+            if (helpVisible) {
+                if (event.kind === "escape")
+                    helpVisible = false;
+                deps.redraw();
+                return "consumed";
+            }
             if (mode === "create") {
                 if (event.kind === "escape") {
                     mode = "menu";
@@ -147,8 +160,30 @@ export function createHomeView(deps) {
         },
         render(renderer, theme) {
             renderer.redraw((line) => {
+                if (helpVisible) {
+                    for (const value of renderGuidance({
+                        title: "Aide — démarrer avec arka-norn",
+                        purpose: "arka-norn organise le travail selon Project → Feature → Pipeline → Documents/Runs, avec une identité Agent explicite.",
+                        steps: [
+                            "Créez ou importez le Project qui porte le produit.",
+                            "Dans le Project, enregistrez votre identité Agent et son périmètre.",
+                            "Créez/importez une Feature, puis ouvrez son cockpit.",
+                            "Suivez l’action recommandée, générez un document signé et validez-le.",
+                            "Consultez Santé si un index, un marker, un lock, l’audit ou une skill est en échec.",
+                        ],
+                        shortcuts: GUIDED_SHORTCUTS,
+                    }, theme))
+                        line(value);
+                    return;
+                }
                 if (mode === "create") {
-                    for (const value of titledBox("Créer ou importer un projet", ["Chemin absolu :", `${createPath}${theme.dim("_")}`, message ?? ""], theme).split("\n"))
+                    for (const value of titledBox("Créer ou importer un Project", [
+                        "Indiquez la racine du produit. Un marker existant sera importé ; sinon `.arka-norn/project.json` sera créé.",
+                        "Exemple : /workspace/mon-produit",
+                        "",
+                        `Chemin absolu : ${createPath}${theme.dim("_")}`,
+                        message ?? "Entrée confirme · Échap annule sans modifier",
+                    ], theme).split("\n"))
                         line(value);
                     return;
                 }
@@ -163,6 +198,10 @@ export function createHomeView(deps) {
             "",
             `  ${theme.bold("Projets")}`,
         ];
+        lines.push(nextActionLine(projects.length === 0 ? "Créer ou importer un Project" : "Ouvrir le Project prioritaire", projects.length === 0 ? "aucune racine produit n’est encore indexée" : "vous pourrez ensuite choisir l’identité Agent et la Feature", theme));
+        if (projects.length === 0) {
+            lines.push(`  ${theme.dim("Parcours guidé : Project → Agent actif → Feature → prochaine action Pipeline.")}`);
+        }
         if (message !== undefined)
             lines.push(`  ${busy ? theme.dim("Chargement…") : theme.arkaAccent(message)}`);
         if (projects.length === 0)

@@ -23,7 +23,8 @@
   ],
   "properties": {
     "schema_version": {
-      "const": 2,
+      "type": "integer",
+      "enum": [2, 3],
       "description": "Version du format de document."
     },
     "id": {
@@ -145,7 +146,8 @@
   },
   "examples": [
     {
-      "schema_version": 2,
+      "schema_version": 3,
+      "author_agent_id": "Codex_dev_20260819",
       "id": "cr-dev-001",
       "feature_id": "connecteurs-notion-linear",
       "type": "cr_dev",

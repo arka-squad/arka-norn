@@ -86,7 +86,8 @@
   ],
   "examples": [
     {
-      "schema_version": 2,
+      "schema_version": 3,
+      "author_agent_id": "Codex_dev_20260819",
       "id": "audit-etat-reel-p2-041",
       "feature_id": "example-feature",
       "type": "audit_etat_reel",

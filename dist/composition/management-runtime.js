@@ -1,4 +1,6 @@
 import { FsAuditTrail } from "../adapters/outbound/filesystem/fs-audit-trail.js";
+import { FsAgentRegistryStore } from "../adapters/outbound/filesystem/fs-agent-registry-store.js";
+import { FsAgentSessionStore } from "../adapters/outbound/filesystem/fs-agent-session-store.js";
 import { FsFeatureIndexStore } from "../adapters/outbound/filesystem/fs-feature-index-store.js";
 import { FsFeatureStore } from "../adapters/outbound/filesystem/fs-feature-store.js";
 import { FsFilesystem } from "../adapters/outbound/filesystem/fs-filesystem.js";
@@ -22,6 +24,7 @@ import { listProjectsUseCaseFactory } from "../use-cases/projects/list-projects.
 import { scanProjectsUseCaseFactory } from "../use-cases/projects/scan-projects.js";
 import { showProjectUseCaseFactory } from "../use-cases/projects/show-project.js";
 import { switchToProjectUseCaseFactory } from "../use-cases/projects/switch-to-project.js";
+import { manageAgentsUseCaseFactory } from "../use-cases/agents/manage-agents.js";
 export function createManagementRuntime(options) {
     const logger = options.logger ?? new ConsoleLogger({ threshold: options.logLevel ?? "warn" });
     const filesystem = new FsFilesystem();
@@ -32,6 +35,8 @@ export function createManagementRuntime(options) {
     const projectStore = new FsProjectStore(pathPolicy);
     const featureIndexStore = new FsFeatureIndexStore({ homeDir: options.homeDir, logger });
     const featureStore = new FsFeatureStore(pathPolicy);
+    const agentRegistry = new FsAgentRegistryStore(pathPolicy);
+    const agentSession = new FsAgentSessionStore(options.homeDir);
     const projectsDeps = { projectStore, indexStore: projectIndexStore, filesystem, clock, logger, pathPolicy };
     const featuresDeps = { featureStore, indexStore: featureIndexStore, projectIndexStore, filesystem, clock, logger, pathPolicy };
     const rawProjects = {
@@ -52,7 +57,9 @@ export function createManagementRuntime(options) {
     };
     const rawScanProjects = scanProjectsUseCaseFactory(projectsDeps);
     const rawScanFeatures = scanFeaturesUseCaseFactory(featuresDeps);
+    const rawAgents = manageAgentsUseCaseFactory({ registry: agentRegistry, session: agentSession, clock });
     return {
+        agents: auditAgents(rawAgents, audit, logger, clock),
         projects: auditProjects(rawProjects, audit, logger, clock),
         features: auditFeatures(rawFeatures, audit, logger, clock),
         scanProjects: {
@@ -71,6 +78,27 @@ export function createManagementRuntime(options) {
                 });
             },
         },
+    };
+}
+function auditAgents(base, audit, logger, clock) {
+    return {
+        list: (project) => base.list(project),
+        show: (project, id) => base.show(project, id),
+        current: (project) => base.current(project),
+        register: (input) => auditedValue(audit, logger, clock, {
+            action: "agent.register", entityType: "agent", root: input.project.root,
+            details: { projectId: input.project.id.value, provider: input.provider, role: input.role },
+        }, () => base.register(input)),
+        deactivate: (project, id) => auditedValue(audit, logger, clock, {
+            action: "agent.deactivate", entityType: "agent", entityId: id.value, root: project.root,
+        }, () => base.deactivate(project, id)),
+        replace: (input) => auditedValue(audit, logger, clock, {
+            action: "agent.replace", entityType: "agent", entityId: input.replacedAgentId.value, root: input.project.root,
+            details: { provider: input.provider, role: input.role },
+        }, () => base.replace(input)),
+        select: (project, id) => auditedValue(audit, logger, clock, {
+            action: "agent.use", entityType: "agent", entityId: id.value, root: project.root,
+        }, () => base.select(project, id)),
     };
 }
 function auditProjects(base, audit, logger, clock) {
