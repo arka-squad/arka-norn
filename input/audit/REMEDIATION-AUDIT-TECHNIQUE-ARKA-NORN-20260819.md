@@ -23,7 +23,7 @@
 | A2 | Handoffs non validés/invisibles | Fermé | Validation Ajv, `transversalDocuments`, compteurs cockpit et tests valid/invalid. |
 | A3 | Identité/graphe documentaire partiels | Fermé | Enveloppe v2 commune ; IDs, Feature, séquence, date, relations, unicité, cardinalité, dépendances, self-reference et cycles contrôlés. |
 | SEC1 | Sécurité filesystem | Renforcé | Lectures avec `O_NOFOLLOW` hors Windows et contrôle de fichier après ouverture ; écritures dans un parent canonique ; symlinks de fichier et dossier testés ; `fsync` dossier best-effort sur Windows et modes privés vérifiés sur POSIX. |
-| SEC2 | Ownership du stale lock | Fermé | Token UUID, PID, date, libération conditionnelle, reaper sérialisé et contention `EPERM` Windows vérifiée par présence ; tests processus vivant, processus mort et trois writers. |
+| SEC2 | Ownership du stale lock | Fermé | Token UUID, PID, date, libération conditionnelle, reaper réservé aux locks stale et contention `EPERM` Windows validée par fichier ou parent inscriptible ; tests processus vivant, processus mort et trois writers. |
 | SEC3 | Dépendances | Préservé | Une dépendance runtime directe ; audits npm production et complet intégrés à la CI. |
 | T1 | Pyramide de tests | Renforcé | Suites unitaires, intégration et E2E conservées et enrichies des reproductions de l’audit. |
 | T2 | Parcours TUI incomplet | Fermé | Test clavier avec adapters réels : Home → Project → Feature → scaffold écrit sur disque ; double Entrée sérialisé. |

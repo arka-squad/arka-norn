@@ -82,6 +82,7 @@
 | Checksums normalisés LF et npm lancé par son module JavaScript | Rendre skills et packaging indépendants de CRLF et des shims Windows |
 | Détection de contention de lock native par plateforme | Accepter `EPERM` sous Windows uniquement si le fichier concurrent existe |
 | Identifiants de lock via `path.basename` et chemins via `realpathSync.native` | Éliminer séparateurs POSIX et noms courts 8.3 des assertions Windows |
+| Préfiltre stale et validation du parent inscriptible | Fermer la course Node 20 où le reaper disparaît entre `open` et `lstat` |
 | Seuils couverture 70/70/60 et benchmark 5 s | Transformer la qualité et la performance en gates reproductibles |
 | Distribution interne propriétaire par artefact GitHub | Aligner licence, SBOM, provenance et rollback |
 

@@ -1,4 +1,5 @@
 import * as fs from "node:fs/promises";
+import { constants } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { dirname } from "node:path";
 import { LockConflictError } from "../../../../domain/errors.js";
@@ -58,6 +59,9 @@ export async function withFileLock(targetPath, operation, options = {}) {
     }
 }
 async function reapAbandonedLock(lockPath, staleMs) {
+    const initialStat = await statIfPresent(lockPath);
+    if (initialStat === undefined || Date.now() - initialStat.mtimeMs <= staleMs)
+        return false;
     const reaperPath = `${lockPath}.reaper`;
     let reaper;
     try {
@@ -69,11 +73,7 @@ async function reapAbandonedLock(lockPath, staleMs) {
         throw error;
     }
     try {
-        const stat = await fs.stat(lockPath).catch((error) => {
-            if (isNodeError(error, "ENOENT"))
-                return undefined;
-            throw error;
-        });
+        const stat = await statIfPresent(lockPath);
         if (stat === undefined || Date.now() - stat.mtimeMs <= staleMs)
             return false;
         const owner = await readLockOwner(lockPath);
@@ -134,10 +134,31 @@ async function isExistingLockContention(error, lockPath) {
         return true;
     if (process.platform !== "win32" || !isNodeError(error, "EPERM"))
         return false;
-    return fs.lstat(lockPath).then(() => true, (statError) => {
-        if (isNodeError(statError, "ENOENT"))
+    try {
+        await fs.lstat(lockPath);
+        return true;
+    }
+    catch (statError) {
+        if (isNodeError(statError, "EPERM"))
+            return true;
+        if (!isNodeError(statError, "ENOENT"))
+            throw statError;
+    }
+    try {
+        await fs.access(dirname(lockPath), constants.W_OK);
+        return true;
+    }
+    catch (accessError) {
+        if (isNodeError(accessError, "EACCES") || isNodeError(accessError, "EPERM"))
             return false;
-        throw statError;
+        throw accessError;
+    }
+}
+async function statIfPresent(lockPath) {
+    return fs.stat(lockPath).catch((error) => {
+        if (isNodeError(error, "ENOENT"))
+            return undefined;
+        throw error;
     });
 }
 function isNodeError(error, code) {

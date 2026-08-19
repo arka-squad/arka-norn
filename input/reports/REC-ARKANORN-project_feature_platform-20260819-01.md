@@ -192,6 +192,7 @@ Aucune incohérence spec détectée.
 | ANO-08 | Majeur | Contention du reaper signalée `EPERM` plutôt que `EEXIST` sous Windows | CT-04 | Corrigé |
 | ANO-09 | Mineur | Identifiant doctor construit avec un séparateur POSIX | CT-04 | Corrigé |
 | ANO-10 | Mineur | Assertion CLI sensible aux noms courts Windows 8.3 | CT-06 | Corrigé |
+| ANO-11 | Majeur | Course Node 20 entre `open` du reaper et `lstat` après disparition concurrente | CT-04 | Corrigé |
 
 ---
 
@@ -204,7 +205,7 @@ Aucune incohérence spec détectée.
 | PARTIAL           | 0 |
 | FAIL              | 0 |
 | Taux PASS         | 100% |
-| Anomalies         | 10 corrigées, 0 ouverte |
+| Anomalies         | 11 corrigées, 0 ouverte |
 | Bloquants         | 0 |
 | Incohérences spec | 0 |
 

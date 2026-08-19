@@ -1,4 +1,5 @@
 import * as fs from "node:fs/promises";
+import { constants, type Stats } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { dirname } from "node:path";
 
@@ -74,6 +75,8 @@ export async function withFileLock<T>(targetPath: string, operation: () => Promi
 }
 
 async function reapAbandonedLock(lockPath: string, staleMs: number): Promise<boolean> {
+  const initialStat = await statIfPresent(lockPath);
+  if (initialStat === undefined || Date.now() - initialStat.mtimeMs <= staleMs) return false;
   const reaperPath = `${lockPath}.reaper`;
   let reaper: fs.FileHandle | undefined;
   try {
@@ -83,10 +86,7 @@ async function reapAbandonedLock(lockPath: string, staleMs: number): Promise<boo
     throw error;
   }
   try {
-    const stat = await fs.stat(lockPath).catch((error: unknown) => {
-      if (isNodeError(error, "ENOENT")) return undefined;
-      throw error;
-    });
+    const stat = await statIfPresent(lockPath);
     if (stat === undefined || Date.now() - stat.mtimeMs <= staleMs) return false;
     const owner = await readLockOwner(lockPath);
     if (owner === undefined || isProcessAlive(owner.pid)) return false;
@@ -138,13 +138,27 @@ function delay(milliseconds: number): Promise<void> {
 async function isExistingLockContention(error: unknown, lockPath: string): Promise<boolean> {
   if (isNodeError(error, "EEXIST")) return true;
   if (process.platform !== "win32" || !isNodeError(error, "EPERM")) return false;
-  return fs.lstat(lockPath).then(
-    () => true,
-    (statError: unknown) => {
-      if (isNodeError(statError, "ENOENT")) return false;
-      throw statError;
-    },
-  );
+  try {
+    await fs.lstat(lockPath);
+    return true;
+  } catch (statError) {
+    if (isNodeError(statError, "EPERM")) return true;
+    if (!isNodeError(statError, "ENOENT")) throw statError;
+  }
+  try {
+    await fs.access(dirname(lockPath), constants.W_OK);
+    return true;
+  } catch (accessError) {
+    if (isNodeError(accessError, "EACCES") || isNodeError(accessError, "EPERM")) return false;
+    throw accessError;
+  }
+}
+
+async function statIfPresent(lockPath: string): Promise<Stats | undefined> {
+  return fs.stat(lockPath).catch((error: unknown) => {
+    if (isNodeError(error, "ENOENT")) return undefined;
+    throw error;
+  });
 }
 
 function isNodeError(error: unknown, code: string): boolean {
