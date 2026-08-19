@@ -106,18 +106,19 @@ export async function runSelftest() {
     check("TUI hors TTY : message explicite sur stderr", (result.stderr ?? "").includes("nécessite un terminal interactif"), result.stderr ?? "");
   }
 
-  console.log("\n=== 7. Catalogue partagé : exactement 15 skills, dont maîtrise/audit/dev/QA ===");
+  console.log("\n=== 7. Catalogue partagé : exactement 16 skills, dont bootstrap/maîtrise/audit/dev/QA ===");
   {
     const catalog = loadJson(path.join(FRAMEWORK_ROOT, "skills-src", "catalog", "skills.json"));
     const names = catalog.skills.map((skill) => skill.name);
-    check("catalogue contient exactement 15 skills", names.length === 15 && new Set(names).size === 15, names.join(", "));
+    check("catalogue contient exactement 16 skills", names.length === 16 && new Set(names).size === 16, names.join(", "));
+    check("catalogue contient le bootstrap arka-norn", names.includes("arka-norn"), names.join(", "));
     check("catalogue contient maîtrise", names.includes("arka-framework-maitrise"), names.join(", "));
     check("catalogue contient audit", names.includes("arka-framework-audit"), names.join(", "));
     check("catalogue contient dev", names.includes("arka-framework-dev"), names.join(", "));
     check("catalogue contient recette QA", names.includes("arka-framework-recette-qa"), names.join(", "));
     const listed = spawnSync(process.execPath, [BIN, "skills", "list", "--json"], { cwd: FRAMEWORK_ROOT, encoding: "utf8" });
     const listedData = listed.status === 0 ? JSON.parse(listed.stdout).data : [];
-    check("CLI skills list consomme les mêmes 15 entrées", listed.status === 0 && listedData.length === 15, `${listed.stdout ?? ""}${listed.stderr ?? ""}`);
+    check("CLI skills list consomme les mêmes 16 entrées", listed.status === 0 && listedData.length === 16, `${listed.stdout ?? ""}${listed.stderr ?? ""}`);
   }
 
   console.log("\n=== 8. Intégrité de l'environnement ===");

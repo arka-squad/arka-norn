@@ -1,12 +1,13 @@
 {
   "schemaVersion": 1,
-  "catalogVersion": "1.1.1",
+  "catalogVersion": "1.2.0",
   "profiles": {
-    "all": "15 skills, catalogue complet",
-    "core": "5 skills de socle",
-    "delivery": "13 skills de préparation, développement et QA"
+    "all": "16 skills, catalogue complet",
+    "core": "6 skills de socle et démarrage",
+    "delivery": "14 skills de préparation, développement et QA"
   },
   "skills": [
+    { "name": "arka-norn", "version": "1.0.0", "source": "arka-norn.json", "checksum": "852c194726bc078d0149803bad0572145286541818ddc44833221b8ac8d5ace6", "step": "core.bootstrap", "profiles": ["all", "core", "delivery"] },
     { "name": "arka-framework-maitrise", "version": "1.1.0", "source": "arka-framework-maitrise.json", "checksum": "9a9db9bac0fdf5f72712606bb98e54b44905feaf62b706f5bae4cf94a04152a8", "step": "core.mastery", "profiles": ["all", "core", "delivery"] },
     { "name": "arka-framework-statut", "version": "1.0.0", "source": "arka-framework-statut.json", "checksum": "5cda80db55abf00ab0eeeec53c3186d86816c7ad45e5d5987b46253ededa62fa", "step": "core.status", "profiles": ["all", "core", "delivery"] },
     { "name": "arka-framework-scaffold", "version": "1.0.0", "source": "arka-framework-scaffold.json", "checksum": "438aa0df69db38185fdc17039723990f67f3bb31cd1b24f41152dccddb41ff6a", "step": "core.scaffold", "profiles": ["all", "core", "delivery"] },

@@ -17,10 +17,10 @@ export async function showSkillInstallation(app, skillManager, target) {
     app.push(createMenuScene([
         { label: "Installer les skills manquantes", value: "repo", description: `${health.missing} absente(s), conserve toute divergence locale` },
         { label: "Réparer le projet avec sauvegarde", value: "repair", description: `${health.divergent} divergente(s), backup avant remplacement` },
-        { label: "Réparer le projet + scope global", value: "global", description: "inclut ~/.claude/skills" },
+        { label: "Réparer le projet + scope global", value: "global", description: "inclut ~/.claude/skills et ~/.codex/skills" },
         { label: "Annuler", value: "cancel" },
     ], {
-        title: "Installer les skills arka-framework-*",
+        title: "Installer les skills arka-norn",
         onSelect: (choice) => {
             app.pop();
             if (choice === "cancel")

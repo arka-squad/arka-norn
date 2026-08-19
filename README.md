@@ -63,13 +63,16 @@ L’exemple [`examples/feature-notion-linear/`](examples/feature-notion-linear/)
 
 ## Skills
 
-Les définitions sources vivent uniquement dans [`skills-src/`](skills-src/). Le catalogue versionné contient exactement 15 skills, dont maîtrise du framework, audit, développement et recette QA. L’installation supporte les profils `core` (5), `delivery` (13) et `all` (15, défaut), un dry-run, les backups et le diagnostic par checksum.
+Les définitions sources vivent uniquement dans [`skills-src/`](skills-src/). Le catalogue versionné contient exactement 16 skills, dont le point d'entrée public `arka-norn`, la maîtrise du framework, l'audit, le développement et la recette QA. L'installation supporte les profils `core` (6), `delivery` (14) et `all` (16, défaut), un dry-run, les backups et le diagnostic par checksum.
+
+Pour lancer un agent sur un nouveau Project, l'utilisateur lui envoie `/arka-norn` dans Claude Code, `$arka-norn` dans Codex, ou lui demande explicitement d'utiliser la skill `arka-norn`. L'agent vérifie alors le socle, résout le Project et enregistre son identité avant tout travail produit. Le [mode d'emploi complet](docs/agent-bootstrap.md) décrit l'installation globale multiprovider et les garde-fous.
 
 À l’étape Concept, l’agent peut proposer un brainstorming optionnel dans ChatGPT ou Claude.ai pour économiser son contexte d’exécution. Il remet alors un prompt entièrement prérempli et un mode d’emploi ; la réponse externe est contrôlée et réconciliée localement avant de devenir un document produit.
 
 ```bash
 arka-norn skills install --target . --profile all --dry-run
 arka-norn skills install --target . --profile all
+arka-norn skills install --target . --profile core --global
 arka-norn skills install --target . --profile all --force  # sauvegarde puis répare les divergences
 arka-norn skills doctor --target . --json
 ```
@@ -80,6 +83,7 @@ arka-norn skills doctor --target . --json
 - [CLI](docs/cli.md)
 - [Cockpit TUI](docs/tui.md)
 - [Registre Agents](docs/agent-registry.md)
+- [Démarrer un agent avec `/arka-norn`](docs/agent-bootstrap.md)
 - [Brainstorming Concept avec ChatGPT ou Claude.ai](docs/concept-brainstorming-web.md)
 - [Skills](docs/skills.md)
 - [Sécurité](docs/security.md)

@@ -18,6 +18,7 @@ export const CLI_HELP = `arka-norn — espace local de gestion Project/Feature e
 
 Sans commande, arka-norn lance la TUI interactive.
 Pour un parcours accompagné : arka-norn guide
+Depuis un agent provider : /arka-norn (Claude) ou $arka-norn (Codex)
 
 Gestion :
   project <list|add|import|scan|show|use|forget|reconcile>
@@ -43,6 +44,10 @@ Skills et maintenance :
 `;
 
 export const CLI_GUIDE = `Démarrage guidé arka-norn
+
+Depuis un agent provider
+   /arka-norn dans Claude ou un provider compatible
+   $arka-norn dans Codex
 
 1. Vérifier la santé
    arka-norn doctor

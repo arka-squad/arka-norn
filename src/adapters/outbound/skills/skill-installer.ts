@@ -69,6 +69,8 @@ export function installSkills(frameworkRoot: string, request: SkillInstallReques
     const globalHome = resolve(request.globalHome);
     for (const definition of runtime.definitions) {
       desired.push({ root: globalHome, file: join(globalHome, ".claude", "skills", definition.name, "SKILL.md"), content: runtime.renderGlobalSkillMd(definition) });
+      desired.push({ root: globalHome, file: join(globalHome, ".codex", "skills", definition.name, "SKILL.md"), content: runtime.renderRepoSkillMd(definition) });
+      desired.push({ root: globalHome, file: join(globalHome, ".codex", "skills", definition.name, "agents", "openai.yaml"), content: runtime.renderOpenaiYaml(definition) });
     }
   }
   const plan = desired.map((item) => ({ ...item, action: classify(item.file, item.content) }));

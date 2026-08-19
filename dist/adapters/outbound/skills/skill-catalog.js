@@ -45,8 +45,12 @@ export function createSkillCatalogRuntime(frameworkRoot, profile = "all") {
             return `---\nname: ${definition.name}\nversion: 1.0.0\ndescription: |\n${wrapYamlBlock(substitute(definition.declencheurs_globaux))}\ncompatibility: claude-code opencode claude-ai\nallowed-tools:\n${tools}\n---\n\n# ${definition.titre_h1_global}\n\n${substitute(definition.description_courte)}\n\n${renderBody(definition, substitute, frameworkName, frameworkReference)}`;
         },
         renderOpenaiYaml(definition) {
-            const shortDescription = compactDescription(substitute(definition.description_courte));
-            return `interface:\n  display_name: ${JSON.stringify(`Arka — ${definition.name}`)}\n  short_description: ${JSON.stringify(shortDescription)}\n  default_prompt: ${JSON.stringify(`Utilise $${definition.name} pour exécuter cette étape avec les gates arka-norn.`)}\n\npolicy:\n  allow_implicit_invocation: true\n`;
+            const displayName = substitute(definition.interface?.display_name ?? `Arka — ${definition.name}`);
+            const shortDescription = definition.interface === undefined
+                ? compactDescription(substitute(definition.description_courte))
+                : substitute(definition.interface.short_description);
+            const defaultPrompt = substitute(definition.interface?.default_prompt ?? `Utilise $${definition.name} pour exécuter cette étape avec les gates arka-norn.`);
+            return `interface:\n  display_name: ${JSON.stringify(displayName)}\n  short_description: ${JSON.stringify(shortDescription)}\n  default_prompt: ${JSON.stringify(defaultPrompt)}\n\npolicy:\n  allow_implicit_invocation: true\n`;
         },
     };
 }
@@ -110,6 +114,8 @@ function isSkillDefinition(value) {
         return false;
     if (value["note_inputs"] !== undefined && typeof value["note_inputs"] !== "string")
         return false;
+    if (value["interface"] !== undefined && !isSkillInterface(value["interface"], value["name"]))
+        return false;
     for (const key of ["allowed_tools", "quand_utiliser", "quand_ne_pas_utiliser", "referentiel_extra"]) {
         if (!Array.isArray(value[key]) || !value[key].every((item) => typeof item === "string"))
             return false;
@@ -117,6 +123,15 @@ function isSkillDefinition(value) {
     if (!Array.isArray(value["inputs"]) || !value["inputs"].every(isSkillInput))
         return false;
     return Array.isArray(value["procedure"]) && value["procedure"].every(isProcedureStep);
+}
+function isSkillInterface(value, skillName) {
+    if (!isRecord(value))
+        return false;
+    if (typeof value["display_name"] !== "string" || value["display_name"].trim().length === 0)
+        return false;
+    if (typeof value["short_description"] !== "string" || value["short_description"].length < 25 || value["short_description"].length > 64)
+        return false;
+    return typeof value["default_prompt"] === "string" && value["default_prompt"].includes(`$${skillName}`);
 }
 function isSkillInput(value) {
     return isRecord(value)

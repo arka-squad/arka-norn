@@ -2,7 +2,7 @@
 
 La commande `arka-norn` ouvre un cockpit interactif uniquement dans un TTY.
 
-- Accueil : portfolio Projects, action recommandée, démarrage guidé, scan, création/import, écran de santé détaillé et installation/réparation des 15 skills.
+- Accueil : portfolio Projects, action recommandée, démarrage guidé, scan, création/import, écran de santé détaillé et installation/réparation des 16 skills.
 - Project : Features regroupées par état Pipeline, registre Agents, identité courante, périmètres et remplacements, compteurs de dettes, anomalies QA, handoffs et documents invalides.
 - Feature : identité auteur, état métier, progression, prochaine action expliquée, timeline des dix étapes, runs dev/QA, échecs, dettes et handoffs.
 - Actions : statut, scaffold confiné à la Feature, validation et confirmations de retrait.

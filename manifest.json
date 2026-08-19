@@ -15,6 +15,7 @@
   "contracts": {
     "pipeline": "pipeline.json",
     "schemas": "schemas/",
+    "agentBootstrapGuide": "docs/agent-bootstrap.md",
     "conceptBrainstormingGuide": "docs/concept-brainstorming-web.md",
     "adrs": [
       "docs/adr/ADR-001-project-canonique.md",
@@ -31,6 +32,7 @@
     "agent": "arka-norn agent <list|register|show|current|use|deactivate|replace>",
     "pipeline": "arka-norn pipeline <status|next|scaffold|validate>",
     "skills": "arka-norn skills <list|install|doctor>",
+    "agentBootstrap": "/arka-norn (Claude) | $arka-norn (Codex)",
     "doctor": "arka-norn doctor [--repair [--apply]]",
     "migrate": "arka-norn migrate [--target <path>] [--dry-run|--apply]",
     "status": "arka-norn status <feature-root>",
@@ -51,6 +53,7 @@
     "Agent replacement deactivates the old identity and preserves bidirectional lineage.",
     "A structurally valid document is not automatically business-complete.",
     "QA completion requires pass for the latest valid development report.",
+    "The public arka-norn skill resolves the Project and active Agent before product work starts.",
     "Generated skills are compiled from skills-src and never edited in place."
   ]
 }

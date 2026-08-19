@@ -47,6 +47,7 @@ test("un consumer vierge installe le tarball sans node_modules du worktree", (co
   assert.ok(packagedPaths.includes("dist/composition/pipeline-runtime.js"));
   assert.ok(packagedPaths.includes("dist/adapters/inbound/cli/main-cli.js"));
   assert.ok(packagedPaths.includes("skills-src/catalog/skills.json"));
+  assert.ok(packagedPaths.includes("skills-src/arka-norn.json"));
   assert.equal(packagedPaths.some((file) => file.startsWith("tests/") || file.startsWith(".input/") || file.startsWith("src/")), false);
 
   const productionTree = runNpm(["ls", "--omit=dev", "--all", "--parseable"], { cwd: ROOT, encoding: "utf8" });
@@ -82,7 +83,7 @@ test("un consumer vierge installe le tarball sans node_modules du worktree", (co
   assert.match(help.stdout, /project <list\|add\|import/);
   const skills = spawnSync(process.execPath, [command, "skills", "list", "--json"], { cwd: consumer, encoding: "utf8" });
   assert.equal(skills.status, 0, `${skills.stdout}\n${skills.stderr}`);
-  assert.equal((JSON.parse(skills.stdout) as { readonly data: readonly unknown[] }).data.length, 15);
+  assert.equal((JSON.parse(skills.stdout) as { readonly data: readonly unknown[] }).data.length, 16);
   const selftest = spawnSync(process.execPath, [command, "selftest"], { cwd: consumer, encoding: "utf8" });
   assert.equal(selftest.status, 0, `${selftest.stdout}\n${selftest.stderr}`);
   assert.match(selftest.stdout, /Toutes les vérifications réelles passent/);

@@ -4,6 +4,8 @@
 
 `arka-norn guide` affiche le parcours complet sans prérequis implicite.
 
+Pour initialiser un provider avant de choisir une Feature, l'utilisateur lui envoie `/arka-norn` dans Claude Code ou `$arka-norn` dans Codex. La skill publique vérifie le socle, résout le Project et enregistre l'identité active. Voir [`agent-bootstrap.md`](agent-bootstrap.md).
+
 ## Gestion
 
 ```text
@@ -15,6 +17,8 @@ arka-norn skills list|install|doctor
 arka-norn doctor [--repair [--apply]]
 arka-norn migrate [--target <path>] [--dry-run|--apply]
 ```
+
+`arka-norn skills install --target <repo> --profile core --global` installe le point d'entrée et le socle dans `~/.claude/skills/` et `~/.codex/skills/`, en plus des copies locales au Project.
 
 Avant un scaffold géré, enregistrez ou sélectionnez une identité active :
 

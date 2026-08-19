@@ -4,5 +4,7 @@ node_modules/
 *.log
 coverage/
 .agents/skills/arka-framework-*/
+.agents/skills/arka-norn/
 .claude/skills/arka-framework-*/
+.claude/skills/arka-norn/
 .arka-norn/backups/skills/

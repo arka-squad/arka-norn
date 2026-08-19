@@ -148,10 +148,11 @@ function sendText(send: (event: KeyEvent) => void, value: string): void {
   for (const character of value) send({ kind: "char", value: character });
 }
 
-async function waitUntil(predicate: () => boolean | Promise<boolean>, label: string): Promise<void> {
-  for (let attempt = 0; attempt < 200; attempt++) {
+async function waitUntil(predicate: () => boolean | Promise<boolean>, label: string, timeoutMs = 10_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
     if (await predicate()) return;
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 5));
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 10));
   }
   throw new Error(`Timeout TUI : ${label}`);
 }

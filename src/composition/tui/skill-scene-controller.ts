@@ -24,11 +24,11 @@ export async function showSkillInstallation(app: TuiApp, skillManager: SkillMana
     [
       { label: "Installer les skills manquantes", value: "repo" as const, description: `${health.missing} absente(s), conserve toute divergence locale` },
       { label: "Réparer le projet avec sauvegarde", value: "repair" as const, description: `${health.divergent} divergente(s), backup avant remplacement` },
-      { label: "Réparer le projet + scope global", value: "global" as const, description: "inclut ~/.claude/skills" },
+      { label: "Réparer le projet + scope global", value: "global" as const, description: "inclut ~/.claude/skills et ~/.codex/skills" },
       { label: "Annuler", value: "cancel" as const },
     ],
     {
-      title: "Installer les skills arka-framework-*",
+      title: "Installer les skills arka-norn",
       onSelect: (choice) => {
         app.pop();
         if (choice === "cancel") return;

@@ -37,10 +37,12 @@ test("install déploie réellement chaque skill dans un target et un home tempor
       resolve(target, ".agents", "skills", definition.name, "SKILL.md"),
       resolve(target, ".agents", "skills", definition.name, "agents", "openai.yaml"),
       resolve(home, ".claude", "skills", definition.name, "SKILL.md"),
+      resolve(home, ".codex", "skills", definition.name, "SKILL.md"),
+      resolve(home, ".codex", "skills", definition.name, "agents", "openai.yaml"),
     );
   }
 
-  assert.equal(generated.length, definitions.length * 4);
+  assert.equal(generated.length, definitions.length * 6);
   for (const file of generated) {
     const content = readFileSync(file, "utf8");
     assert.doesNotMatch(content, /\{\{[^}]+\}\}|\bundefined\b/, file);

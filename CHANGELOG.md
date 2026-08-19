@@ -10,7 +10,8 @@ tags `vX.Y.Z`.
 - documents v3 signés par `author_agent_id`, avec lecture rétrocompatible des documents v2 ;
 - commandes Agent et guide CLI, scaffold lié à l’agent courant actif ;
 - espace TUI Agents et aide contextuelle `?`, actions recommandées, formulaires expliqués et suites explicites ;
-- skill `arka-framework-maitrise`, catalogue porté à 15 skills et réparation avec backup depuis la TUI ;
+- skills `arka-norn` et `arka-framework-maitrise`, catalogue porté à 16 skills et réparation avec backup depuis la TUI ;
+- point d'entrée provider `/arka-norn` pour Claude et `$arka-norn` pour Codex, avec installation globale dans les deux environnements ;
 - parcours Concept optionnel via un kit prérempli ChatGPT/Claude.ai, avec garde de confidentialité et réconciliation locale ;
 - `doctor` vérifie les registres Agents en plus des index, markers, locks, audit et skills.
 
