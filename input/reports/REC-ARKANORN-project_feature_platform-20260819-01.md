@@ -60,7 +60,7 @@ Recette directe de la plateforme locale Project/Feature, de ses interfaces CLI/T
 | Priorité | P1 |
 | Entrée   | `npm run test:coverage` |
 | Attendu  | lignes ≥ 70 %, fonctions ≥ 70 %, branches ≥ 60 % |
-| Obtenu   | 7 246 lignes : 5 333 couvertes, 73,59 % ; 525 fonctions : 387 couvertes, 73,71 % ; 1 638 branches : 1 235 couvertes, 75,39 % |
+| Obtenu   | 7 246 lignes : 5 328 couvertes, 73,53 % ; 525 fonctions : 387 couvertes, 73,71 % ; 1 568 branches : 1 165 couvertes, 74,29 % |
 | Verdict  | PASS |
 | Trace    | `coverage/coverage-summary.json` généré directement par c8 |
 | Écart    | — |
@@ -125,7 +125,7 @@ Recette directe de la plateforme locale Project/Feature, de ses interfaces CLI/T
 | Priorité | P0 |
 | Entrée   | Consumer vierge offline + `npm pack --dry-run --ignore-scripts` avec cache isolé |
 | Attendu  | Installation sans `node_modules` du dépôt, CLI et selftest fonctionnels |
-| Obtenu   | Tarball de 274 fichiers, 157,4 kB compressés et 729,1 kB décompressés ; consumer vierge PASS ; `src/`, `tests/` et `.input/` absents |
+| Obtenu   | Tarball de 274 fichiers, 157,5 kB compressés et 729,2 kB décompressés ; consumer vierge PASS ; `src/`, `tests/` et `.input/` absents |
 | Verdict  | PASS |
 | Trace    | `tests/e2e/packaging.test.ts:11-87`, sortie npm pack directe |
 | Écart    | — |
@@ -138,7 +138,7 @@ Recette directe de la plateforme locale Project/Feature, de ses interfaces CLI/T
 | Priorité | P2 |
 | Entrée   | `npm run benchmark` |
 | Attendu  | 50 Projects < 1 500 ms, 200 Features < 2 500 ms, 50 rapports < 3 000 ms, total < 5 000 ms |
-| Obtenu   | 50 Projects en 23,86 ms ; 200 Features en 29,82 ms ; 50 rapports en 13,83 ms ; total 67,51 ms |
+| Obtenu   | 50 Projects en 27,51 ms ; 200 Features en 26,76 ms ; 50 rapports en 14,78 ms ; total 69,05 ms |
 | Verdict  | PASS |
 | Trace    | Sortie directe `scripts/benchmark.mjs` |
 | Écart    | — |
@@ -151,11 +151,11 @@ Recette directe de la plateforme locale Project/Feature, de ses interfaces CLI/T
 | Priorité | P1 |
 | Entrée   | `npm audit --omit=dev`, `npm audit`, parsing YAML et inspection workflow |
 | Attendu  | 0 vulnérabilité, YAML valide, actions immuables et artefact attesté |
-| Obtenu   | 0 vulnérabilité runtime ; 0 vulnérabilité complète ; YAML valide ; 4 actions épinglées par SHA [checkout, setup-node, attest-build-provenance, upload-artifact] |
+| Obtenu   | 0 vulnérabilité runtime ; 0 vulnérabilité complète ; YAML valide ; 4 actions épinglées par SHA [checkout v5, setup-node v5, attest-build-provenance v3, upload-artifact v4] |
 | Verdict  | PASS |
 | Trace    | Commandes directes ; `.github/workflows/ci.yml:1-92`, `docs/release.md:1-26` |
 | Écart    | — |
-| Note     | Matrice qualité : 3 OS × 3 versions Node = 9 combinaisons |
+| Note     | Matrice qualité : 3 OS × 3 versions Node = 9 combinaisons ; loader de tests reproduit sous Node 20.20.2 |
 
 ### CT-11 — Clôture de l'audit
 
@@ -180,7 +180,11 @@ Aucune incohérence spec détectée.
 
 ## Anomalies détectées
 
-Aucune anomalie détectée.
+| ID     | Sévérité | Description | CT lié | Statut |
+|--------|----------|-------------|---------|--------|
+| ANO-01 | Majeur | Runner TypeScript incompatible avec Node 20 (`--experimental-strip-types`) | CT-10 | Corrigé |
+| ANO-02 | Majeur | Import absolu du loader invalide sous Windows ESM | CT-10 | Corrigé |
+| ANO-03 | Mineur | SHA `setup-node` tronqué dans le job benchmark | CT-10 | Corrigé |
 
 ---
 
@@ -193,7 +197,7 @@ Aucune anomalie détectée.
 | PARTIAL           | 0 |
 | FAIL              | 0 |
 | Taux PASS         | 100% |
-| Anomalies         | 0 |
+| Anomalies         | 3 corrigées, 0 ouverte |
 | Bloquants         | 0 |
 | Incohérences spec | 0 |
 

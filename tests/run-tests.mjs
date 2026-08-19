@@ -2,7 +2,7 @@
 import { readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const TEST_ROOT = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = resolve(TEST_ROOT, "..");
@@ -16,7 +16,7 @@ if (files.length === 0) {
 }
 
 const loaderRegistration = resolve(PROJECT_ROOT, "tests", "register-typescript-loader.mjs");
-const result = spawnSync(process.execPath, ["--experimental-strip-types", "--import", loaderRegistration, "--test", ...files], {
+const result = spawnSync(process.execPath, ["--import", pathToFileURL(loaderRegistration).href, "--test", ...files], {
   cwd: PROJECT_ROOT,
   stdio: "inherit",
 });

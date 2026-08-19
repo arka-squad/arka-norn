@@ -34,7 +34,7 @@
 | O2 | Audit trail silencieux/non borné | Fermé | Intention obligatoire avant mutation, succès/échec, code `AUDIT_UNAVAILABLE`, redaction, rotation 2 Mio/5 archives et health doctor. |
 | O3 | Markers cassés invisibles | Fermé | Warnings visibles au niveau `warn`, diagnostic marker par marker dans doctor et écran santé TUI ; les listes métier ne retournent que des entités valides. |
 | C1 | Absence de baseline Git | Fermé | Baseline `a2c983a`, jalon `a11087b` et `origin/main` créés sans écrasement. |
-| C2 | CI non prouvée/actions mutables | Fermé côté code | Actions épinglées par SHA ; matrice Node 20/22/24 et 3 OS, couverture, benchmark, audits et packaging. L’exécution distante finale est vérifiée après push. |
+| C2 | CI non prouvée/actions mutables | Fermé côté code | Actions Node 24 épinglées par SHA ; matrice runtime Node 20/22/24 et 3 OS, runner de tests portable, couverture, benchmark, audits et packaging. L’exécution distante finale est vérifiée après push. |
 | C3 | Release ambiguë | Fermé | Distribution interne propriétaire explicite, `LICENSE`, changelog, politique sécurité, release taguée, SBOM, SHA-256, attestation de provenance et rollback documenté. |
 | D1 | Promesses documentation/code | Fermé | Architecture, CLI, TUI, sécurité, skills et release alignés sur les comportements testés. |
 | D2 | Références `cortex.deck` | Fermé | Toutes les descriptions et exemples de schémas sont alignés sur `arka-norn`; recherche résiduelle limitée au rapport historique d’audit. |

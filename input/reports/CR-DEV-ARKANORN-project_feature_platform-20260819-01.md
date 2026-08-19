@@ -31,6 +31,7 @@
 | `scripts/*.mjs` | Créé / Modifié / Supprimé | 417 | Wrappers minces, selftest production et benchmark ; suppression du moteur parallèle |
 | `schemas/*.schema.json` | Modifié | 781 | Références produit arka-norn cohérentes |
 | `tests/{unit,integration,e2e}/**/*.test.ts` | Créé / Modifié | 346 | Sécurité, TUI réelle, packaging isolé et rendu |
+| `tests/{run-tests,register-typescript-loader,typescript-loader}.mjs` | Modifié | 79 | Runner TypeScript portable Node 20/22/24 et ESM Windows |
 | `dist/**` | Généré | 55 fichiers changés | Build JavaScript et source maps reproductibles |
 | `input/audit/REMEDIATION-AUDIT-TECHNIQUE-ARKA-NORN-20260819.md` | Créé | 70 | Clôture traçable des 27 constats d'audit |
 | `input/reports/CR-DEV-ARKANORN-project_feature_platform-20260819-01.md` | Créé | présent fichier | Compte rendu de livraison |

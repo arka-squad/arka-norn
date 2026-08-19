@@ -12,3 +12,4 @@ tags `vX.Y.Z`.
 - diagnostic unifié des index, markers, locks, journal d’audit et skills ;
 - catalogue de 14 skills multiprovider avec installation transactionnelle ;
 - gates TypeScript, tests unitaires/intégration/E2E, couverture et packaging isolé.
+- loader de tests portable Node 20/22/24 sur Linux, macOS et Windows ; actions CI basées sur Node 24.
