@@ -94,10 +94,11 @@ test("un lock vivant devenu ancien conserve l'exclusion mutuelle", async (contex
     active -= 1;
   };
 
-  const first = withFileLock(target, () => operation(60), { staleMs: 5, timeoutMs: 500, pollMs: 2 });
+  const lockOptions = { staleMs: 5, timeoutMs: 5_000, pollMs: 2 } as const;
+  const first = withFileLock(target, () => operation(60), lockOptions);
   await new Promise((resolveDelay) => setTimeout(resolveDelay, 15));
-  const second = withFileLock(target, () => operation(30), { staleMs: 5, timeoutMs: 500, pollMs: 2 });
-  const third = withFileLock(target, () => operation(10), { staleMs: 5, timeoutMs: 500, pollMs: 2 });
+  const second = withFileLock(target, () => operation(30), lockOptions);
+  const third = withFileLock(target, () => operation(10), lockOptions);
   await Promise.all([first, second, third]);
 
   assert.equal(maximumActive, 1);

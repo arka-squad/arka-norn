@@ -24,7 +24,7 @@
 | `README.md`, `docs/{cli,skills,tui}.md`, `manifest.json`, `CHANGELOG.md` | Modifié | Contrat produit et documentation alignés sur 16 skills |
 | `.gitignore` | Modifié | Rendus générés `arka-norn` exclus des sources canoniques |
 | `scripts/selftest.mjs` | Modifié | Gate produit sur les 16 skills et le bootstrap public |
-| `tests/{unit,integration,e2e}/**/*.test.ts` | Modifié | Catalogue, rendu, installation globale, CLI, packaging et TUI couverts |
+| `tests/{unit,integration,e2e}/**/*.test.ts` | Modifié | Catalogue, rendu, installation globale, CLI, packaging, TUI et délais de concurrence couverts |
 | `dist/**` | Généré | JavaScript et source maps synchronisés avec les sources TypeScript |
 | `input/reports/CR-DEV-ARKANORN-agent_bootstrap_skill-20260819-01.md` | Créé | Présent compte rendu |
 
@@ -66,7 +66,7 @@
 | Conserver les sources JSON comme unique vérité | Éviter que les rendus provider générés divergent du catalogue versionné |
 | Exiger une Feature choisie avant Concept ou code | Empêcher un agent de deviner l'intention produit ou son périmètre |
 | Valider le prompt `$<skill>` dans le catalogue | Garantir une interface Codex directement utilisable |
-| Étendre le timeout du test TUI à une échéance monotone de 10 s | Éliminer le flake observé sous forte charge de tests parallèles sans ralentissement nominal |
+| Étendre les échéances des tests TUI et lock concurrents | Éliminer les flakes observés sous forte charge Windows/Node 24 sans changer le comportement nominal |
 
 ## Handoff
 
