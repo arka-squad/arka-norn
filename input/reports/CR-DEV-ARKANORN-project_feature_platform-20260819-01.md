@@ -80,6 +80,8 @@
 | Lecture `O_NOFOLLOW` et parent d'écriture canonique | Fermer les contournements symlink/TOCTOU portables |
 | `fsync` dossier best-effort sous Windows et modes privés POSIX | Respecter les garanties réellement offertes par chaque plateforme |
 | Checksums normalisés LF et npm lancé par son module JavaScript | Rendre skills et packaging indépendants de CRLF et des shims Windows |
+| Détection de contention de lock native par plateforme | Accepter `EPERM` sous Windows uniquement si le fichier concurrent existe |
+| Identifiants de lock via `path.basename` et chemins via `realpathSync.native` | Éliminer séparateurs POSIX et noms courts 8.3 des assertions Windows |
 | Seuils couverture 70/70/60 et benchmark 5 s | Transformer la qualité et la performance en gates reproductibles |
 | Distribution interne propriétaire par artefact GitHub | Aligner licence, SBOM, provenance et rollback |
 

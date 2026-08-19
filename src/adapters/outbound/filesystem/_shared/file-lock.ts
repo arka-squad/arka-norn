@@ -59,7 +59,7 @@ export async function withFileLock<T>(targetPath: string, operation: () => Promi
       await handle.writeFile(`${JSON.stringify(owner)}\n`, "utf8");
       await handle.sync();
     } catch (error) {
-      if (!isNodeError(error, "EEXIST")) throw error;
+      if (!await isExistingLockContention(error, lockPath)) throw error;
       if (await reapAbandonedLock(lockPath, staleMs)) continue;
       if (Date.now() - startedAt >= timeoutMs) throw new LockConflictError(lockPath, timeoutMs);
       await delay(pollMs);
@@ -79,7 +79,7 @@ async function reapAbandonedLock(lockPath: string, staleMs: number): Promise<boo
   try {
     reaper = await fs.open(reaperPath, "wx", 0o600);
   } catch (error) {
-    if (isNodeError(error, "EEXIST")) return false;
+    if (await isExistingLockContention(error, reaperPath)) return false;
     throw error;
   }
   try {
@@ -133,6 +133,18 @@ function isProcessAlive(pid: number): boolean {
 
 function delay(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function isExistingLockContention(error: unknown, lockPath: string): Promise<boolean> {
+  if (isNodeError(error, "EEXIST")) return true;
+  if (process.platform !== "win32" || !isNodeError(error, "EPERM")) return false;
+  return fs.lstat(lockPath).then(
+    () => true,
+    (statError: unknown) => {
+      if (isNodeError(statError, "ENOENT")) return false;
+      throw statError;
+    },
+  );
 }
 
 function isNodeError(error: unknown, code: string): boolean {

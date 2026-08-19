@@ -14,7 +14,9 @@ Sont non fiables : roots fournis, markers, symlinks, noms, JSON, environnement, 
   système le permet. Windows ne supportant pas le `fsync` d'un dossier via
   Node.js, cette seconde synchronisation y est ignorée uniquement pour `EPERM`.
 - Les locks portent un token, un PID et une date ; un processus vivant n’est
-  jamais repris et seul le token propriétaire peut libérer le verrou.
+  jamais repris et seul le token propriétaire peut libérer le verrou. La
+  contention Windows `EPERM` n'est assimilée à un verrou existant qu'après
+  vérification de la présence réelle de son fichier.
 - Les install/scaffold refusent l’écrasement implicite.
 - Toute mutation exige l’écriture préalable d’une intention dans le journal
   d’audit ; un échec empêche la mutation. Le journal masque les secrets, tourne

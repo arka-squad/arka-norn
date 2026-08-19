@@ -1,5 +1,5 @@
 import * as fs from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 
 import { isFeatureMarkerV2, isProjectMarkerV2 } from "../../../domain/shared/marker-formats.js";
 import type { DoctorIndexInspector, IndexInspection } from "../../../ports/outbound/doctor-index-inspector.js";
@@ -30,7 +30,7 @@ export class FsDoctor implements DoctorIndexInspector {
       const value = JSON.parse(raw) as unknown;
       if (!isIndexFile(kind, value)) return this.invalidIndex(kind, target, "schema invalid", repair, apply);
       const mode = (await fs.stat(target)).mode & 0o777;
-      if (mode !== 0o600) {
+      if (process.platform !== "win32" && mode !== 0o600) {
         if (repair && apply) await fs.chmod(target, 0o600);
         return {
           check: { id: `index.${kind}`, status: repair && apply ? "pass" : "warn", message: repair && apply ? "permissions repaired to 0600" : `permissions are ${mode.toString(8)} instead of 600`, repairable: true },
@@ -109,7 +109,7 @@ export class FsDoctor implements DoctorIndexInspector {
         const applied = repair && apply ? await repairAbandonedFileLock(lockPath) : false;
         return {
           check: {
-            id: `lock.${lockPath.split("/").pop() ?? "unknown"}`,
+            id: `lock.${basename(lockPath)}`,
             status: applied ? "pass" as const : "fail" as const,
             message: applied ? "abandoned lock removed" : `abandoned lock (${Math.round(inspection.ageMs ?? 0)}ms old)`,
             repairable: true,
@@ -118,9 +118,9 @@ export class FsDoctor implements DoctorIndexInspector {
         };
       }
       if (inspection.status === "invalid") {
-        return { check: { id: `lock.${lockPath.split("/").pop() ?? "unknown"}`, status: "fail" as const, message: "lock metadata invalid; manual review required", repairable: false } };
+        return { check: { id: `lock.${basename(lockPath)}`, status: "fail" as const, message: "lock metadata invalid; manual review required", repairable: false } };
       }
-      return { check: { id: `lock.${lockPath.split("/").pop() ?? "unknown"}`, status: "warn" as const, message: `active lock owned by pid ${inspection.ownerPid ?? "unknown"}`, repairable: false } };
+      return { check: { id: `lock.${basename(lockPath)}`, status: "warn" as const, message: `active lock owned by pid ${inspection.ownerPid ?? "unknown"}`, repairable: false } };
     }));
   }
 

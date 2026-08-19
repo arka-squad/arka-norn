@@ -40,7 +40,7 @@ export async function withFileLock(targetPath, operation, options = {}) {
             await handle.sync();
         }
         catch (error) {
-            if (!isNodeError(error, "EEXIST"))
+            if (!await isExistingLockContention(error, lockPath))
                 throw error;
             if (await reapAbandonedLock(lockPath, staleMs))
                 continue;
@@ -64,7 +64,7 @@ async function reapAbandonedLock(lockPath, staleMs) {
         reaper = await fs.open(reaperPath, "wx", 0o600);
     }
     catch (error) {
-        if (isNodeError(error, "EEXIST"))
+        if (await isExistingLockContention(error, reaperPath))
             return false;
         throw error;
     }
@@ -128,6 +128,17 @@ function isProcessAlive(pid) {
 }
 function delay(milliseconds) {
     return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+async function isExistingLockContention(error, lockPath) {
+    if (isNodeError(error, "EEXIST"))
+        return true;
+    if (process.platform !== "win32" || !isNodeError(error, "EPERM"))
+        return false;
+    return fs.lstat(lockPath).then(() => true, (statError) => {
+        if (isNodeError(statError, "ENOENT"))
+            return false;
+        throw statError;
+    });
 }
 function isNodeError(error, code) {
     return error instanceof Error && "code" in error && error.code === code;

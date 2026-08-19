@@ -60,7 +60,7 @@ Recette directe de la plateforme locale Project/Feature, de ses interfaces CLI/T
 | Priorité | P1 |
 | Entrée   | `npm run test:coverage` |
 | Attendu  | lignes ≥ 70 %, fonctions ≥ 70 %, branches ≥ 60 % |
-| Obtenu   | 7 253 lignes : 5 332 couvertes, 73,51 % ; 526 fonctions : 388 couvertes, 73,76 % ; 1 569 branches : 1 166 couvertes, 74,31 % |
+| Obtenu   | 7 265 lignes : 5 336 couvertes, 73,44 % ; 527 fonctions : 389 couvertes, 73,81 % ; 1 570 branches : 1 167 couvertes, 74,33 % |
 | Verdict  | PASS |
 | Trace    | `coverage/coverage-summary.json` généré directement par c8 |
 | Écart    | — |
@@ -125,7 +125,7 @@ Recette directe de la plateforme locale Project/Feature, de ses interfaces CLI/T
 | Priorité | P0 |
 | Entrée   | Consumer vierge offline + `npm pack --dry-run --ignore-scripts` avec cache isolé |
 | Attendu  | Installation sans `node_modules` du dépôt, CLI et selftest fonctionnels |
-| Obtenu   | Tarball de 274 fichiers, 157,8 kB compressés et 730,2 kB décompressés ; consumer vierge PASS ; `src/`, `tests/` et `.input/` absents |
+| Obtenu   | Tarball de 274 fichiers, 158,0 kB compressés et 731,1 kB décompressés ; consumer vierge PASS ; `src/`, `tests/` et `.input/` absents |
 | Verdict  | PASS |
 | Trace    | `tests/e2e/packaging.test.ts:11-87`, sortie npm pack directe |
 | Écart    | — |
@@ -138,7 +138,7 @@ Recette directe de la plateforme locale Project/Feature, de ses interfaces CLI/T
 | Priorité | P2 |
 | Entrée   | `npm run benchmark` |
 | Attendu  | 50 Projects < 1 500 ms, 200 Features < 2 500 ms, 50 rapports < 3 000 ms, total < 5 000 ms |
-| Obtenu   | 50 Projects en 40,12 ms ; 200 Features en 50,90 ms ; 50 rapports en 23,84 ms ; total 114,87 ms |
+| Obtenu   | 50 Projects en 71,83 ms ; 200 Features en 110,75 ms ; 50 rapports en 44,34 ms ; total 226,92 ms |
 | Verdict  | PASS |
 | Trace    | Sortie directe `scripts/benchmark.mjs` |
 | Écart    | — |
@@ -189,6 +189,9 @@ Aucune incohérence spec détectée.
 | ANO-05 | Majeur | Checksums des skills dépendants des fins de ligne Git CRLF | CT-07 | Corrigé |
 | ANO-06 | Mineur | Assertion de chemin non canonique face aux noms courts Windows | CT-04 | Corrigé |
 | ANO-07 | Majeur | Test de packaging dépendant du lancement direct d'un shim `.cmd` | CT-08 | Corrigé |
+| ANO-08 | Majeur | Contention du reaper signalée `EPERM` plutôt que `EEXIST` sous Windows | CT-04 | Corrigé |
+| ANO-09 | Mineur | Identifiant doctor construit avec un séparateur POSIX | CT-04 | Corrigé |
+| ANO-10 | Mineur | Assertion CLI sensible aux noms courts Windows 8.3 | CT-06 | Corrigé |
 
 ---
 
@@ -201,7 +204,7 @@ Aucune incohérence spec détectée.
 | PARTIAL           | 0 |
 | FAIL              | 0 |
 | Taux PASS         | 100% |
-| Anomalies         | 7 corrigées, 0 ouverte |
+| Anomalies         | 10 corrigées, 0 ouverte |
 | Bloquants         | 0 |
 | Incohérences spec | 0 |
 
