@@ -79,7 +79,7 @@ test("JSON malformé invalide le rapport et type inconnu reste visible", async (
   const report = await createPipelineRuntime(ROOT).inspect({ featureRoot: sandbox });
   assert.equal(report.overallStatus, "invalid");
   assert.equal(report.errors.length, 1);
-  assert.deepEqual(report.unknownFiles, [resolve(realpathSync(sandbox), "unknown.json")]);
+  assert.deepEqual(report.unknownFiles, [realpathSync.native(resolve(sandbox, "unknown.json"))]);
 });
 
 function copyExample(context: { after(callback: () => void): void }): string {

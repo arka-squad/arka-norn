@@ -22,7 +22,7 @@
 | A1 | Règle dernier CR / QA | Préservé | Tests unitaires et intégration couvrent QA pass/fail/partial et QA obsolète. |
 | A2 | Handoffs non validés/invisibles | Fermé | Validation Ajv, `transversalDocuments`, compteurs cockpit et tests valid/invalid. |
 | A3 | Identité/graphe documentaire partiels | Fermé | Enveloppe v2 commune ; IDs, Feature, séquence, date, relations, unicité, cardinalité, dépendances, self-reference et cycles contrôlés. |
-| SEC1 | Sécurité filesystem | Renforcé | Lectures avec `O_NOFOLLOW` hors Windows et contrôle de fichier après ouverture ; écritures dans un parent canonique ; symlinks de fichier et dossier testés. |
+| SEC1 | Sécurité filesystem | Renforcé | Lectures avec `O_NOFOLLOW` hors Windows et contrôle de fichier après ouverture ; écritures dans un parent canonique ; symlinks de fichier et dossier testés ; `fsync` dossier best-effort sur Windows et modes privés vérifiés sur POSIX. |
 | SEC2 | Ownership du stale lock | Fermé | Token UUID, PID, date, libération conditionnelle, reaper sérialisé ; tests processus vivant, processus mort et trois writers. |
 | SEC3 | Dépendances | Préservé | Une dépendance runtime directe ; audits npm production et complet intégrés à la CI. |
 | T1 | Pyramide de tests | Renforcé | Suites unitaires, intégration et E2E conservées et enrichies des reproductions de l’audit. |
@@ -34,7 +34,7 @@
 | O2 | Audit trail silencieux/non borné | Fermé | Intention obligatoire avant mutation, succès/échec, code `AUDIT_UNAVAILABLE`, redaction, rotation 2 Mio/5 archives et health doctor. |
 | O3 | Markers cassés invisibles | Fermé | Warnings visibles au niveau `warn`, diagnostic marker par marker dans doctor et écran santé TUI ; les listes métier ne retournent que des entités valides. |
 | C1 | Absence de baseline Git | Fermé | Baseline `a2c983a`, jalon `a11087b` et `origin/main` créés sans écrasement. |
-| C2 | CI non prouvée/actions mutables | Fermé côté code | Actions Node 24 épinglées par SHA ; matrice runtime Node 20/22/24 et 3 OS, runner de tests portable, couverture, benchmark, audits et packaging. L’exécution distante finale est vérifiée après push. |
+| C2 | CI non prouvée/actions mutables | Fermé côté code | Actions Node 24 épinglées par SHA ; matrice runtime Node 20/22/24 et 3 OS, runner et packaging portables sans shim `.cmd`, checksums indépendants de CRLF, couverture, benchmark et audits. L’exécution distante finale est vérifiée après push. |
 | C3 | Release ambiguë | Fermé | Distribution interne propriétaire explicite, `LICENSE`, changelog, politique sécurité, release taguée, SBOM, SHA-256, attestation de provenance et rollback documenté. |
 | D1 | Promesses documentation/code | Fermé | Architecture, CLI, TUI, sécurité, skills et release alignés sur les comportements testés. |
 | D2 | Références `cortex.deck` | Fermé | Toutes les descriptions et exemples de schémas sont alignés sur `arka-norn`; recherche résiduelle limitée au rapport historique d’audit. |

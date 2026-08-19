@@ -103,13 +103,17 @@ export function createSkillCatalogRuntime(frameworkRoot: string, profile = "all"
 
 function loadDefinition(frameworkRoot: string, entry: SkillCatalogEntry): SkillDefinition {
   const sourcePath = join(frameworkRoot, "skills-src", entry.source);
-  const raw = readFileSync(sourcePath);
-  const checksum = createHash("sha256").update(raw).digest("hex");
+  const raw = readFileSync(sourcePath, "utf8");
+  const checksum = createHash("sha256").update(normalizeLineEndings(raw), "utf8").digest("hex");
   if (checksum !== entry.checksum) throw new Error(`Checksum source invalide pour ${entry.name}`);
-  const value = JSON.parse(raw.toString("utf8")) as unknown;
+  const value = JSON.parse(raw) as unknown;
   if (!isSkillDefinition(value)) throw new Error(`Définition de skill invalide : ${entry.name}`);
   if (value.name !== entry.name) throw new Error(`Nom de catalogue incohérent : ${entry.name}`);
   return { ...value, catalog: entry };
+}
+
+function normalizeLineEndings(value: string): string {
+  return value.replace(/\r\n?/g, "\n");
 }
 
 function parseCatalogEntry(value: unknown, index: number): SkillCatalogEntry {

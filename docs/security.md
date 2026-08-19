@@ -7,7 +7,12 @@ Sont non fiables : roots fournis, markers, symlinks, noms, JSON, environnement, 
 - `marker.root` doit correspondre à son emplacement réel.
 - Une Feature doit être strictement contenue dans son Project.
 - Les JSON sont bornés à 2 Mio et lus via `lstat`.
-- Les index/logs privés utilisent `0600`; les markers portables `0644`.
+- Sur POSIX, les index/logs privés utilisent `0600` et les markers portables
+  `0644`. Sous Windows, les droits héritent des ACL du profil utilisateur ; les
+  modes POSIX n'y constituent pas une preuve d'isolation.
+- Les écritures atomiques synchronisent le fichier puis le dossier quand le
+  système le permet. Windows ne supportant pas le `fsync` d'un dossier via
+  Node.js, cette seconde synchronisation y est ignorée uniquement pour `EPERM`.
 - Les locks portent un token, un PID et une date ; un processus vivant n’est
   jamais repris et seul le token propriétaire peut libérer le verrou.
 - Les install/scaffold refusent l’écrasement implicite.

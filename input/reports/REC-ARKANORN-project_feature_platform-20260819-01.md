@@ -47,11 +47,11 @@ Recette directe de la plateforme locale Project/Feature, de ses interfaces CLI/T
 | Priorité | P0 |
 | Entrée   | `npm test` via `npm run test:coverage` |
 | Attendu  | 0 régression sur unitaires, intégration et E2E |
-| Obtenu   | 80 tests comptés : 80 PASS, 0 PARTIAL, 0 FAIL |
+| Obtenu   | 81 tests comptés : 81 PASS, 0 PARTIAL, 0 FAIL |
 | Verdict  | PASS |
-| Trace    | Sortie TAP directe ; `tests/run-tests.mjs`, 80 déclarations `test(...)` sous `tests/` |
+| Trace    | Sortie TAP directe ; `tests/run-tests.mjs`, 81 déclarations `test(...)` sous `tests/` |
 | Écart    | — |
-| Note     | 4 nouveaux cas de non-régression |
+| Note     | 5 nouveaux cas de non-régression, dont conversion CRLF du catalogue |
 
 ### CT-03 — Couverture minimale
 
@@ -60,7 +60,7 @@ Recette directe de la plateforme locale Project/Feature, de ses interfaces CLI/T
 | Priorité | P1 |
 | Entrée   | `npm run test:coverage` |
 | Attendu  | lignes ≥ 70 %, fonctions ≥ 70 %, branches ≥ 60 % |
-| Obtenu   | 7 246 lignes : 5 328 couvertes, 73,53 % ; 525 fonctions : 387 couvertes, 73,71 % ; 1 568 branches : 1 165 couvertes, 74,29 % |
+| Obtenu   | 7 253 lignes : 5 332 couvertes, 73,51 % ; 526 fonctions : 388 couvertes, 73,76 % ; 1 569 branches : 1 166 couvertes, 74,31 % |
 | Verdict  | PASS |
 | Trace    | `coverage/coverage-summary.json` généré directement par c8 |
 | Écart    | — |
@@ -125,7 +125,7 @@ Recette directe de la plateforme locale Project/Feature, de ses interfaces CLI/T
 | Priorité | P0 |
 | Entrée   | Consumer vierge offline + `npm pack --dry-run --ignore-scripts` avec cache isolé |
 | Attendu  | Installation sans `node_modules` du dépôt, CLI et selftest fonctionnels |
-| Obtenu   | Tarball de 274 fichiers, 157,5 kB compressés et 729,2 kB décompressés ; consumer vierge PASS ; `src/`, `tests/` et `.input/` absents |
+| Obtenu   | Tarball de 274 fichiers, 157,8 kB compressés et 730,2 kB décompressés ; consumer vierge PASS ; `src/`, `tests/` et `.input/` absents |
 | Verdict  | PASS |
 | Trace    | `tests/e2e/packaging.test.ts:11-87`, sortie npm pack directe |
 | Écart    | — |
@@ -138,7 +138,7 @@ Recette directe de la plateforme locale Project/Feature, de ses interfaces CLI/T
 | Priorité | P2 |
 | Entrée   | `npm run benchmark` |
 | Attendu  | 50 Projects < 1 500 ms, 200 Features < 2 500 ms, 50 rapports < 3 000 ms, total < 5 000 ms |
-| Obtenu   | 50 Projects en 27,51 ms ; 200 Features en 26,76 ms ; 50 rapports en 14,78 ms ; total 69,05 ms |
+| Obtenu   | 50 Projects en 40,12 ms ; 200 Features en 50,90 ms ; 50 rapports en 23,84 ms ; total 114,87 ms |
 | Verdict  | PASS |
 | Trace    | Sortie directe `scripts/benchmark.mjs` |
 | Écart    | — |
@@ -185,6 +185,10 @@ Aucune incohérence spec détectée.
 | ANO-01 | Majeur | Runner TypeScript incompatible avec Node 20 (`--experimental-strip-types`) | CT-10 | Corrigé |
 | ANO-02 | Majeur | Import absolu du loader invalide sous Windows ESM | CT-10 | Corrigé |
 | ANO-03 | Mineur | SHA `setup-node` tronqué dans le job benchmark | CT-10 | Corrigé |
+| ANO-04 | Majeur | `fsync` de dossier retourne `EPERM` sous Windows | CT-04 | Corrigé |
+| ANO-05 | Majeur | Checksums des skills dépendants des fins de ligne Git CRLF | CT-07 | Corrigé |
+| ANO-06 | Mineur | Assertion de chemin non canonique face aux noms courts Windows | CT-04 | Corrigé |
+| ANO-07 | Majeur | Test de packaging dépendant du lancement direct d'un shim `.cmd` | CT-08 | Corrigé |
 
 ---
 
@@ -197,7 +201,7 @@ Aucune incohérence spec détectée.
 | PARTIAL           | 0 |
 | FAIL              | 0 |
 | Taux PASS         | 100% |
-| Anomalies         | 3 corrigées, 0 ouverte |
+| Anomalies         | 7 corrigées, 0 ouverte |
 | Bloquants         | 0 |
 | Incohérences spec | 0 |
 

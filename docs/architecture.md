@@ -30,4 +30,4 @@ rejette IDs dupliqués, cardinalités interdites, relations inconnues et cycles.
 
 ## Transactions locales
 
-Les écritures JSON utilisent un temporaire unique ouvert en exclusif, `fsync`, renommage atomique et permissions explicites. Les index sont protégés par locks inter-processus avec token de propriétaire ; seul le détenteur peut libérer son lock. Un marker est écrit avant l’index reconstructible ; `doctor` et les scans réparent les caches sans supprimer les données métier.
+Les écritures JSON utilisent un temporaire unique ouvert en exclusif, `fsync` du fichier et, lorsque la plateforme le supporte, du dossier, puis renommage atomique et permissions explicites. Les modes privés `0600` sont vérifiés sur POSIX ; Windows s'appuie sur les ACL du profil. Les index sont protégés par locks inter-processus avec token de propriétaire ; seul le détenteur peut libérer son lock. Un marker est écrit avant l’index reconstructible ; `doctor` et les scans réparent les caches sans supprimer les données métier.

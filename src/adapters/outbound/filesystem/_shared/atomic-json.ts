@@ -90,7 +90,10 @@ async function syncDirectory(directory: string): Promise<void> {
     handle = await fs.open(directory, "r");
     await handle.sync();
   } catch (error) {
-    if (!isNodeError(error, "EINVAL") && !isNodeError(error, "ENOTSUP")) throw error;
+    const unsupported = isNodeError(error, "EINVAL")
+      || isNodeError(error, "ENOTSUP")
+      || (process.platform === "win32" && isNodeError(error, "EPERM"));
+    if (!unsupported) throw error;
   } finally {
     await handle?.close().catch(() => undefined);
   }

@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFileSync, readdirSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { test } from "node:test";
+
+import { createSkillCatalogRuntime } from "../../src/adapters/outbound/skills/skill-catalog.js";
 
 interface CatalogEntry {
   readonly name: string;
@@ -36,8 +39,8 @@ test("le catalogue contient exactement les 14 skills requis et des checksums exa
   assert.deepEqual(catalog.skills.map((entry) => entry.name).sort(), required);
   assert.equal(new Set(catalog.skills.map((entry) => entry.name)).size, 14);
   for (const entry of catalog.skills) {
-    const raw = readFileSync(resolve(SOURCE, entry.source));
-    assert.equal(createHash("sha256").update(raw).digest("hex"), entry.checksum, entry.name);
+    const raw = readFileSync(resolve(SOURCE, entry.source), "utf8").replace(/\r\n?/g, "\n");
+    assert.equal(createHash("sha256").update(raw, "utf8").digest("hex"), entry.checksum, entry.name);
     assert.ok(entry.profiles.includes("all"));
     assert.ok(entry.step.length > 0);
   }
@@ -65,4 +68,16 @@ test("chaque définition est complète et les skills audit/dev/QA imposent leurs
   assert.match(byName.get("arka-framework-dev") ?? "", /CR de dev|cr_dev/);
   assert.match(byName.get("arka-framework-recette-qa") ?? "", /dernier CR|cr_dev_id/);
   assert.match(byName.get("arka-framework-recette-qa") ?? "", /partial|fail/);
+});
+
+test("le catalogue reste vérifiable après une conversion Git en CRLF", (context) => {
+  const frameworkRoot = mkdtempSync(resolve(tmpdir(), "arka-norn-catalog-crlf-"));
+  context.after(() => rmSync(frameworkRoot, { recursive: true, force: true }));
+  cpSync(SOURCE, resolve(frameworkRoot, "skills-src"), { recursive: true });
+  for (const entry of catalog.skills) {
+    const sourcePath = resolve(frameworkRoot, "skills-src", entry.source);
+    const crlf = readFileSync(sourcePath, "utf8").replace(/\r\n?/g, "\n").replace(/\n/g, "\r\n");
+    writeFileSync(sourcePath, crlf);
+  }
+  assert.equal(createSkillCatalogRuntime(frameworkRoot).definitions.length, 14);
 });

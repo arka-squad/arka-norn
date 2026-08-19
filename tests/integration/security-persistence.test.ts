@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { platform, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
 
@@ -28,7 +28,7 @@ test("un marker Project forgé avec une autre racine est refusé", async (contex
   await assert.rejects(new FsProjectStore().load(actual), (error: unknown) => error instanceof Error && "code" in error && error.code === "PATH_SECURITY");
 });
 
-test("les ajouts concurrents d'index ne perdent aucune entrée et gardent 0600", async (context) => {
+test("les ajouts concurrents d'index ne perdent aucune entrée et gardent 0600 sur POSIX", async (context) => {
   const home = mkdtempSync(join(tmpdir(), "arka-norn-index-race-"));
   context.after(() => rmSync(home, { recursive: true, force: true }));
   const stores = Array.from({ length: 20 }, () => new FsProjectIndexStore({ homeDir: home, logger }));
@@ -44,7 +44,7 @@ test("les ajouts concurrents d'index ne perdent aucune entrée et gardent 0600",
   assert.equal(entries.length, 20);
   assert.equal(new Set(entries.map((entry) => entry.id)).size, 20);
   const mode = statSync(resolve(home, ".arka-norn", "index", "projects.json")).mode & 0o777;
-  assert.equal(mode, 0o600);
+  if (platform() !== "win32") assert.equal(mode, 0o600);
 });
 
 test("un index corrompu est isolé avant retour à un cache vide", async (context) => {

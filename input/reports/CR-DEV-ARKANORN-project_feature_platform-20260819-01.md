@@ -61,8 +61,8 @@
 | Check | Résultat |
 |---|---|
 | Build | 0 erreur — TypeScript 6.0.3, build reproductible |
-| Tests total | 80/80 passed |
-| Nouveaux tests | 4 cas ajoutés |
+| Tests total | 81/81 passed |
+| Nouveaux tests | 5 cas ajoutés |
 | Régressions | 0 |
 | Grep `any` | 0 dans `src/**/*.ts` et `tests/**/*.ts` |
 | Grep `TODO/stub` | 0 dans `src/**/*.ts` et `tests/**/*.ts` |
@@ -78,6 +78,8 @@
 | Contrôleurs TUI injectables | Partager les cas d'usage et tester le clavier réel sans subprocess |
 | Installation de skills transactionnelle et multi-cible | Éviter les installations partielles et garantir Claude/Codex |
 | Lecture `O_NOFOLLOW` et parent d'écriture canonique | Fermer les contournements symlink/TOCTOU portables |
+| `fsync` dossier best-effort sous Windows et modes privés POSIX | Respecter les garanties réellement offertes par chaque plateforme |
+| Checksums normalisés LF et npm lancé par son module JavaScript | Rendre skills et packaging indépendants de CRLF et des shims Windows |
 | Seuils couverture 70/70/60 et benchmark 5 s | Transformer la qualité et la performance en gates reproductibles |
 | Distribution interne propriétaire par artefact GitHub | Aligner licence, SBOM, provenance et rollback |
 
