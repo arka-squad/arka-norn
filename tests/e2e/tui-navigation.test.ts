@@ -112,7 +112,10 @@ test("la TUI enregistre et sélectionne une identité Agent sans connaissance im
   sendText(input.send, "implémentation;QA");
   input.send({ kind: "enter" });
 
-  await waitUntil(async () => (await management.agents.current(project)) !== undefined, "persistance et sélection Agent");
+  await waitUntil(() => {
+    const top = container.app.topScene();
+    return top !== undefined && top !== registryScene && top !== projectScene;
+  }, "résultat de l'inscription Agent");
   const agents = await management.agents.list(project);
   const current = await management.agents.current(project);
   assert.equal(agents.length, 1);

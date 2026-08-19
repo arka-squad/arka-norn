@@ -222,6 +222,7 @@ Aucune incohérence spec détectée.
 | ANO-12 | Majeur | Le TUI d’installation ne permettait pas de réparer explicitement des skills divergentes | CT-07 | Corrigé |
 | ANO-13 | Majeur | Une erreur asynchrone du scaffold géré échappait à l’enveloppe JSON et retournait 70 | CT-06 | Corrigé |
 | ANO-14 | Majeur | Une description contenant `:` rendait le frontmatter YAML de la skill Maîtrise invalide ; descriptions OpenAI non bornées | CT-07 | Corrigé |
+| ANO-15 | Mineur | Le scénario TUI Agent pouvait nettoyer son sandbox avant la fin observable de l’écriture d’audit sous Windows/Node 20 | CT-05 | Corrigé |
 
 ---
 
@@ -234,7 +235,7 @@ Aucune incohérence spec détectée.
 | PARTIAL           | 0 |
 | FAIL              | 0 |
 | Taux PASS         | 100% |
-| Anomalies         | 14 corrigées, 0 ouverte |
+| Anomalies         | 15 corrigées, 0 ouverte |
 | Bloquants         | 0 |
 | Incohérences spec | 0 |
 
