@@ -12,3 +12,7 @@ arka-norn skills doctor --target <repo> --json
 Profils : `core` (4), `delivery` (12), `all` (14, défaut). Le catalogue versionne chaque source et son SHA-256. `doctor` compare les rendus Claude/Codex attendus aux fichiers installés. Une divergence locale retourne le code 3 ; l’installation retourne le code 5 et n’écrase rien sans `--force`. En cas de remplacement forcé, un backup est créé sous `.arka-norn/backups/skills/`.
 
 Le skill audit impose observation directe et absence de correction silencieuse. Le skill dev impose lecture de la spec, scope fichiers, tests, CR de dev et handoff. Le skill QA cible le dernier CR, conserve les preuves et sépare structure, verdict métier, anomalies et décision.
+
+Le catalogue, le rendu, le plan d’installation, les checksums, les backups et le
+rollback sont implémentés dans les adapters TypeScript. La TUI et la CLI
+consomment ce même installateur ; aucun module JS n’est chargé dynamiquement.

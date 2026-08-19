@@ -9,8 +9,8 @@
  * 2. featureStore.exists(root) === true ET marker.id !== input.id
  *    → collision pathologique sur le chemin → FeatureAlreadyExistsError.
  * 3. featureStore.exists(root) === false
- *    → création complète : index puis marker, avec rollback de l'index
- *      si featureStore.init() échoue.
+ *    → écrit d'abord le marker, source de vérité reconstructible, puis
+ *      référence la Feature dans l'index local.
  */
 import { FeatureAlreadyExistsError, ProjectNotFoundError } from "../../domain/errors.js";
 import { Feature } from "../../domain/feature/feature.js";
@@ -62,19 +62,14 @@ export function createFeatureUseCaseFactory(deps) {
             createdAt: now,
             updatedAt: now,
         });
-        try {
-            await featureStore.init(feature);
-            await indexStore.add({
-                id: feature.id.value,
-                projectId: feature.projectId.value,
-                root: feature.root,
-                name: feature.name,
-                updatedAt: feature.updatedAt,
-            });
-        }
-        catch (err) {
-            throw err;
-        }
+        await featureStore.init(feature);
+        await indexStore.add({
+            id: feature.id.value,
+            projectId: feature.projectId.value,
+            root: feature.root,
+            name: feature.name,
+            updatedAt: feature.updatedAt,
+        });
         return feature;
     };
 }

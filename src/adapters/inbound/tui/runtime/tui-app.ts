@@ -170,7 +170,7 @@ export function createTuiApp(deps: TuiAppDeps): TuiApp & { run(opts?: TuiAppRunO
       { signal: "exit", handler: onSignal("exit") },
     ];
     for (const { signal, handler } of handlers) {
-      (process as NodeJS.Process).on(signal as NodeJS.Signals, handler);
+      process.on(signal, handler);
     }
     cleanupHandlers = handlers;
     resizeHandler = () => renderTop();
@@ -180,7 +180,7 @@ export function createTuiApp(deps: TuiAppDeps): TuiApp & { run(opts?: TuiAppRunO
   function unregisterHandlers(): void {
     if (!cleanupRegistered) return;
     for (const { signal, handler } of cleanupHandlers) {
-      (process as NodeJS.Process).off(signal as NodeJS.Signals, handler);
+      process.off(signal, handler);
     }
     cleanupHandlers = [];
     if (resizeHandler !== undefined) process.stdout.off("resize", resizeHandler);

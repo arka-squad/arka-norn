@@ -24,7 +24,8 @@ export function createHomeView(deps) {
                 description: `${project.root}  ${formatActivity(project.updatedAt, now())}`,
             })),
             { label: "Rescanner ce dossier", value: "action:scan" },
-            { label: "Santé / installer les skills", value: "action:install", description: deps.skillHealth ?? "état inconnu" },
+            { label: "Santé du système", value: "action:health", description: deps.systemHealth ?? "état inconnu" },
+            { label: "Installer / réparer les skills", value: "action:install", description: deps.skillHealth ?? "état inconnu" },
         ];
     }
     function buildMenu() {
@@ -60,7 +61,10 @@ export function createHomeView(deps) {
             });
             return;
         }
-        await run(async () => { await deps.onInstallSkills?.(); });
+        if (value === "action:health")
+            await run(async () => { await deps.onShowHealth?.(); });
+        else
+            await run(async () => { await deps.onInstallSkills?.(); });
     }
     async function submitCreate() {
         if (busy)

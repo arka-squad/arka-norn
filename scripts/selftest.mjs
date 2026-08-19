@@ -1,48 +1,34 @@
 #!/usr/bin/env node
-// Sous-commande CLI : arka-norn selftest
-// Batterie de vérifications RÉELLES du framework (pas de simulation) :
-//  1. Chaque schema du pipeline compile (Ajv) et son scaffold se génère sans exception.
-//  2. Le scaffold d'un type échoue à la validation UNIQUEMENT sur des valeurs sentinelles
-//     (pas sur des clés manquantes) — preuve que la forme générée est structurellement complète.
-//  3. L'exemple réel de chaque type (dérivé de la vraie feature Notion/Linear du dépôt)
-//     valide intégralement contre son schema.
-//  4. Retirer un champ requis d'un exemple réel casse la validation avec une erreur
-//     nommant exactement ce champ (pas un échec générique).
-//  5. status applique le verdict métier de la recette et les codes de sortie.
-//  6. L'entrypoint TUI refuse proprement un environnement non interactif.
-//  7. Le catalogue public contient exactement les 14 skills attendus.
-//  8. Le code TypeScript, le build et les tests passent réellement.
-import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadJson, loadPipeline, validateDocument, FRAMEWORK_ROOT } from "./lib.mjs";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import { createPipelineRuntime } from "../dist/composition/pipeline-runtime.js";
+
+const FRAMEWORK_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const BIN = path.join(FRAMEWORK_ROOT, "bin", "arka-norn.mjs");
 const TSC_BIN = path.join(FRAMEWORK_ROOT, "node_modules", "typescript", "bin", "tsc");
 const TEST_RUNNER = path.join(FRAMEWORK_ROOT, "tests", "run-tests.mjs");
 const CLEAN_DIST = path.join(FRAMEWORK_ROOT, "scripts", "clean-dist.mjs");
 
-export function runSelftest() {
+export async function runSelftest() {
   let failures = 0;
   let checks = 0;
+  const pipeline = createPipelineRuntime(FRAMEWORK_ROOT);
 
   function check(label, condition, detail) {
     checks++;
-    if (condition) {
-      console.log(`  OK   ${label}`);
-    } else {
+    if (condition) console.log(`  OK   ${label}`);
+    else {
       failures++;
-      console.log(`  FAIL ${label}${detail ? " — " + detail : ""}`);
+      console.log(`  FAIL ${label}${detail ? ` — ${detail}` : ""}`);
     }
   }
 
-  const pipeline = loadPipeline();
-  const allTypeIds = [...pipeline.steps.map((s) => s.id), "handoff"];
-  const EXAMPLES_DIR = path.join(FRAMEWORK_ROOT, "examples", "feature-notion-linear");
-  const EXAMPLE_FILE_BY_TYPE = {
+  const examples = path.join(FRAMEWORK_ROOT, "examples", "feature-notion-linear");
+  const exampleByType = {
     concept: "01-concept.json",
     plan: "02-plan.json",
     annexe_contrat_technique: "03-annexe.json",
@@ -55,54 +41,57 @@ export function runSelftest() {
     recette_qa: "10-recette-qa.json",
     handoff: "11-handoff.json",
   };
+  const typeIds = (await pipeline.listSteps()).map((step) => step.id);
+  const sandbox = mkdtempSync(path.join(tmpdir(), "arka-norn-selftest-"));
 
-  console.log("=== 1+2. scaffold pour chaque type : génération + échec attendu uniquement sur sentinelles ===");
-  const tmpDir = mkdtempSync(path.join(tmpdir(), "arka-norn-selftest-"));
-  for (const typeId of allTypeIds) {
-    const outFile = path.join(tmpDir, `${typeId}.json`);
-    try {
-      execFileSync(process.execPath, [BIN, "scaffold", typeId, outFile], { stdio: "pipe" });
-    } catch (err) {
-      check(`scaffold(${typeId}) ne lève pas d'exception`, false, err.message);
-      continue;
+  try {
+    console.log("=== 1+2. scaffold pour chaque type : génération + échec attendu uniquement sur sentinelles ===");
+    for (const typeId of typeIds) {
+      const output = path.join(sandbox, `${typeId}.json`);
+      try {
+        await pipeline.scaffold({ stepId: typeId, outputPath: output });
+        check(`scaffold(${typeId}) ne lève pas d'exception`, true);
+      } catch (error) {
+        check(`scaffold(${typeId}) ne lève pas d'exception`, false, error instanceof Error ? error.message : String(error));
+        continue;
+      }
+      const result = await pipeline.validate({ filePath: output });
+      const noStructuralErrors = result.errors.every((error) => !/required property|additional propert/i.test(error));
+      check(`scaffold(${typeId}) échoue uniquement sur ses sentinelles`, !result.valid && noStructuralErrors, JSON.stringify(result.errors));
     }
-    check(`scaffold(${typeId}) ne lève pas d'exception`, true);
 
-    const scaffolded = loadJson(outFile);
-    const result = validateDocument(scaffolded);
-    const noStructuralErrors = result.errors.every((e) => e.keyword !== "required" && e.keyword !== "additionalProperties");
-    check(`scaffold(${typeId}) échoue (sentinelles non remplacées) mais jamais sur une clé manquante`, !result.ok && noStructuralErrors, JSON.stringify(result.errors));
-  }
-  rmSync(tmpDir, { recursive: true, force: true });
+    console.log("\n=== 3. Chaque exemple réel valide contre le moteur de production ===");
+    for (const typeId of typeIds) {
+      const filename = exampleByType[typeId];
+      if (filename === undefined) {
+        check(`exemple déclaré pour ${typeId}`, false, "mapping absent");
+        continue;
+      }
+      const result = await pipeline.validate({ filePath: path.join(examples, filename) });
+      check(`${filename} (type ${typeId}) valide`, result.valid, JSON.stringify(result.errors));
+    }
 
-  console.log("\n=== 3. Chaque exemple réel (feature Notion/Linear) valide contre son schema ===");
-  for (const typeId of allTypeIds) {
-    const filename = EXAMPLE_FILE_BY_TYPE[typeId];
-    const absPath = path.join(EXAMPLES_DIR, filename);
-    const doc = loadJson(absPath);
-    const result = validateDocument(doc);
-    check(`${filename} (type ${typeId}) valide`, result.ok, JSON.stringify(result.errors));
-  }
+    console.log("\n=== 4. Une rupture de contrat est rejetée explicitement ===");
+    const concept = loadJson(path.join(examples, "01-concept.json"));
+    delete concept.objectif;
+    const invalidConcept = path.join(sandbox, "invalid-concept.json");
+    writeFileSync(invalidConcept, `${JSON.stringify(concept)}\n`);
+    const conceptResult = await pipeline.validate({ filePath: invalidConcept });
+    check("retirer 'objectif' du concept échoue en nommant le champ", !conceptResult.valid && conceptResult.errors.some((error) => error.includes("objectif")), JSON.stringify(conceptResult.errors));
 
-  console.log("\n=== 4. Un champ requis manquant casse la validation avec une erreur nommant ce champ ===");
-  {
-    const doc = loadJson(path.join(EXAMPLES_DIR, "01-concept.json"));
-    delete doc.objectif;
-    const result = validateDocument(doc);
-    const namesTheField = !result.ok && result.errors.some((e) => e.params && e.params.missingProperty === "objectif");
-    check("retirer 'objectif' du concept réel échoue en nommant 'objectif'", namesTheField, JSON.stringify(result.errors));
-  }
-  {
-    const doc = loadJson(path.join(EXAMPLES_DIR, "09-cr-dev.json"));
-    doc.fichiers_livres[0].action = "valeur_inventee";
-    const result = validateDocument(doc);
-    const rejectsInventedEnum = !result.ok;
-    check("une valeur enum inventée sur fichiers_livres[].action est rejetée", rejectsInventedEnum, JSON.stringify(result.errors));
+    const developmentReport = loadJson(path.join(examples, "09-cr-dev.json"));
+    developmentReport.fichiers_livres[0].action = "valeur_inventee";
+    const invalidReport = path.join(sandbox, "invalid-cr-dev.json");
+    writeFileSync(invalidReport, `${JSON.stringify(developmentReport)}\n`);
+    const reportResult = await pipeline.validate({ filePath: invalidReport });
+    check("une valeur enum inventée est rejetée", !reportResult.valid, JSON.stringify(reportResult.errors));
+  } finally {
+    rmSync(sandbox, { recursive: true, force: true });
   }
 
   console.log("\n=== 5. status applique le verdict métier de la recette QA ===");
   {
-    const result = spawnSync(process.execPath, [BIN, "status", EXAMPLES_DIR], { encoding: "utf8" });
+    const result = spawnSync(process.execPath, [BIN, "status", examples], { encoding: "utf8" });
     const output = `${result.stdout ?? ""}${result.stderr ?? ""}`;
     check("status sort avec le code 2 pour une recette QA non concluante", result.status === 2, output);
     check("status n'annonce jamais 'Pipeline complet' pour une recette QA fail", !output.includes("Pipeline complet"), output);
@@ -130,20 +119,26 @@ export function runSelftest() {
     check("CLI skills list consomme les mêmes 14 entrées", listed.status === 0 && listedData.length === 14, `${listed.stdout ?? ""}${listed.stderr ?? ""}`);
   }
 
-  console.log("\n=== 8. Gates TypeScript : typecheck, build et tests ===");
-  runGate("typecheck du code source", [TSC_BIN, "--noEmit"]);
-  runGate("typecheck des tests", [TSC_BIN, "-p", path.join(FRAMEWORK_ROOT, "tsconfig.tests.json")]);
-  runGate("nettoyage du build précédent", [CLEAN_DIST]);
-  runGate("build TypeScript reproductible", [TSC_BIN]);
-  runGate("tests TypeScript", [TEST_RUNNER]);
+  console.log("\n=== 8. Intégrité de l'environnement ===");
+  const developmentCheckout = existsSync(TSC_BIN) && existsSync(TEST_RUNNER) && existsSync(path.join(FRAMEWORK_ROOT, "src"));
+  if (developmentCheckout) {
+    runGate("typecheck du code source", [TSC_BIN, "--noEmit"]);
+    runGate("typecheck des tests", [TSC_BIN, "-p", path.join(FRAMEWORK_ROOT, "tsconfig.tests.json")]);
+    runGate("nettoyage du build précédent", [CLEAN_DIST]);
+    runGate("build TypeScript reproductible", [TSC_BIN]);
+    runGate("tests TypeScript", [TEST_RUNNER]);
+  } else {
+    check("package de production sans sources TypeScript", !existsSync(path.join(FRAMEWORK_ROOT, "src")));
+    check("package de production sans suite de tests interne", !existsSync(TEST_RUNNER));
+  }
 
   console.log(`\n${checks - failures}/${checks} vérifications passées.`);
   if (failures > 0) {
-    console.log(`${failures} ÉCHEC(S) — le framework n'est pas fiable en l'état, corriger avant usage.`);
-    process.exit(1);
+    console.log(`${failures} ÉCHEC(S) — corriger avant usage.`);
+    process.exitCode = 1;
   } else {
     console.log("Toutes les vérifications réelles passent.");
-    process.exit(0);
+    process.exitCode = 0;
   }
 
   function runGate(label, args) {
@@ -153,5 +148,9 @@ export function runSelftest() {
   }
 }
 
-const isMain = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
-if (isMain) runSelftest();
+function loadJson(file) {
+  if (!existsSync(file)) throw new Error(`Fichier introuvable : ${file}`);
+  return JSON.parse(readFileSync(file, "utf8"));
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await runSelftest();

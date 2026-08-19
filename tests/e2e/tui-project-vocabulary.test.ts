@@ -35,7 +35,8 @@ test("la vraie vue d'accueil expose uniquement le vocabulaire Project", () => {
   assert.match(output, /Projets/);
   assert.match(output, /Créer ou importer un projet/);
   assert.doesNotMatch(output, /Dépôt|dépôt/);
-  assert.match(output, /Santé \/ installer les skills/);
+  assert.match(output, /Santé du système/);
+  assert.match(output, /Installer \/ réparer les skills/);
   assert.match(output, /14\/14 sains/);
 });
 

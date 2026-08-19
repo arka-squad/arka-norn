@@ -18,6 +18,10 @@ arka-norn selftest
 
 Le build TypeScript est régénéré par `prepare` et `prepack`. `npm run check` exécute le lint, les contrôles fonctionnels, le typecheck, le build et les tests TypeScript.
 
+Le package est propriétaire et distribué en interne par tarball GitHub, pas sur
+le registre npm public. La procédure, les checksums, le SBOM et le rollback sont
+décrits dans [`docs/release.md`](docs/release.md).
+
 ## Commandes
 
 ```bash
@@ -70,6 +74,7 @@ arka-norn skills doctor --target . --json
 - [Skills](docs/skills.md)
 - [Sécurité](docs/security.md)
 - [Dépannage](docs/troubleshooting.md)
+- [Release et rollback](docs/release.md)
 - [Décisions ADR](docs/adr/)
 
 ## Développement
@@ -79,6 +84,8 @@ npm run typecheck
 npm run test:unit
 npm run test:integration
 npm run test:e2e
+npm run test:coverage
+npm run benchmark
 npm run check
 ```
 

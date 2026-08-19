@@ -2,3 +2,4 @@ node_modules/
 .input/
 .DS_Store
 *.log
+coverage/

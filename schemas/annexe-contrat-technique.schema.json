@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "annexe-contrat-technique.schema.json",
   "title": "Annexe — Contrat technique d'extensibilité",
-  "description": "Document de type 'annexe_contrat_technique' du framework méthodologique cortex.deck. Une annexe rattachée à un document 'plan' qui documente un point d'extension du système : le principe qui permet d'étendre sans casser le cœur, le contrat (port/interface) que toute implémentation doit respecter, et la frontière entre le domaine pur (agnostique de toute infra) et les adapters (spécifiques à une implémentation concrète). Destiné à être lu et suivi mécaniquement par un agent (Claude Code, Codex CLI, Antigravity, ou tout autre agent) sans connaissance préalable du projet.",
+  "description": "Document de type 'annexe_contrat_technique' du framework méthodologique arka-norn. Une annexe rattachée à un document 'plan' qui documente un point d'extension du système : le principe qui permet d'étendre sans casser le cœur, le contrat (port/interface) que toute implémentation doit respecter, et la frontière entre le domaine pur (agnostique de toute infra) et les adapters (spécifiques à une implémentation concrète). Destiné à être lu et suivi mécaniquement par un agent (Claude Code, Codex CLI, Antigravity, ou tout autre agent) sans connaissance préalable du projet.",
   "type": "object",
   "allOf": [{ "$ref": "document-envelope.schema.json" }],
   "unevaluatedProperties": false,

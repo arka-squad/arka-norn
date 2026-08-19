@@ -13,7 +13,7 @@ import type { Renderer } from "../runtime/render.js";
 import type { Theme } from "../runtime/theme.js";
 import type { Scene } from "../runtime/tui-app.js";
 
-type HomeAction = "action:create" | "action:scan" | "action:install" | `project:${string}`;
+type HomeAction = "action:create" | "action:scan" | "action:health" | "action:install" | `project:${string}`;
 
 export interface HomeViewDeps {
   readonly initialProjects: readonly Project[];
@@ -25,12 +25,13 @@ export interface HomeViewDeps {
   readonly now?: () => Date;
   readonly onProjectFocused?: (project: Project | undefined) => void;
   readonly onOpenProject?: (project: Project) => Promise<void> | void;
+  readonly onShowHealth?: () => Promise<void> | void;
   readonly onInstallSkills?: () => Promise<void> | void;
   readonly skillHealth?: string;
   readonly systemHealth?: string;
 }
 
-export interface HomeView extends Scene {}
+export type HomeView = Scene;
 
 const CIRCLE = "●";
 const IDENTITY = (value: string): string => value;
@@ -55,7 +56,8 @@ export function createHomeView(deps: HomeViewDeps): HomeView {
         description: `${project.root}  ${formatActivity(project.updatedAt, now())}`,
       })),
       { label: "Rescanner ce dossier", value: "action:scan" },
-      { label: "Santé / installer les skills", value: "action:install", description: deps.skillHealth ?? "état inconnu" },
+      { label: "Santé du système", value: "action:health", description: deps.systemHealth ?? "état inconnu" },
+      { label: "Installer / réparer les skills", value: "action:install", description: deps.skillHealth ?? "état inconnu" },
     ];
   }
 
@@ -92,7 +94,8 @@ export function createHomeView(deps: HomeViewDeps): HomeView {
       });
       return;
     }
-    await run(async () => { await deps.onInstallSkills?.(); });
+    if (value === "action:health") await run(async () => { await deps.onShowHealth?.(); });
+    else await run(async () => { await deps.onInstallSkills?.(); });
   }
 
   async function submitCreate(): Promise<void> {

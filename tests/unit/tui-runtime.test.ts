@@ -51,3 +51,12 @@ test("le renderer borne une frame à la hauteur du terminal", () => {
   assert.equal(renderer.lastFrameLines, 4);
   assert.match(output, /ligne\(s\) masquée\(s\)/);
 });
+
+test("le renderer remonte le nombre réel de lignes après wrapping terminal", () => {
+  let output = "";
+  const renderer = createRenderer({ write: (chunk) => { output += chunk; }, isTTY: true, rows: 10, columns: 10 });
+  renderer.redraw((line) => line("1234567890123456789012345"));
+  assert.equal(renderer.lastFrameLines, 3);
+  renderer.redraw((line) => line("court"));
+  assert.match(output, /\u001b\[3A\u001b\[J/);
+});

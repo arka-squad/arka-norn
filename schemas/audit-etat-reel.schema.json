@@ -95,7 +95,7 @@
       "depends_on_document_ids": ["plan-architecture-memoire-evenementielle"],
       "tache_id": "P2-041",
       "sources_plan": ["plan.md#section-3-stockage-capteur"],
-      "depot_audite": "cortex.deck",
+      "depot_audite": "arka-norn",
       "reference_auditee": "49e9f5c",
       "date_audit": "2026-08-18",
       "methode": "grep + lecture directe du disque",

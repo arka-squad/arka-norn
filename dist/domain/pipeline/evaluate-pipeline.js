@@ -234,8 +234,19 @@ function overallStatusFor(steps, errors) {
     return "incomplete";
 }
 function withoutContent(document) {
-    const { content: _content, ...summary } = document;
-    return summary;
+    return {
+        filePath: document.filePath,
+        valid: document.valid,
+        errors: document.errors,
+        dependencyDocumentIds: document.dependencyDocumentIds,
+        ...(document.id === undefined ? {} : { id: document.id }),
+        ...(document.type === undefined ? {} : { type: document.type }),
+        ...(document.sequence === undefined ? {} : { sequence: document.sequence }),
+        ...(document.createdAt === undefined ? {} : { createdAt: document.createdAt }),
+        ...(document.featureId === undefined ? {} : { featureId: document.featureId }),
+        ...(document.crDevId === undefined ? {} : { crDevId: document.crDevId }),
+        ...(document.businessVerdict === undefined ? {} : { businessVerdict: document.businessVerdict }),
+    };
 }
 function timestamp(value) {
     if (value === undefined)

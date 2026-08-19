@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
+import { constants } from "node:fs";
 import * as fs from "node:fs/promises";
-import { dirname } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { FileTooLargeError, PathSecurityError } from "../../../../domain/errors.js";
 const DEFAULT_MAX_BYTES = 2 * 1024 * 1024;
 export async function readJson(filePath, maxBytes = DEFAULT_MAX_BYTES) {
@@ -12,11 +13,16 @@ export async function writeJsonAtomic(filePath, payload, options = {}) {
     await writeFileAtomic(filePath, json, options);
 }
 export async function writeFileAtomic(filePath, content, options = {}) {
-    const directory = dirname(filePath);
+    const requestedDirectory = dirname(filePath);
     const mode = options.mode ?? 0o600;
-    await fs.mkdir(directory, { recursive: true, mode: 0o700 });
-    await rejectSymlink(filePath);
-    const tempPath = `${filePath}.${process.pid}.${randomBytes(8).toString("hex")}.tmp`;
+    await fs.mkdir(requestedDirectory, { recursive: true, mode: 0o700 });
+    const directoryStat = await fs.lstat(requestedDirectory);
+    if (directoryStat.isSymbolicLink())
+        throw new PathSecurityError(requestedDirectory, "symbolic-link output directories are forbidden");
+    const directory = await fs.realpath(requestedDirectory);
+    const destinationPath = join(directory, basename(filePath));
+    await rejectSymlink(destinationPath);
+    const tempPath = `${destinationPath}.${process.pid}.${randomBytes(8).toString("hex")}.tmp`;
     let handle;
     try {
         handle = await fs.open(tempPath, "wx", mode);
@@ -25,13 +31,13 @@ export async function writeFileAtomic(filePath, content, options = {}) {
         await handle.close();
         handle = undefined;
         if (options.exclusive === true) {
-            await fs.link(tempPath, filePath);
+            await fs.link(tempPath, destinationPath);
             await fs.unlink(tempPath);
         }
         else {
-            await fs.rename(tempPath, filePath);
+            await fs.rename(tempPath, destinationPath);
         }
-        await fs.chmod(filePath, mode);
+        await fs.chmod(destinationPath, mode);
         await syncDirectory(directory);
     }
     catch (error) {
@@ -43,19 +49,23 @@ export async function writeFileAtomic(filePath, content, options = {}) {
 export async function readRaw(filePath, maxBytes = DEFAULT_MAX_BYTES) {
     let handle;
     try {
-        const stat = await fs.lstat(filePath);
-        if (stat.isSymbolicLink())
+        const beforeOpen = await fs.lstat(filePath);
+        if (beforeOpen.isSymbolicLink())
             throw new PathSecurityError(filePath, "symbolic-link files are forbidden");
+        const flags = process.platform === "win32" ? constants.O_RDONLY : constants.O_RDONLY | constants.O_NOFOLLOW;
+        handle = await fs.open(filePath, flags);
+        const stat = await handle.stat();
         if (!stat.isFile())
             throw new PathSecurityError(filePath, "expected a regular file");
         if (stat.size > maxBytes)
             throw new FileTooLargeError(filePath, maxBytes);
-        handle = await fs.open(filePath, "r");
         return await handle.readFile("utf8");
     }
     catch (error) {
         if (isNodeError(error, "ENOENT"))
             return undefined;
+        if (isNodeError(error, "ELOOP"))
+            throw new PathSecurityError(filePath, "symbolic-link files are forbidden");
         throw error;
     }
     finally {

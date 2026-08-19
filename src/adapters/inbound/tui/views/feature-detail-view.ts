@@ -29,7 +29,7 @@ export interface FeatureDetailViewDeps {
   readonly onForget?: (feature: Feature) => Promise<void> | void;
 }
 
-export interface FeatureDetailView extends Scene {}
+export type FeatureDetailView = Scene;
 
 const ANGLE_RIGHT = String.fromCharCode(0x276f);
 const LEFT_ARROW = String.fromCharCode(0x2190);
@@ -38,7 +38,7 @@ const HORIZONTAL = String.fromCharCode(0x2500);
 
 export function createFeatureDetailView(deps: FeatureDetailViewDeps): FeatureDetailView {
   const cockpit = createFeatureCockpitViewModel(deps.feature, deps.report);
-  let menu = buildMenu();
+  const menu = buildMenu();
   let busy = false;
   let status: string | undefined;
 

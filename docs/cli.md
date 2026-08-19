@@ -15,6 +15,10 @@ arka-norn migrate [--target <path>] [--dry-run|--apply]
 
 `forget` exige `--yes` et ne supprime jamais le dossier métier. `scaffold` et `skills install` refusent les écrasements ; `--force` est explicite et l’installateur sauvegarde les fichiers divergents.
 
+Le parseur est commun à toutes les commandes : une option inconnue, répétée,
+incompatible ou sans valeur retourne `64`. `ARKA_NORN_HOME` cible la même zone
+d’index pour les commandes de gestion et `doctor`.
+
 ## Codes de sortie
 
 | Code | Sens |

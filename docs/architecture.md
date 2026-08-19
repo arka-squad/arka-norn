@@ -9,8 +9,10 @@ arka-norn est un plan de contrôle local-first pour des Projects et leurs Featur
 - `src/ports/` : contrats entrants et sortants.
 - `src/adapters/inbound/` : présentation CLI/TUI.
 - `src/adapters/outbound/` : filesystem, validation, skills et système.
-- `src/composition/` : câblage des adapters, sans logique métier.
-- `bin/` et `scripts/` : frontières de lancement Node ; les scripts appellent les runtimes compilés.
+- `src/composition/` : câblage et contrôleurs de scènes TUI, sans règle métier.
+- `src/adapters/inbound/cli/main-cli.ts` : routeur unique et typé des commandes.
+- `bin/` et `scripts/` : frontières Node minces ; aucune logique d’installation,
+  de migration ou de validation n’y est dupliquée.
 
 ## Sources de vérité
 
@@ -22,6 +24,10 @@ arka-norn est un plan de contrôle local-first pour des Projects et leurs Featur
 
 Le `PipelineReport` sépare présence, conformité de schéma, verdict métier, dépendances, complétude et prochaines actions. Une QA `pass` ne termine la Feature que si elle référence le dernier CR de développement valide.
 
+Tous les documents utilisent l’enveloppe v2 commune : `id`, `feature_id`,
+`schema_version`, `sequence`, `created_at` et relations explicites. Le moteur
+rejette IDs dupliqués, cardinalités interdites, relations inconnues et cycles.
+
 ## Transactions locales
 
-Les écritures JSON utilisent un temporaire unique ouvert en exclusif, `fsync`, renommage atomique et permissions explicites. Les index sont protégés par locks inter-processus. Un marker est écrit avant l’index reconstructible ; `doctor` et les scans réparent les caches sans supprimer les données métier.
+Les écritures JSON utilisent un temporaire unique ouvert en exclusif, `fsync`, renommage atomique et permissions explicites. Les index sont protégés par locks inter-processus avec token de propriétaire ; seul le détenteur peut libérer son lock. Un marker est écrit avant l’index reconstructible ; `doctor` et les scans réparent les caches sans supprimer les données métier.

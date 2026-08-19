@@ -21,7 +21,7 @@ export interface ResultViewDeps {
   readonly maxVisibleLines?: number;
 }
 
-export interface ResultView extends Scene {}
+export type ResultView = Scene;
 
 export function createResultView(deps: ResultViewDeps): ResultView {
   const outputLines = deps.output.replace(/\n$/, "").split("\n");

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "spec-integration-technique.schema.json",
   "title": "Spec d'intégration technique",
-  "description": "Document du framework méthodologique cortex.deck qui fige, avant implémentation, le contrat technique partagé d'un ou plusieurs lots : structure de crates/adapters concernée, contrats d'interface à respecter, décisions figées non renégociables et invariants dont ce contrat dépend. Ce document se situe entre les tâches et le compte-rendu de dev dans le cycle de vie concept → plan → (annexe) → audit → invariants → dettes → tâches → spec d'intégration → CR de dev → recette QA. Il doit pouvoir être suivi mécaniquement par un agent (Claude Code, Codex CLI, Antigravity ou tout autre agent) sans connaissance préalable du projet.",
+  "description": "Document du framework méthodologique arka-norn qui fige, avant implémentation, le contrat technique partagé d'un ou plusieurs lots : structure de crates/adapters concernée, contrats d'interface à respecter, décisions figées non renégociables et invariants dont ce contrat dépend. Ce document se situe entre les tâches et le compte-rendu de dev dans le cycle de vie concept → plan → (annexe) → audit → invariants → dettes → tâches → spec d'intégration → CR de dev → recette QA. Il doit pouvoir être suivi mécaniquement par un agent (Claude Code, Codex CLI, Antigravity ou tout autre agent) sans connaissance préalable du projet.",
   "type": "object",
   "allOf": [{ "$ref": "document-envelope.schema.json" }],
   "unevaluatedProperties": false,

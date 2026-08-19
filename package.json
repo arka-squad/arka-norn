@@ -2,6 +2,15 @@
   "name": "arka-norn",
   "version": "1.0.0",
   "private": true,
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arka-squad/arka-norn.git"
+  },
+  "bugs": {
+    "url": "https://github.com/arka-squad/arka-norn/issues"
+  },
+  "homepage": "https://github.com/arka-squad/arka-norn#readme",
   "engines": {
     "node": ">=20.11"
   },
@@ -14,6 +23,9 @@
     "skills-src/",
     "scripts/",
     "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "SECURITY.md",
     "manifest.json",
     "pipeline.json"
   ],
@@ -25,11 +37,14 @@
   "scripts": {
     "build": "node scripts/clean-dist.mjs && tsc",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.tests.json",
-    "lint": "node tests/lint.mjs",
+    "check:js-syntax": "node tests/lint.mjs",
+    "lint": "eslint . --max-warnings 0",
     "test": "node tests/run-tests.mjs",
     "test:unit": "node tests/run-tests.mjs unit",
     "test:integration": "node tests/run-tests.mjs integration",
     "test:e2e": "node tests/run-tests.mjs e2e",
+    "test:coverage": "c8 --all --include \"src/**/*.ts\" --exclude \"src/ports/**\" --exclude \"src/**/_shared/*-deps.ts\" --exclude \"src/domain/pipeline/pipeline-report.ts\" --reporter=text --reporter=json-summary --check-coverage --lines 70 --functions 70 --branches 60 npm test",
+    "benchmark": "npm run build && node scripts/benchmark.mjs",
     "check": "npm run lint && npm run selftest",
     "prepare": "npm run build",
     "prepack": "npm run build",
@@ -40,13 +55,18 @@
     "selftest": "node bin/arka-norn.mjs selftest",
     "doctor": "node bin/arka-norn.mjs doctor",
     "skills": "node bin/arka-norn.mjs skills list",
-    "audit:dependencies": "npm audit --omit=dev"
+    "audit:dependencies": "npm audit --omit=dev",
+    "release:verify": "npm run check && npm run test:coverage && npm run benchmark && npm run audit:dependencies && npm pack --dry-run --ignore-scripts"
   },
   "dependencies": {
     "ajv": "^8.17.1"
   },
   "devDependencies": {
-    "@types/node": "^26.2.0",
-    "typescript": "^7.0.2"
+    "@types/node": "^20.19.43",
+    "c8": "^11.0.0",
+    "eslint": "^10.8.1",
+    "globals": "^17.11.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.67.0"
   }
 }

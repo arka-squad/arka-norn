@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
 
 import { createPipelineRuntime } from "../../src/composition/pipeline-runtime.ts";
+import { readRaw, writeFileAtomic } from "../../src/adapters/outbound/filesystem/_shared/atomic-json.ts";
 
 const ROOT = resolve(import.meta.dirname, "..", "..");
 
@@ -30,3 +31,21 @@ test("le scaffold Feature ne peut pas sortir de sa racine autorisée", async (co
     (error: unknown) => error instanceof Error && "code" in error && error.code === "PATH_SECURITY",
   );
 });
+
+test("les lectures et écritures atomiques refusent les cibles symboliques", async (context) => {
+  const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-atomic-symlink-"));
+  context.after(() => rmSync(sandbox, { recursive: true, force: true }));
+  const real = resolve(sandbox, "real");
+  const linkedDirectory = resolve(sandbox, "linked");
+  mkdirSync(real);
+  writeFileSync(resolve(real, "source.json"), "{}\n");
+  symlinkSync(real, linkedDirectory, "dir");
+  symlinkSync(resolve(real, "source.json"), resolve(sandbox, "linked-file.json"));
+
+  await assert.rejects(writeFileAtomic(resolve(linkedDirectory, "output.json"), "{}\n"), isPathSecurityError);
+  await assert.rejects(readRaw(resolve(sandbox, "linked-file.json")), isPathSecurityError);
+});
+
+function isPathSecurityError(error: unknown): boolean {
+  return error instanceof Error && "code" in error && error.code === "PATH_SECURITY";
+}

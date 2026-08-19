@@ -40,7 +40,7 @@ export interface ProjectFeatureMetrics {
   readonly invalidDocuments: number;
 }
 
-export interface ProjectDetailView extends Scene {}
+export type ProjectDetailView = Scene;
 
 export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDetailView {
   let features = [...deps.initialFeatures];

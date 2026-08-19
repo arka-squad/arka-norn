@@ -32,7 +32,7 @@ async function executeProject(action, args, runtime, context) {
     switch (action) {
         case "list": {
             requirePositionals(args, 0);
-            return Promise.all((await runtime.projects.list()).map(serializeProject));
+            return (await runtime.projects.list()).map(serializeProject);
         }
         case "add": {
             requirePositionals(args, 1);
@@ -185,10 +185,13 @@ function humanRow(value) {
         return String(value);
     const row = value;
     if (typeof row["id"] === "string")
-        return `${row["id"]}\t${String(row["name"] ?? "")}\t${String(row["root"] ?? "")}`.trimEnd();
+        return `${row["id"]}\t${scalar(row["name"])}\t${scalar(row["root"])}`.trimEnd();
     if (typeof row["root"] === "string")
         return `${row["healthy"] === true ? "OK" : "WARN"}\t${row["root"]}`;
     return JSON.stringify(value);
+}
+function scalar(value) {
+    return typeof value === "string" || typeof value === "number" || typeof value === "boolean" ? String(value) : "";
 }
 function failure(command, error, json, warnings) {
     const message = error instanceof Error ? error.message : String(error);

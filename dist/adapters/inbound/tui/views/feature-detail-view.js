@@ -15,7 +15,7 @@ const EM_DASH = String.fromCharCode(0x2014);
 const HORIZONTAL = String.fromCharCode(0x2500);
 export function createFeatureDetailView(deps) {
     const cockpit = createFeatureCockpitViewModel(deps.feature, deps.report);
-    let menu = buildMenu();
+    const menu = buildMenu();
     let busy = false;
     let status;
     function buildMenu() {

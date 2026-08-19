@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "concept.schema.json",
   "title": "Concept fonctionnel",
-  "description": "Schéma d'un document de concept fonctionnel dans le framework méthodologique cortex.deck. Ce document ouvre le cycle de vie d'une feature : il fixe le périmètre, les hypothèses tranchées, le principe directeur et le résumé exécutif avant tout travail de plan ou d'audit. Ce schéma est destiné à être suivi mécaniquement par tout agent (Claude Code, Codex CLI, Antigravity, ou autre) — la structure des champs fait autorité, indépendamment de la prose qui peut l'accompagner.",
+  "description": "Schéma d'un document de concept fonctionnel dans le framework méthodologique arka-norn. Ce document ouvre le cycle de vie d'une feature : il fixe le périmètre, les hypothèses tranchées, le principe directeur et le résumé exécutif avant tout travail de plan ou d'audit. Ce schéma est destiné à être suivi mécaniquement par tout agent (Claude Code, Codex CLI, Antigravity, ou autre) — la structure des champs fait autorité, indépendamment de la prose qui peut l'accompagner.",
   "type": "object",
   "allOf": [{ "$ref": "document-envelope.schema.json" }],
   "unevaluatedProperties": false,

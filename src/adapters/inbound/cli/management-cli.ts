@@ -7,13 +7,10 @@ import type { Feature } from "../../../domain/feature/feature.js";
 import { ProjectId } from "../../../domain/project/project-id.js";
 import type { Project } from "../../../domain/project/project.js";
 import { createManagementRuntime } from "../../../composition/management-runtime.js";
+import type { CliExecution } from "./cli-execution.js";
 import { CliUsageError, parseStrictArguments, type StrictArguments, type StrictArgumentSpec } from "./strict-arguments.js";
 
-export interface CliExecution {
-  readonly code: number;
-  readonly stdout: string;
-  readonly stderr: string;
-}
+export type { CliExecution } from "./cli-execution.js";
 
 export interface ManagementCliContext {
   readonly homeDir: string;
@@ -47,7 +44,7 @@ async function executeProject(action: string, args: ParsedArguments, runtime: Ru
   switch (action) {
     case "list": {
       requirePositionals(args, 0);
-      return Promise.all((await runtime.projects.list()).map(serializeProject));
+      return (await runtime.projects.list()).map(serializeProject);
     }
     case "add": {
       requirePositionals(args, 1);
@@ -203,9 +200,13 @@ function output(command: string, data: unknown, json: boolean, warnings: readonl
 function humanRow(value: unknown): string {
   if (typeof value !== "object" || value === null) return String(value);
   const row = value as Readonly<Record<string, unknown>>;
-  if (typeof row["id"] === "string") return `${row["id"]}\t${String(row["name"] ?? "")}\t${String(row["root"] ?? "")}`.trimEnd();
+  if (typeof row["id"] === "string") return `${row["id"]}\t${scalar(row["name"])}\t${scalar(row["root"])}`.trimEnd();
   if (typeof row["root"] === "string") return `${row["healthy"] === true ? "OK" : "WARN"}\t${row["root"]}`;
   return JSON.stringify(value);
+}
+
+function scalar(value: unknown): string {
+  return typeof value === "string" || typeof value === "number" || typeof value === "boolean" ? String(value) : "";
 }
 
 function failure(command: string, error: unknown, json: boolean, warnings: readonly string[]): CliExecution {
