@@ -97,13 +97,16 @@ test("scaffold refuse l'écrasement sans --force", (context) => {
 test("guide accompagne le parcours Project → Agent → Feature sans argument caché", () => {
   const guide = runCli(["guide"]);
   assert.equal(guide.status, 0, guide.stderr);
-  assert.match(guide.stdout, /S'identifier avant de produire/);
+  assert.match(guide.stdout, /S'identifier comme Product principal/);
   assert.match(guide.stdout, /agent current/);
+  assert.match(guide.stdout, /agent advise/);
+  assert.match(guide.stdout, /agent handoff-prompt/);
   assert.match(guide.stdout, /pipeline next/);
   assert.match(guide.stdout, /ne devinez jamais/i);
   const agentHelp = runCli(["agent", "help"]);
   assert.equal(agentHelp.status, 0, agentHelp.stderr);
   assert.match(agentHelp.stdout, /agent replace/);
+  assert.match(agentHelp.stdout, /agent sessions/);
 });
 
 test("validate --json sépare conformité et sentinelles", (context) => {

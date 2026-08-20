@@ -4,6 +4,7 @@
  * distante (pas d'apiUrl/apiKey -- arka-norn n'a pas de backend).
  */
 import { dirname, isAbsolute, resolve } from "node:path";
+import { AgentSessionId } from "../domain/agent/agent-session-id.js";
 const DEFAULT_LOG_LEVEL = "info";
 const LOG_LEVELS = ["debug", "info", "warn", "error"];
 export function readEnv(source = process.env, cwd = process.cwd()) {
@@ -11,8 +12,14 @@ export function readEnv(source = process.env, cwd = process.cwd()) {
         homeDir: parseHomeDir(source["ARKA_NORN_HOME"]),
         logLevel: parseLogLevel(source["ARKA_NORN_LOG_LEVEL"]),
         cwd,
+        agentSessionId: parseAgentSessionId(source["ARKA_NORN_SESSION"]),
         raw: source,
     };
+}
+function parseAgentSessionId(value) {
+    if (value === undefined || value.trim() === "")
+        return AgentSessionId.MAIN;
+    return AgentSessionId.of(value.trim());
 }
 function parseHomeDir(value) {
     if (value === undefined || value.trim() === "")

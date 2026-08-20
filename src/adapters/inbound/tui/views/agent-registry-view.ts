@@ -14,6 +14,8 @@ export interface AgentRegistryViewDeps {
   readonly project: Project;
   readonly agents: readonly AgentRegistration[];
   readonly currentAgentId?: string;
+  readonly sessionId?: string;
+  readonly sessionBindings?: readonly { readonly sessionId: string; readonly agentId: string }[];
   readonly onRegister: () => Promise<void> | void;
   readonly onOpenAgent: (agent: AgentRegistration) => Promise<void> | void;
   readonly onBack: () => void;
@@ -22,8 +24,9 @@ export interface AgentRegistryViewDeps {
 export function createAgentRegistryView(deps: AgentRegistryViewDeps): Scene {
   let helpVisible = false;
   const activeCount = deps.agents.filter((agent) => agent.active).length;
+  const mainSession = (deps.sessionId ?? "main") === "main";
   const items: readonly MenuItem<AgentRegistryAction>[] = [
-    { label: "Enregistrer mon identité", value: "action:register", description: "crée Provider_role_YYYYMMDD et le sélectionne" },
+    { label: mainSession ? "Enregistrer le Product principal" : "Enregistrer mon identité spécialisée", value: "action:register", description: mainSession ? "crée Provider_product_YYYYMMDD dans la session main" : "crée Provider_role_YYYYMMDD dans cette session isolée" },
     ...[...deps.agents].sort((left, right) => Number(right.active) - Number(left.active) || left.id.value.localeCompare(right.id.value)).map((agent) => ({
       label: `${agent.active ? "●" : "○"} ${agent.id.value}${agent.id.value === deps.currentAgentId ? " (courant)" : ""}`,
       value: `agent:${agent.id.value}` as const,
@@ -68,7 +71,7 @@ export function createAgentRegistryView(deps: AgentRegistryViewDeps): Scene {
             title: "Aide — registre Agents",
             purpose: "Le registre rend chaque intervention attribuable et borne ce que l’agent est autorisé à produire.",
             steps: [
-              "Enregistrez une identité si aucune ligne active ne vous correspond.",
+              mainSession ? "La session main appartient au Product principal ; enregistrez cette identité une seule fois." : "Enregistrez une identité spécialisée si aucune ligne active ne correspond à cette session.",
               "Ouvrez une identité pour voir son périmètre, la sélectionner, la remplacer ou la désactiver.",
               "Un document v3 ne peut être généré qu’avec l’agent courant actif.",
               "Remplacez un agent au lieu de réutiliser son identité : l’historique reste lisible.",
@@ -80,12 +83,14 @@ export function createAgentRegistryView(deps: AgentRegistryViewDeps): Scene {
         for (const value of titledBox("Registre Agents", [
           `Project : ${deps.project.name} (${deps.project.id.value})`,
           `Agents : ${activeCount} actif(s) · ${deps.agents.length - activeCount} inactif(s)`,
-          `Identité courante : ${deps.currentAgentId ?? "aucune — requise avant tout scaffold"}`,
+          `Session courante : ${deps.sessionId ?? "main"}`,
+          `Identité de cette session : ${deps.currentAgentId ?? "aucune — requise avant tout scaffold"}`,
+          `Sessions liées : ${deps.sessionBindings?.map((binding) => `${binding.sessionId}=${binding.agentId}`).join(" · ") || "aucune"}`,
           `Source portable : ${deps.project.root}/.arka-norn/agents.json`,
         ], theme, { border: theme.arkaRed }).split("\n")) line(value);
         line("");
         line(nextActionLine(
-          deps.currentAgentId === undefined ? "Enregistrer mon identité" : "Ouvrir l’agent courant",
+          deps.currentAgentId === undefined ? mainSession ? "Enregistrer le Product principal" : "Enregistrer mon identité spécialisée" : "Ouvrir l’agent courant",
           deps.currentAgentId === undefined ? "aucun auteur n’est sélectionné" : "vérifier son périmètre avant de produire",
           theme,
         ));

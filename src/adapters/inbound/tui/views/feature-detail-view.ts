@@ -17,16 +17,18 @@ import type { Feature } from "../../../../domain/feature/feature.js";
 import type { PipelineReport } from "../../../../domain/pipeline/pipeline-report.js";
 import { createFeatureCockpitViewModel } from "../../../../application/view-models/feature-cockpit.js";
 
-type FeatureDetailAction = "action:continue" | "action:status" | "action:scaffold" | "action:validate" | "action:forget" | "action:back";
+type FeatureDetailAction = "action:continue" | "action:orchestrate" | "action:status" | "action:scaffold" | "action:validate" | "action:forget" | "action:back";
 
 export interface FeatureDetailViewDeps {
   readonly feature: Feature;
   readonly report: PipelineReport;
   readonly currentAgentId?: string;
+  readonly sessionId?: string;
   readonly redraw: () => void;
   readonly onBack: () => void;
   readonly onShowStatus?: (feature: Feature) => Promise<void> | void;
   readonly onContinue?: (feature: Feature) => Promise<void> | void;
+  readonly onOrchestrate?: (feature: Feature) => Promise<void> | void;
   readonly onScaffold?: (feature: Feature) => Promise<void> | void;
   readonly onValidate?: (feature: Feature) => Promise<void> | void;
   readonly onForget?: (feature: Feature) => Promise<void> | void;
@@ -72,6 +74,14 @@ export function createFeatureDetailView(deps: FeatureDetailViewDeps): FeatureDet
       case "action:status":
         if (deps.onShowStatus !== undefined) {
           await run(() => deps.onShowStatus!(deps.feature));
+          return;
+        }
+        status = "Action indisponible.";
+        deps.redraw();
+        return;
+      case "action:orchestrate":
+        if (deps.onOrchestrate !== undefined) {
+          await run(() => deps.onOrchestrate!(deps.feature));
           return;
         }
         status = "Action indisponible.";
@@ -169,6 +179,7 @@ export function createFeatureDetailView(deps: FeatureDetailViewDeps): FeatureDet
       `  ${theme.gray(deps.feature.root)}`,
       `  État : ${theme.arkaAccent(cockpit.overallStatus)} · ${cockpit.progress}`,
       `  Agent auteur : ${deps.currentAgentId ?? "aucun — revenez au Project > Gérer les agents"}`,
+      `  Session Agent : ${deps.sessionId ?? "main"} · la sélection est isolée des autres sessions`,
       `  Prochaine action : ${cockpit.nextAction}`,
       `  Pourquoi : ${cockpit.nextReason}`,
       `  Runs : dev=${cockpit.developmentRuns} QA=${cockpit.qaRuns} échecs=${cockpit.qaFailures} · dettes=${cockpit.debtDocuments} · handoffs=${cockpit.handoffSignals}`,
@@ -226,6 +237,7 @@ export function createFeatureDetailView(deps: FeatureDetailViewDeps): FeatureDet
   function buildMenuItems(): readonly MenuItem<FeatureDetailAction>[] {
     return [
       { label: deps.feature.pipelineId === "arka-norn-fastdev" ? "Continuer le rework" : "Continuer la Feature", value: "action:continue", description: "ouvre l'action guidée, sa raison, ses preuves et sa commande" },
+      { label: "Organiser les agents / préparer une reprise", value: "action:orchestrate", description: "conseil Product, prompts parallèles et nouveau contexte principal" },
       { label: "Voir le diagnostic complet", value: "action:status", description: "présence, schéma, métier, dépendances et raison de blocage" },
       { label: "Scaffold manuel", value: "action:scaffold", description: deps.currentAgentId === undefined ? "bloqué : sélectionnez d’abord un agent dans le Project" : `action secondaire · document v3 signé par ${deps.currentAgentId}` },
       { label: "Valider un document rempli", value: "action:validate", description: "détecte champs manquants, sentinelles et contrat invalide" },

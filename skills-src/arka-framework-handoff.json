@@ -24,13 +24,15 @@
   ],
   "note_inputs": "",
   "referentiel_extra": [
-    "`{{FRAMEWORK_DIR}}/schemas/handoff.schema.json` — le contrat exact du document de passation"
+    "`{{FRAMEWORK_DIR}}/schemas/handoff.schema.json` — le contrat exact du document de passation",
+    "`{{FRAMEWORK_DIR}}/docs/agent-orchestration.md` — reprise du Product principal et sessions spécialisées"
   ],
   "procedure": [
     { "titre": "Vérifier la présence de la commande", "contenu": "Confirmer que `{{FRAMEWORK_NAME}}` est disponible : `command -v {{FRAMEWORK_NAME}}`. Si absente, arrêter et le signaler — ce skill ne s'applique pas tant que {{FRAMEWORK_NAME}} n'est pas installé et lié globalement (voir `{{FRAMEWORK_DIR}}`, `npm link`)." },
     { "titre": "Générer le squelette handoff", "contenu": "```bash\narka-norn scaffold handoff <fichier_sortie>\n```" },
     { "titre": "Rédiger chaque champ fidèlement", "contenu": "Renseigner `agent_emetteur` (soi-même : nom et provider), `agent_destinataire`, `type_message` (`handoff`, `verdict`, `ack`, `question` ou `blocage` selon le cas), `travail_effectue` et `travail_restant` comme deux listes factuelles et vérifiables, `blocages` avec la décision exacte requise pour chacun — jamais un blocage formulé de façon vague." },
-    { "titre": "Valider avant de transmettre", "contenu": "Enchaîner systématiquement avec `arka-framework-valider` sur le fichier handoff produit avant de considérer la passation faite." }
+    { "titre": "Valider avant de transmettre", "contenu": "Enchaîner systématiquement avec `arka-framework-valider` sur le fichier handoff produit avant de considérer la passation faite." },
+    { "titre": "Ajouter le prompt de reprise Product", "contenu": "Si la passation vise le même Agent Product principal dans une nouvelle conversation, lancer aussi `arka-norn agent handoff-prompt --project <project-id> [--feature <feature-id>]`. Transmettre ce prompt intégralement : il réutilise la même identité Product et la session `main` au lieu de créer un nouvel Agent." }
   ],
   "format_sortie": "```markdown\n## Handoff — <sujet>\nDe : <agent_emetteur> → À : <agent_destinataire>\nÉtape : <etape_pipeline_concernee>\n\n## Travail effectué\n## Travail restant\n## Blocages\n```"
 }

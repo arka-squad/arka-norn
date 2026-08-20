@@ -21,12 +21,14 @@ export function createAgentSceneController(app: TuiApp, agentsPort: ForAgents): 
   };
 
   async function pushRegistry(project: Project, onChanged: (agents: readonly AgentRegistration[], current: AgentRegistration | undefined) => void): Promise<void> {
-    const [agents, current] = await Promise.all([agentsPort.list(project), agentsPort.current(project)]);
+    const [agents, current, sessions] = await Promise.all([agentsPort.list(project), agentsPort.current(project), agentsPort.sessions(project)]);
     onChanged(agents, current);
     app.push(createAgentRegistryView({
       project,
       agents,
       ...(current === undefined ? {} : { currentAgentId: current.id.value }),
+      sessionId: agentsPort.sessionId.value,
+      sessionBindings: sessions.map((binding) => ({ sessionId: binding.sessionId.value, agentId: binding.agent.id.value })),
       onBack: () => app.pop(),
       onRegister: () => registerFlow(project, onChanged),
       onOpenAgent: (agent) => openDetail(project, agent, current?.id.value === agent.id.value, onChanged),
@@ -35,6 +37,24 @@ export function createAgentSceneController(app: TuiApp, agentsPort: ForAgents): 
 
   function registerFlow(project: Project, onChanged: (agents: readonly AgentRegistration[], current: AgentRegistration | undefined) => void): void {
     prompt("Nouvel agent — provider", "Exemple : Codex CLI, Claude Code, Antigravity", "", true, (provider) => {
+      if (agentsPort.sessionId.value === "main") {
+        prompt(
+          "Product principal — responsabilités",
+          "La session main organise le Project et les autres Agents ; séparez par des points-virgules",
+          "organisation produit;priorisation;coordination des Agents;validation des décisions utilisateur",
+          true,
+          (responsibilities) => {
+            void runMutation(
+              project,
+              false,
+              () => agentsPort.register({ project, provider, role: "product", responsibilities: split(responsibilities, ";") }),
+              "Product principal enregistré",
+              onChanged,
+            );
+          },
+        );
+        return;
+      }
       prompt("Nouvel agent — rôle", "Exemple : dev, qa, audit, architecte", "dev", true, (role) => {
         prompt("Périmètre — Features", "IDs séparés par des virgules ; vide = toutes les Features du Project", "", false, (features) => {
           prompt("Périmètre — chemins", "Chemins relatifs séparés par des virgules ; vide = tout le Project", "", false, (paths) => {

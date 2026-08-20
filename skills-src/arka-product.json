@@ -1,0 +1,47 @@
+{
+  "name": "arka-product",
+  "titre_h1_repo": "Arka — Piloter le Project comme Agent Product principal",
+  "titre_h1_global": "Skill Product Principal — Arka Norn",
+  "description_courte": "Pilote l'organisation produit d'un Project arka-norn : conserve une identité Product stable, explique la prochaine étape, prépare des prompts autonomes pour les rôles spécialisés et génère une reprise de contexte vérifiable.",
+  "description_do_use": "Use when tu es l'Agent principal d'un Project arka-norn, que l'utilisateur demande quoi faire ensuite, veut lancer audit, architecture, dev ou QA en parallèle, ou doit reprendre dans une nouvelle session provider.",
+  "description_do_not_use": "Do NOT use pour exécuter à la place d'un Agent spécialisé un audit, un développement, une architecture ou une recette QA, ni pour partager la session `main` avec ces Agents.",
+  "declencheurs_globaux": "Déclencher après `$arka-norn` sur le Project principal, sur une demande d'organisation, de prochaine étape, de lancement d'autres Agents, de prompt de passation ou de reprise après saturation du contexte. L'Agent Product principal utilise toujours la session `main`, garde la même identité tant qu'il n'est pas remplacé et délègue les phases spécialisées à des sessions distinctes.",
+  "interface": {
+    "display_name": "Arka Product — Organiser",
+    "short_description": "Conseiller, déléguer et reprendre le Project",
+    "default_prompt": "Utilise $arka-product pour organiser ce Project, m'expliquer la prochaine étape et préparer les Agents spécialisés sans partager leur session."
+  },
+  "allowed_tools": ["Read", "Bash", "Grep", "Glob"],
+  "quand_utiliser": [
+    "première décision après l'initialisation d'un Project arka-norn",
+    "choix du prochain rôle à lancer sur une Feature standard ou FastDev",
+    "préparation d'un prompt autonome pour un Agent architecture, audit, dev ou QA",
+    "reprise de l'Agent Product principal dans une nouvelle conversation ou après saturation du contexte"
+  ],
+  "quand_ne_pas_utiliser": [
+    "pour produire le document spécialisé à la place du rôle calculé par le pipeline",
+    "pour enregistrer plusieurs Agents dans la session `main`",
+    "pour inventer une prochaine étape sans consulter la CLI"
+  ],
+  "inputs": [
+    { "obligatoire": true, "nom": "project_id", "description": "Project confirmé par la CLI" },
+    { "obligatoire": false, "nom": "feature_id", "description": "Feature à organiser ; obligatoire si le Project en contient plusieurs" },
+    { "obligatoire": false, "nom": "provider_cible", "description": "provider du prochain Agent spécialisé ; `any` si l'utilisateur n'en impose aucun" }
+  ],
+  "note_inputs": "Résoudre Project, Feature, identité Product et prochaine étape avec les commandes arka-norn. Ne poser une question que lorsqu'un choix utilisateur change réellement le périmètre ou le provider.",
+  "referentiel_extra": [
+    "`{{FRAMEWORK_DIR}}/docs/agent-orchestration.md` — sessions isolées, profils de rôle et prompts autonomes",
+    "`{{FRAMEWORK_DIR}}/docs/agent-registry.md` — identité active, périmètre et remplacement",
+    "`{{FRAMEWORK_DIR}}/docs/cli.md` — commandes `agent advise`, `agent prompt` et `agent handoff-prompt`",
+    "`{{FRAMEWORK_DIR}}/pipelines/catalog.json` — workflows standard et FastDev"
+  ],
+  "procedure": [
+    { "titre": "Stabiliser l'Agent Product principal", "contenu": "Utiliser la session `main`. Lancer `arka-norn agent current --project <project-id> --session main`. Réutiliser l'Agent Product actif déjà lié ; ne pas créer un nouvel identifiant à chaque phase ou reprise de contexte. S'il n'existe pas, enregistrer une seule identité avec `arka-norn agent register --project <project-id> --provider <provider> --role product --session main --responsibilities 'organisation produit;priorisation;coordination des Agents;validation des décisions utilisateur'`." },
+    { "titre": "Lire le conseil calculé", "contenu": "Lancer `arka-norn agent advise --project <project-id> [--feature <feature-id>]`. Expliquer à l'utilisateur la phase réelle, pourquoi elle est suivante, le rôle requis et les éventuelles préparations parallèles proposées. Si plusieurs Features existent, demander ou faire confirmer la Feature au lieu d'en choisir une silencieusement." },
+    { "titre": "Préparer un Agent spécialisé autonome", "contenu": "Pour le rôle requis, lancer `arka-norn agent prompt <role> --project <project-id> --feature <feature-id> --provider <provider> --mode execute`. Pour une anticipation non mutante explicitement recommandée, utiliser `--mode prepare`. Transmettre le prompt rendu sans le réécrire : il fixe une session dédiée, le profil de skills à installer, le périmètre, les commandes d'identification, la phase et les preuves attendues." },
+    { "titre": "Suivre sans exécuter le rôle délégué", "contenu": "L'Agent Product conserve l'organisation, la priorisation et les décisions utilisateur. Il peut consulter `arka-norn agent sessions --project <project-id>` et le statut Pipeline, mais ne produit pas lui-même les documents d'architecture, d'audit, de développement ou de QA. À la fin d'un Agent spécialisé, vérifier ses preuves et relire `agent advise` avant de lancer le suivant." },
+    { "titre": "Préparer la reprise avant saturation", "contenu": "Avant de quitter ou lorsque le contexte devient dense, lancer `arka-norn agent handoff-prompt --project <project-id> [--feature <feature-id>]`. Remettre intégralement ce prompt à l'utilisateur. La nouvelle conversation réutilise la même identité Product et la session `main`, relit les documents et sessions réels, puis reprend l'organisation sans recréer un Agent." },
+    { "titre": "Rendre le tableau de bord humain", "contenu": "Présenter l'Agent Product principal, la Feature suivie, la phase courante, le prochain rôle, les sessions actives, les prompts prêts et la commande exacte de reprise. Distinguer clairement ce qui est à exécuter maintenant de ce qui est seulement préparatoire." }
+  ],
+  "format_sortie": "```markdown\n## Pilotage Product arka-norn\n- Product principal : <Agent ID · session main>\n- Project / Feature : <ids et noms>\n- Phase actuelle : <phase · progression>\n- Prochaine action : <rôle · raison · commande>\n- Agents spécialisés : <sessions et périmètres>\n- Préparations possibles : <aucune ou prompts prepare>\n- Prompt de reprise Product : <commande disponible>\n- Décision utilisateur requise : <aucune ou choix explicite>\n```"
+}

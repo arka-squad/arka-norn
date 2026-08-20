@@ -21,7 +21,7 @@ Depuis un agent provider : /arka-norn (Claude) ou $arka-norn (Codex)
 Gestion :
   project <list|add|import|scan|show|use|forget|reconcile>
   feature <list|create|import|scan|show|use|forget|reconcile|set-workflow>
-  agent <list|register|show|current|use|deactivate|replace>
+  agent <list|register|show|current|use|sessions|advise|prompt|handoff-prompt|deactivate|replace>
   pipeline <status|next|scaffold|validate>
   workflow <list|show>
   fastdev <start|status|next>
@@ -63,10 +63,10 @@ Depuis un agent provider
    arka-norn project scan <racine>
    arka-norn project list
 
-3. S'identifier avant de produire
+3. S'identifier comme Product principal
    arka-norn agent list --project <project-id> --active
-   arka-norn agent register --project <project-id> --provider "Codex CLI" --role dev
-   arka-norn agent current --project <project-id>
+   arka-norn agent register --project <project-id> --provider "Codex CLI" --role product --session main
+   arka-norn agent current --project <project-id> --session main
 
 4. Déclarer ou ouvrir la Feature
    arka-norn feature list --project <project-id>
@@ -74,15 +74,22 @@ Depuis un agent provider
    arka-norn feature create "Nom" --project <project-id> --path <dossier>
    arka-norn fastdev start "Rework" --project <project-id>
 
-5. Suivre la prochaine action calculée
+5. Obtenir le conseil et le prompt du rôle calculé
+   arka-norn agent advise --project <project-id> --feature <feature-id>
+   arka-norn agent prompt <rôle> --project <project-id> --feature <feature-id> --mode execute
+
+6. Suivre la prochaine action calculée dans la session spécialisée
    arka-norn pipeline status <feature-id>
    arka-norn pipeline next <feature-id>
-   arka-norn pipeline scaffold <step-id> --feature <feature-id>
+   arka-norn pipeline scaffold <step-id> --feature <feature-id> --session <session-id>
 
-6. Remplir puis valider le document signé
+7. Remplir puis valider le document signé
    arka-norn pipeline validate <feature-id> --document <fichier.json>
 
-Règle : ne devinez jamais Project, Feature, Agent ou prochaine étape. Les commandes list/show/current/next sont les sources de vérité.
+8. Avant une nouvelle conversation Product
+   arka-norn agent handoff-prompt --project <project-id> --feature <feature-id>
+
+Règle : ne devinez jamais Project, Feature, Agent, session ou prochaine étape. Les commandes list/show/current/sessions/advise/next sont les sources de vérité.
 `;
 export async function runCli(argv) {
     const command = argv[0];
@@ -106,7 +113,7 @@ export async function runCli(argv) {
             return runSelftest(rest);
         const env = readEnv(process.env, process.cwd());
         const homeDir = env.homeDir ?? homedir();
-        const pipelineContext = { cwd: env.cwd, homeDir, frameworkRoot: FRAMEWORK_ROOT };
+        const pipelineContext = { cwd: env.cwd, homeDir, frameworkRoot: FRAMEWORK_ROOT, sessionId: env.agentSessionId };
         let result;
         switch (command) {
             case "project":
@@ -115,7 +122,7 @@ export async function runCli(argv) {
                 result = await runManagementCommand([command, ...rest], { homeDir, cwd: env.cwd });
                 break;
             case "agent":
-                result = await runAgentCommand(rest, { homeDir });
+                result = await runAgentCommand(rest, { homeDir, cwd: env.cwd, frameworkRoot: FRAMEWORK_ROOT, sessionId: env.agentSessionId });
                 break;
             case "pipeline":
                 result = await runPipelineCommand(rest, pipelineContext);

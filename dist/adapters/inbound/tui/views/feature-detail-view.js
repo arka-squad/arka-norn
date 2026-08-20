@@ -50,6 +50,14 @@ export function createFeatureDetailView(deps) {
                 status = "Action indisponible.";
                 deps.redraw();
                 return;
+            case "action:orchestrate":
+                if (deps.onOrchestrate !== undefined) {
+                    await run(() => deps.onOrchestrate(deps.feature));
+                    return;
+                }
+                status = "Action indisponible.";
+                deps.redraw();
+                return;
             case "action:scaffold":
                 if (deps.onScaffold !== undefined) {
                     await run(() => deps.onScaffold(deps.feature));
@@ -143,6 +151,7 @@ export function createFeatureDetailView(deps) {
             `  ${theme.gray(deps.feature.root)}`,
             `  État : ${theme.arkaAccent(cockpit.overallStatus)} · ${cockpit.progress}`,
             `  Agent auteur : ${deps.currentAgentId ?? "aucun — revenez au Project > Gérer les agents"}`,
+            `  Session Agent : ${deps.sessionId ?? "main"} · la sélection est isolée des autres sessions`,
             `  Prochaine action : ${cockpit.nextAction}`,
             `  Pourquoi : ${cockpit.nextReason}`,
             `  Runs : dev=${cockpit.developmentRuns} QA=${cockpit.qaRuns} échecs=${cockpit.qaFailures} · dettes=${cockpit.debtDocuments} · handoffs=${cockpit.handoffSignals}`,
@@ -192,6 +201,7 @@ export function createFeatureDetailView(deps) {
     function buildMenuItems() {
         return [
             { label: deps.feature.pipelineId === "arka-norn-fastdev" ? "Continuer le rework" : "Continuer la Feature", value: "action:continue", description: "ouvre l'action guidée, sa raison, ses preuves et sa commande" },
+            { label: "Organiser les agents / préparer une reprise", value: "action:orchestrate", description: "conseil Product, prompts parallèles et nouveau contexte principal" },
             { label: "Voir le diagnostic complet", value: "action:status", description: "présence, schéma, métier, dépendances et raison de blocage" },
             { label: "Scaffold manuel", value: "action:scaffold", description: deps.currentAgentId === undefined ? "bloqué : sélectionnez d’abord un agent dans le Project" : `action secondaire · document v3 signé par ${deps.currentAgentId}` },
             { label: "Valider un document rempli", value: "action:validate", description: "détecte champs manquants, sentinelles et contrat invalide" },

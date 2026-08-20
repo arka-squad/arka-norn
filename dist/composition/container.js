@@ -36,13 +36,15 @@ import { loadProjectMetrics, metricsFromReport } from "./tui/project-dashboard.j
 import { createResourceConfirmationController } from "./tui/resource-confirmation-controller.js";
 import { showHealthReport, showSkillInstallation } from "./tui/skill-scene-controller.js";
 import { createAgentSceneController } from "./tui/agent-scene-controller.js";
+import { createAgentOrchestrationRuntime } from "./agent-orchestration-runtime.js";
+import { createAgentOrchestrationSceneController } from "./tui/agent-orchestration-scene-controller.js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // dist/composition/container.js -> remonte de 2 niveaux vers la racine du framework.
 const FRAMEWORK_ROOT = resolve(__dirname, "..", "..");
 export function createContainer(env, ui = {}) {
     const filesystem = new FsFilesystem();
     const homeDir = env.homeDir ?? filesystem.homeDir();
-    const management = createManagementRuntime({ homeDir, logLevel: env.logLevel });
+    const management = createManagementRuntime({ homeDir, logLevel: env.logLevel, sessionId: env.agentSessionId });
     const projects = management.projects;
     const scanProjects = management.scanProjects;
     const features = management.features;
@@ -74,6 +76,8 @@ export function createContainer(env, ui = {}) {
     });
     const pipelineScenes = createPipelineSceneController(app, pipeline);
     const agentScenes = createAgentSceneController(app, management.agents);
+    const orchestration = createAgentOrchestrationRuntime({ ...management, pipeline });
+    const orchestrationScenes = createAgentOrchestrationSceneController(app, orchestration);
     const confirmations = createResourceConfirmationController({
         app,
         projects,
@@ -103,10 +107,12 @@ export function createContainer(env, ui = {}) {
             feature,
             report,
             ...(currentAgent === undefined ? {} : { currentAgentId: currentAgent.id.value }),
+            sessionId: env.agentSessionId.value,
             redraw: () => app.redraw(),
             onBack: () => app.pop(),
             onShowStatus: (selected) => pipelineScenes.showStatus(selected),
             onContinue: (selected) => pipelineScenes.showGuidance(selected),
+            onOrchestrate: (selected) => orchestrationScenes.openFeatureOrchestration(selected),
             onScaffold: async (selected) => {
                 const project = await projects.show(selected.projectId);
                 const agent = await management.agents.current(project);
@@ -139,6 +145,7 @@ export function createContainer(env, ui = {}) {
             initialMetrics,
             initialAgents,
             ...(currentAgent === undefined ? {} : { currentAgentId: currentAgent.id.value }),
+            sessionId: env.agentSessionId.value,
             features,
             scan,
             redraw: () => app.redraw(),
@@ -153,6 +160,7 @@ export function createContainer(env, ui = {}) {
                 uiState.currentAgent = current;
                 projectView.setAgents(agents, current?.id.value);
             }),
+            onShowProductAdvice: (selected) => orchestrationScenes.showProjectAdvice(selected),
         });
         app.push(projectView);
     }

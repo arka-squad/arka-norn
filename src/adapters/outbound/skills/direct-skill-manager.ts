@@ -10,8 +10,8 @@ export class DirectSkillManager implements SkillManager {
     this.frameworkRoot = frameworkRoot;
   }
 
-  public inspect(target: string): Promise<SkillHealth> {
-    const definitions = inspectSkills(this.frameworkRoot, target);
+  public inspect(target: string, profile = "all"): Promise<SkillHealth> {
+    const definitions = inspectSkills(this.frameworkRoot, target, profile);
     let healthy = 0;
     let missing = 0;
     let divergent = 0;
@@ -23,10 +23,10 @@ export class DirectSkillManager implements SkillManager {
     return Promise.resolve({ total: definitions.length, healthy, missing, divergent });
   }
 
-  public install(input: { readonly target: string; readonly global?: boolean; readonly force?: boolean }): Promise<SkillInstallResult> {
+  public install(input: { readonly target: string; readonly profile?: string; readonly global?: boolean; readonly force?: boolean }): Promise<SkillInstallResult> {
     const result = installSkills(this.frameworkRoot, {
       target: input.target,
-      profile: "all",
+      profile: input.profile ?? "all",
       ...(input.global === undefined ? {} : { global: input.global }),
       ...(input.global === true ? { globalHome: homedir() } : {}),
       ...(input.force === undefined ? {} : { force: input.force }),

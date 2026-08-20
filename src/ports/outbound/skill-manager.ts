@@ -11,6 +11,6 @@ export interface SkillInstallResult {
 }
 
 export interface SkillManager {
-  inspect(target: string): Promise<SkillHealth>;
-  install(input: { readonly target: string; readonly global?: boolean; readonly force?: boolean }): Promise<SkillInstallResult>;
+  inspect(target: string, profile?: string): Promise<SkillHealth>;
+  install(input: { readonly target: string; readonly profile?: string; readonly global?: boolean; readonly force?: boolean }): Promise<SkillInstallResult>;
 }

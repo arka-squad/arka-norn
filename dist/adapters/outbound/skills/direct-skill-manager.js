@@ -5,8 +5,8 @@ export class DirectSkillManager {
     constructor(frameworkRoot) {
         this.frameworkRoot = frameworkRoot;
     }
-    inspect(target) {
-        const definitions = inspectSkills(this.frameworkRoot, target);
+    inspect(target, profile = "all") {
+        const definitions = inspectSkills(this.frameworkRoot, target, profile);
         let healthy = 0;
         let missing = 0;
         let divergent = 0;
@@ -23,7 +23,7 @@ export class DirectSkillManager {
     install(input) {
         const result = installSkills(this.frameworkRoot, {
             target: input.target,
-            profile: "all",
+            profile: input.profile ?? "all",
             ...(input.global === undefined ? {} : { global: input.global }),
             ...(input.global === true ? { globalHome: homedir() } : {}),
             ...(input.force === undefined ? {} : { force: input.force }),

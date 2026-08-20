@@ -17,12 +17,14 @@ export function createDoctorRuntime(homeDir: string, targetDir: string = process
   const inspector: DoctorIndexInspector = {
     inspectIndex: (kind, repair, apply) => filesystem.inspectIndex(kind, repair, apply),
     async inspectRuntime(repair, apply): Promise<readonly IndexInspection[]> {
-      const [runtime, skillHealth, pipelineInspection] = await Promise.all([
+      const [runtime, coreSkillHealth, allSkillHealth, pipelineInspection] = await Promise.all([
         filesystem.inspectRuntime(repair, apply),
-        skills.inspect(targetDir),
+        skills.inspect(targetDir, "core"),
+        skills.inspect(targetDir, "all"),
         inspectPipelineCatalog(pipelines),
       ]);
-      const skillStatus = skillHealth.divergent > 0 ? "fail" : skillHealth.missing > 0 ? "warn" : "pass";
+      const skillStatus = allSkillHealth.divergent > 0 ? "fail" : coreSkillHealth.missing > 0 ? "warn" : "pass";
+      const optionalMissing = allSkillHealth.missing - coreSkillHealth.missing;
       return [
         ...runtime,
         pipelineInspection,
@@ -30,8 +32,8 @@ export function createDoctorRuntime(homeDir: string, targetDir: string = process
           check: {
             id: "skills.installation",
             status: skillStatus,
-            message: `${skillHealth.healthy}/${skillHealth.total} healthy, ${skillHealth.missing} missing, ${skillHealth.divergent} divergent`,
-            repairable: skillStatus !== "pass",
+            message: `${coreSkillHealth.healthy}/${coreSkillHealth.total} core healthy; ${Math.max(0, optionalMissing)} optional missing; ${allSkillHealth.divergent} divergent`,
+            repairable: skillStatus !== "pass" || optionalMissing > 0,
           },
         },
       ];

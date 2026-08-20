@@ -106,12 +106,13 @@ export async function runSelftest() {
     check("TUI hors TTY : message explicite sur stderr", (result.stderr ?? "").includes("nécessite un terminal interactif"), result.stderr ?? "");
   }
 
-  console.log("\n=== 7. Catalogue partagé : exactement 17 skills, dont bootstrap/FastDev/maîtrise/audit/dev/QA ===");
+  console.log("\n=== 7. Catalogue partagé : exactement 18 skills, dont Product/FastDev/maîtrise/audit/dev/QA ===");
   {
     const catalog = loadJson(path.join(FRAMEWORK_ROOT, "skills-src", "catalog", "skills.json"));
     const names = catalog.skills.map((skill) => skill.name);
-    check("catalogue contient exactement 17 skills", names.length === 17 && new Set(names).size === 17, names.join(", "));
+    check("catalogue contient exactement 18 skills", names.length === 18 && new Set(names).size === 18, names.join(", "));
     check("catalogue contient le bootstrap arka-norn", names.includes("arka-norn"), names.join(", "));
+    check("catalogue contient le pilotage Product", names.includes("arka-product"), names.join(", "));
     check("catalogue contient FastDev", names.includes("arka-fastdev"), names.join(", "));
     check("catalogue contient maîtrise", names.includes("arka-framework-maitrise"), names.join(", "));
     check("catalogue contient audit", names.includes("arka-framework-audit"), names.join(", "));
@@ -119,7 +120,7 @@ export async function runSelftest() {
     check("catalogue contient recette QA", names.includes("arka-framework-recette-qa"), names.join(", "));
     const listed = spawnSync(process.execPath, [BIN, "skills", "list", "--json"], { cwd: FRAMEWORK_ROOT, encoding: "utf8" });
     const listedData = listed.status === 0 ? JSON.parse(listed.stdout).data : [];
-    check("CLI skills list consomme les mêmes 17 entrées", listed.status === 0 && listedData.length === 17, `${listed.stdout ?? ""}${listed.stderr ?? ""}`);
+    check("CLI skills list consomme les mêmes 18 entrées", listed.status === 0 && listedData.length === 18, `${listed.stdout ?? ""}${listed.stderr ?? ""}`);
   }
 
   console.log("\n=== 8. Intégrité de l'environnement ===");

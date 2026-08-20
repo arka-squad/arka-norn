@@ -19,11 +19,11 @@ arka-norn est un plan de contrôle local-first pour des Projects et leurs Featur
 - Project : `<project>/.arka-norn/project.json`.
 - Feature : `<feature>/.arka-norn/feature.json`.
 - Registre Agents : `<project>/.arka-norn/agents.json`.
-- Agent courant : `~/.arka-norn/context/agents.json`, contexte privé reconstructible.
+- Agents courants par session : `~/.arka-norn/context/agents.json`, contexte privé reconstructible au format v2.
 - Documents : JSON de la Feature, validés par les schémas et le graphe Pipeline.
 - Index : `~/.arka-norn/index/*.json`, caches privés reconstructibles.
 - Catalogue pipelines : `pipelines/catalog.json`, résolu sans chemin fourni par l’utilisateur.
-- Catalogue skills : `skills-src/catalog/skills.json` et les 17 sources JSON référencées.
+- Catalogue skills : `skills-src/catalog/skills.json` et les 18 sources JSON référencées.
 
 Les marqueurs Project/Feature v3 ne stockent aucun chemin machine. Les adapters dérivent la racine runtime du dossier canonique qui contient le marqueur ; seuls les index locaux enregistrent des chemins absolus. Un clone ou un déplacement conserve ainsi sa source de vérité, puis un scan reconstruit le cache de la machine courante. Si l'ancien emplacement indexé n'est plus lisible, le cache est relocalisé atomiquement ; si les deux emplacements portent encore la même identité, le doublon actif est refusé.
 
@@ -33,7 +33,9 @@ Les documents historiques utilisent l’enveloppe v2. Tout nouveau scaffold util
 `schema_version`, `sequence`, `created_at` et relations explicites. Le moteur
 rejette IDs dupliqués, cardinalités interdites, relations inconnues et cycles.
 
-Le domaine Agent est séparé des marqueurs pour ne pas coupler leur version. Son adapter sérialise les inscriptions et remplacements sous un lock par Project ; les use cases CLI/TUI partagent exactement les mêmes transitions. `doctor` vérifie la chaîne session locale → Project indexé → marqueur → registre → Agent actif et contrôle aussi le contexte Project du répertoire ciblé.
+Le domaine Agent est séparé des marqueurs pour ne pas coupler leur version. Son adapter sérialise les inscriptions et remplacements sous un lock par Project ; les use cases CLI/TUI partagent exactement les mêmes transitions. La sélection privée v2 est indexée par `AgentSessionId` puis `ProjectId`, avec lecture compatible du format v1 dans `main`. Le Product principal occupe `main`; chaque provider spécialisé possède sa propre session. `doctor` vérifie chaque chaîne session locale → Project indexé → marqueur → registre → Agent actif et contrôle aussi le contexte Project du répertoire ciblé.
+
+La politique pure `application/agents/agent-orchestration` mappe la prochaine étape au rôle autorisé, distingue exécution et préparation, choisit la skill/profil et construit les prompts sans mutation. Le runtime compose Projects, Features, registre, sessions et `PipelineReport`; la CLI et le contrôleur TUI ne réimplémentent aucune règle.
 
 ## Transactions locales
 

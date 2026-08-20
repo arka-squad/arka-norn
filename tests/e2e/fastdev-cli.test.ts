@@ -48,7 +48,7 @@ test("workflow et FastDev offrent un parcours CLI humain et JSON sans décision 
   assert.match(next.json.data.suggestedCommand, /pipeline scaffold cadrage_rework/);
 
   const agent = run<{ readonly id: string }>([
-    "agent", "register", "--project", "project", "--provider", "Codex", "--role", "dev", "--features", started.json.data.id, "--json",
+    "agent", "register", "--project", "project", "--provider", "Codex", "--role", "product", "--features", started.json.data.id, "--session", "main", "--json",
   ], home, projectRoot);
   assert.equal(agent.status, 0, agent.stderr);
   const scaffolded = run<{ readonly outputPath: string }>([
@@ -72,7 +72,7 @@ test("set-workflow est autorisé uniquement avant le premier document reconnu", 
   assert.equal(changed.status, 0, changed.stderr);
   assert.equal(changed.json.data.pipelineId, "arka-norn-fastdev");
 
-  const agent = run<{ readonly id: string }>(["agent", "register", "--project", "project", "--provider", "Codex", "--role", "dev", "--json"], home, projectRoot);
+  const agent = run<{ readonly id: string }>(["agent", "register", "--project", "project", "--provider", "Codex", "--role", "product", "--session", "main", "--json"], home, projectRoot);
   assert.equal(agent.status, 0);
   assert.equal(run(["pipeline", "scaffold", "cadrage_rework", "--feature", "feature", "--json"], home, projectRoot).status, 0);
   const refused = run(["feature", "set-workflow", "feature", "--workflow", "standard", "--json"], home, projectRoot);

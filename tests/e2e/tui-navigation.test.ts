@@ -8,6 +8,7 @@ import type { InputSource, KeyEvent, KeyListener } from "../../src/adapters/inbo
 import { createRenderer } from "../../src/adapters/inbound/tui/runtime/render.ts";
 import { createTheme } from "../../src/adapters/inbound/tui/runtime/theme.ts";
 import { FeatureId } from "../../src/domain/feature/feature-id.ts";
+import { AgentSessionId } from "../../src/domain/agent/agent-session-id.ts";
 import { ProjectId } from "../../src/domain/project/project-id.ts";
 import { createContainer } from "../../src/composition/container.ts";
 import { createManagementRuntime } from "../../src/composition/management-runtime.ts";
@@ -20,14 +21,14 @@ test("la composition TUI pilote Home → Project → Feature → scaffold réel"
   mkdirSync(featureRoot, { recursive: true });
   context.after(() => rmSync(sandbox, { recursive: true, force: true }));
 
-  const management = createManagementRuntime({ homeDir: sandbox });
+  const management = createManagementRuntime({ homeDir: sandbox, sessionId: AgentSessionId.of("dev-feature") });
   const project = await management.projects.create({ id: ProjectId.of("project"), name: "Project", root: projectRoot });
   await management.features.create({ id: FeatureId.of("feature"), projectId: project.id, name: "Feature", root: featureRoot });
   const author = await management.agents.register({ project, provider: "Codex", role: "dev", featureIds: [FeatureId.of("feature")] });
 
   const input = controlledInput();
   const renderer = createRenderer({ write: () => true, isTTY: false });
-  const env = readEnv({ ARKA_NORN_HOME: sandbox }, projectRoot);
+  const env = readEnv({ ARKA_NORN_HOME: sandbox, ARKA_NORN_SESSION: "dev-feature" }, projectRoot);
   const container = createContainer(env, {
     input: input.source,
     renderer,
@@ -47,11 +48,13 @@ test("la composition TUI pilote Home → Project → Feature → scaffold réel"
   input.send({ kind: "down" });
   input.send({ kind: "down" });
   input.send({ kind: "down" });
+  input.send({ kind: "down" });
   input.send({ kind: "enter" });
   await waitUntil(() => container.app.topScene() !== projectScene, "ouverture Feature");
   const featureScene = container.app.topScene();
   assert.ok(featureScene);
 
+  input.send({ kind: "down" });
   input.send({ kind: "down" });
   input.send({ kind: "down" });
   input.send({ kind: "enter" });
@@ -102,6 +105,7 @@ test("la TUI enregistre et sélectionne une identité Agent sans connaissance im
   input.send({ kind: "down" });
   input.send({ kind: "down" });
   input.send({ kind: "down" });
+  input.send({ kind: "down" });
   input.send({ kind: "enter" });
   await waitUntil(() => container.app.topScene() !== projectScene, "ouverture registre Agent");
   const registryScene = container.app.topScene();
@@ -112,10 +116,6 @@ test("la TUI enregistre et sélectionne une identité Agent sans connaissance im
   sendText(input.send, "Codex CLI");
   input.send({ kind: "enter" });
   input.send({ kind: "enter" });
-  input.send({ kind: "enter" });
-  input.send({ kind: "enter" });
-  sendText(input.send, "implémentation;QA");
-  input.send({ kind: "enter" });
 
   await waitUntil(() => {
     const top = container.app.topScene();
@@ -124,9 +124,9 @@ test("la TUI enregistre et sélectionne une identité Agent sans connaissance im
   const agents = await management.agents.list(project);
   const current = await management.agents.current(project);
   assert.equal(agents.length, 1);
-  assert.match(agents[0]!.id.value, /^Codex-CLI_dev_\d{8}$/);
+  assert.match(agents[0]!.id.value, /^Codex-CLI_product_\d{8}$/);
   assert.equal(current?.id.value, agents[0]!.id.value);
-  assert.deepEqual(agents[0]!.scope.responsibilities, ["implémentation", "QA"]);
+  assert.deepEqual(agents[0]!.scope.responsibilities, ["organisation produit", "priorisation", "coordination des Agents", "validation des décisions utilisateur"]);
 
   input.send({ kind: "interrupt" });
   await running;

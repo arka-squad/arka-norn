@@ -20,9 +20,10 @@ Sont non fiables : roots fournis, markers, symlinks, noms, JSON, environnement, 
   sur son dossier parent. Le reaper n'est créé que pour un lock réellement
   stale.
 - Les install/scaffold refusent l’écrasement implicite.
+- Les identifiants de session suivent `[a-z][a-z0-9-]{0,63}`. Un Agent spécialisé ne partage pas la sélection `main`; un prompt `execute` est refusé si son rôle ne correspond pas à la prochaine étape calculée. Le mode `prepare` interdit toute écriture.
 - Toute mutation exige l’écriture préalable d’une intention dans le journal
   d’audit ; un échec empêche la mutation. Le journal masque les secrets, tourne
   à 2 Mio et conserve au plus cinq archives.
 - Aucun shell n’est utilisé pour piloter la TUI ou les cas d’usage.
 
-`arka-norn doctor --repair` ne modifie rien. Ajouter `--apply` pour isoler l’index corrompu dans un backup puis le réinitialiser. Le diagnostic couvre aussi markers, locks, audit trail, cohérence des sessions Agents, contexte Project courant et installation locale des skills. `arka-norn skills doctor --global` ajoute le contrôle des installations Claude/Codex du profil utilisateur. Les scans explicites reconstruisent ensuite les index depuis les markers valides.
+`arka-norn doctor --repair` ne modifie rien. Ajouter `--apply` pour isoler l’index corrompu dans un backup puis le réinitialiser. Le diagnostic couvre aussi markers, locks, audit trail, toutes les sessions Agents, contexte Project courant et installation locale des skills. Un socle `core` complet est sain même si des profils spécialisés ne sont pas encore installés ; une divergence reste un échec. `arka-norn skills doctor --global` ajoute le contrôle des installations Claude/Codex du profil utilisateur.

@@ -4,6 +4,7 @@ import { createManagementRuntime } from "../../../composition/management-runtime
 import { createPipelineRuntime } from "../../../composition/pipeline-runtime.js";
 import { FeatureId } from "../../../domain/feature/feature-id.js";
 import { AgentId } from "../../../domain/agent/agent-id.js";
+import { AgentSessionId } from "../../../domain/agent/agent-session-id.js";
 import { AgentInactiveError, AgentScopeViolationError } from "../../../domain/errors.js";
 import { FsFeatureStore } from "../../outbound/filesystem/fs-feature-store.js";
 import { pipelineExitCode, pipelineReportEnvelope, presentPipelineReport } from "./presenters/pipeline-report-presenter.js";
@@ -12,7 +13,7 @@ export async function runStatusCommand(argv, context) {
     const json = argv.includes("--json");
     try {
         const parsed = parseStrictArguments(argv, { options: { json: "boolean" }, minPositionals: 0, maxPositionals: 1 });
-        const target = await resolveFeatureTarget(parsed.positionals[0] ?? context.cwd, context.cwd, createManagementRuntime({ homeDir: context.homeDir }));
+        const target = await resolveFeatureTarget(parsed.positionals[0] ?? context.cwd, context.cwd, createManagementRuntime({ homeDir: context.homeDir, sessionId: context.sessionId }));
         const report = withTargetWarnings(await createPipelineRuntime(context.frameworkRoot).inspect(inspectInput(target)), target.warnings);
         return {
             code: pipelineExitCode(report),
@@ -63,7 +64,7 @@ async function managedScaffoldContext(outputPath, authorAgentId, context) {
     if (featureRoot === undefined)
         return undefined;
     const feature = await new FsFeatureStore().load(featureRoot);
-    const management = createManagementRuntime({ homeDir: context.homeDir });
+    const management = createManagementRuntime({ homeDir: context.homeDir, sessionId: context.sessionId });
     const project = await management.projects.show(feature.projectId);
     const agent = await management.agents.show(project, AgentId.of(authorAgentId));
     if (!agent.active)
@@ -110,7 +111,7 @@ export async function runPipelineCommand(argv, context) {
     const rest = argv.slice(1);
     const json = rest.includes("--json");
     try {
-        const management = createManagementRuntime({ homeDir: context.homeDir });
+        const management = createManagementRuntime({ homeDir: context.homeDir, sessionId: context.sessionId });
         const pipeline = createPipelineRuntime(context.frameworkRoot);
         if (action === "status" || action === "next") {
             const parsed = parseStrictArguments(rest, { options: { json: "boolean" }, minPositionals: 1, maxPositionals: 1 });
@@ -146,16 +147,19 @@ export async function runPipelineCommand(argv, context) {
     }
 }
 async function runManagedScaffold(argv, context, management, pipeline, json) {
-    const parsed = parseStrictArguments(argv, { options: { feature: "string", output: "string", agent: "string", json: "boolean", force: "boolean" }, minPositionals: 1, maxPositionals: 1 });
+    const parsed = parseStrictArguments(argv, { options: { feature: "string", output: "string", agent: "string", session: "string", json: "boolean", force: "boolean" }, minPositionals: 1, maxPositionals: 1 });
+    const selectedManagement = parsed.values.get("session") === undefined
+        ? management
+        : createManagementRuntime({ homeDir: context.homeDir, sessionId: AgentSessionId.of(parsed.values.get("session")) });
     const featureId = parsed.values.get("feature");
     if (featureId === undefined)
         throw new CliUsageError("pipeline scaffold requires --feature <id>");
-    const feature = await management.features.show(FeatureId.of(featureId));
-    const project = await management.projects.show(feature.projectId);
+    const feature = await selectedManagement.features.show(FeatureId.of(featureId));
+    const project = await selectedManagement.projects.show(feature.projectId);
     const explicitAgentId = parsed.values.get("agent");
     const agent = explicitAgentId === undefined
-        ? await management.agents.current(project)
-        : await management.agents.show(project, AgentId.of(explicitAgentId));
+        ? await selectedManagement.agents.current(project)
+        : await selectedManagement.agents.show(project, AgentId.of(explicitAgentId));
     if (agent === undefined)
         throw new CliUsageError(`no active agent selected for project ${project.id.value}; use agent register/use or --agent`);
     if (!agent.active)

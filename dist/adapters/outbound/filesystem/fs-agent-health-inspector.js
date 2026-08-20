@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { readRaw } from "./_shared/atomic-json.js";
 import { isProjectIndexFile } from "./_shared/index-codec.js";
 import { FsAgentRegistryStore, agentRegistryPath } from "./fs-agent-registry-store.js";
-import { isAgentSessionFile } from "./fs-agent-session-store.js";
+import { agentSessionSelections, isAgentSessionFile } from "./fs-agent-session-store.js";
 import { FsProjectStore } from "./fs-project-store.js";
 export class FsAgentHealthInspector {
     home;
@@ -23,7 +23,7 @@ export class FsAgentHealthInspector {
             const value = JSON.parse(raw);
             if (!isAgentSessionFile(value))
                 return check("agents.session", "fail", "local agent selection schema invalid");
-            const selections = Object.entries(value.selectedByProject);
+            const selections = agentSessionSelections(value);
             const invalid = await this.invalidSelections(selections);
             if (invalid.length > 0) {
                 return check("agents.session", "fail", `${invalid.length}/${selections.length} invalid local selection(s): ${invalid.slice(0, 3).join(", ")}`);
@@ -107,35 +107,36 @@ export class FsAgentHealthInspector {
             return [];
         const raw = await readRaw(join(this.home, ".arka-norn", "index", "projects.json")).catch(() => undefined);
         if (raw === undefined)
-            return selections.map(([projectId]) => `${projectId}:project-not-indexed`);
+            return selections.map(({ sessionId, projectId }) => `${sessionId}/${projectId}:project-not-indexed`);
         let index;
         try {
             index = JSON.parse(raw);
         }
         catch {
-            return selections.map(([projectId]) => `${projectId}:project-index-invalid`);
+            return selections.map(({ sessionId, projectId }) => `${sessionId}/${projectId}:project-index-invalid`);
         }
         if (!isProjectIndexFile(index))
-            return selections.map(([projectId]) => `${projectId}:project-index-invalid`);
+            return selections.map(({ sessionId, projectId }) => `${sessionId}/${projectId}:project-index-invalid`);
         const projectStore = new FsProjectStore();
         const registryStore = new FsAgentRegistryStore();
-        const checks = await Promise.all(selections.map(async ([projectId, agentId]) => {
+        const checks = await Promise.all(selections.map(async ({ sessionId, projectId, agentId }) => {
+            const prefix = `${sessionId}/${projectId}`;
             const entry = index.entries.find((candidate) => candidate.id === projectId);
             if (entry === undefined)
-                return `${projectId}:project-not-indexed`;
+                return `${prefix}:project-not-indexed`;
             try {
                 const project = await projectStore.load(entry.root);
                 if (project.id.value !== projectId)
-                    return `${projectId}:marker-id-mismatch`;
+                    return `${prefix}:marker-id-mismatch`;
                 if (await readRaw(agentRegistryPath(entry.root)).catch(() => undefined) === undefined)
-                    return `${projectId}:registry-missing`;
+                    return `${prefix}:registry-missing`;
                 const agent = (await registryStore.load(project)).find((candidate) => candidate.id.value === agentId);
                 if (agent === undefined)
-                    return `${projectId}:${agentId}-missing`;
-                return agent.active ? undefined : `${projectId}:${agentId}-inactive`;
+                    return `${prefix}:${agentId}-missing`;
+                return agent.active ? undefined : `${prefix}:${agentId}-inactive`;
             }
             catch {
-                return `${projectId}:project-or-registry-invalid`;
+                return `${prefix}:project-or-registry-invalid`;
             }
         }));
         return checks.filter((item) => item !== undefined);

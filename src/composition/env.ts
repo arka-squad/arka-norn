@@ -6,6 +6,7 @@
 import { dirname, isAbsolute, resolve } from "node:path";
 
 import type { LogLevel } from "../ports/outbound/logger.js";
+import { AgentSessionId } from "../domain/agent/agent-session-id.js";
 
 const DEFAULT_LOG_LEVEL: LogLevel = "info";
 const LOG_LEVELS: readonly LogLevel[] = ["debug", "info", "warn", "error"];
@@ -18,6 +19,7 @@ export interface Env {
   readonly homeDir: string | undefined;
   readonly logLevel: LogLevel;
   readonly cwd: string;
+  readonly agentSessionId: AgentSessionId;
   readonly raw: EnvSource;
 }
 
@@ -26,8 +28,14 @@ export function readEnv(source: EnvSource = process.env, cwd: string = process.c
     homeDir: parseHomeDir(source["ARKA_NORN_HOME"]),
     logLevel: parseLogLevel(source["ARKA_NORN_LOG_LEVEL"]),
     cwd,
+    agentSessionId: parseAgentSessionId(source["ARKA_NORN_SESSION"]),
     raw: source,
   };
+}
+
+function parseAgentSessionId(value: string | undefined): AgentSessionId {
+  if (value === undefined || value.trim() === "") return AgentSessionId.MAIN;
+  return AgentSessionId.of(value.trim());
 }
 
 function parseHomeDir(value: string | undefined): string | undefined {

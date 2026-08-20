@@ -6,7 +6,11 @@ import { test } from "node:test";
 
 import { createDoctorRuntime } from "../../src/composition/doctor-runtime.ts";
 import { createManagementRuntime } from "../../src/composition/management-runtime.ts";
+import { DirectSkillManager } from "../../src/adapters/outbound/skills/direct-skill-manager.ts";
 import { ProjectId } from "../../src/domain/project/project-id.ts";
+import { AgentSessionId } from "../../src/domain/agent/agent-session-id.ts";
+
+const ROOT = resolve(import.meta.dirname, "..", "..");
 
 test("doctor planifie puis applique une récupération avec backup", async (context) => {
   const home = mkdtempSync(join(tmpdir(), "arka-norn-doctor-"));
@@ -77,12 +81,26 @@ test("doctor expose les markers cassés, les locks abandonnés, l'audit et les s
   assert.equal(repaired.checks.find((check) => check.id === "markers.projects")?.status, "fail");
 });
 
+test("doctor considère le socle core prêt même si les skills de rôles restent optionnelles", async (context) => {
+  const home = mkdtempSync(join(tmpdir(), "arka-norn-doctor-core-skills-"));
+  const target = resolve(home, "project");
+  mkdirSync(target, { recursive: true });
+  context.after(() => rmSync(home, { recursive: true, force: true }));
+  const installation = await new DirectSkillManager(ROOT).install({ target, profile: "core" });
+  assert.equal(installation.code, 0, installation.output);
+
+  const report = await createDoctorRuntime(home, target).run();
+  const skills = report.checks.find((check) => check.id === "skills.installation");
+  assert.equal(skills?.status, "pass");
+  assert.match(skills?.message ?? "", /8\/8 core healthy; 10 optional missing; 0 divergent/);
+});
+
 test("doctor valide les registres Agent puis expose toute corruption", async (context) => {
   const home = mkdtempSync(join(tmpdir(), "arka-norn-doctor-agents-"));
   const projectRoot = resolve(home, "project");
   mkdirSync(projectRoot, { recursive: true });
   context.after(() => rmSync(home, { recursive: true, force: true }));
-  const management = createManagementRuntime({ homeDir: home });
+  const management = createManagementRuntime({ homeDir: home, sessionId: AgentSessionId.of("audit-project") });
   const project = await management.projects.create({ id: ProjectId.of("project"), name: "Project", root: projectRoot });
   await management.agents.register({ project, provider: "Codex", role: "audit" });
 
@@ -117,7 +135,7 @@ test("doctor détecte une sélection Agent inactive sans modifier la session", a
   const projectRoot = resolve(home, "project");
   mkdirSync(projectRoot, { recursive: true });
   context.after(() => rmSync(home, { recursive: true, force: true }));
-  const management = createManagementRuntime({ homeDir: home });
+  const management = createManagementRuntime({ homeDir: home, sessionId: AgentSessionId.of("audit-project") });
   const project = await management.projects.create({ id: ProjectId.of("project"), name: "Project", root: projectRoot });
   const agent = await management.agents.register({ project, provider: "Codex", role: "audit" });
   await management.agents.deactivate(project, agent.id);

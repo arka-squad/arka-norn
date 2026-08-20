@@ -25,6 +25,7 @@ export function createProjectDetailView(deps) {
             return byStatus === 0 ? left.name.localeCompare(right.name) : byStatus;
         });
         return [
+            { label: "Conseil Product — organiser la suite", value: "action:product", description: "prochaine décision, profils parallèles et prompt de reprise" },
             { label: "Démarrer un rework FastDev", value: "action:fastdev", description: "4 documents · audit bloquant · correction conditionnelle" },
             { label: "Créer une Feature standard", value: "action:standard", description: "cycle complet à dix étapes" },
             { label: "Importer une Feature existante", value: "action:import", description: "utilise son marqueur et son workflow" },
@@ -55,6 +56,9 @@ export function createProjectDetailView(deps) {
                 const feature = await deps.features.switchTo(FeatureId.of(value.slice("feature:".length)));
                 await deps.onOpenFeature?.(feature);
             });
+        }
+        else if (value === "action:product") {
+            await run(async () => { await deps.onShowProductAdvice?.(deps.project); });
         }
         else if (value === "action:fastdev") {
             createKind = "fastdev";
@@ -189,7 +193,7 @@ export function createProjectDetailView(deps) {
                         title: "Aide — espace Project",
                         purpose: "Un Project regroupe ses Features et son registre d’agents. Rien n’est produit avant d’avoir choisi une identité active.",
                         steps: [
-                            "Ouvrez « Gérer les agents » et enregistrez ou sélectionnez votre identité.",
+                            "Commencez par le Product principal dans la session main ; il organisera les autres rôles.",
                             "Créez/importez une Feature dans la racine du Project.",
                             "Ouvrez la Feature prioritaire et suivez l’action recommandée par son Pipeline.",
                             "Utilisez le scan pour reconstruire l’index depuis les marqueurs portables.",
@@ -241,12 +245,13 @@ export function createProjectDetailView(deps) {
                     `États : ${groups}`,
                     `Dettes : ${totals.debts} · anomalies QA : ${totals.qa} · handoffs : ${totals.handoffs} · documents invalides : ${totals.invalid}`,
                     `Agents : ${agents.filter((agent) => agent.active).length} actif(s) / ${agents.length} · courant : ${currentAgentId ?? "aucun"}`,
+                    `Session : ${deps.sessionId ?? "main"} · chaque session conserve sa propre identité`,
                 ], theme, { border: theme.arkaRed }).split("\n"))
                     line(value);
                 line("");
-                line(nextActionLine(currentAgentId === undefined ? "Gérer les agents du projet" : features.length === 0 ? "Choisir FastDev, standard ou import" : "Ouvrir une Feature", currentAgentId === undefined ? "une identité active est requise avant tout document" : features.length === 0 ? "aucun pipeline n’est encore piloté" : "le Pipeline indiquera quoi faire et pourquoi", theme));
+                line(nextActionLine(currentAgentId === undefined ? "Enregistrer le Product principal" : features.length === 0 ? "Choisir FastDev, standard ou import" : "Demander le conseil Product", currentAgentId === undefined ? "la session main doit porter l’organisation du Project" : features.length === 0 ? "aucun pipeline n’est encore piloté" : "la prochaine phase et les rôles seront calculés", theme));
                 if (features.length === 0)
-                    line(`  ${theme.dim("Démarrage guidé : identité → Feature → statut Pipeline → scaffold signé → validation.")}`);
+                    line(`  ${theme.dim("Démarrage guidé : Product principal → Feature → conseil → Agent spécialisé → preuve validée.")}`);
                 if (busy)
                     line(`  ${theme.dim("Chargement…")}`);
                 if (message !== undefined)

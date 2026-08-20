@@ -10,6 +10,7 @@ import { FsProjectStore } from "../adapters/outbound/filesystem/fs-project-store
 import { ConsoleLogger } from "../adapters/outbound/system/console-logger.js";
 import { SystemClock } from "../adapters/outbound/system/system-clock.js";
 import { AuditUnavailableError } from "../domain/errors.js";
+import { AgentSessionId } from "../domain/agent/agent-session-id.js";
 import type { ForAgents } from "../ports/inbound/for-agents.js";
 import type { ForFeatures } from "../ports/inbound/for-features.js";
 import type { ForProjects } from "../ports/inbound/for-projects.js";
@@ -49,6 +50,7 @@ export interface ManagementRuntimeOptions {
   readonly logger?: Logger;
   readonly auditTrail?: AuditTrail;
   readonly clock?: Clock;
+  readonly sessionId?: AgentSessionId;
 }
 
 export function createManagementRuntime(options: ManagementRuntimeOptions): ManagementRuntime {
@@ -63,6 +65,7 @@ export function createManagementRuntime(options: ManagementRuntimeOptions): Mana
   const featureStore = new FsFeatureStore(pathPolicy);
   const agentRegistry = new FsAgentRegistryStore(pathPolicy);
   const agentSession = new FsAgentSessionStore(options.homeDir);
+  const sessionId = options.sessionId ?? AgentSessionId.MAIN;
   const projectsDeps = { projectStore, indexStore: projectIndexStore, filesystem, clock, logger, pathPolicy };
   const featuresDeps = { featureStore, indexStore: featureIndexStore, projectIndexStore, filesystem, clock, logger, pathPolicy };
 
@@ -85,7 +88,7 @@ export function createManagementRuntime(options: ManagementRuntimeOptions): Mana
   };
   const rawScanProjects = scanProjectsUseCaseFactory(projectsDeps);
   const rawScanFeatures = scanFeaturesUseCaseFactory(featuresDeps);
-  const rawAgents = manageAgentsUseCaseFactory({ registry: agentRegistry, session: agentSession, clock });
+  const rawAgents = manageAgentsUseCaseFactory({ registry: agentRegistry, session: agentSession, sessionId, clock });
 
   return {
     agents: auditAgents(rawAgents, audit, logger, clock),
@@ -112,12 +115,14 @@ export function createManagementRuntime(options: ManagementRuntimeOptions): Mana
 
 function auditAgents(base: ForAgents, audit: AuditTrail, logger: Logger, clock: Clock): ForAgents {
   return {
+    sessionId: base.sessionId,
     list: (project) => base.list(project),
+    sessions: (project) => base.sessions(project),
     show: (project, id) => base.show(project, id),
     current: (project) => base.current(project),
     register: (input) => auditedValue(audit, logger, clock, {
       action: "agent.register", entityType: "agent", root: input.project.root,
-      details: { projectId: input.project.id.value, provider: input.provider, role: input.role },
+      details: { projectId: input.project.id.value, provider: input.provider, role: input.role, sessionId: base.sessionId.value },
     }, () => base.register(input)),
     deactivate: (project, id) => auditedValue(audit, logger, clock, {
       action: "agent.deactivate", entityType: "agent", entityId: id.value, root: project.root,
@@ -127,7 +132,7 @@ function auditAgents(base: ForAgents, audit: AuditTrail, logger: Logger, clock: 
       details: { provider: input.provider, role: input.role },
     }, () => base.replace(input)),
     select: (project, id) => auditedValue(audit, logger, clock, {
-      action: "agent.use", entityType: "agent", entityId: id.value, root: project.root,
+      action: "agent.use", entityType: "agent", entityId: id.value, root: project.root, details: { sessionId: base.sessionId.value },
     }, () => base.select(project, id)),
   };
 }

@@ -1,13 +1,26 @@
 import { AgentRegistration } from "../../domain/agent/agent.js";
 import { createReadableAgentId } from "../../domain/agent/agent-id.js";
-import { AgentAlreadyExistsError, AgentInactiveError, AgentNotFoundError } from "../../domain/errors.js";
+import { AgentSessionId } from "../../domain/agent/agent-session-id.js";
+import { AgentAlreadyExistsError, AgentInactiveError, AgentNotFoundError, InvalidAgentOptionError } from "../../domain/errors.js";
 export function manageAgentsUseCaseFactory(deps) {
+    const sessionId = deps.sessionId ?? AgentSessionId.MAIN;
     return {
+        sessionId,
         list: (project) => deps.registry.load(project),
+        async sessions(project) {
+            const agents = await deps.registry.load(project);
+            return (await deps.session.list(project.id)).flatMap((binding) => {
+                const agent = agents.find((candidate) => candidate.id.equals(binding.agentId));
+                return agent === undefined ? [] : [{ sessionId: binding.sessionId, agent }];
+            });
+        },
         async show(project, id) {
             return find(await deps.registry.load(project), id.value);
         },
         async register(input) {
+            if (sessionId.equals(AgentSessionId.MAIN) && !isProductRole(input.role)) {
+                throw new InvalidAgentOptionError("role", "la session main est réservée au Product principal; utilise --session <role-feature> pour un Agent spécialisé");
+            }
             const at = deps.clock.now();
             let created;
             await deps.registry.update(input.project, (agents) => {
@@ -27,7 +40,7 @@ export function manageAgentsUseCaseFactory(deps) {
             });
             if (created === undefined)
                 throw new Error("Agent registration transaction produced no agent");
-            await deps.session.select(input.project.id, created.id);
+            await deps.session.select(sessionId, input.project.id, created.id);
             return created;
         },
         async deactivate(project, id) {
@@ -40,11 +53,14 @@ export function manageAgentsUseCaseFactory(deps) {
             });
             if (updated === undefined)
                 throw new Error("Agent deactivation transaction produced no agent");
-            if ((await deps.session.current(project.id))?.equals(id) === true)
-                await deps.session.select(project.id, undefined);
+            await deps.session.clearAgent(project.id, id);
             return updated;
         },
         async replace(input) {
+            const mainAgentId = await deps.session.current(AgentSessionId.MAIN, input.project.id);
+            if (mainAgentId?.equals(input.replacedAgentId) === true && !isProductRole(input.role)) {
+                throw new InvalidAgentOptionError("role", "le remplaçant du Product principal doit conserver un rôle product");
+            }
             const at = deps.clock.now();
             let replacement;
             await deps.registry.update(input.project, (agents) => {
@@ -68,20 +84,21 @@ export function manageAgentsUseCaseFactory(deps) {
             });
             if (replacement === undefined)
                 throw new Error("Agent replacement transaction produced no agent");
-            const current = await deps.session.current(input.project.id);
-            if (current?.equals(input.replacedAgentId) === true)
-                await deps.session.select(input.project.id, replacement.id);
+            await deps.session.replaceAgent(input.project.id, input.replacedAgentId, replacement.id);
             return replacement;
         },
         async select(project, id) {
             const agent = find(await deps.registry.load(project), id.value);
             if (!agent.active)
                 throw new AgentInactiveError(id.value);
-            await deps.session.select(project.id, id);
+            if (sessionId.equals(AgentSessionId.MAIN) && !isProductRole(agent.role)) {
+                throw new InvalidAgentOptionError("session", `la session main ne peut pas sélectionner ${agent.id.value} (${agent.role}); utilise une session spécialisée`);
+            }
+            await deps.session.select(sessionId, project.id, id);
             return agent;
         },
         async current(project) {
-            const id = await deps.session.current(project.id);
+            const id = await deps.session.current(sessionId, project.id);
             if (id === undefined)
                 return undefined;
             const agent = (await deps.registry.load(project)).find((candidate) => candidate.id.equals(id));
@@ -98,6 +115,9 @@ export function manageAgentsUseCaseFactory(deps) {
             responsibilities: [...(input.responsibilities ?? [])],
         };
     }
+}
+function isProductRole(role) {
+    return ["product", "product-owner", "po"].includes(role.trim().toLowerCase());
 }
 function hasExplicitScope(input) {
     return input.featureIds !== undefined || input.paths !== undefined || input.responsibilities !== undefined;

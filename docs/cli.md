@@ -11,7 +11,7 @@ Pour initialiser un provider avant de choisir une Feature, l'utilisateur lui env
 ```text
 arka-norn project list|add|import|scan|show|use|forget|reconcile
 arka-norn feature list|create|import|scan|show|use|forget|reconcile
-arka-norn agent list|register|show|current|use|deactivate|replace
+arka-norn agent list|register|show|current|use|sessions|advise|prompt|handoff-prompt|deactivate|replace
 arka-norn pipeline status|next|scaffold|validate
 arka-norn workflow list|show
 arka-norn fastdev start|status|next
@@ -26,13 +26,24 @@ arka-norn migrate [--target <path>] [--dry-run|--apply]
 
 `project scan <racine>` et `feature scan --path <racine>` reconnaissent directement un marqueur porté par la cible ; si la cible n'en porte pas, ils inspectent uniquement ses enfants immédiats. Un déplacement remplace atomiquement l'ancien chemin devenu illisible dans l'index. Une copie qui laisserait deux marqueurs actifs avec le même identifiant est refusée comme conflit d'identité.
 
-Avant un scaffold géré, enregistrez ou sélectionnez une identité active :
+Le premier Agent d’un Project est le Product principal en session `main` :
 
 ```text
-arka-norn agent register --project product --provider "Codex CLI" --role dev --features secure-cockpit
-arka-norn agent current --project product
+arka-norn agent register --project product --provider "Codex CLI" --role product --session main
+arka-norn agent advise --project product --feature secure-cockpit
+arka-norn agent prompt audit --project product --feature secure-cockpit --provider "Claude Code" --mode execute
+arka-norn agent handoff-prompt --project product --feature secure-cockpit
+```
+
+`agent advise` retourne la phase, la responsabilité Product et les rôles à lancer maintenant ou en préparation. `agent prompt` rend un prompt autonome avec session, profil de skills, périmètre et permissions ; un rôle ne peut pas exécuter une étape qui ne lui appartient pas. `agent handoff-prompt` prépare une nouvelle conversation Product en réutilisant la même identité. Voir [`agent-orchestration.md`](agent-orchestration.md).
+
+Avant un scaffold géré, enregistrez ou sélectionnez l’identité de la session spécialisée :
+
+```text
+arka-norn agent register --project product --provider "Codex CLI" --role dev --features secure-cockpit --session dev-secure-cockpit
+arka-norn agent current --project product --session dev-secure-cockpit
 arka-norn pipeline next secure-cockpit
-arka-norn pipeline scaffold concept --feature secure-cockpit
+arka-norn pipeline scaffold cr_dev --feature secure-cockpit --session dev-secure-cockpit
 ```
 
 Le scaffold écrit automatiquement `schema_version: 3`, `feature_id` et `author_agent_id`. L’alias bas niveau `scaffold` exige `--agent <id>` explicitement.
@@ -57,7 +68,7 @@ Lorsque la prochaine étape est `concept`, la skill `arka-framework-concept` peu
 
 Le parseur est commun à toutes les commandes : une option inconnue, répétée,
 incompatible ou sans valeur retourne `64`. `ARKA_NORN_HOME` cible la même zone
-d’index pour les commandes de gestion et `doctor`.
+d’index pour les commandes de gestion et `doctor`. `ARKA_NORN_SESSION` définit la session Agent par défaut ; `--session` la remplace sur une commande.
 
 ## Codes de sortie
 

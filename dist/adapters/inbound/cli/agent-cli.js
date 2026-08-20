@@ -1,20 +1,32 @@
 import { AgentId } from "../../../domain/agent/agent-id.js";
+import { AgentSessionId } from "../../../domain/agent/agent-session-id.js";
+import { parseOrchestratedRole } from "../../../application/agents/agent-orchestration.js";
 import { DomainError } from "../../../domain/errors.js";
 import { FeatureId } from "../../../domain/feature/feature-id.js";
 import { ProjectId } from "../../../domain/project/project-id.js";
 import { createManagementRuntime } from "../../../composition/management-runtime.js";
+import { createPipelineRuntime } from "../../../composition/pipeline-runtime.js";
+import { createAgentOrchestrationRuntime } from "../../../composition/agent-orchestration-runtime.js";
 import { CliUsageError, parseStrictArguments } from "./strict-arguments.js";
 export const AGENT_HELP = `Gestion des agents d'un Project
 
   agent list --project <id> [--active]
   agent register --project <id> --provider <nom> --role <rôle>
                  [--features id1,id2] [--paths chemin1,chemin2]
-                 [--responsibilities "mission 1;mission 2"]
+                 [--responsibilities "mission 1;mission 2"] [--session <id>]
   agent show <agent-id> --project <id>
-  agent current --project <id>
-  agent use <agent-id> --project <id>
+  agent current --project <id> [--session <id>]
+  agent use <agent-id> --project <id> [--session <id>]
+  agent sessions --project <id>
   agent replace <ancien-id> --project <id> --provider <nom> --role <rôle>
   agent deactivate <agent-id> --project <id> --yes
+
+Pilotage Product et sessions parallèles :
+  agent advise --project <id> [--feature <id>]
+  agent prompt <product|architecte|audit|dev|qa> --project <id>
+               [--feature <id>] [--provider <nom>] [--session <id>]
+               [--mode execute|prepare]
+  agent handoff-prompt --project <id> [--feature <id>] [--agent <product-id>]
 
 `;
 export async function runAgentCommand(argv, context) {
@@ -28,23 +40,27 @@ export async function runAgentCommand(argv, context) {
         if (action === undefined)
             throw new CliUsageError(`missing agent action\n\n${AGENT_HELP}`);
         const args = parseStrictArguments(rest, specFor(action));
-        const runtime = createManagementRuntime({ homeDir: context.homeDir });
+        const sessionId = parseSession(args.values.get("session"), context.sessionId);
+        const runtime = createManagementRuntime({ homeDir: context.homeDir, sessionId });
         const project = await runtime.projects.show(ProjectId.of(required(args.values, "project")));
         let data;
         switch (action) {
             case "list": {
                 const agents = await runtime.agents.list(project);
-                data = agents.filter((agent) => !args.booleans.has("active") || agent.active).map(serializeAgent);
+                data = agents.filter((agent) => !args.booleans.has("active") || agent.active).map((agent) => serializeAgent(agent));
                 break;
             }
             case "show":
-                data = serializeAgent(await runtime.agents.show(project, AgentId.of(args.positionals[0])));
+                data = serializeAgent(await runtime.agents.show(project, AgentId.of(args.positionals[0])), sessionId.value);
                 break;
             case "current": {
                 const current = await runtime.agents.current(project);
-                data = current === undefined ? null : serializeAgent(current);
+                data = current === undefined ? null : serializeAgent(current, sessionId.value);
                 break;
             }
+            case "sessions":
+                data = (await runtime.agents.sessions(project)).map((binding) => ({ sessionId: binding.sessionId.value, agent: serializeAgent(binding.agent) }));
+                break;
             case "register":
                 data = serializeAgent(await runtime.agents.register({
                     project,
@@ -52,15 +68,15 @@ export async function runAgentCommand(argv, context) {
                     role: required(args.values, "role"),
                     ...(args.values.get("id") === undefined ? {} : { id: AgentId.of(args.values.get("id")) }),
                     ...scopeArgs(args.values),
-                }));
+                }), sessionId.value);
                 break;
             case "use":
-                data = serializeAgent(await runtime.agents.select(project, AgentId.of(args.positionals[0])));
+                data = serializeAgent(await runtime.agents.select(project, AgentId.of(args.positionals[0])), sessionId.value);
                 break;
             case "deactivate":
                 if (!args.booleans.has("yes"))
                     throw new CliUsageError("agent deactivate requires --yes confirmation");
-                data = serializeAgent(await runtime.agents.deactivate(project, AgentId.of(args.positionals[0])));
+                data = serializeAgent(await runtime.agents.deactivate(project, AgentId.of(args.positionals[0])), sessionId.value);
                 break;
             case "replace":
                 data = serializeAgent(await runtime.agents.replace({
@@ -70,19 +86,50 @@ export async function runAgentCommand(argv, context) {
                     role: required(args.values, "role"),
                     ...(args.values.get("id") === undefined ? {} : { id: AgentId.of(args.values.get("id")) }),
                     ...scopeArgs(args.values),
-                }));
+                }), sessionId.value);
+                break;
+            case "advise": {
+                const orchestration = orchestrationRuntime(runtime, context);
+                data = await orchestration.advise({
+                    projectId: project.id,
+                    ...(args.values.get("feature") === undefined ? {} : { featureId: FeatureId.of(args.values.get("feature")) }),
+                });
+                break;
+            }
+            case "prompt": {
+                const role = parseRole(args.positionals[0]);
+                const featureId = args.values.get("feature");
+                if (role !== "product" && featureId === undefined)
+                    throw new CliUsageError(`agent prompt ${role} requires --feature <id>`);
+                data = await orchestrationRuntime(runtime, context).initializationPrompt({
+                    projectId: project.id,
+                    role,
+                    ...(featureId === undefined ? {} : { featureId: FeatureId.of(featureId) }),
+                    ...(args.values.get("provider") === undefined ? {} : { provider: args.values.get("provider") }),
+                    ...(args.values.get("session") === undefined ? {} : { sessionId }),
+                    ...(args.values.get("mode") === undefined ? {} : { mode: parseMode(args.values.get("mode")) }),
+                });
+                break;
+            }
+            case "handoff-prompt":
+            case "resume-prompt":
+                data = await orchestrationRuntime(runtime, context).productHandoffPrompt({
+                    projectId: project.id,
+                    ...(args.values.get("feature") === undefined ? {} : { featureId: FeatureId.of(args.values.get("feature")) }),
+                    ...(args.values.get("agent") === undefined ? {} : { agentId: args.values.get("agent") }),
+                });
                 break;
             default:
                 throw new CliUsageError(`unknown agent action: ${action}`);
         }
-        return output(command, data, json);
+        return output(command, data, json, action, sessionId.value);
     }
     catch (error) {
         return failure(command, error, json);
     }
 }
 function specFor(action) {
-    const jsonProject = { json: "boolean", project: "string" };
+    const jsonProject = { json: "boolean", project: "string", session: "string" };
     const identity = {
         ...jsonProject,
         provider: "string",
@@ -96,10 +143,15 @@ function specFor(action) {
         list: { options: { ...jsonProject, active: "boolean" }, minPositionals: 0, maxPositionals: 0 },
         show: { options: jsonProject, minPositionals: 1, maxPositionals: 1 },
         current: { options: jsonProject, minPositionals: 0, maxPositionals: 0 },
+        sessions: { options: jsonProject, minPositionals: 0, maxPositionals: 0 },
         register: { options: identity, minPositionals: 0, maxPositionals: 0 },
         use: { options: jsonProject, minPositionals: 1, maxPositionals: 1 },
         deactivate: { options: { ...jsonProject, yes: "boolean" }, minPositionals: 1, maxPositionals: 1 },
         replace: { options: identity, minPositionals: 1, maxPositionals: 1 },
+        advise: { options: { ...jsonProject, feature: "string" }, minPositionals: 0, maxPositionals: 0 },
+        prompt: { options: { ...jsonProject, feature: "string", provider: "string", mode: "string" }, minPositionals: 1, maxPositionals: 1 },
+        "handoff-prompt": { options: { ...jsonProject, feature: "string", agent: "string" }, minPositionals: 0, maxPositionals: 0 },
+        "resume-prompt": { options: { ...jsonProject, feature: "string", agent: "string" }, minPositionals: 0, maxPositionals: 0 },
     };
     return specs[action] ?? { options: jsonProject };
 }
@@ -122,13 +174,14 @@ function required(values, name) {
         throw new CliUsageError(`--${name} is required`);
     return value;
 }
-export function serializeAgent(agent) {
+export function serializeAgent(agent, sessionId) {
     return {
         schemaVersion: 1,
         id: agent.id.value,
         provider: agent.provider,
         role: agent.role,
         active: agent.active,
+        ...(sessionId === undefined ? {} : { sessionId }),
         scope: {
             projectId: agent.scope.projectId.value,
             featureIds: agent.scope.featureIds.map((id) => id.value),
@@ -142,11 +195,20 @@ export function serializeAgent(agent) {
         ...(agent.replacesAgentId === undefined ? {} : { replacesAgentId: agent.replacesAgentId.value }),
     };
 }
-function output(command, data, json) {
+function output(command, data, json, action, sessionId) {
     if (json)
         return { code: 0, stdout: `${JSON.stringify({ schemaVersion: 1, command, ok: true, data, errors: [], warnings: [] })}\n`, stderr: "" };
     if (data === null)
-        return { code: 0, stdout: "Aucun agent actif sélectionné. Utilise `arka-norn agent use <id> --project <id>`.\n", stderr: "" };
+        return { code: 0, stdout: `Aucun agent actif dans la session ${sessionId}. Utilise \`arka-norn agent use <id> --project <id> --session ${sessionId}\`.\n`, stderr: "" };
+    if (action === "advise")
+        return { code: 0, stdout: humanAdvice(data), stderr: "" };
+    if (action === "prompt" || action === "handoff-prompt" || action === "resume-prompt") {
+        return { code: 0, stdout: `${data.prompt}\n`, stderr: "" };
+    }
+    if (action === "sessions") {
+        const sessions = data;
+        return { code: 0, stdout: sessions.length === 0 ? "Aucune session Agent liée à ce Project.\n" : `${sessions.map((item) => `${item.sessionId}\t${humanAgent(item.agent)}`).join("\n")}\n`, stderr: "" };
+    }
     const rows = Array.isArray(data) ? data : [data];
     return {
         code: 0,
@@ -156,9 +218,49 @@ function output(command, data, json) {
 }
 function humanAgent(value) {
     const agent = value;
-    const features = agent.scope.featureIds.length === 0 ? "tout le projet" : `features=${agent.scope.featureIds.join(",")}`;
+    const scope = [
+        agent.scope.featureIds.length === 0 ? "features=toutes" : `features=${agent.scope.featureIds.join(",")}`,
+        agent.scope.paths.length === 0 ? "chemins=tous" : `chemins=${agent.scope.paths.join(",")}`,
+        agent.scope.responsibilities.length === 0 ? "responsabilités=non précisées" : `responsabilités=${agent.scope.responsibilities.join(";")}`,
+    ].join(" · ");
     const replacement = "replacedByAgentId" in agent ? ` → remplacé par ${agent.replacedByAgentId}` : "";
-    return `${agent.active ? "ACTIF" : "INACTIF"}\t${agent.id}\t${agent.provider}/${agent.role}\t${features}${replacement}`;
+    const session = "sessionId" in agent ? `\tsession=${String(agent.sessionId)}` : "";
+    return `${agent.active ? "ACTIF" : "INACTIF"}\t${agent.id}\t${agent.provider}/${agent.role}\t${scope}${session}${replacement}`;
+}
+function humanAdvice(value) {
+    const advice = value;
+    const recommendations = advice.recommendations.length === 0
+        ? ["  Aucun profil secondaire à lancer maintenant."]
+        : advice.recommendations.map((item) => `  ${item.mode === "execute" ? "MAINTENANT" : "PRÉPARATION"} · ${item.role} · session ${item.sessionId}\n    ${item.reason}\n    ${item.command}`);
+    return [
+        `Pilotage Product — Project ${advice.projectId}${advice.featureId === undefined ? "" : ` · Feature ${advice.featureId}`}`,
+        `Phase : ${advice.phase}${advice.nextStepId === undefined ? "" : ` · prochaine étape ${advice.nextStepId}`}`,
+        `Product principal : ${advice.productPrincipal.status}${advice.productPrincipal.agentId === undefined ? "" : ` · ${advice.productPrincipal.agentId}`} · session main`,
+        `Conseil : ${advice.productNextAction}`,
+        "Agents proposés :",
+        ...recommendations,
+        `Reprise Product : ${advice.handoffPromptCommand}`,
+        ...advice.warnings.map((warning) => `AVERTISSEMENT — ${warning}`),
+    ].join("\n") + "\n";
+}
+function orchestrationRuntime(runtime, context) {
+    return createAgentOrchestrationRuntime({ ...runtime, pipeline: createPipelineRuntime(context.frameworkRoot) });
+}
+function parseSession(value, fallback) {
+    return value === undefined ? fallback : AgentSessionId.of(value);
+}
+function parseRole(value) {
+    try {
+        return parseOrchestratedRole(value);
+    }
+    catch (error) {
+        throw new CliUsageError(error instanceof Error ? error.message : String(error));
+    }
+}
+function parseMode(value) {
+    if (value === "execute" || value === "prepare")
+        return value;
+    throw new CliUsageError("--mode must be execute or prepare");
 }
 function failure(command, error, json) {
     const message = error instanceof Error ? error.message : String(error);

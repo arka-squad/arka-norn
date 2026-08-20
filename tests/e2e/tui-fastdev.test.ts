@@ -30,6 +30,7 @@ test("l'espace Project sépare FastDev, standard et import puis confirme FastDev
   assert.match(output, /Importer une Feature existante/);
 
   output = "";
+  view.onKey({ kind: "down" });
   view.onKey({ kind: "enter" });
   view.render(renderer, theme);
   assert.match(output, /4 documents structurés/);

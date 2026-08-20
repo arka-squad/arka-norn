@@ -30,9 +30,10 @@ const ROOT = resolve(import.meta.dirname, "..", "..");
 const SOURCE = resolve(ROOT, "skills-src");
 const catalog = JSON.parse(readFileSync(resolve(SOURCE, "catalog", "skills.json"), "utf8")) as { readonly skills: readonly CatalogEntry[] };
 
-test("le catalogue contient exactement les 17 skills requis et des checksums exacts", () => {
+test("le catalogue contient exactement les 18 skills requis et des checksums exacts", () => {
   const required = [
     "arka-norn",
+    "arka-product",
     "arka-fastdev",
     "arka-framework-maitrise", "arka-framework-statut", "arka-framework-scaffold", "arka-framework-valider", "arka-framework-handoff",
     "arka-framework-concept", "arka-framework-plan", "arka-framework-annexe-technique", "arka-framework-audit",
@@ -40,23 +41,26 @@ test("le catalogue contient exactement les 17 skills requis et des checksums exa
     "arka-framework-dev", "arka-framework-recette-qa",
   ].sort();
   assert.deepEqual(catalog.skills.map((entry) => entry.name).sort(), required);
-  assert.equal(new Set(catalog.skills.map((entry) => entry.name)).size, 17);
+  assert.equal(new Set(catalog.skills.map((entry) => entry.name)).size, 18);
   for (const entry of catalog.skills) {
     const raw = readFileSync(resolve(SOURCE, entry.source), "utf8").replace(/\r\n?/g, "\n");
     assert.equal(createHash("sha256").update(raw, "utf8").digest("hex"), entry.checksum, entry.name);
     assert.ok(entry.profiles.includes("all"));
     assert.ok(entry.step.length > 0);
   }
-  assert.equal(catalog.skills.filter((entry) => entry.profiles.includes("core")).length, 7);
-  assert.equal(catalog.skills.filter((entry) => entry.profiles.includes("delivery")).length, 15);
+  assert.equal(catalog.skills.filter((entry) => entry.profiles.includes("core")).length, 8);
+  assert.equal(catalog.skills.filter((entry) => entry.profiles.includes("delivery")).length, 16);
+  assert.deepEqual(Object.fromEntries(["product", "architecture", "audit", "dev", "qa"].map((profile) => [profile, catalog.skills.filter((entry) => entry.profiles.includes(profile)).length])), {
+    product: 11, architecture: 10, audit: 9, dev: 9, qa: 8,
+  });
 });
 
 test("chaque définition est complète et les skills audit/dev/QA imposent leurs gates", () => {
   const files = readdirSync(SOURCE).filter((name) => name.endsWith(".json"));
-  assert.equal(files.length, 17);
+  assert.equal(files.length, 18);
   const definitions = files.map((file) => JSON.parse(readFileSync(resolve(SOURCE, file), "utf8")) as SkillDefinition);
   for (const definition of definitions) {
-    assert.match(definition.name, /^(?:arka-norn|arka-fastdev|arka-framework-[a-z-]+)$/);
+    assert.match(definition.name, /^(?:arka-norn|arka-product|arka-fastdev|arka-framework-[a-z-]+)$/);
     assert.ok(definition.description_courte.length > 20);
     assert.ok(definition.quand_utiliser.length > 0);
     assert.ok(definition.quand_ne_pas_utiliser.length > 0);
@@ -68,6 +72,9 @@ test("chaque définition est complète et les skills audit/dev/QA imposent leurs
   assert.match(byName.get("arka-norn") ?? "", /\/arka-norn.*\$arka-norn/);
   assert.match(byName.get("arka-norn") ?? "", /skills doctor.*project scan.*agent register/);
   assert.match(byName.get("arka-norn") ?? "", /Ne jamais créer|ne pas utiliser `--force`/i);
+  assert.match(byName.get("arka-norn") ?? "", /Product principal.*session `main`/i);
+  assert.match(byName.get("arka-product") ?? "", /agent advise.*agent prompt.*agent handoff-prompt/);
+  assert.match(byName.get("arka-product") ?? "", /ne produit pas lui-même.*architecture.*audit.*développement.*QA/i);
   assert.match(byName.get("arka-fastdev") ?? "", /fastdev next.*une seule action|exactement une action calculée/i);
   assert.match(byName.get("arka-fastdev") ?? "", /corrections_apportees.*audit_rework.*validation_fastdev/);
   assert.match(byName.get("arka-framework-audit") ?? "", /preuves reproductibles|Vérifier directement/);
@@ -92,7 +99,7 @@ test("le catalogue reste vérifiable après une conversion Git en CRLF", (contex
     const crlf = readFileSync(sourcePath, "utf8").replace(/\r\n?/g, "\n").replace(/\n/g, "\r\n");
     writeFileSync(sourcePath, crlf);
   }
-  assert.equal(createSkillCatalogRuntime(frameworkRoot).definitions.length, 17);
+  assert.equal(createSkillCatalogRuntime(frameworkRoot).definitions.length, 18);
 });
 
 test("les rendus Agents ont un frontmatter YAML sûr et une description UI bornée", () => {

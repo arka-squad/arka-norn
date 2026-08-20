@@ -6,10 +6,15 @@ tags `vX.Y.Z`.
 
 ## Non publié
 
+- Product principal stable dans la session `main`, conseil de prochaine étape et orchestration des profils spécialisés ;
+- sélections Agent v2 isolées par session provider, avec migration transparente du format v1 ;
+- commandes `agent sessions|advise|prompt|handoff-prompt`, prompts autonomes `execute|prepare` et reprise après saturation du contexte ;
+- skill `arka-product`, profils `product|architecture|audit|dev|qa` et catalogue porté à 18 skills ;
+- TUI enrichie avec conseil Product, lancement guidé des rôles et prompt de reprise ;
 - workflow `arka-norn-fastdev` catalogué, avec boucle audit/correction et validation du dernier CR ;
 - commandes `workflow`, `feature --workflow`, `feature set-workflow` et `fastdev start|status|next` ;
 - schémas `cadrage_rework`, `audit_rework`, `validation_fastdev` et fermetures de constats dans `cr_dev` ;
-- cockpit TUI FastDev guidé et skill `arka-fastdev`, catalogue porté à 17 skills ;
+- cockpit TUI FastDev guidé et skill `arka-fastdev`, catalogue alors porté à 17 skills ;
 - marqueurs Project/Feature v3 réellement portables, sans chemin machine, avec migration v1/v2 sauvegardée ;
 - scans Project/Feature capables de reconnaître directement la racine transmise par les skills ;
 - `doctor` vérifie le contexte Project et les références de session jusqu'à l'Agent actif, sans mutation silencieuse de `agent current` ;

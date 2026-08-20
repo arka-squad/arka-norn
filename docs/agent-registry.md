@@ -20,12 +20,12 @@ Une liste Features/chemins vide signifie tout le Project. Les chemins absolus et
 
 ## Cycle de vie
 
-- `register` crée une identité active et la sélectionne localement ;
-- `use` sélectionne une identité active existante ;
+- `register` crée une identité active et la sélectionne dans la session provider courante ;
+- `use` sélectionne une identité active existante dans cette session ;
 - `deactivate` positionne `active: false` et interdit toute nouvelle production ;
 - `replace` crée le successeur, désactive l’ancien et écrit les deux relations `replacesAgentId` / `replacedByAgentId`.
 
-Le registre est écrit atomiquement sous lock. La sélection courante reste locale dans `~/.arka-norn/context/agents.json` : elle ne modifie pas l’identité partagée du Project.
+Le registre est écrit atomiquement sous lock. Les sélections restent locales dans `~/.arka-norn/context/agents.json` : elles ne modifient pas l’identité partagée du Project. Le format v2 sépare `selectedBySession[sessionId][projectId]`, ce qui empêche deux providers de s’écraser mutuellement. La session `main` est réservée au Product principal ; les rôles spécialisés utilisent par exemple `audit-ma-feature` ou `dev-ma-feature`.
 
 ## Documents produit
 
@@ -44,11 +44,13 @@ Les documents v2 restent lisibles pour assurer la compatibilité. Une v3 sans `a
 
 ```text
 arka-norn agent list --project <project-id> --active
-arka-norn agent register --project <project-id> --provider "Codex CLI" --role dev
-arka-norn agent current --project <project-id>
-arka-norn agent use <agent-id> --project <project-id>
+arka-norn agent register --project <project-id> --provider "Codex CLI" --role product --session main
+arka-norn agent register --project <project-id> --provider "Claude Code" --role audit --session audit-ma-feature
+arka-norn agent current --project <project-id> --session audit-ma-feature
+arka-norn agent use <agent-id> --project <project-id> --session audit-ma-feature
+arka-norn agent sessions --project <project-id>
 arka-norn agent replace <ancien-id> --project <project-id> --provider "Claude Code" --role dev
 arka-norn agent deactivate <agent-id> --project <project-id> --yes
 ```
 
-La TUI expose les mêmes transitions dans Project → Gérer les agents.
+La TUI expose les mêmes transitions dans Project → Gérer les agents et affiche la session qui porte l’identité courante. Le parcours Product et les prompts sont détaillés dans [`agent-orchestration.md`](agent-orchestration.md).

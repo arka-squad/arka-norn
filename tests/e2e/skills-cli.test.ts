@@ -15,8 +15,9 @@ test("skills list/install/doctor partagent le catalogue et détectent une diverg
   const listed = run(["skills", "list", "--json"], target);
   assert.equal(listed.status, 0, listed.stderr);
   const listEnvelope = JSON.parse(listed.stdout) as { readonly data: readonly { readonly name: string }[] };
-  assert.equal(listEnvelope.data.length, 17);
+  assert.equal(listEnvelope.data.length, 18);
   assert.ok(listEnvelope.data.some((skill) => skill.name === "arka-norn"));
+  assert.ok(listEnvelope.data.some((skill) => skill.name === "arka-product"));
   assert.ok(listEnvelope.data.some((skill) => skill.name === "arka-fastdev"));
   assert.ok(listEnvelope.data.some((skill) => skill.name === "arka-framework-maitrise"));
   assert.ok(listEnvelope.data.some((skill) => skill.name === "arka-framework-audit"));
@@ -25,12 +26,18 @@ test("skills list/install/doctor partagent le catalogue et détectent une diverg
 
   const core = run(["skills", "install", "--target", target, "--profile", "core", "--json"], target);
   assert.equal(core.status, 0, core.stderr);
-  assert.equal((JSON.parse(core.stdout) as { readonly data: { readonly skills: readonly string[] } }).data.skills.length, 7);
+  assert.equal((JSON.parse(core.stdout) as { readonly data: { readonly skills: readonly string[] } }).data.skills.length, 8);
   assert.equal(run(["skills", "doctor", "--target", target, "--profile", "core", "--json"], target).status, 0);
 
   const all = run(["skills", "install", "--target", target, "--profile", "all", "--json"], target);
   assert.equal(all.status, 0, all.stderr);
   assert.equal(run(["skills", "doctor", "--target", target, "--json"], target).status, 0);
+
+  for (const [profile, count] of [["product", 11], ["architecture", 10], ["audit", 9], ["dev", 9], ["qa", 8]] as const) {
+    const result = run(["skills", "install", "--target", target, "--profile", profile, "--json"], target);
+    assert.equal(result.status, 0, `${profile}: ${result.stderr}`);
+    assert.equal((JSON.parse(result.stdout) as { readonly data: { readonly skills: readonly string[] } }).data.skills.length, count, profile);
+  }
 
   const devSkill = resolve(target, ".agents", "skills", "arka-framework-dev", "SKILL.md");
   const content = readFileSync(devSkill, "utf8");
