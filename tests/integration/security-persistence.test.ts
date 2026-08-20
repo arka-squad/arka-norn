@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
+import { realpath } from "node:fs/promises";
 import { platform, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
@@ -27,8 +28,8 @@ test("une racine v2 forgée n'est jamais utilisée comme racine runtime", async 
 
   const store = new FsProjectStore();
   const project = await store.load(actual);
-  assert.equal(project.root, realpathSync(actual));
-  assert.notEqual(project.root, realpathSync(forged));
+  assert.equal(project.root, await realpath(actual));
+  assert.notEqual(project.root, await realpath(forged));
   await store.save(project);
   const portable = JSON.parse(readFileSync(resolve(actual, ".arka-norn", "project.json"), "utf8")) as Record<string, unknown>;
   assert.equal(portable.schemaVersion, 3);

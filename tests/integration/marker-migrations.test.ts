@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync } from "node:fs";
+import { realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
@@ -112,6 +113,6 @@ test("un marker Project v3 déplacé dérive sa nouvelle racine de son emplaceme
   renameSync(source, destination);
   const moved = await store.load(destination);
 
-  assert.equal(moved.root, realpathSync(destination));
+  assert.equal(moved.root, await realpath(destination));
   assert.equal(moved.id.value, "portable");
 });
