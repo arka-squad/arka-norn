@@ -57,7 +57,8 @@ Chaque rôle spécialisé possède sa propre sélection Agent, son profil de ski
 ## Commits et état Git
 
 - Lot principal poussé sur `main` : `dfbef16 feat: orchestrate Product and isolated agent sessions`.
-- Le présent durcissement de passation est destiné à un second commit atomique sur `main`.
+- Durcissement de passation poussé sur `main` : `e715675 fix: harden specialist agent handoffs`.
+- `origin/main` a été vérifié sur `e715675943fa796e474b41808f2e48ca57e2849c` après le push.
 - La modification préexistante de `.arka-norn/project.json` reste hors scope et n’est pas stagée.
 
 ## Handoff
