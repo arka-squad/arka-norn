@@ -1,25 +1,35 @@
 import { findScaffoldSentinels, scaffoldFromSchema } from "../../domain/pipeline/scaffold-schema.js";
 import { AgentId } from "../../domain/agent/agent-id.js";
+import { ProjectId } from "../../domain/project/project-id.js";
 import type { PipelineScaffoldResult } from "../../ports/inbound/for-pipeline.js";
 import type { PipelineDocumentSource } from "../../ports/outbound/pipeline-document-source.js";
 
 export function scaffoldPipelineDocumentUseCaseFactory(deps: { readonly source: PipelineDocumentSource }) {
-  return async (input: { readonly stepId: string; readonly outputPath: string; readonly authorAgentId: string; readonly featureId?: string; readonly pipelineId?: string; readonly force?: boolean; readonly allowedRoot?: string }): Promise<PipelineScaffoldResult> => {
+  return async (input: { readonly stepId: string; readonly outputPath: string; readonly authorAgentId: string; readonly featureId?: string; readonly projectId?: string; readonly pipelineId?: string; readonly force?: boolean; readonly allowedRoot?: string }): Promise<PipelineScaffoldResult> => {
     const authorAgentId = AgentId.of(input.authorAgentId).value;
+    if (input.projectId !== undefined && input.featureId !== undefined) {
+      throw new Error("A scaffold cannot target both a Project and a Feature.");
+    }
+    if (input.projectId !== undefined && input.stepId !== "audit_etat_reel") {
+      throw new Error("Project-scoped scaffolds are supported only for audit_etat_reel.");
+    }
     const definition = await deps.source.loadDefinition(input.pipelineId);
     const schemaPath = definition.steps.find((step) => step.id === input.stepId)?.schemaPath
       ?? definition.transversalDocuments.find((document) => document.type === input.stepId)?.schemaPath;
     if (schemaPath === undefined) throw new Error(`Unknown pipeline step: ${input.stepId}.`);
     const [schema, envelope] = await Promise.all([
       deps.source.loadSchema(schemaPath),
-      deps.source.loadSchema("schemas/document-envelope.schema.json"),
+      deps.source.loadSchema(input.projectId === undefined
+        ? "schemas/document-envelope.schema.json"
+        : "schemas/project-audit-envelope.schema.json"),
     ]);
     const generated = scaffoldFromSchema(mergeObjectSchemas(envelope, schema), input.stepId);
     const scaffold = {
       ...generated,
-      schema_version: 3,
+      schema_version: input.projectId === undefined ? 3 : 4,
       author_agent_id: authorAgentId,
       ...(input.featureId === undefined ? {} : { feature_id: input.featureId }),
+      ...(input.projectId === undefined ? {} : { project_id: ProjectId.of(input.projectId).value }),
     };
     await deps.source.write(input.outputPath, scaffold, {
       ...(input.force === undefined ? {} : { force: input.force }),

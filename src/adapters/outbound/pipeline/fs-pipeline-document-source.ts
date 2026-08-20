@@ -3,6 +3,7 @@ import { dirname, isAbsolute, relative, resolve } from "node:path";
 
 import { createPipelineCatalog, resolvePipelineEntry, type PipelineCatalog } from "../../../domain/pipeline/pipeline-catalog.js";
 import { createPipelineDefinition, type PipelineBusinessPolicy, type PipelineDefinition } from "../../../domain/pipeline/pipeline-definition.js";
+import { PathSecurityError } from "../../../domain/errors.js";
 import type { PipelineDocumentCandidate, PipelineDocumentSource } from "../../../ports/outbound/pipeline-document-source.js";
 import { readRaw, writeFileAtomic } from "../filesystem/_shared/atomic-json.js";
 import { FsPathPolicy } from "../filesystem/fs-path-policy.js";
@@ -81,6 +82,9 @@ export class FsPipelineDocumentSource implements PipelineDocumentSource {
 
   public async write(filePath: string, content: Readonly<Record<string, unknown>>, options: { readonly force?: boolean; readonly allowedRoot?: string } = {}): Promise<void> {
     const safePath = await this.paths.assertWritableFile(resolve(filePath), options.allowedRoot ?? dirname(resolve(filePath)));
+    if (safePath.split(/[\\/]/).some((segment) => segment.toLowerCase() === ".arka-norn")) {
+      throw new PathSecurityError(safePath, "output cannot be written inside a reserved .arka-norn directory");
+    }
     await writeFileAtomic(safePath, `${JSON.stringify(content, null, 2)}\n`, { mode: 0o644, exclusive: options.force !== true });
   }
 }

@@ -1,10 +1,11 @@
 import { FeatureNotFoundError, FeatureWorkflowImmutableError } from "../../domain/errors.js";
+import { loadIndexedFeatureWithinProject } from "./_shared/verified-feature.js";
 export function setFeatureWorkflowUseCaseFactory(deps) {
     return async (input) => {
         const entry = await deps.indexStore.find(input.id);
         if (entry === undefined)
             throw new FeatureNotFoundError(input.id.value);
-        const feature = await deps.featureStore.load(entry.root);
+        const feature = await loadIndexedFeatureWithinProject(deps, entry);
         const recognized = new Set(input.recognizedDocumentTypes);
         for (const name of await deps.filesystem.readDir(feature.root)) {
             if (!name.endsWith(".json"))

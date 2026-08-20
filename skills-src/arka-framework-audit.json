@@ -10,13 +10,14 @@
   "quand_utiliser": ["avant de figer les invariants", "doute sur la documentation", "audit de robustesse ou sécurité"],
   "quand_ne_pas_utiliser": ["corriger silencieusement pendant l'audit", "déclarer conforme sans preuve directe"],
   "inputs": [{ "obligatoire": true, "nom": "perimetre", "description": "racines, composants et critères audités" }],
-  "note_inputs": "L'accès direct aux sources et commandes de preuve est obligatoire ; toute limite est signalée.",
-  "referentiel_extra": ["`{{FRAMEWORK_DIR}}/schemas/audit-etat-reel.schema.json`", "`{{FRAMEWORK_DIR}}/docs/`"],
+  "note_inputs": "L'accès direct aux sources et commandes de preuve est obligatoire ; toute limite est signalée. Déclarer explicitement le scope : une Feature utilise l'enveloppe v3, un Project sans Feature utilise l'enveloppe v4 dédiée.",
+  "referentiel_extra": ["`{{FRAMEWORK_DIR}}/schemas/audit-etat-reel.schema.json`", "`{{FRAMEWORK_DIR}}/schemas/project-audit-envelope.schema.json`", "`{{FRAMEWORK_DIR}}/docs/"],
   "procedure": [
     { "titre": "Figer le périmètre", "contenu": "Lister sources, exclusions, critères et hypothèses. Ne modifier aucun fichier métier pendant l'audit." },
     { "titre": "Vérifier directement", "contenu": "Inspecter code, configuration, données et tests. Pour chaque constat conserver chemin, commande ou résultat reproductible." },
     { "titre": "Classer", "contenu": "Séparer conforme, écart, risque, invariant candidat, dette et information inconnue. Ne jamais transformer une absence de preuve en conformité." },
-    { "titre": "Restituer", "contenu": "Produire et valider `audit_etat_reel`; exposer blocages et ne corriger qu'après décision explicite dans un lot distinct." }
+    { "titre": "Choisir l'enveloppe", "contenu": "Pour une Feature enregistrée, produire l'audit v3 signé dans son dossier avec `feature_id`. Pour l'audit d'un Project entier sans Feature, produire uniquement `audit_etat_reel` v4 avec `project_id`, via `arka-norn scaffold audit_etat_reel <sortie.json> --project <project-id> --agent <agent-id>`. La sortie Project doit rester hors Feature, Project enfant et `.arka-norn`. Ne jamais inventer de `feature_id` ni mélanger les deux scopes." },
+    { "titre": "Restituer", "contenu": "Remplacer toutes les sentinelles puis valider `audit_etat_reel` avec `arka-norn validate <sortie.json>` ; exposer blocages et ne corriger qu'après décision explicite dans un lot distinct." }
   ],
-  "format_sortie": "Document JSON `audit_etat_reel` validé, preuves brutes, écarts priorisés et limites explicites."
+  "format_sortie": "Document JSON `audit_etat_reel` validé — v3 avec `feature_id` pour une Feature, ou v4 avec `project_id` pour un audit Project — preuves brutes, écarts priorisés et limites explicites."
 }

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -28,6 +28,24 @@ test("migrate est dry-run par défaut puis applique avec backup", (context) => {
   assert.equal(applied.status, 0, applied.stderr);
   assert.equal(existsSync(resolve(markerDir, "project.json")), true);
   assert.equal(existsSync(`${legacy}.v1.bak`), true);
+});
+
+test("migrate refuse un répertoire de marker symbolique sans créer de backup externe", (context) => {
+  const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-migrate-symlink-"));
+  context.after(() => rmSync(sandbox, { recursive: true, force: true }));
+  const target = resolve(sandbox, "target");
+  const externalMarkers = resolve(sandbox, "external-markers");
+  mkdirSync(target);
+  mkdirSync(externalMarkers);
+  const fixture = JSON.parse(readFileSync(resolve(ROOT, "tests", "fixtures", "formats", "project-marker-v1.json"), "utf8")) as Record<string, unknown>;
+  const legacy = resolve(externalMarkers, "depot.json");
+  writeFileSync(legacy, `${JSON.stringify({ ...fixture, root: target })}\n`);
+  symlinkSync(externalMarkers, resolve(target, ".arka-norn"), "dir");
+
+  const result = run(["migrate", "--target", target, "--apply", "--json"], target);
+  assert.equal(result.status, 3, result.stderr);
+  assert.match(result.stdout, /symbolic-link marker directories are forbidden/);
+  assert.equal(existsSync(`${legacy}.v1.bak`), false);
 });
 
 function run(args: readonly string[], cwd: string) {

@@ -1,6 +1,7 @@
 import { existsSync, lstatSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { migrateMarkerFile } from "../../outbound/filesystem/marker-migrator.js";
+import { PathSecurityError } from "../../../domain/errors.js";
 import { CliUsageError, parseStrictArguments } from "./strict-arguments.js";
 export async function runMigrateCommand(argv, context) {
     const json = argv.includes("--json");
@@ -66,6 +67,9 @@ export function findMarkers(root, depth) {
 }
 function walk(directory, depth, found) {
     const markerDirectory = join(directory, ".arka-norn");
+    if (existsSync(markerDirectory) && lstatSync(markerDirectory).isSymbolicLink()) {
+        throw new PathSecurityError(markerDirectory, "symbolic-link marker directories are forbidden");
+    }
     const project = join(markerDirectory, "project.json");
     const legacyProject = join(markerDirectory, "depot.json");
     const feature = join(markerDirectory, "feature.json");

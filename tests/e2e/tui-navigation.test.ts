@@ -15,7 +15,7 @@ import { createContainer } from "../../src/composition/container.ts";
 import { createManagementRuntime } from "../../src/composition/management-runtime.ts";
 import { readEnv } from "../../src/composition/env.ts";
 
-test("l'accueil crée un Project lorsque la racine ne contient aucun marker", async (context) => {
+test("l’accueil crée un Project lorsque la racine ne contient aucun marker", async (context) => {
   const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-tui-create-project-"));
   const projectRoot = resolve(sandbox, "product");
   mkdirSync(projectRoot, { recursive: true });
@@ -40,6 +40,46 @@ test("l'accueil crée un Project lorsque la racine ne contient aucun marker", as
   assert.equal(existsSync(marker), true);
   assert.equal(project?.root, realpathSync.native(projectRoot));
   assert.equal(project?.name, "product");
+});
+
+test("l’accueil TUI actualise Santé après l’installation des skills", async (context) => {
+  const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-tui-health-refresh-"));
+  const target = resolve(sandbox, "project");
+  mkdirSync(target, { recursive: true });
+  context.after(() => rmSync(sandbox, { recursive: true, force: true }));
+
+  let output = "";
+  const theme = createTheme({ NO_COLOR: "1" }, false);
+  const renderer = createRenderer({ write: (chunk) => { output += chunk; }, isTTY: false, columns: 120 });
+  const container = createContainer(readEnv({ ARKA_NORN_HOME: sandbox }, target), {
+    renderer,
+    theme,
+    viewport: () => ({ columns: 120, rows: 50 }),
+  });
+  const home = await container.createHomeView();
+  container.app.push(home);
+
+  home.onKey({ kind: "down" });
+  home.onKey({ kind: "down" });
+  home.onKey({ kind: "down" });
+  home.onKey({ kind: "enter" });
+  await waitUntil(() => container.app.topScene() !== home, "menu d’installation des skills");
+  const installMenu = container.app.topScene();
+  assert.ok(installMenu);
+  installMenu.onKey({ kind: "enter" });
+  await waitUntil(() => {
+    const top = container.app.topScene();
+    return top !== undefined && top !== home && top !== installMenu;
+  }, "résultat d’installation des skills");
+
+  container.app.topScene()?.render(renderer, theme);
+  assert.match(output, /résumé Santé de l’accueil a été actualisé/);
+
+  container.app.pop();
+  output = "";
+  home.render(renderer, theme);
+  assert.match(output, /Santé\s+: .*0 FAIL/);
+  assert.match(output, /18\/18 sains · 0 absents · 0 divergents/);
 });
 
 test("la composition TUI pilote Home → Project → Feature → scaffold réel", async (context) => {
@@ -103,6 +143,38 @@ test("la composition TUI pilote Home → Project → Feature → scaffold réel"
 
   input.send({ kind: "interrupt" });
   await running;
+});
+
+test("la TUI refuse d'inspecter une Feature marquée sans registre Agent", async (context) => {
+  const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-tui-registry-required-"));
+  const projectRoot = resolve(sandbox, "project");
+  const featureRoot = resolve(projectRoot, "feature");
+  mkdirSync(featureRoot, { recursive: true });
+  context.after(() => rmSync(sandbox, { recursive: true, force: true }));
+
+  const management = createManagementRuntime({ homeDir: sandbox });
+  const project = await management.projects.create({ id: ProjectId.of("project"), name: "Project", root: projectRoot });
+  await management.features.create({ id: FeatureId.of("feature"), projectId: project.id, name: "Feature", root: featureRoot });
+
+  let output = "";
+  const renderer = createRenderer({ write: (chunk) => { output += chunk; }, isTTY: false, columns: 120 });
+  const container = createContainer(readEnv({ ARKA_NORN_HOME: sandbox }, projectRoot), {
+    renderer,
+    theme: createTheme({ NO_COLOR: "1" }, false),
+    viewport: () => ({ columns: 120, rows: 50 }),
+  });
+  const home = await container.createHomeView();
+  container.app.push(home);
+
+  home.onKey({ kind: "down" });
+  home.onKey({ kind: "enter" });
+  await waitUntil(() => {
+    output = "";
+    home.render(renderer, createTheme({ NO_COLOR: "1" }, false));
+    return output.includes("cannot verify document authors for a managed Feature");
+  }, "refus du registre Agent absent");
+
+  assert.equal(container.app.topScene(), home);
 });
 
 test("la TUI enregistre et sélectionne une identité Agent sans connaissance implicite", async (context) => {

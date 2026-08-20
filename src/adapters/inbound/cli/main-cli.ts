@@ -26,7 +26,7 @@ Gestion :
   project <list|add|import|scan|show|use|forget|reconcile>
   feature <list|create|import|scan|show|use|forget|reconcile|set-workflow>
   agent <list|register|show|current|use|sessions|advise|prompt|handoff-prompt|deactivate|replace>
-  pipeline <status|next|scaffold|validate>
+  pipeline <status|next|scaffold|validate> Statut : identité, relations et verdict métier.
   workflow <list|show>
   fastdev <start|status|next>
 
@@ -43,7 +43,9 @@ Documents et santé :
   status [feature-root]                 État complet et prochaine action.
   scaffold <step-id> <output.json> --agent <id>
                                         Génère un document v3 signé par un agent actif.
-  validate <document.json>             Valide structure, identité et relations.
+  scaffold audit_etat_reel <output.json> --project <id> --agent <id>
+                                        Génère un audit Project v4 dans sa racine autorisée.
+  validate <document.json>             Valide schéma et sentinelles de scaffold.
   doctor [--json] [--repair [--apply]] Santé index, markers, locks, audit et skills.
   migrate [--target <path>] [--dry-run|--apply]
 

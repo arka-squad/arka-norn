@@ -1,6 +1,7 @@
 import type { Project } from "../../domain/project/project.js";
 import type { ProjectScanResult, ScanProjectsOptions } from "../../ports/inbound/for-scan-projects.js";
 import type { ProjectsDeps } from "./_shared/projects-deps.js";
+import { loadIndexedProject } from "./_shared/verified-project.js";
 
 export type ScanProjectsUseCase = (options?: ScanProjectsOptions) => Promise<readonly ProjectScanResult[]>;
 
@@ -67,7 +68,7 @@ export function scanProjectsUseCaseFactory(deps: ProjectsDeps): ScanProjectsUseC
       if (indexed.root === entry.root) continue;
       let duplicateIsActive = false;
       try {
-        duplicateIsActive = (await deps.projectStore.load(indexed.root)).id.value === entry.id;
+        duplicateIsActive = (await loadIndexedProject(deps, indexed)).id.value === entry.id;
       } catch {
         duplicateIsActive = false;
       }

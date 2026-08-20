@@ -13,7 +13,7 @@ arka-norn skills doctor --target <repo> --global --json
 
 Profils généraux : `core` (8), `delivery` (16), `all` (18, défaut). Profils Agent : `product` (11), `architecture` (10), `audit` (9), `dev` (9), `qa` (8). Un prompt produit par `agent prompt` nomme exactement le profil à installer.
 
-Le catalogue versionne chaque source et son SHA-256. `doctor` considère le Project prêt si les 8 skills `core` sont saines et qu’aucune divergence n’existe ; les skills de rôles encore absentes sont alors signalées comme optionnelles. Toute divergence retourne le code 3. L'installation retourne le code 5 et n'écrase rien sans `--force`; un remplacement forcé crée un backup sous `.arka-norn/backups/skills/`.
+Le catalogue versionne chaque source et son SHA-256. `doctor` considère le Project prêt si les 8 skills `core` sont saines et qu’aucune divergence n’existe ; une seule skill core absente est un échec avec le code 3. Les skills de rôles encore absentes restent des avertissements optionnels. Toute divergence retourne aussi le code 3. L'installation retourne le code 5 et n'écrase rien sans `--force`; un remplacement forcé crée un backup sous `.arka-norn/backups/skills/`.
 
 L'utilisateur déclenche le point d'entrée avec `/arka-norn` dans Claude Code ou `$arka-norn` dans Codex. Un provider sans syntaxe de skill dédiée reçoit la consigne `Utilise la skill arka-norn pour initialiser ce nouveau Project.` Le parcours et le contrat de sortie sont décrits dans [`agent-bootstrap.md`](agent-bootstrap.md).
 
@@ -23,7 +23,7 @@ Une installation locale écrit les rendus dans `.claude/skills/` et `.agents/ski
 
 `arka-product` reste dans la session `main`, consulte `agent advise`, prépare `agent prompt` pour les rôles spécialisés et fournit `agent handoff-prompt` avant une reprise. Elle n’exécute pas les livrables spécialisés. Voir [`agent-orchestration.md`](agent-orchestration.md).
 
-Le skill audit impose observation directe et absence de correction silencieuse. Le skill dev impose lecture de la spec, scope fichiers, tests, CR de dev et handoff. Le skill QA cible le dernier CR, conserve les preuves et sépare structure, verdict métier, anomalies et décision.
+Le skill audit impose observation directe et absence de correction silencieuse. Il produit un audit v3 pour une Feature ou, lorsqu’aucune Feature n’est concernée, l’audit Project v4 explicite avec `project_id`; il ne fabrique jamais de Feature de convenance. Le skill dev impose lecture de la spec, scope fichiers, tests, CR de dev et handoff. Le skill QA cible le dernier CR, conserve les preuves et sépare structure, verdict métier, anomalies et décision.
 
 Le skill Concept propose, lorsque l’exploration le justifie, un brainstorming optionnel dans ChatGPT ou Claude.ai pour réserver le contexte de l’agent d’exécution. Il doit toujours fournir un prompt prérempli et un mode d’emploi ; la réponse externe est ensuite réconciliée avec les sources locales avant toute écriture. Le modèle est décrit dans [`concept-brainstorming-web.md`](concept-brainstorming-web.md).
 

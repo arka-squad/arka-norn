@@ -46,7 +46,27 @@ arka-norn pipeline next secure-cockpit
 arka-norn pipeline scaffold cr_dev --feature secure-cockpit --session dev-secure-cockpit
 ```
 
-Le scaffold écrit automatiquement `schema_version: 3`, `feature_id` et `author_agent_id`. L’alias bas niveau `scaffold` exige `--agent <id>` explicitement.
+Le scaffold géré d’une Feature écrit automatiquement `schema_version: 3`, `feature_id` et `author_agent_id`. L’alias bas niveau `scaffold` exige `--agent <id>` explicitement.
+
+Un audit portant sur un Project entier, sans Feature à inventer, utilise le seul
+format v4 autorisé :
+
+```text
+arka-norn scaffold audit_etat_reel input/audit/audit-project.json --project <project-id> --agent <agent-id>
+```
+
+La commande vérifie le Project, le registre, l’Agent actif, son scope de chemin
+et confine la sortie à la racine du Project. Elle refuse les zones `.arka-norn`,
+une Feature ou un Project enfant, écrit `project_id` et ne peut pas être
+combinée avec `--feature-id`. Les autres types de document restent
+Feature-scopés. Toute génération écrit une intention puis un résultat dans le
+journal d’audit local.
+
+`validate <document.json>` contrôle uniquement le schéma et l’absence de
+sentinelles de scaffold. Utilisez `pipeline status <feature>` pour la vérification
+du registre d’auteur, des relations et du verdict métier d’une Feature. Pour un
+audit Project v4, `validate` confirme donc le contrat JSON, pas l’état courant
+du registre ou du Project : cette autorisation est garantie au scaffold.
 
 ## FastDev
 

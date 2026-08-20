@@ -89,9 +89,13 @@ export function createFeatureDetailView(deps) {
     }
     async function run(task) {
         busy = true;
+        status = undefined;
         deps.redraw();
         try {
             await task();
+        }
+        catch (error) {
+            status = `Action impossible : ${error instanceof Error ? error.message : String(error)}`;
         }
         finally {
             busy = false;

@@ -20,6 +20,7 @@
 import type { Feature } from "../../domain/feature/feature.js";
 import type { FeatureScanResult, ScanOptions } from "../../ports/inbound/for-scan.js";
 import type { FeaturesDeps } from "./_shared/features-deps.js";
+import { loadFeatureWithinProject, loadIndexedFeatureWithinProject, loadProjectForFeature } from "./_shared/verified-feature.js";
 
 export type ScanFeaturesUseCase = (options?: ScanOptions) => Promise<readonly FeatureScanResult[]>;
 
@@ -32,8 +33,7 @@ export function scanFeaturesUseCaseFactory(deps: FeaturesDeps): ScanFeaturesUseC
     try {
       target = await deps.pathPolicy.canonicalDirectory(requestedTarget);
       if (options?.projectId !== undefined) {
-        const project = await deps.projectIndexStore.find(options.projectId);
-        if (project === undefined) return [];
+        const project = await loadProjectForFeature(deps, options.projectId);
         const canonicalProject = await deps.pathPolicy.canonicalDirectory(project.root);
         if (target !== canonicalProject) await deps.pathPolicy.assertContained(canonicalProject, target);
       }
@@ -81,7 +81,7 @@ export function scanFeaturesUseCaseFactory(deps: FeaturesDeps): ScanFeaturesUseC
       let feature: Feature | undefined;
       const legacyMarker = await featureStore.hasLegacyMarker(root);
       try {
-        feature = await featureStore.load(root);
+        feature = await loadFeatureWithinProject(deps, root);
         if (options?.projectId !== undefined && !feature.belongsTo(options.projectId)) feature = undefined;
       } catch (err) {
         logger.warn("scanFeatures: marker exists but feature failed to load", {
@@ -114,7 +114,7 @@ export function scanFeaturesUseCaseFactory(deps: FeaturesDeps): ScanFeaturesUseC
       if (indexed.root === entry.root) continue;
       let duplicateIsActive = false;
       try {
-        duplicateIsActive = (await featureStore.load(indexed.root)).id.value === entry.id;
+        duplicateIsActive = (await loadIndexedFeatureWithinProject(deps, indexed)).id.value === entry.id;
       } catch {
         duplicateIsActive = false;
       }

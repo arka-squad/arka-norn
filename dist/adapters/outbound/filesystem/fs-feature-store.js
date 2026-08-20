@@ -16,6 +16,7 @@ export class FsFeatureStore {
         return existsFile(markerPath(root));
     }
     async hasLegacyMarker(root) {
+        await rejectMarkerDirectorySymlink(root);
         const value = await readJson(markerPath(root));
         return typeof value === "object" && value !== null && "version" in value && value.version === 1;
     }
@@ -27,6 +28,7 @@ export class FsFeatureStore {
         await writeJsonAtomic(markerPath(feature.root), serialize(feature), { mode: 0o644, exclusive: true });
     }
     async load(root) {
+        await rejectMarkerDirectorySymlink(root);
         const value = await readJson(markerPath(root));
         if (value === undefined)
             throw new FeatureMarkerNotFoundError(root);

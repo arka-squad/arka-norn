@@ -18,8 +18,23 @@ export function showHealthReport(app: TuiApp, report: DoctorReport, skills: Skil
   }));
 }
 
-export async function showSkillInstallation(app: TuiApp, skillManager: SkillManager, target: string): Promise<void> {
+export async function showSkillInstallation(
+  app: TuiApp,
+  skillManager: SkillManager,
+  target: string,
+  onHealthChanged?: () => Promise<void> | void,
+): Promise<void> {
   const health = await skillManager.inspect(target);
+
+  async function refreshHealth(): Promise<string | undefined> {
+    try {
+      await onHealthChanged?.();
+      return undefined;
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
+  }
+
   app.push(createMenuScene(
     [
       { label: "Installer les skills manquantes", value: "repo" as const, description: `${health.missing} absente(s), conserve toute divergence locale` },
@@ -33,11 +48,30 @@ export async function showSkillInstallation(app: TuiApp, skillManager: SkillMana
         app.pop();
         if (choice === "cancel") return;
         void skillManager.install({ target, global: choice === "global", force: choice === "repair" || choice === "global" }).then(
-          (result) => app.push(createResultView({
-            title: "Installation des skills", code: result.code, output: result.output, onBack: () => {},
-            nextStep: result.code === 0 ? "revenez à l’accueil et relancez Santé pour confirmer 0 divergence" : "choisissez la réparation avec sauvegarde si des divergences sont signalées",
-          })),
-          (error: unknown) => app.push(createResultView({ title: "Installation impossible", code: 70, output: error instanceof Error ? error.message : String(error), onBack: () => {} })),
+          async (result) => {
+            const refreshError = await refreshHealth();
+            app.push(createResultView({
+              title: "Installation des skills",
+              code: result.code,
+              output: refreshError === undefined ? result.output : `${result.output}\n\nSanté non actualisée : ${refreshError}`,
+              onBack: () => {},
+              nextStep: result.code === 0
+                ? refreshError === undefined
+                  ? "installation terminée : le résumé Santé de l’accueil a été actualisé"
+                  : "installation terminée ; revenez à l’accueil puis relancez Santé pour actualiser le résumé"
+                : "choisissez la réparation avec sauvegarde si des divergences sont signalées",
+            }));
+          },
+          async (error: unknown) => {
+            const refreshError = await refreshHealth();
+            const message = error instanceof Error ? error.message : String(error);
+            app.push(createResultView({
+              title: "Installation impossible",
+              code: 70,
+              output: refreshError === undefined ? message : `${message}\n\nSanté non actualisée : ${refreshError}`,
+              onBack: () => {},
+            }));
+          },
         );
       },
       onCancel: () => {},

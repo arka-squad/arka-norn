@@ -1,13 +1,12 @@
-import { FeatureLocationConflictError, FeatureMarkerNotFoundError, FeatureNotFoundError, ProjectNotFoundError } from "../../domain/errors.js";
+import { FeatureLocationConflictError, FeatureMarkerNotFoundError, FeatureNotFoundError } from "../../domain/errors.js";
+import { loadFeatureWithinProject, loadIndexedFeatureWithinProject, loadProjectForFeature } from "./_shared/verified-feature.js";
 export function importFeatureUseCaseFactory(deps) {
     return async (input) => {
-        const project = await deps.projectIndexStore.find(input.projectId);
-        if (project === undefined)
-            throw new ProjectNotFoundError(input.projectId.value);
+        const project = await loadProjectForFeature(deps, input.projectId);
         const confined = await deps.pathPolicy.assertContained(project.root, input.root);
         if (!(await deps.featureStore.exists(confined.child)))
             throw new FeatureMarkerNotFoundError(confined.child);
-        const feature = await deps.featureStore.load(confined.child);
+        const feature = await loadFeatureWithinProject(deps, confined.child);
         if (!feature.belongsTo(input.projectId))
             throw new FeatureNotFoundError(`${feature.id.value}: project mismatch`);
         const indexed = await deps.indexStore.find(feature.id);
@@ -20,7 +19,7 @@ export function importFeatureUseCaseFactory(deps) {
         else if (indexed.root !== feature.root) {
             let duplicateIsActive = false;
             try {
-                duplicateIsActive = (await deps.featureStore.load(indexed.root)).id.equals(feature.id);
+                duplicateIsActive = (await loadIndexedFeatureWithinProject(deps, indexed)).id.equals(feature.id);
             }
             catch {
                 duplicateIsActive = false;

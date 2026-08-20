@@ -47,7 +47,9 @@ try {
   const afterProjects = performance.now();
   const features = await management.features.list();
   const afterFeatures = performance.now();
-  const metrics = await loadProjectMetrics(features.slice(0, DASHBOARD_COUNT), pipeline);
+  // Le dataset synthétique ne contient aucun document signé ; il fournit donc
+  // explicitement le registre d'auteurs vide requis par l'inspection stricte.
+  const metrics = await loadProjectMetrics(features.slice(0, DASHBOARD_COUNT), pipeline, () => []);
   const end = performance.now();
   const durations = {
     projectsMs: round(afterProjects - start),

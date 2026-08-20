@@ -100,10 +100,83 @@ test("la CLI couvre le cycle Project/Feature et reconstruit les index", (context
   assert.ok(audit.some((event) => event.action === "agent.replace"));
 });
 
+test("le scaffold d'audit Project v4 est signé, confiné et distinct d'une Feature", (context) => {
+  const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-project-audit-cli-"));
+  const home = resolve(sandbox, "home");
+  const projectRoot = resolve(sandbox, "project");
+  const auditDirectory = resolve(projectRoot, "input", "audit");
+  mkdirSync(auditDirectory, { recursive: true });
+  context.after(() => rmSync(sandbox, { recursive: true, force: true }));
+
+  assert.equal(run(["project", "add", projectRoot, "--id", "product", "--name", "Product", "--json"], home, projectRoot).status, 0);
+  const author = run<{ readonly id: string }>([
+    "agent", "register", "--project", "product", "--provider", "Codex", "--role", "audit", "--session", "audit-product", "--json",
+  ], home, projectRoot);
+  assert.equal(author.status, 0, author.stderr);
+
+  const output = "input/audit/project-audit.json";
+  const scaffold = run(["scaffold", "audit_etat_reel", output, "--project", "product", "--agent", author.json.data.id, "--json"], home, projectRoot);
+  assert.equal(scaffold.status, 0, scaffold.stderr);
+  const document = JSON.parse(readFileSync(resolve(projectRoot, output), "utf8")) as {
+    readonly schema_version: number;
+    readonly project_id: string;
+    readonly feature_id?: string;
+    readonly author_agent_id: string;
+  };
+  assert.equal(document.schema_version, 4);
+  assert.equal(document.project_id, "product");
+  assert.equal(document.feature_id, undefined);
+  assert.equal(document.author_agent_id, author.json.data.id);
+
+  const nestedProjectRoot = resolve(projectRoot, "nested-project");
+  mkdirSync(nestedProjectRoot);
+  assert.equal(run([
+    "project", "add", nestedProjectRoot, "--id", "nested", "--name", "Nested", "--json",
+  ], home, projectRoot).status, 0);
+  const insideNestedProject = run([
+    "scaffold", "audit_etat_reel", "nested-project/project-audit.json", "--project", "product", "--agent", author.json.data.id, "--json",
+  ], home, projectRoot);
+  assert.equal(insideNestedProject.status, 3, insideNestedProject.stderr);
+  assert.match(insideNestedProject.json.errors[0] ?? "", /must not be placed inside another managed Project/);
+  assert.equal(existsSync(resolve(nestedProjectRoot, "project-audit.json")), false);
+
+  const featureRoot = resolve(projectRoot, "feature");
+  assert.equal(run([
+    "feature", "create", "Feature", "--project", "product", "--id", "feature", "--path", featureRoot, "--json",
+  ], home, projectRoot).status, 0);
+  const insideFeature = "feature/project-audit.json";
+  const rejectedInsideFeature = run([
+    "scaffold", "audit_etat_reel", insideFeature, "--project", "product", "--agent", author.json.data.id, "--json",
+  ], home, projectRoot);
+  assert.equal(rejectedInsideFeature.status, 3, rejectedInsideFeature.stderr);
+  assert.match(rejectedInsideFeature.json.errors[0] ?? "", /must not be placed inside a managed Feature/);
+  assert.equal(existsSync(resolve(projectRoot, insideFeature)), false);
+
+  const markerPath = resolve(projectRoot, ".arka-norn", "project.json");
+  const originalMarker = readFileSync(markerPath, "utf8");
+  const rejectedMarkerOverwrite = run([
+    "scaffold", "audit_etat_reel", ".arka-norn/project.json", "--project", "product", "--agent", author.json.data.id, "--force", "--json",
+  ], home, projectRoot);
+  assert.equal(rejectedMarkerOverwrite.status, 3, rejectedMarkerOverwrite.stderr);
+  assert.match(rejectedMarkerOverwrite.json.errors[0] ?? "", /reserved .arka-norn directory/);
+  assert.equal(readFileSync(markerPath, "utf8"), originalMarker);
+  const rejectedGenericMarkerOverwrite = run([
+    "scaffold", "audit_etat_reel", ".arka-norn/project.json", "--agent", author.json.data.id, "--force", "--json",
+  ], home, projectRoot);
+  assert.equal(rejectedGenericMarkerOverwrite.status, 3, rejectedGenericMarkerOverwrite.stderr);
+  assert.match(rejectedGenericMarkerOverwrite.json.errors[0] ?? "", /reserved .arka-norn directory/);
+  assert.equal(readFileSync(markerPath, "utf8"), originalMarker);
+
+  assert.equal(run(["scaffold", "concept", "input/audit/concept.json", "--project", "product", "--agent", author.json.data.id, "--json"], home, projectRoot).status, 64);
+  assert.equal(run(["scaffold", "audit_etat_reel", "input/audit/mixed.json", "--project", "product", "--feature-id", "other", "--agent", author.json.data.id, "--json"], home, projectRoot).status, 64);
+  assert.equal(run(["scaffold", "audit_etat_reel", "../outside.json", "--project", "product", "--agent", author.json.data.id, "--json"], home, projectRoot).status, 3);
+  assert.equal(run(["validate", resolve(ROOT, "examples", "project-audit-v4", "01-audit-etat-reel.json"), "--json"], home, projectRoot).status, 0);
+});
+
 interface RunResult<T> {
   readonly status: number | null;
   readonly stderr: string;
-  readonly json: { readonly ok: boolean; readonly data: T; readonly warnings: readonly string[] };
+  readonly json: { readonly ok: boolean; readonly data: T; readonly errors: readonly string[]; readonly warnings: readonly string[] };
 }
 
 function run<T = unknown>(args: readonly string[], home: string, cwd: string): RunResult<T> {

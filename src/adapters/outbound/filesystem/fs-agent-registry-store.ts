@@ -1,8 +1,9 @@
+import * as fs from "node:fs/promises";
 import { join } from "node:path";
 
 import { AgentRegistration } from "../../../domain/agent/agent.js";
 import { AgentId } from "../../../domain/agent/agent-id.js";
-import { InvalidAgentRegistryError } from "../../../domain/errors.js";
+import { InvalidAgentRegistryError, PathSecurityError } from "../../../domain/errors.js";
 import { FeatureId } from "../../../domain/feature/feature-id.js";
 import { ProjectId } from "../../../domain/project/project-id.js";
 import type { Project } from "../../../domain/project/project.js";
@@ -47,11 +48,13 @@ export class FsAgentRegistryStore implements AgentRegistryStore {
 
   public async load(project: Project): Promise<readonly AgentRegistration[]> {
     await this.paths.assertMarkerRoot(project.root, project.root);
+    await rejectMarkerDirectorySymlink(project.root);
     return this.loadUnlocked(project);
   }
 
   public async update(project: Project, transform: (agents: readonly AgentRegistration[]) => readonly AgentRegistration[]): Promise<readonly AgentRegistration[]> {
     await this.paths.assertMarkerRoot(project.root, project.root);
+    await rejectMarkerDirectorySymlink(project.root);
     const path = registryPath(project.root);
     return withFileLock(path, async () => {
       const current = await this.loadUnlocked(project);
@@ -98,6 +101,17 @@ export function agentRegistryPath(projectRoot: string): string {
 
 function registryPath(projectRoot: string): string {
   return join(projectRoot, ".arka-norn", "agents.json");
+}
+
+async function rejectMarkerDirectorySymlink(root: string): Promise<void> {
+  try {
+    const path = join(root, ".arka-norn");
+    if ((await fs.lstat(path)).isSymbolicLink()) {
+      throw new PathSecurityError(path, "symbolic-link marker directories are forbidden");
+    }
+  } catch (error) {
+    if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
+  }
 }
 
 function serialize(agent: AgentRegistration): AgentRegistrationRaw {

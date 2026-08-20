@@ -15,6 +15,8 @@ export function createHomeView(deps) {
     let message;
     let busy = false;
     let helpVisible = false;
+    let skillHealth = deps.skillHealth ?? "état inconnu";
+    let systemHealth = deps.systemHealth ?? "état inconnu";
     let menu = buildMenu();
     syncFocus();
     function items() {
@@ -26,8 +28,8 @@ export function createHomeView(deps) {
                 description: `${project.root}  ${formatActivity(project.updatedAt, now())}`,
             })),
             { label: "Rescanner ce dossier", value: "action:scan", description: "reconstruit l’index depuis les marqueurs sans supprimer les données" },
-            { label: "Santé du système", value: "action:health", description: `${deps.systemHealth ?? "état inconnu"} · détail et réparations sûres` },
-            { label: "Installer / réparer les skills", value: "action:install", description: `${deps.skillHealth ?? "état inconnu"} · guide les agents dans le framework` },
+            { label: "Santé du système", value: "action:health", description: `${systemHealth} · détail et réparations sûres` },
+            { label: "Installer / réparer les skills", value: "action:install", description: `${skillHealth} · guide les agents dans le framework` },
         ];
     }
     function buildMenu() {
@@ -122,6 +124,13 @@ export function createHomeView(deps) {
     }
     return {
         chrome: { contextBanner: false },
+        setHealth(summary) {
+            skillHealth = summary.skillHealth;
+            systemHealth = summary.systemHealth;
+            menu = buildMenu();
+            syncFocus();
+            deps.redraw();
+        },
         onKey(event) {
             if (event.kind === "help" && mode === "menu") {
                 helpVisible = !helpVisible;
@@ -194,7 +203,7 @@ export function createHomeView(deps) {
     };
     function renderHome(theme) {
         const lines = [
-            ...titledBox("Bienvenue", [`Runtime : Node ${process.version}`, `Racine  : ${deps.contextRoot}`, `Santé   : ${deps.systemHealth ?? "inconnue"}`], theme, { border: theme.arkaRed }).split("\n"),
+            ...titledBox("Bienvenue", [`Runtime : Node ${process.version}`, `Racine  : ${deps.contextRoot}`, `Santé   : ${systemHealth}`], theme, { border: theme.arkaRed }).split("\n"),
             "",
             `  ${theme.bold("Projets")}`,
         ];

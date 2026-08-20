@@ -12,11 +12,12 @@
  *    → écrit d'abord le marker, source de vérité reconstructible, puis
  *      référence la Feature dans l'index local.
  */
-import { FeatureAlreadyExistsError, ProjectNotFoundError } from "../../domain/errors.js";
+import { FeatureAlreadyExistsError, FeatureNotFoundError } from "../../domain/errors.js";
 import { Feature } from "../../domain/feature/feature.js";
 import { DEFAULT_PIPELINE_ID } from "../../domain/shared/marker-formats.js";
 import type { CreateFeatureInput } from "../../ports/inbound/for-features.js";
 import type { FeaturesDeps } from "./_shared/features-deps.js";
+import { loadFeatureWithinProject, loadProjectForFeature } from "./_shared/verified-feature.js";
 
 export type CreateFeatureUseCase = (input: CreateFeatureInput) => Promise<Feature>;
 
@@ -24,15 +25,15 @@ export function createFeatureUseCaseFactory(deps: FeaturesDeps): CreateFeatureUs
   const { featureStore, indexStore, clock, logger } = deps;
 
   return async (input: CreateFeatureInput): Promise<Feature> => {
-    const project = await deps.projectIndexStore.find(input.projectId);
-    if (project === undefined) throw new ProjectNotFoundError(input.projectId.value);
+    const project = await loadProjectForFeature(deps, input.projectId);
     const confined = await deps.pathPolicy.assertContained(project.root, input.root);
     if (!(await deps.filesystem.exists(confined.child))) await deps.filesystem.mkdir(confined.child, { recursive: true });
     if (await featureStore.exists(confined.child)) {
-      const existing = await featureStore.load(confined.child);
+      const existing = await loadFeatureWithinProject(deps, confined.child);
       if (!existing.id.equals(input.id)) {
         throw new FeatureAlreadyExistsError(existing.root);
       }
+      if (!existing.belongsTo(input.projectId)) throw new FeatureNotFoundError(`${existing.id.value}: project mismatch`);
 
       const indexed = await indexStore.find(existing.id);
       if (indexed === undefined) {

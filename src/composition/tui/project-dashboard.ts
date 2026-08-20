@@ -2,14 +2,22 @@ import type { ProjectFeatureMetrics } from "../../adapters/inbound/tui/views/pro
 import { mapConcurrent } from "../../application/shared/map-concurrent.js";
 import type { Feature } from "../../domain/feature/feature.js";
 import type { PipelineReport } from "../../domain/pipeline/pipeline-report.js";
-import type { ForPipeline } from "../../ports/inbound/for-pipeline.js";
+import type { ForPipeline, PipelineAuthorAuthorization } from "../../ports/inbound/for-pipeline.js";
+
+export type AuthorRegistryForFeature = (feature: Feature) => Promise<readonly PipelineAuthorAuthorization[]> | readonly PipelineAuthorAuthorization[];
 
 export async function loadProjectMetrics(
   features: readonly Feature[],
   pipeline: ForPipeline,
+  authorRegistryForFeature: AuthorRegistryForFeature,
 ): Promise<ReadonlyMap<string, ProjectFeatureMetrics>> {
   return new Map(await mapConcurrent(features, 4, async (feature) => {
-    const report = await pipeline.inspect({ featureRoot: feature.root, featureId: feature.id.value, pipelineId: feature.pipelineId });
+    const report = await pipeline.inspect({
+      featureRoot: feature.root,
+      featureId: feature.id.value,
+      pipelineId: feature.pipelineId,
+      authorRegistry: await authorRegistryForFeature(feature),
+    });
     return [feature.id.value, metricsFromReport(report, feature.pipelineId)] as const;
   }));
 }

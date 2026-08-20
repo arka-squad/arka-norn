@@ -1,7 +1,12 @@
 import { mapConcurrent } from "../../application/shared/map-concurrent.js";
-export async function loadProjectMetrics(features, pipeline) {
+export async function loadProjectMetrics(features, pipeline, authorRegistryForFeature) {
     return new Map(await mapConcurrent(features, 4, async (feature) => {
-        const report = await pipeline.inspect({ featureRoot: feature.root, featureId: feature.id.value, pipelineId: feature.pipelineId });
+        const report = await pipeline.inspect({
+            featureRoot: feature.root,
+            featureId: feature.id.value,
+            pipelineId: feature.pipelineId,
+            authorRegistry: await authorRegistryForFeature(feature),
+        });
         return [feature.id.value, metricsFromReport(report, feature.pipelineId)];
     }));
 }

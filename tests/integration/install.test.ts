@@ -17,11 +17,12 @@ test("install déploie réellement chaque skill dans un target et un home tempor
   const target = join(sandbox, "target");
   const home = join(sandbox, "home");
   context.after(() => rmSync(sandbox, { recursive: true, force: true }));
+  const isolatedEnv = { ...process.env, ARKA_NORN_HOME: home, HOME: home, USERPROFILE: home };
 
   const result = spawnSync(process.execPath, [BIN, "install", "--target", target, "--global"], {
     cwd: ROOT,
     encoding: "utf8",
-    env: { ...process.env, HOME: home, USERPROFILE: home },
+    env: isolatedEnv,
   });
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
 
@@ -51,7 +52,7 @@ test("install déploie réellement chaque skill dans un target et un home tempor
   const healthy = spawnSync(process.execPath, [BIN, "skills", "doctor", "--target", target, "--global", "--json"], {
     cwd: ROOT,
     encoding: "utf8",
-    env: { ...process.env, HOME: home, USERPROFILE: home },
+    env: isolatedEnv,
   });
   assert.equal(healthy.status, 0, `${healthy.stdout}\n${healthy.stderr}`);
   assert.equal((JSON.parse(healthy.stdout) as { readonly data: { readonly global: boolean } }).data.global, true);
@@ -61,7 +62,7 @@ test("install déploie réellement chaque skill dans un target et un home tempor
   const divergent = spawnSync(process.execPath, [BIN, "skills", "doctor", "--target", target, "--global", "--json"], {
     cwd: ROOT,
     encoding: "utf8",
-    env: { ...process.env, HOME: home, USERPROFILE: home },
+    env: isolatedEnv,
   });
   assert.equal(divergent.status, 3, `${divergent.stdout}\n${divergent.stderr}`);
   assert.match(divergent.stdout, /divergent/);

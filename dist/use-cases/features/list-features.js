@@ -1,11 +1,12 @@
 import { mapConcurrent } from "../../application/shared/map-concurrent.js";
+import { loadIndexedFeatureWithinProject } from "./_shared/verified-feature.js";
 export function listFeaturesUseCaseFactory(deps) {
-    const { featureStore, indexStore, logger } = deps;
+    const { indexStore, logger } = deps;
     return async () => {
         const entries = await indexStore.load();
         const features = await mapConcurrent(entries, 8, async (entry) => {
             try {
-                const feature = await featureStore.load(entry.root);
+                const feature = await loadIndexedFeatureWithinProject(deps, entry);
                 const reconciled = feature.updatedAt.getTime() === entry.updatedAt.getTime() ? feature : feature.touched(entry.updatedAt);
                 return reconciled;
             }

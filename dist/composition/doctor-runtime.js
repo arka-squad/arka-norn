@@ -18,7 +18,11 @@ export function createDoctorRuntime(homeDir, targetDir = process.cwd()) {
                 skills.inspect(targetDir, "all"),
                 inspectPipelineCatalog(pipelines),
             ]);
-            const skillStatus = allSkillHealth.divergent > 0 ? "fail" : coreSkillHealth.missing > 0 ? "warn" : "pass";
+            // Les huit skills core constituent le socle opérationnel du Project.
+            // Une absence rend donc le diagnostic non conforme (et non simplement
+            // informatif) : `doctor.ok` et son code de sortie restent cohérents avec
+            // le contrat de préparation du Project.
+            const skillStatus = allSkillHealth.divergent > 0 || coreSkillHealth.missing > 0 ? "fail" : "pass";
             const optionalMissing = allSkillHealth.missing - coreSkillHealth.missing;
             return [
                 ...runtime,

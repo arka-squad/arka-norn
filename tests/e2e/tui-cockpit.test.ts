@@ -13,7 +13,9 @@ import { createPipelineRuntime } from "../../src/composition/pipeline-runtime.ts
 test("le cockpit Feature rend état, prochaine action, timeline, runs, dettes et handoffs", async () => {
   const root = resolve(import.meta.dirname, "..", "..");
   const featureRoot = resolve(root, "examples", "feature-notion-linear");
-  const report = await createPipelineRuntime(root).inspect({ featureRoot, featureId: "connecteurs-notion-linear" });
+  const report = await createPipelineRuntime(root).inspect({
+    featureRoot, featureId: "connecteurs-notion-linear", authorRegistry: [{ id: "Codex_dev_20260819", active: true, authorized: true }],
+  });
   const at = new Date("2026-08-19T10:00:00.000Z");
   const feature = Feature.create({
     id: FeatureId.of("connecteurs-notion-linear"), projectId: ProjectId.of("cortex"), name: "Notion Linear",
@@ -29,4 +31,40 @@ test("le cockpit Feature rend état, prochaine action, timeline, runs, dettes et
   assert.match(output, /01 ✓ concept/);
   assert.match(output, /Runs : dev=1 QA=1 échecs=1 · dettes=1 · handoffs=/);
   assert.match(output, /Retirer de l'index/);
+});
+
+test("le cockpit Feature affiche une erreur asynchrone et reste utilisable", async () => {
+  const root = resolve(import.meta.dirname, "..", "..");
+  const featureRoot = resolve(root, "examples", "feature-notion-linear");
+  const report = await createPipelineRuntime(root).inspect({
+    featureRoot, featureId: "connecteurs-notion-linear", authorRegistry: [{ id: "Codex_dev_20260819", active: true, authorized: true }],
+  });
+  const at = new Date("2026-08-19T10:00:00.000Z");
+  const feature = Feature.create({
+    id: FeatureId.of("connecteurs-notion-linear"), projectId: ProjectId.of("cortex"), name: "Notion Linear",
+    root: featureRoot, pipelineId: report.pipelineId, schemaVersion: 3, createdAt: at, updatedAt: at,
+  });
+  let attempts = 0;
+  const view = createFeatureDetailView({
+    feature,
+    report,
+    redraw() {},
+    onBack() {},
+    async onContinue() {
+      attempts += 1;
+      throw new Error("registre Agent indisponible");
+    },
+  });
+
+  view.onKey({ kind: "enter" });
+  await new Promise((resolvePromise) => setImmediate(resolvePromise));
+
+  let output = "";
+  view.render(createRenderer({ write: (chunk) => { output += chunk; }, isTTY: false, columns: 120 }), createTheme({ NO_COLOR: "1" }, false));
+  assert.equal(attempts, 1);
+  assert.match(output, /Action impossible : registre Agent indisponible/);
+
+  view.onKey({ kind: "enter" });
+  await new Promise((resolvePromise) => setImmediate(resolvePromise));
+  assert.equal(attempts, 2);
 });

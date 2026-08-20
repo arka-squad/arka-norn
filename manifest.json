@@ -2,7 +2,7 @@
   "$schema": "manifest.json",
   "schemaVersion": 2,
   "name": "arka-norn",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Cockpit local et agent-agnostique pour gérer Project, Feature, Pipeline, documents, runs et handoffs.",
   "entryPoint": "bin/arka-norn.mjs",
   "domain": {
@@ -26,7 +26,8 @@
       "docs/adr/ADR-002-sources-de-verite.md",
       "docs/adr/ADR-003-versionnement-migrations.md",
       "docs/adr/ADR-004-contrat-cli.md",
-      "docs/adr/ADR-005-registre-agents-identite-documentaire.md"
+      "docs/adr/ADR-005-registre-agents-identite-documentaire.md",
+      "docs/adr/ADR-006-audit-project-v4.md"
     ]
   },
   "cli": {

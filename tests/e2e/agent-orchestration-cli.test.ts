@@ -20,6 +20,11 @@ test("la CLI isole les sessions et livre des prompts Product/spécialistes direc
   assert.equal(run(["project", "add", projectRoot, "--id", "product", "--name", "Product", "--json"], home, workspace).status, 0);
   assert.equal(run(["feature", "create", "Navigation", "--project", "product", "--id", "navigation", "--path", featureRoot, "--json"], home, workspace).status, 0);
 
+  const bootstrap = json<{ readonly id: string }>(run([
+    "agent", "register", "--project", "product", "--provider", "Bootstrap", "--role", "product", "--session", "main", "--json",
+  ], home, workspace));
+  assert.equal(run(["agent", "deactivate", bootstrap.data.id, "--project", "product", "--yes", "--json"], home, workspace).status, 0);
+
   const missing = json<{ readonly productPrincipal: { readonly status: string }; readonly productNextAction: string }>(run(["agent", "advise", "--project", "product", "--feature", "navigation", "--json"], home, workspace));
   assert.equal(missing.data.productPrincipal.status, "missing");
   assert.match(missing.data.productNextAction, /--role product --session main/);

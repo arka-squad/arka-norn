@@ -151,6 +151,9 @@ function validateRequiredStepRelations(
 
 function validateFeatureAndAuthors(input: PipelineEvaluationInput, documents: readonly EvaluatedDocument[], errors: string[]): void {
   const registry = input.authorRegistry === undefined ? undefined : new Map(input.authorRegistry.map((agent) => [agent.id, agent]));
+  if (input.featureId !== undefined && registry === undefined) {
+    errors.push(`Managed Feature ${input.featureId} cannot be inspected without a verified Project author registry.`);
+  }
   for (const document of documents) {
     if (input.featureId !== undefined && document.featureId !== input.featureId) {
       errors.push(document.featureId === undefined

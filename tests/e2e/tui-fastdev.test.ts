@@ -53,7 +53,9 @@ test("le cockpit FastDev affiche le badge et ouvre l'action guidée principale",
     pipelineId: "arka-norn-fastdev", schemaVersion: 3,
     createdAt: new Date("2026-08-20T10:00:00.000Z"), updatedAt: new Date("2026-08-20T10:00:00.000Z"),
   });
-  const report = await createPipelineRuntime(ROOT).inspect({ featureRoot: sandbox, featureId: feature.id.value, pipelineId: feature.pipelineId });
+  const report = await createPipelineRuntime(ROOT).inspect({
+    featureRoot: sandbox, featureId: feature.id.value, pipelineId: feature.pipelineId, authorRegistry: [],
+  });
   let continued = 0;
   let output = "";
   const renderer = createRenderer({ write: (chunk) => { output += chunk; }, isTTY: false, columns: 140 });

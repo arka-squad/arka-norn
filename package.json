@@ -1,6 +1,6 @@
 {
   "name": "arka-norn",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "license": "UNLICENSED",
   "repository": {
@@ -45,6 +45,7 @@
     "test:integration": "node tests/run-tests.mjs integration",
     "test:e2e": "node tests/run-tests.mjs e2e",
     "test:coverage": "c8 --all --include \"src/**/*.ts\" --exclude \"src/ports/**\" --exclude \"src/**/_shared/*-deps.ts\" --exclude \"src/domain/pipeline/pipeline-report.ts\" --reporter=text --reporter=json-summary --check-coverage --lines 70 --functions 70 --branches 60 npm test",
+    "test:coverage:cli": "c8 --all --include \"src/adapters/inbound/cli/**/*.ts\" --reporter=text --reporter=json-summary --check-coverage --lines 70 --functions 70 --branches 60 npm run test:unit",
     "benchmark": "npm run build && node scripts/benchmark.mjs",
     "check": "npm run lint && npm run selftest",
     "prepare": "npm run build",
@@ -57,7 +58,7 @@
     "doctor": "node bin/arka-norn.mjs doctor",
     "skills": "node bin/arka-norn.mjs skills list",
     "audit:dependencies": "npm audit --omit=dev",
-    "release:verify": "npm run check && npm run test:coverage && npm run benchmark && npm run audit:dependencies && npm pack --dry-run --ignore-scripts"
+    "release:verify": "npm run check && npm run test:coverage && npm run test:coverage:cli && npm run benchmark && npm run audit:dependencies && npm pack --dry-run --ignore-scripts"
   },
   "dependencies": {
     "ajv": "^8.17.1"

@@ -259,7 +259,7 @@ function humanAdvice(value: unknown): string {
 }
 
 function orchestrationRuntime(runtime: ReturnType<typeof createManagementRuntime>, context: AgentCliContext) {
-  return createAgentOrchestrationRuntime({ ...runtime, pipeline: createPipelineRuntime(context.frameworkRoot) });
+  return createAgentOrchestrationRuntime({ ...runtime, pipeline: createPipelineRuntime(context.frameworkRoot, { homeDir: context.homeDir }) });
 }
 
 function parseSession(value: string | undefined, fallback: AgentSessionId): AgentSessionId {
@@ -282,10 +282,15 @@ function parseMode(value: string): AgentWorkMode {
 function failure(command: string, error: unknown, json: boolean): CliExecution {
   const message = error instanceof Error ? error.message : String(error);
   const code = error instanceof CliUsageError ? 64
-    : error instanceof DomainError && ["AGENT_NOT_FOUND", "PROJECT_NOT_FOUND"].includes(error.code) ? 4
-      : error instanceof DomainError && error.code === "AGENT_ALREADY_EXISTS" ? 5
-        : error instanceof DomainError ? 3 : 70;
+    : hasDomainCode(error, "AGENT_NOT_FOUND", "PROJECT_NOT_FOUND") ? 4
+      : hasDomainCode(error, "AGENT_ALREADY_EXISTS") ? 5
+        : hasDomainCode(error) || error instanceof DomainError ? 3 : 70;
   return json
     ? { code, stdout: `${JSON.stringify({ schemaVersion: 1, command, ok: false, data: null, errors: [message], warnings: [] })}\n`, stderr: "" }
     : { code, stdout: "", stderr: `ERREUR — ${message}\n` };
+}
+
+function hasDomainCode(error: unknown, ...expected: readonly string[]): boolean {
+  if (typeof error !== "object" || error === null || !("code" in error) || typeof error.code !== "string") return false;
+  return expected.length === 0 || expected.includes(error.code);
 }

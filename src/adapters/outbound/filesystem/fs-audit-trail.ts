@@ -1,17 +1,25 @@
+import { constants } from "node:fs";
 import * as fs from "node:fs/promises";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 
+import { PathSecurityError } from "../../../domain/errors.js";
 import type { AuditEvent, AuditTrail, AuditTrailHealth } from "../../../ports/outbound/audit-trail.js";
 import { withFileLock } from "./_shared/file-lock.js";
 
 export class FsAuditTrail implements AuditTrail {
+  private readonly homeDir: string;
+  private readonly stateDir: string;
+  private readonly logDir: string;
   private readonly filePath: string;
   private readonly maxBytes: number;
   private readonly maxArchives: number;
 
   public constructor(homeDir: string = homedir(), options: { readonly maxBytes?: number; readonly maxArchives?: number } = {}) {
-    this.filePath = join(homeDir, ".arka-norn", "logs", "audit.jsonl");
+    this.homeDir = homeDir;
+    this.stateDir = join(homeDir, ".arka-norn");
+    this.logDir = join(this.stateDir, "logs");
+    this.filePath = join(this.logDir, "audit.jsonl");
     this.maxBytes = options.maxBytes ?? 2 * 1024 * 1024;
     this.maxArchives = options.maxArchives ?? 5;
   }
@@ -27,10 +35,11 @@ export class FsAuditTrail implements AuditTrail {
       ...(event.root === undefined ? {} : { root: event.root }),
       ...(event.details === undefined ? {} : { details: redactDetails(event.details) }),
     })}\n`;
+    await this.ensureSecureLayout();
     await withFileLock(this.filePath, async () => {
-      await fs.mkdir(dirname(this.filePath), { recursive: true, mode: 0o700 });
+      await this.ensureSecureLayout();
       await this.rotateIfNeeded(Buffer.byteLength(line));
-      const handle = await fs.open(this.filePath, "a", 0o600);
+      const handle = await this.openAuditFile();
       try {
         await handle.writeFile(line, "utf8");
         await handle.sync();
@@ -43,12 +52,12 @@ export class FsAuditTrail implements AuditTrail {
 
   public async inspect(): Promise<AuditTrailHealth> {
     try {
-      await fs.mkdir(dirname(this.filePath), { recursive: true, mode: 0o700 });
-      const handle = await fs.open(this.filePath, "a", 0o600);
+      await this.ensureSecureLayout();
+      const handle = await this.openAuditFile();
+      const stat = await handle.stat();
       await handle.close();
       await fs.chmod(this.filePath, 0o600);
-      const stat = await fs.stat(this.filePath);
-      const entries = await fs.readdir(dirname(this.filePath));
+      const entries = await fs.readdir(this.logDir);
       return {
         ok: true,
         filePath: this.filePath,
@@ -88,6 +97,51 @@ export class FsAuditTrail implements AuditTrail {
       });
     }
     await fs.rename(this.filePath, `${this.filePath.replace(/\.jsonl$/, "")}.1.jsonl`);
+  }
+
+  private async ensureSecureLayout(): Promise<void> {
+    await ensureRegularDirectory(this.homeDir);
+    await ensureRegularDirectory(this.stateDir);
+    await ensureRegularDirectory(this.logDir);
+    await ensureSingleLinkAuditFile(this.filePath);
+  }
+
+  private async openAuditFile(): Promise<fs.FileHandle> {
+    await ensureSingleLinkAuditFile(this.filePath);
+    const flags = process.platform === "win32"
+      ? constants.O_WRONLY | constants.O_APPEND | constants.O_CREAT
+      : constants.O_WRONLY | constants.O_APPEND | constants.O_CREAT | constants.O_NOFOLLOW;
+    return fs.open(this.filePath, flags, 0o600);
+  }
+}
+
+async function ensureRegularDirectory(path: string): Promise<void> {
+  await rejectSymlink(path);
+  await fs.mkdir(path, { recursive: true, mode: 0o700 });
+  const stat = await fs.lstat(path);
+  if (stat.isSymbolicLink() || !stat.isDirectory()) {
+    throw new PathSecurityError(path, "audit directories must be regular directories");
+  }
+}
+
+async function rejectSymlink(path: string): Promise<void> {
+  try {
+    if ((await fs.lstat(path)).isSymbolicLink()) {
+      throw new PathSecurityError(path, "symbolic-link audit paths are forbidden");
+    }
+  } catch (error) {
+    if (!isNodeError(error, "ENOENT")) throw error;
+  }
+}
+
+async function ensureSingleLinkAuditFile(path: string): Promise<void> {
+  try {
+    const stat = await fs.lstat(path);
+    if (stat.isSymbolicLink() || !stat.isFile() || stat.nlink !== 1) {
+      throw new PathSecurityError(path, "audit file must be a single-link regular file");
+    }
+  } catch (error) {
+    if (!isNodeError(error, "ENOENT")) throw error;
   }
 }
 

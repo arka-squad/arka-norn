@@ -107,6 +107,33 @@ test("tous les cas d'usage Feature fonctionnent derrière des ports fake", async
   assert.equal((await deps.indexStore.find(id))?.root, movedRoot);
 });
 
+test("un index Project falsifié ne redéfinit jamais la frontière d'une Feature", async () => {
+  const harness = createHarness();
+  const productId = ProjectId.of("product");
+  const foreignId = ProjectId.of("foreign");
+  const featureId = FeatureId.of("feature");
+  const foreignRoot = "/work/foreign";
+  const forgedFeatureRoot = "/work/foreign/feature";
+  const foreign = Project.create({
+    id: foreignId, name: "Foreign", root: foreignRoot, schemaVersion: 3, createdAt: first, updatedAt: first,
+  });
+  const forgedFeature = Feature.create({
+    id: featureId, projectId: productId, name: "Forged", root: forgedFeatureRoot,
+    pipelineId: "arka-norn-default", schemaVersion: 3, createdAt: first, updatedAt: first,
+  });
+  harness.projects.set(foreignRoot, foreign);
+  harness.features.set(forgedFeatureRoot, forgedFeature);
+  await harness.projectDeps.indexStore.add({ id: productId.value, root: foreignRoot, name: "Forged index", updatedAt: first });
+  await harness.featureDeps.indexStore.add({
+    id: featureId.value, projectId: productId.value, root: forgedFeatureRoot, name: "Forged", updatedAt: first,
+  });
+
+  await assert.rejects(showProjectUseCaseFactory(harness.projectDeps)(productId), isPathSecurityError);
+  await assert.rejects(showFeatureUseCaseFactory(harness.featureDeps)(featureId), isPathSecurityError);
+  await assert.rejects(switchToFeatureUseCaseFactory(harness.featureDeps)(featureId), isPathSecurityError);
+  assert.deepEqual(await listFeaturesUseCaseFactory(harness.featureDeps)(), []);
+});
+
 function createHarness() {
   const projects = new Map<string, Project>();
   const features = new Map<string, Feature>();
@@ -181,7 +208,7 @@ function createHarness() {
     projects,
     features,
     projectDeps: { projectStore, indexStore: projectIndexStore, filesystem, clock, logger, pathPolicy },
-    featureDeps: { featureStore, indexStore: featureIndexStore, projectIndexStore, filesystem, clock, logger, pathPolicy },
+    featureDeps: { featureStore, indexStore: featureIndexStore, projectIndexStore, projectStore, filesystem, clock, logger, pathPolicy },
   };
 }
 
@@ -192,6 +219,10 @@ function markerRoot(path: string, marker: string): string {
 function required<T>(value: T | undefined, key: string): T {
   if (value === undefined) throw new Error(`missing fake value: ${key}`);
   return value;
+}
+
+function isPathSecurityError(error: unknown): boolean {
+  return error instanceof Error && "code" in error && error.code === "PATH_SECURITY";
 }
 
 function projectProps(project: Project) {

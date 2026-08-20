@@ -59,14 +59,17 @@ test("les auteurs v3 doivent être enregistrés et autorisés, mais peuvent êtr
   assert.ok(outside.errors.some((error) => error.includes("outside the Feature scope")));
 });
 
-function evaluate(documents: readonly EvaluatedDocument[], authorRegistry?: PipelineEvaluationInput["authorRegistry"]) {
+function evaluate(
+  documents: readonly EvaluatedDocument[],
+  authorRegistry: PipelineEvaluationInput["authorRegistry"] = [{ id: "Codex_dev_20260820", active: true, authorized: true }],
+) {
   return evaluatePipeline({
     pipelineId: "arka-norn-fastdev",
     featureRoot: "/feature",
     featureId: "feature-1",
     steps,
     documents,
-    ...(authorRegistry === undefined ? {} : { authorRegistry }),
+    authorRegistry,
   });
 }
 

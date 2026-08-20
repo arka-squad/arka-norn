@@ -1,10 +1,11 @@
 import { mapConcurrent } from "../../application/shared/map-concurrent.js";
+import { loadIndexedProject } from "./_shared/verified-project.js";
 export function listProjectsUseCaseFactory(deps) {
     return async () => {
         const entries = await deps.indexStore.load();
         const projects = await mapConcurrent(entries, 8, async (entry) => {
             try {
-                const project = await deps.projectStore.load(entry.root);
+                const project = await loadIndexedProject(deps, entry);
                 return project.updatedAt.getTime() === entry.updatedAt.getTime() ? project : project.touched(entry.updatedAt);
             }
             catch (error) {

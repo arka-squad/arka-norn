@@ -1,21 +1,37 @@
+import { homedir } from "node:os";
+
 import { AjvDocumentValidator } from "../adapters/outbound/pipeline/ajv-document-validator.js";
 import { FsPipelineDocumentSource } from "../adapters/outbound/pipeline/fs-pipeline-document-source.js";
+import { FsAuditTrail } from "../adapters/outbound/filesystem/fs-audit-trail.js";
+import { SystemClock } from "../adapters/outbound/system/system-clock.js";
 import { inspectPipelineUseCaseFactory } from "../application/pipeline/inspect-pipeline.js";
 import { scaffoldPipelineDocumentUseCaseFactory } from "../application/pipeline/scaffold-pipeline-document.js";
 import { validatePipelineDocumentUseCaseFactory } from "../application/pipeline/validate-pipeline-document.js";
+import { AuditUnavailableError } from "../domain/errors.js";
 import type { ForPipeline } from "../ports/inbound/for-pipeline.js";
+import type { AuditEvent, AuditTrail } from "../ports/outbound/audit-trail.js";
+import type { Clock } from "../ports/outbound/clock.js";
 import { workflowFrom } from "../domain/pipeline/pipeline-catalog.js";
 
-export function createPipelineRuntime(frameworkRoot: string): ForPipeline {
+export interface PipelineRuntimeOptions {
+  readonly homeDir?: string;
+  readonly auditTrail?: AuditTrail;
+  readonly clock?: Clock;
+}
+
+export function createPipelineRuntime(frameworkRoot: string, options: PipelineRuntimeOptions = {}): ForPipeline {
   const source = new FsPipelineDocumentSource(frameworkRoot);
   const validator = new AjvDocumentValidator(frameworkRoot);
+  const audit = options.auditTrail ?? new FsAuditTrail(options.homeDir ?? process.env["ARKA_NORN_HOME"] ?? homedir());
+  const clock = options.clock ?? new SystemClock();
+  const scaffold = scaffoldPipelineDocumentUseCaseFactory({ source });
   return {
     inspect: inspectPipelineUseCaseFactory({
       source,
       validator,
     }),
     validate: validatePipelineDocumentUseCaseFactory({ source, validator }),
-    scaffold: scaffoldPipelineDocumentUseCaseFactory({ source }),
+    scaffold: async (input) => auditedScaffold(audit, clock, input, scaffold),
     async listSteps(pipelineId) {
       const definition = await source.loadDefinition(pipelineId);
       return [
@@ -35,4 +51,53 @@ export function createPipelineRuntime(frameworkRoot: string): ForPipeline {
       return workflowFrom(entry, definition);
     },
   };
+}
+
+type ScaffoldInput = Parameters<ReturnType<typeof scaffoldPipelineDocumentUseCaseFactory>>[0];
+
+async function auditedScaffold(
+  audit: AuditTrail,
+  clock: Clock,
+  input: ScaffoldInput,
+  scaffold: ReturnType<typeof scaffoldPipelineDocumentUseCaseFactory>,
+) {
+  const event = scaffoldEvent(input);
+  await appendRequired(audit, { ...event, occurredAt: clock.now(), outcome: "intent" });
+  try {
+    const result = await scaffold(input);
+    await appendRequired(audit, { ...event, occurredAt: clock.now(), outcome: "success" });
+    return result;
+  } catch (error) {
+    await audit.append({
+      ...event,
+      occurredAt: clock.now(),
+      outcome: "failure",
+      details: { ...event.details, error: error instanceof Error ? error.message : String(error) },
+    }).catch(() => undefined);
+    throw error;
+  }
+}
+
+function scaffoldEvent(input: ScaffoldInput): Omit<AuditEvent, "occurredAt" | "outcome"> {
+  const entityType = input.projectId === undefined ? input.featureId === undefined ? "system" : "feature" : "project";
+  const entityId = input.projectId ?? input.featureId;
+  return {
+    action: "pipeline.scaffold",
+    entityType,
+    ...(entityId === undefined ? {} : { entityId }),
+    ...(input.allowedRoot === undefined ? {} : { root: input.allowedRoot }),
+    details: {
+      stepId: input.stepId,
+      outputPath: input.outputPath,
+      ...(input.pipelineId === undefined ? {} : { pipelineId: input.pipelineId }),
+    },
+  };
+}
+
+async function appendRequired(audit: AuditTrail, event: AuditEvent): Promise<void> {
+  try {
+    await audit.append(event);
+  } catch (error) {
+    throw new AuditUnavailableError(event.action, error instanceof Error ? error.message : String(error));
+  }
 }

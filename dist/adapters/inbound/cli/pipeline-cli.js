@@ -1,11 +1,13 @@
-import { existsSync } from "node:fs";
-import { dirname, parse, relative, resolve } from "node:path";
+import { existsSync, realpathSync } from "node:fs";
+import { basename, dirname, isAbsolute, parse, relative, resolve, sep } from "node:path";
 import { createManagementRuntime } from "../../../composition/management-runtime.js";
 import { createPipelineRuntime } from "../../../composition/pipeline-runtime.js";
+import { loadVerifiedFeatureContext } from "../../../composition/verified-feature-context.js";
 import { FeatureId } from "../../../domain/feature/feature-id.js";
+import { ProjectId } from "../../../domain/project/project-id.js";
 import { AgentId } from "../../../domain/agent/agent-id.js";
 import { AgentSessionId } from "../../../domain/agent/agent-session-id.js";
-import { AgentInactiveError, AgentScopeViolationError } from "../../../domain/errors.js";
+import { AgentInactiveError, AgentScopeViolationError, PathSecurityError } from "../../../domain/errors.js";
 import { FsFeatureStore } from "../../outbound/filesystem/fs-feature-store.js";
 import { pipelineExitCode, pipelineReportEnvelope, presentPipelineReport } from "./presenters/pipeline-report-presenter.js";
 import { CliUsageError, parseStrictArguments } from "./strict-arguments.js";
@@ -14,7 +16,7 @@ export async function runStatusCommand(argv, context) {
     try {
         const parsed = parseStrictArguments(argv, { options: { json: "boolean" }, minPositionals: 0, maxPositionals: 1 });
         const target = await resolveFeatureTarget(parsed.positionals[0] ?? context.cwd, context.cwd, createManagementRuntime({ homeDir: context.homeDir, sessionId: context.sessionId }));
-        const report = withTargetWarnings(await createPipelineRuntime(context.frameworkRoot).inspect(inspectInput(target)), target.warnings);
+        const report = withTargetWarnings(await createPipelineRuntime(context.frameworkRoot, { homeDir: context.homeDir }).inspect(inspectInput(target)), target.warnings);
         return {
             code: pipelineExitCode(report),
             stdout: json ? `${JSON.stringify(pipelineReportEnvelope(report))}\n` : presentPipelineReport(report),
@@ -22,24 +24,37 @@ export async function runStatusCommand(argv, context) {
         };
     }
     catch (error) {
-        return pipelineFailure("status", error, json, error instanceof CliUsageError ? 64 : 70);
+        return pipelineFailure("status", error, json, error instanceof CliUsageError ? 64 : inspectionResolutionExitCode(error));
     }
 }
 export async function runScaffoldCommand(argv, context) {
     const json = argv.includes("--json");
     try {
-        const parsed = parseStrictArguments(argv, { options: { force: "boolean", json: "boolean", agent: "string", "feature-id": "string" }, minPositionals: 2, maxPositionals: 2 });
+        const parsed = parseStrictArguments(argv, {
+            options: { force: "boolean", json: "boolean", agent: "string", "feature-id": "string", project: "string" },
+            minPositionals: 2,
+            maxPositionals: 2,
+            exclusiveGroups: [["feature-id", "project"]],
+        });
         const authorAgentId = parsed.values.get("agent");
         if (authorAgentId === undefined)
             throw new CliUsageError("scaffold requires --agent <Provider_role_YYYYMMDD>");
         const stepId = parsed.positionals[0];
         const outputPath = resolve(context.cwd, parsed.positionals[1]);
-        const managed = await managedScaffoldContext(outputPath, authorAgentId, context);
-        const result = await createPipelineRuntime(context.frameworkRoot).scaffold({
+        const explicitProjectId = parsed.values.get("project");
+        if (explicitProjectId !== undefined && stepId !== "audit_etat_reel") {
+            throw new CliUsageError("--project is supported only for scaffold audit_etat_reel");
+        }
+        const managedProject = explicitProjectId === undefined
+            ? undefined
+            : await managedProjectAuditScaffoldContext(outputPath, explicitProjectId, authorAgentId, context);
+        const managed = managedProject === undefined ? await managedScaffoldContext(outputPath, authorAgentId, context) : undefined;
+        const result = await createPipelineRuntime(context.frameworkRoot, { homeDir: context.homeDir }).scaffold({
             stepId,
             outputPath,
             authorAgentId: AgentId.of(authorAgentId).value,
             ...(managed?.featureId === undefined && parsed.values.get("feature-id") === undefined ? {} : { featureId: managed?.featureId ?? parsed.values.get("feature-id") }),
+            ...(managedProject === undefined ? {} : { projectId: managedProject.projectId, allowedRoot: managedProject.projectRoot }),
             ...(managed === undefined ? {} : { pipelineId: managed.pipelineId, allowedRoot: managed.featureRoot }),
             force: parsed.booleans.has("force"),
         });
@@ -56,8 +71,30 @@ export async function runScaffoldCommand(argv, context) {
         const message = conflict && argv.length > 0
             ? `Le fichier existe déjà. Utilise --force pour confirmer l'écrasement.`
             : error instanceof Error ? error.message : String(error);
-        return pipelineFailure("scaffold", message, json, error instanceof CliUsageError ? 64 : conflict ? 5 : 70);
+        return pipelineFailure("scaffold", message, json, scaffoldFailureExitCode(error, conflict));
     }
+}
+async function managedProjectAuditScaffoldContext(outputPath, projectId, authorAgentId, context) {
+    const management = createManagementRuntime({ homeDir: context.homeDir, sessionId: context.sessionId });
+    const project = await management.projects.show(ProjectId.of(projectId));
+    const agent = await management.agents.show(project, AgentId.of(authorAgentId));
+    if (!agent.active)
+        throw new AgentInactiveError(agent.id.value);
+    const canonicalOutputPath = resolve(realpathSync.native(dirname(outputPath)), basename(outputPath));
+    const projectRelativeOutput = relative(project.root, canonicalOutputPath);
+    if (projectRelativeOutput === "" || projectRelativeOutput === ".." || projectRelativeOutput.startsWith(`..${sep}`) || isAbsolute(projectRelativeOutput)) {
+        throw new PathSecurityError(canonicalOutputPath, `output must stay inside ${project.root}`);
+    }
+    if (findFeatureRoot(dirname(canonicalOutputPath)) !== undefined) {
+        throw new PathSecurityError(canonicalOutputPath, "Project audit output must not be placed inside a managed Feature");
+    }
+    const containingProjectRoot = findProjectRoot(dirname(canonicalOutputPath));
+    if (containingProjectRoot !== undefined && realpathSync.native(containingProjectRoot) !== project.root) {
+        throw new PathSecurityError(canonicalOutputPath, "Project audit output must not be placed inside another managed Project");
+    }
+    if (!agent.coversProjectPath(projectRelativeOutput))
+        throw new AgentScopeViolationError(agent.id.value, `path:${projectRelativeOutput}`);
+    return { projectId: project.id.value, projectRoot: project.root };
 }
 async function managedScaffoldContext(outputPath, authorAgentId, context) {
     const featureRoot = findFeatureRoot(dirname(outputPath));
@@ -65,7 +102,7 @@ async function managedScaffoldContext(outputPath, authorAgentId, context) {
         return undefined;
     const feature = await new FsFeatureStore().load(featureRoot);
     const management = createManagementRuntime({ homeDir: context.homeDir, sessionId: context.sessionId });
-    const project = await management.projects.show(feature.projectId);
+    const { project } = await loadVerifiedFeatureContext(feature, management);
     const agent = await management.agents.show(project, AgentId.of(authorAgentId));
     if (!agent.active)
         throw new AgentInactiveError(agent.id.value);
@@ -87,12 +124,23 @@ function findFeatureRoot(start) {
         current = dirname(current);
     }
 }
+function findProjectRoot(start) {
+    let current = resolve(start);
+    const filesystemRoot = parse(current).root;
+    while (true) {
+        if (existsSync(resolve(current, ".arka-norn", "project.json")))
+            return current;
+        if (current === filesystemRoot)
+            return undefined;
+        current = dirname(current);
+    }
+}
 export async function runValidateCommand(argv, context) {
     const json = argv.includes("--json");
     try {
         const parsed = parseStrictArguments(argv, { options: { json: "boolean" }, minPositionals: 1, maxPositionals: 1 });
         const filePath = resolve(context.cwd, parsed.positionals[0]);
-        const result = await createPipelineRuntime(context.frameworkRoot).validate({ filePath });
+        const result = await createPipelineRuntime(context.frameworkRoot, { homeDir: context.homeDir }).validate({ filePath });
         const human = result.valid
             ? `VALIDE — ${relative(context.cwd, filePath)} (type: ${result.type}, schema: ${result.schemaPath})\n`
             : `INVALIDE — ${relative(context.cwd, filePath)}${result.type === undefined ? "" : ` (type: ${result.type})`}\n${result.errors.map((error) => `  - ${error}`).join("\n")}\n`;
@@ -112,7 +160,7 @@ export async function runPipelineCommand(argv, context) {
     const json = rest.includes("--json");
     try {
         const management = createManagementRuntime({ homeDir: context.homeDir, sessionId: context.sessionId });
-        const pipeline = createPipelineRuntime(context.frameworkRoot);
+        const pipeline = createPipelineRuntime(context.frameworkRoot, { homeDir: context.homeDir });
         if (action === "status" || action === "next") {
             const parsed = parseStrictArguments(rest, { options: { json: "boolean" }, minPositionals: 1, maxPositionals: 1 });
             const target = await resolveFeatureTarget(parsed.positionals[0], context.cwd, management);
@@ -155,7 +203,7 @@ async function runManagedScaffold(argv, context, management, pipeline, json) {
     if (featureId === undefined)
         throw new CliUsageError("pipeline scaffold requires --feature <id>");
     const feature = await selectedManagement.features.show(FeatureId.of(featureId));
-    const project = await selectedManagement.projects.show(feature.projectId);
+    const { project } = await loadVerifiedFeatureContext(feature, selectedManagement);
     const explicitAgentId = parsed.values.get("agent");
     const agent = explicitAgentId === undefined
         ? await selectedManagement.agents.current(project)
@@ -179,28 +227,23 @@ async function runManagedScaffold(argv, context, management, pipeline, json) {
 async function resolveFeatureTarget(value, cwd, management) {
     const candidate = resolve(cwd, value);
     if (existsSync(candidate)) {
-        if (!existsSync(resolve(candidate, ".arka-norn", "feature.json"))) {
-            return { root: candidate, pipelineId: "arka-norn-default", warnings: ["Dossier sans marqueur Feature : pipeline standard utilisé par compatibilité."] };
+        const featureRoot = findFeatureRoot(candidate);
+        if (featureRoot !== undefined) {
+            const feature = await new FsFeatureStore().load(featureRoot);
+            return targetFromManagedFeature(feature, management);
         }
-        const feature = await new FsFeatureStore().load(candidate);
-        try {
-            return await targetFromManagedFeature(feature, management);
-        }
-        catch {
-            return { root: feature.root, id: feature.id.value, pipelineId: feature.pipelineId, warnings: ["Registre Agent indisponible pour ce chemin non indexé ; les auteurs ne sont pas vérifiés."] };
-        }
+        return { root: candidate, pipelineId: "arka-norn-default", warnings: ["Dossier sans marqueur Feature : pipeline standard utilisé par compatibilité."] };
     }
     const feature = await management.features.show(FeatureId.of(value));
     return targetFromManagedFeature(feature, management);
 }
 async function targetFromManagedFeature(feature, management) {
-    const project = await management.projects.show(feature.projectId);
-    const agents = await management.agents.list(project);
+    const { authorRegistry } = await loadVerifiedFeatureContext(feature, management);
     return {
         root: feature.root,
         id: feature.id.value,
         pipelineId: feature.pipelineId,
-        authorRegistry: agents.map((agent) => ({ id: agent.id.value, active: agent.active, authorized: agent.coversFeature(feature.id) })),
+        authorRegistry,
         warnings: [],
     };
 }
@@ -223,5 +266,30 @@ function pipelineFailure(command, error, json, code) {
 }
 function hasCode(error, expected) {
     return error instanceof Error && "code" in error && error.code === expected;
+}
+function inspectionResolutionExitCode(error) {
+    return hasCode(error, "PROJECT_NOT_FOUND")
+        || hasCode(error, "PROJECT_MARKER_NOT_FOUND")
+        || hasCode(error, "INVALID_AGENT_REGISTRY")
+        || hasCode(error, "PATH_SECURITY")
+        ? 3
+        : 70;
+}
+function scaffoldFailureExitCode(error, conflict) {
+    if (error instanceof CliUsageError)
+        return 64;
+    if (conflict)
+        return 5;
+    return hasCode(error, "AGENT_NOT_FOUND")
+        || hasCode(error, "AGENT_INACTIVE")
+        || hasCode(error, "AGENT_SCOPE_VIOLATION")
+        || hasCode(error, "INVALID_AGENT_REGISTRY")
+        || hasCode(error, "INVALID_PROJECT_ID")
+        || hasCode(error, "PROJECT_NOT_FOUND")
+        || hasCode(error, "PROJECT_MARKER_NOT_FOUND")
+        || hasCode(error, "PATH_SECURITY")
+        || hasCode(error, "AUDIT_UNAVAILABLE")
+        ? 3
+        : 70;
 }
 //# sourceMappingURL=pipeline-cli.js.map

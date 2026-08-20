@@ -30,6 +30,7 @@ import { FsFilesystem } from "../adapters/outbound/filesystem/fs-filesystem.js";
 import { DirectSkillManager } from "../adapters/outbound/skills/direct-skill-manager.js";
 import { createManagementRuntime } from "./management-runtime.js";
 import { createPipelineRuntime } from "./pipeline-runtime.js";
+import { loadVerifiedFeatureContext } from "./verified-feature-context.js";
 import { createDoctorRuntime } from "./doctor-runtime.js";
 import { createPipelineSceneController } from "./tui/pipeline-scene-controller.js";
 import { loadProjectMetrics, metricsFromReport } from "./tui/project-dashboard.js";
@@ -49,7 +50,7 @@ export function createContainer(env, ui = {}) {
     const scanProjects = management.scanProjects;
     const features = management.features;
     const scan = management.scanFeatures;
-    const pipeline = createPipelineRuntime(FRAMEWORK_ROOT);
+    const pipeline = createPipelineRuntime(FRAMEWORK_ROOT, { homeDir });
     const skillManager = new DirectSkillManager(FRAMEWORK_ROOT);
     const uiState = {
         contextRoot: env.cwd,
@@ -74,7 +75,10 @@ export function createContainer(env, ui = {}) {
             }),
         },
     });
-    const pipelineScenes = createPipelineSceneController(app, pipeline);
+    const authorRegistryForFeature = async (feature) => {
+        return (await loadVerifiedFeatureContext(feature, management)).authorRegistry;
+    };
+    const pipelineScenes = createPipelineSceneController(app, pipeline, authorRegistryForFeature);
     const agentScenes = createAgentSceneController(app, management.agents);
     const orchestration = createAgentOrchestrationRuntime({ ...management, pipeline });
     const orchestrationScenes = createAgentOrchestrationSceneController(app, orchestration);
@@ -96,12 +100,12 @@ export function createContainer(env, ui = {}) {
         const project = await projects.show(feature.projectId);
         const currentAgent = await management.agents.current(project);
         uiState.currentAgent = currentAgent;
-        const agents = await management.agents.list(project);
+        const authorRegistry = await authorRegistryForFeature(feature);
         const report = await pipeline.inspect({
             featureRoot: feature.root,
             featureId: feature.id.value,
             pipelineId: feature.pipelineId,
-            authorRegistry: agents.map((agent) => ({ id: agent.id.value, active: agent.active, authorized: agent.coversFeature(feature.id) })),
+            authorRegistry,
         });
         app.push(createFeatureDetailView({
             feature,
@@ -133,10 +137,10 @@ export function createContainer(env, ui = {}) {
     }
     async function openProjectDetail(project) {
         uiState.currentProject = project;
-        const initialFeatures = (await features.list()).filter((feature) => feature.belongsTo(project.id));
-        const initialMetrics = await loadProjectMetrics(initialFeatures, pipeline);
-        const initialStatuses = new Map([...initialMetrics].map(([id, metrics]) => [id, metrics.status]));
         const [initialAgents, currentAgent] = await Promise.all([management.agents.list(project), management.agents.current(project)]);
+        const initialFeatures = (await features.list()).filter((feature) => feature.belongsTo(project.id));
+        const initialMetrics = await loadProjectMetrics(initialFeatures, pipeline, authorRegistryForFeature);
+        const initialStatuses = new Map([...initialMetrics].map(([id, metrics]) => [id, metrics.status]));
         uiState.currentAgent = currentAgent;
         const projectView = createProjectDetailView({
             project,
@@ -154,7 +158,12 @@ export function createContainer(env, ui = {}) {
                 uiState.currentFeature = feature;
             },
             onOpenFeature: (feature) => openFeatureDetail(feature),
-            metricsForFeature: async (feature) => metricsFromReport(await pipeline.inspect({ featureRoot: feature.root, featureId: feature.id.value, pipelineId: feature.pipelineId }), feature.pipelineId),
+            metricsForFeature: async (feature) => metricsFromReport(await pipeline.inspect({
+                featureRoot: feature.root,
+                featureId: feature.id.value,
+                pipelineId: feature.pipelineId,
+                authorRegistry: await authorRegistryForFeature(feature),
+            }), feature.pipelineId),
             onForget: (selected) => confirmations.forgetProject(selected),
             onManageAgents: (selected) => agentScenes.open(selected, (agents, current) => {
                 uiState.currentAgent = current;
@@ -183,28 +192,49 @@ export function createContainer(env, ui = {}) {
         },
         async createHomeView() {
             const initialProjects = await projects.list();
-            const [skillHealth, systemHealth] = await Promise.all([
-                skillManager.inspect(env.cwd),
-                createDoctorRuntime(homeDir, env.cwd).run(),
-            ]);
-            return createHomeView({
+            const doctor = createDoctorRuntime(homeDir, env.cwd);
+            const inspectHealth = async () => {
+                const [skills, report] = await Promise.all([
+                    skillManager.inspect(env.cwd),
+                    doctor.run(),
+                ]);
+                return { skills, report };
+            };
+            const formatSkills = (skills) => `${skills.healthy}/${skills.total} sains · ${skills.missing} absents · ${skills.divergent} divergents`;
+            const formatSystem = (report) => `${report.summary.pass} PASS · ${report.summary.warn} WARN · ${report.summary.fail} FAIL`;
+            const initialHealth = await inspectHealth();
+            const homeRef = { current: undefined };
+            const refreshHomeHealth = async () => {
+                const health = await inspectHealth();
+                homeRef.current?.setHealth({
+                    skillHealth: formatSkills(health.skills),
+                    systemHealth: formatSystem(health.report),
+                });
+                return health;
+            };
+            const home = createHomeView({
                 initialProjects,
                 projects,
                 scan: scanProjects,
                 cwd: env.cwd,
                 contextRoot: uiState.contextRoot,
-                skillHealth: `${skillHealth.healthy}/${skillHealth.total} sains · ${skillHealth.missing} absents · ${skillHealth.divergent} divergents`,
-                systemHealth: `${systemHealth.summary.pass} PASS · ${systemHealth.summary.warn} WARN · ${systemHealth.summary.fail} FAIL`,
+                skillHealth: formatSkills(initialHealth.skills),
+                systemHealth: formatSystem(initialHealth.report),
                 redraw: () => app.redraw(),
                 onProjectFocused: (project) => {
                     uiState.currentProject = project;
                 },
                 onOpenProject: (project) => openProjectDetail(project),
-                onShowHealth: () => {
-                    showHealthReport(app, systemHealth, skillHealth);
+                onShowHealth: async () => {
+                    const health = await refreshHomeHealth();
+                    showHealthReport(app, health.report, health.skills);
                 },
-                onInstallSkills: () => showSkillInstallation(app, skillManager, env.cwd),
+                onInstallSkills: () => showSkillInstallation(app, skillManager, env.cwd, async () => {
+                    await refreshHomeHealth();
+                }),
             });
+            homeRef.current = home;
+            return home;
         },
     };
 }

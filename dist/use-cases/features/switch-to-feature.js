@@ -8,17 +8,18 @@
  * lastUsedAt dans le marker.
  */
 import { FeatureNotFoundError } from "../../domain/errors.js";
+import { loadIndexedFeatureWithinProject } from "./_shared/verified-feature.js";
 export function switchToFeatureUseCaseFactory(deps) {
     const { featureStore, indexStore, clock } = deps;
     return async (id) => {
         const entry = await indexStore.find(id);
         if (entry === undefined)
             throw new FeatureNotFoundError(id.value);
+        const feature = await loadIndexedFeatureWithinProject(deps, entry);
         const now = clock.now();
-        await indexStore.touch(id, now);
-        const feature = await featureStore.load(entry.root);
         const touched = feature.touched(now);
         await featureStore.save(touched);
+        await indexStore.touch(id, now);
         return touched;
     };
 }

@@ -28,6 +28,7 @@ Accès directs : [cockpit TUI](docs/tui.md) · [orchestration multi-Agent](docs/
 - **Un Product principal stable** : il reste dans la session `main`, organise le Project et prépare les autres Agents.
 - **Une session par Agent spécialisé** : architecture, audit, développement et QA travaillent sans écraser leur identité respective.
 - **Des livrables signés et vérifiables** : chaque nouveau document nomme son auteur, ses dépendances et ses preuves.
+- **Des audits au bon scope** : une Feature utilise son document v3 ; un audit de Project sans Feature utilise l’enveloppe v4 explicite.
 - **Des boucles de correction réelles** : une QA ou une validation obsolète ne peut pas terminer la Feature.
 - **Une base locale robuste** : marqueurs portables, index réparables, écritures atomiques, locks et journal d’audit.
 
@@ -140,7 +141,7 @@ Toutes les commandes scriptables acceptent une sortie `--json` lorsqu’elle est
 
 ~/.arka-norn/index/*.json                caches locaux reconstructibles
 ~/.arka-norn/context/agents.json         sélection privée par session Agent
-~/.arka-norn/audit/                       journal local des mutations
+~/.arka-norn/logs/audit.jsonl             journal local des mutations
 ```
 
 `doctor` contrôle les marqueurs, index, locks, registres, sessions, pipelines, journal d’audit et skills. Il ne répare rien sans `--repair --apply`.

@@ -5,7 +5,7 @@ export class AjvDocumentValidator {
     ajv;
     cache = new Map();
     frameworkRoot;
-    envelopeLoaded = false;
+    envelopesLoaded = false;
     constructor(frameworkRoot) {
         this.frameworkRoot = frameworkRoot;
         this.ajv = new Ajv2020({ allErrors: true, strict: true });
@@ -24,19 +24,23 @@ export class AjvDocumentValidator {
         const cached = this.cache.get(schemaPath);
         if (cached !== undefined)
             return cached;
-        await this.loadEnvelope();
+        await this.loadEnvelopes();
         const raw = await fs.readFile(resolve(this.frameworkRoot, schemaPath), "utf8");
         const schema = JSON.parse(raw);
         const validate = this.ajv.compile(schema);
         this.cache.set(schemaPath, validate);
         return validate;
     }
-    async loadEnvelope() {
-        if (this.envelopeLoaded)
+    async loadEnvelopes() {
+        if (this.envelopesLoaded)
             return;
-        const raw = await fs.readFile(resolve(this.frameworkRoot, "schemas", "document-envelope.schema.json"), "utf8");
-        this.ajv.addSchema(JSON.parse(raw));
-        this.envelopeLoaded = true;
+        const schemas = await Promise.all([
+            fs.readFile(resolve(this.frameworkRoot, "schemas", "document-envelope.schema.json"), "utf8"),
+            fs.readFile(resolve(this.frameworkRoot, "schemas", "project-audit-envelope.schema.json"), "utf8"),
+        ]);
+        for (const raw of schemas)
+            this.ajv.addSchema(JSON.parse(raw));
+        this.envelopesLoaded = true;
     }
 }
 function isDate(value) {

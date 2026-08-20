@@ -78,7 +78,7 @@ Les termes canoniques sont définis dans le [vocabulaire du domaine](domain/voca
 
 1. Une Feature appartient explicitement à un Project.
 2. Son `pipelineId` est résolu uniquement par le catalogue fermé.
-3. Tout nouveau document v3 possède un `author_agent_id` connu et autorisé.
+3. Tout document de Feature v3, et tout audit Project v4, possède un `author_agent_id` connu et autorisé ; leurs scopes `feature_id` et `project_id` ne se mélangent jamais.
 4. Le Product principal occupe `main`; un rôle spécialisé ne peut pas sélectionner cette session.
 5. Un Pipeline ne se termine pas sur la seule conformité JSON : le verdict métier doit viser le dernier CR livré.
 6. Les marqueurs portables sont les sources de vérité ; les index locaux restent reconstructibles.
@@ -138,7 +138,7 @@ Si une classe du domaine commence à importer `node:fs`, `process`, un renderer 
 | Session courante | `~/.arka-norn/context/agents.json` | privée à la machine |
 | Documents | JSON présents sous la Feature | preuves métier |
 | Index | `~/.arka-norn/index/*.json` | cache reconstructible |
-| Audit | `~/.arka-norn/audit/` | journal privé et rotatif |
+| Audit | `~/.arka-norn/logs/audit.jsonl` | journal privé et rotatif |
 
 Les écritures persistantes passent par les helpers atomiques et les locks existants. Ne remplacez pas ces adapters par un `writeFile` direct dans un nouveau cas d’usage.
 
@@ -171,6 +171,11 @@ Les politiques métier disponibles sont :
 
 Le pipeline standard se trouve dans `pipeline.json`. FastDev se trouve dans `pipelines/arka-norn-fastdev.json`.
 
+Une inspection avec `featureId` représente une Feature gérée : elle reçoit
+obligatoirement le registre Agent du Project. Une absence ou corruption de
+registre rend le rapport invalide ; ne dégradez jamais ce cas en warning. Les
+dossiers sans marker restent le seul mode de compatibilité explicite.
+
 ### Ajouter ou modifier un type de document
 
 1. Définir le schéma sous `schemas/` avec des contraintes explicites.
@@ -181,6 +186,10 @@ Le pipeline standard se trouve dans `pipeline.json`. FastDev se trouve dans `pip
 6. Couvrir dépendances, verdicts, obsolescence et auteur dans les tests unitaires.
 7. Couvrir le parcours CLI/TUI si l’étape devient publique.
 8. Mettre à jour les skills et la documentation concernées.
+
+Un document au scope Project ne doit pas être ajouté implicitement au Pipeline
+d’une Feature. L’unique extension actuelle est `audit_etat_reel` v4, porté par
+`project-audit-envelope.schema.json`; conservez v2/v3 pour les Features.
 
 Ne rendez pas une étape « complète » dans un presenter. Le verdict doit être calculé avant l’arrivée dans l’interface.
 

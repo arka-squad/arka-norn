@@ -1,4 +1,5 @@
 import { createAgentAdvice, createInitializationPrompt, createProductHandoffPrompt } from "../application/agents/agent-orchestration.js";
+import { loadVerifiedFeatureContext } from "./verified-feature-context.js";
 export function createAgentOrchestrationRuntime(deps) {
     return {
         async advise(input) {
@@ -28,13 +29,12 @@ export function createAgentOrchestrationRuntime(deps) {
         return { project, ...(feature === undefined ? {} : { feature }), ...(report === undefined ? {} : { report }), agents, sessions, warnings };
     }
     async function inspect(feature) {
-        const project = await deps.projects.show(feature.projectId);
-        const agents = await deps.agents.list(project);
+        const { authorRegistry } = await loadVerifiedFeatureContext(feature, deps);
         return deps.pipeline.inspect({
             featureRoot: feature.root,
             featureId: feature.id.value,
             pipelineId: feature.pipelineId,
-            authorRegistry: agents.map((agent) => ({ id: agent.id.value, active: agent.active, authorized: agent.coversFeature(feature.id) })),
+            authorRegistry,
         });
     }
 }

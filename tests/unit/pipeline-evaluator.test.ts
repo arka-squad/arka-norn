@@ -87,16 +87,51 @@ test("les fichiers inconnus sont signalés sans disparaître", () => {
   assert.equal(report.warnings.length, 1);
 });
 
+test("une Feature gérée exige un registre d'auteurs vérifié", () => {
+  const report = evaluateManaged([document("concept", "concept-1", {
+    content: { schema_version: 3, author_agent_id: "Codex_dev_20260820" },
+  })]);
+  assert.equal(report.overallStatus, "invalid");
+  assert.ok(report.errors.some((error) => error.includes("cannot be inspected without a verified Project author registry")));
+});
+
+test("une Feature gérée invalide les auteurs v3 absents ou hors périmètre", () => {
+  const signed = document("concept", "concept-1", {
+    content: { schema_version: 3, author_agent_id: "Codex_dev_20260820" },
+  });
+  const absent = evaluateManaged([signed], []);
+  assert.equal(absent.overallStatus, "invalid");
+  assert.ok(absent.errors.some((error) => error.includes("absent from the Project registry")));
+
+  const outsideScope = evaluateManaged([signed], [{ id: "Codex_dev_20260820", active: true, authorized: false }]);
+  assert.equal(outsideScope.overallStatus, "invalid");
+  assert.ok(outsideScope.errors.some((error) => error.includes("outside the Feature scope")));
+});
+
 function evaluate(documents: readonly EvaluatedDocument[]) {
   const input: PipelineEvaluationInput = {
+    pipelineId: "test-pipeline",
+    featureRoot: "/feature",
+    steps,
+    documents,
+    transversalDocumentTypes: ["handoff"],
+  };
+  return evaluatePipeline(input);
+}
+
+function evaluateManaged(
+  documents: readonly EvaluatedDocument[],
+  authorRegistry?: PipelineEvaluationInput["authorRegistry"],
+) {
+  return evaluatePipeline({
     pipelineId: "test-pipeline",
     featureRoot: "/feature",
     featureId: "feature-1",
     steps,
     documents,
     transversalDocumentTypes: ["handoff"],
-  };
-  return evaluatePipeline(input);
+    ...(authorRegistry === undefined ? {} : { authorRegistry }),
+  });
 }
 
 function baseRuns(verdict: "pass" | "fail" | "partial"): readonly EvaluatedDocument[] {

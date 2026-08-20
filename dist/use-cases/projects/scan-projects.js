@@ -1,3 +1,4 @@
+import { loadIndexedProject } from "./_shared/verified-project.js";
 export function scanProjectsUseCaseFactory(deps) {
     return async (options) => {
         const target = await deps.pathPolicy.canonicalDirectory(options?.target ?? deps.filesystem.homeDir());
@@ -68,7 +69,7 @@ export function scanProjectsUseCaseFactory(deps) {
                 continue;
             let duplicateIsActive = false;
             try {
-                duplicateIsActive = (await deps.projectStore.load(indexed.root)).id.value === entry.id;
+                duplicateIsActive = (await loadIndexedProject(deps, indexed)).id.value === entry.id;
             }
             catch {
                 duplicateIsActive = false;

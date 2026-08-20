@@ -12,11 +12,12 @@ const BIN = path.join(FRAMEWORK_ROOT, "bin", "arka-norn.mjs");
 const TSC_BIN = path.join(FRAMEWORK_ROOT, "node_modules", "typescript", "bin", "tsc");
 const TEST_RUNNER = path.join(FRAMEWORK_ROOT, "tests", "run-tests.mjs");
 const CLEAN_DIST = path.join(FRAMEWORK_ROOT, "scripts", "clean-dist.mjs");
+const SELFTEST_ENVIRONMENT = { ...process.env };
+delete SELFTEST_ENVIRONMENT.npm_execpath;
 
 export async function runSelftest() {
   let failures = 0;
   let checks = 0;
-  const pipeline = createPipelineRuntime(FRAMEWORK_ROOT);
 
   function check(label, condition, detail) {
     checks++;
@@ -41,8 +42,9 @@ export async function runSelftest() {
     recette_qa: "10-recette-qa.json",
     handoff: "11-handoff.json",
   };
-  const typeIds = (await pipeline.listSteps()).map((step) => step.id);
   const sandbox = mkdtempSync(path.join(tmpdir(), "arka-norn-selftest-"));
+  const pipeline = createPipelineRuntime(FRAMEWORK_ROOT, { homeDir: path.join(sandbox, "audit-home") });
+  const typeIds = (await pipeline.listSteps()).map((step) => step.id);
 
   try {
     console.log("=== 1+2. scaffold pour chaque type : génération + échec attendu uniquement sur sentinelles ===");
@@ -130,7 +132,7 @@ export async function runSelftest() {
     runGate("typecheck des tests", [TSC_BIN, "-p", path.join(FRAMEWORK_ROOT, "tsconfig.tests.json")]);
     runGate("nettoyage du build précédent", [CLEAN_DIST]);
     runGate("build TypeScript reproductible", [TSC_BIN]);
-    runGate("tests TypeScript", [TEST_RUNNER]);
+    runGate("tests TypeScript sans contexte npm injecté", [TEST_RUNNER], { env: SELFTEST_ENVIRONMENT });
   } else {
     check("package de production sans sources TypeScript", !existsSync(path.join(FRAMEWORK_ROOT, "src")));
     check("package de production sans suite de tests interne", !existsSync(TEST_RUNNER));
@@ -145,8 +147,8 @@ export async function runSelftest() {
     process.exitCode = 0;
   }
 
-  function runGate(label, args) {
-    const result = spawnSync(process.execPath, args, { cwd: FRAMEWORK_ROOT, encoding: "utf8" });
+  function runGate(label, args, options = {}) {
+    const result = spawnSync(process.execPath, args, { cwd: FRAMEWORK_ROOT, encoding: "utf8", ...options });
     const detail = [result.stdout, result.stderr].filter(Boolean).join("\n");
     check(label, result.status === 0, detail || `process terminé avec le code ${String(result.status)}`);
   }

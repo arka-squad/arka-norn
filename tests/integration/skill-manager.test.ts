@@ -74,8 +74,11 @@ test("le parcours TUI de réparation force le remplacement après sauvegarde", a
     redraw() {},
     run: async () => {},
   };
+  let healthRefreshes = 0;
 
-  await showSkillInstallation(app, manager, "/workspace/project");
+  await showSkillInstallation(app, manager, "/workspace/project", async () => {
+    healthRefreshes += 1;
+  });
   const menu = app.topScene();
   assert.ok(menu);
   menu.onKey({ kind: "down" });
@@ -83,6 +86,7 @@ test("le parcours TUI de réparation force le remplacement après sauvegarde", a
   await new Promise((resolvePromise) => setImmediate(resolvePromise));
 
   assert.deepEqual(calls, [{ target: "/workspace/project", global: false, force: true }]);
+  assert.equal(healthRefreshes, 1);
   assert.ok(app.topScene());
 });
 

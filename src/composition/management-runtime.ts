@@ -67,7 +67,7 @@ export function createManagementRuntime(options: ManagementRuntimeOptions): Mana
   const agentSession = new FsAgentSessionStore(options.homeDir);
   const sessionId = options.sessionId ?? AgentSessionId.MAIN;
   const projectsDeps = { projectStore, indexStore: projectIndexStore, filesystem, clock, logger, pathPolicy };
-  const featuresDeps = { featureStore, indexStore: featureIndexStore, projectIndexStore, filesystem, clock, logger, pathPolicy };
+  const featuresDeps = { featureStore, indexStore: featureIndexStore, projectIndexStore, projectStore, filesystem, clock, logger, pathPolicy };
 
   const rawProjects: ForProjects = {
     list: listProjectsUseCaseFactory(projectsDeps),

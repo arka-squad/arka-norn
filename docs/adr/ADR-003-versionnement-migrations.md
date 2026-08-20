@@ -12,7 +12,8 @@ Les markers v1 utilisent `version`, n’enregistrent pas les relations et n’of
 - Tous les nouveaux formats utilisent `schemaVersion`, entier strictement positif.
 - La version courante des markers Project et Feature est `3`.
 - Les markers v3 omettent `root` : leur racine runtime est dérivée de leur emplacement canonique afin de rester portable entre machines.
-- La version courante des nouveaux documents produit est `3`; le validateur conserve la lecture v2.
+- La version courante des documents de Feature est `3`; le validateur conserve la lecture v2.
+- `audit_etat_reel` accepte une enveloppe Project `4` dédiée, avec `project_id` et sans `feature_id`; elle ne s’applique à aucun autre type de document.
 - La version du registre Agents est `1`, indépendante des markers.
 - Une migration est une suite ordonnée, déterministe et idempotente.
 - `dry-run` est la valeur par défaut et ne modifie aucun octet.
@@ -23,4 +24,4 @@ Les markers v1 utilisent `version`, n’enregistrent pas les relations et n’of
 
 ## Conséquences
 
-Les fixtures couvrent v1, v2, v3 et version future. La CLI expose le plan de migration en dry-run et ne l'applique qu'avec `--apply`, après sauvegarde adjacente de la version source.
+Les fixtures couvrent v1, v2, v3, l’audit Project v4 et version future. La CLI expose le plan de migration en dry-run et ne l'applique qu'avec `--apply`, après sauvegarde adjacente de la version source. L’enveloppe v4 est une extension ciblée : les lecteurs de Pipeline Feature continuent à consommer v2/v3.

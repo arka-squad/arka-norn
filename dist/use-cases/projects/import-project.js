@@ -1,4 +1,5 @@
 import { ProjectLocationConflictError, ProjectMarkerNotFoundError } from "../../domain/errors.js";
+import { loadIndexedProject } from "./_shared/verified-project.js";
 export function importProjectUseCaseFactory(deps) {
     return async (input) => {
         const root = await deps.pathPolicy.canonicalDirectory(input.root);
@@ -12,7 +13,7 @@ export function importProjectUseCaseFactory(deps) {
         else if (indexed.root !== project.root) {
             let duplicateIsActive = false;
             try {
-                duplicateIsActive = (await deps.projectStore.load(indexed.root)).id.equals(project.id);
+                duplicateIsActive = (await loadIndexedProject(deps, indexed)).id.equals(project.id);
             }
             catch {
                 duplicateIsActive = false;

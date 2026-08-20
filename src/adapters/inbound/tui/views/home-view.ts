@@ -32,7 +32,14 @@ export interface HomeViewDeps {
   readonly systemHealth?: string;
 }
 
-export type HomeView = Scene;
+export interface HomeHealthSummary {
+  readonly skillHealth: string;
+  readonly systemHealth: string;
+}
+
+export type HomeView = Scene & {
+  setHealth(summary: HomeHealthSummary): void;
+};
 
 const CIRCLE = "●";
 const IDENTITY = (value: string): string => value;
@@ -45,6 +52,8 @@ export function createHomeView(deps: HomeViewDeps): HomeView {
   let message: string | undefined;
   let busy = false;
   let helpVisible = false;
+  let skillHealth = deps.skillHealth ?? "état inconnu";
+  let systemHealth = deps.systemHealth ?? "état inconnu";
   let menu = buildMenu();
 
   syncFocus();
@@ -58,8 +67,8 @@ export function createHomeView(deps: HomeViewDeps): HomeView {
         description: `${project.root}  ${formatActivity(project.updatedAt, now())}`,
       })),
       { label: "Rescanner ce dossier", value: "action:scan", description: "reconstruit l’index depuis les marqueurs sans supprimer les données" },
-      { label: "Santé du système", value: "action:health", description: `${deps.systemHealth ?? "état inconnu"} · détail et réparations sûres` },
-      { label: "Installer / réparer les skills", value: "action:install", description: `${deps.skillHealth ?? "état inconnu"} · guide les agents dans le framework` },
+      { label: "Santé du système", value: "action:health", description: `${systemHealth} · détail et réparations sûres` },
+      { label: "Installer / réparer les skills", value: "action:install", description: `${skillHealth} · guide les agents dans le framework` },
     ];
   }
 
@@ -153,6 +162,13 @@ export function createHomeView(deps: HomeViewDeps): HomeView {
 
   return {
     chrome: { contextBanner: false },
+    setHealth(summary: HomeHealthSummary): void {
+      skillHealth = summary.skillHealth;
+      systemHealth = summary.systemHealth;
+      menu = buildMenu();
+      syncFocus();
+      deps.redraw();
+    },
     onKey(event: KeyEvent): "pop" | "consumed" | undefined {
       if (event.kind === "help" && mode === "menu") {
         helpVisible = !helpVisible;
@@ -217,7 +233,7 @@ export function createHomeView(deps: HomeViewDeps): HomeView {
 
   function renderHome(theme: Theme): readonly string[] {
     const lines = [
-      ...titledBox("Bienvenue", [`Runtime : Node ${process.version}`, `Racine  : ${deps.contextRoot}`, `Santé   : ${deps.systemHealth ?? "inconnue"}`], theme, { border: theme.arkaRed }).split("\n"),
+      ...titledBox("Bienvenue", [`Runtime : Node ${process.version}`, `Racine  : ${deps.contextRoot}`, `Santé   : ${systemHealth}`], theme, { border: theme.arkaRed }).split("\n"),
       "",
       `  ${theme.bold("Projets")}`,
     ];

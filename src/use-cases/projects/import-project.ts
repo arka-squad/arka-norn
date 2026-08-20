@@ -2,6 +2,7 @@ import { ProjectLocationConflictError, ProjectMarkerNotFoundError } from "../../
 import type { Project } from "../../domain/project/project.js";
 import type { ImportProjectInput } from "../../ports/inbound/for-projects.js";
 import type { ProjectsDeps } from "./_shared/projects-deps.js";
+import { loadIndexedProject } from "./_shared/verified-project.js";
 
 export function importProjectUseCaseFactory(deps: ProjectsDeps) {
   return async (input: ImportProjectInput): Promise<Project> => {
@@ -14,7 +15,7 @@ export function importProjectUseCaseFactory(deps: ProjectsDeps) {
     } else if (indexed.root !== project.root) {
       let duplicateIsActive = false;
       try {
-        duplicateIsActive = (await deps.projectStore.load(indexed.root)).id.equals(project.id);
+        duplicateIsActive = (await loadIndexedProject(deps, indexed)).id.equals(project.id);
       } catch {
         duplicateIsActive = false;
       }

@@ -6,10 +6,6 @@ import { spawnSync, type SpawnSyncOptionsWithStringEncoding, type SpawnSyncRetur
 import { test } from "node:test";
 
 const ROOT = resolve(import.meta.dirname, "..", "..");
-const npmCli = process.env["npm_execpath"];
-if (npmCli === undefined) throw new Error("npm_execpath absent : exécuter la suite via npm test");
-const NPM_CLI: string = npmCli;
-
 test("un consumer vierge installe le tarball sans node_modules du worktree", (context) => {
   const sandbox = mkdtempSync(resolve(tmpdir(), "arka-norn-package-"));
   const consumer = resolve(sandbox, "consumer");
@@ -17,11 +13,12 @@ test("un consumer vierge installe le tarball sans node_modules du worktree", (co
   mkdirSync(consumer);
   mkdirSync(staging);
   context.after(() => rmSync(sandbox, { recursive: true, force: true }));
-  const isolatedEnvironment = {
+  const isolatedEnvironment: NodeJS.ProcessEnv = {
     ...process.env,
     npm_config_cache: resolve(sandbox, "npm-cache"),
     npm_config_ignore_scripts: "true",
   };
+  delete isolatedEnvironment["npm_execpath"];
   for (const entry of [
     "bin", "dist", "docs", "examples", "schemas", "skills-src", "scripts", "pipelines",
     "README.md", "CHANGELOG.md", "LICENSE", "SECURITY.md", "manifest.json", "pipeline.json",
@@ -96,5 +93,10 @@ test("un consumer vierge installe le tarball sans node_modules du worktree", (co
 });
 
 function runNpm(args: readonly string[], options: SpawnSyncOptionsWithStringEncoding): SpawnSyncReturns<string> {
-  return spawnSync(process.execPath, [NPM_CLI, ...args], options);
+  const npmCli = options.env === undefined ? process.env["npm_execpath"] : options.env["npm_execpath"];
+  if (npmCli !== undefined && npmCli.length > 0) return spawnSync(process.execPath, [npmCli, ...args], options);
+  return spawnSync(process.platform === "win32" ? "npm.cmd" : "npm", args, {
+    ...options,
+    ...(process.platform === "win32" ? { shell: true } : {}),
+  });
 }

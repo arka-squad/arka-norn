@@ -4,17 +4,23 @@ import { createTextInputScene } from "../../adapters/inbound/tui/components/text
 import { createResultView } from "../../adapters/inbound/tui/views/result-view.js";
 import { AgentScopeViolationError } from "../../domain/errors.js";
 import { relative } from "node:path";
-export function createPipelineSceneController(app, pipeline) {
+export function createPipelineSceneController(app, pipeline, authorRegistryForFeature) {
+    const inspect = async (feature) => pipeline.inspect({
+        featureRoot: feature.root,
+        featureId: feature.id.value,
+        pipelineId: feature.pipelineId,
+        authorRegistry: await authorRegistryForFeature(feature),
+    });
     return {
         async showStatus(feature) {
-            const report = await pipeline.inspect({ featureRoot: feature.root, featureId: feature.id.value, pipelineId: feature.pipelineId });
+            const report = await inspect(feature);
             app.push(createResultView({
                 title: "Statut du pipeline", code: pipelineExitCode(report), output: presentPipelineReport(report), onBack: () => { },
                 nextStep: report.nextActions[0] === undefined ? "le Pipeline est complet ; vérifiez le handoff ou clôturez la Feature" : `${report.nextActions[0].kind} → ${report.nextActions[0].stepId} : ${report.nextActions[0].reason}`,
             }));
         },
         async showGuidance(feature) {
-            const report = await pipeline.inspect({ featureRoot: feature.root, featureId: feature.id.value, pipelineId: feature.pipelineId });
+            const report = await inspect(feature);
             const action = report.nextActions[0];
             const output = action === undefined
                 ? "Le workflow est terminé : aucune nouvelle action n'est requise.\n"
@@ -40,7 +46,7 @@ export function createPipelineSceneController(app, pipeline) {
             const authorAgentId = author.id.value;
             const [steps, report] = await Promise.all([
                 pipeline.listSteps(feature.pipelineId),
-                pipeline.inspect({ featureRoot: feature.root, featureId: feature.id.value, pipelineId: feature.pipelineId }),
+                inspect(feature),
             ]);
             const recommended = report.nextActions[0]?.stepId;
             const orderedSteps = [...steps].sort((left, right) => Number(right.id === recommended) - Number(left.id === recommended));

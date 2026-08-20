@@ -11,6 +11,7 @@ import type { FeatureIndexStore } from "../../../ports/outbound/feature-index-st
 import type { FeatureStore } from "../../../ports/outbound/feature-store.js";
 import type { PathPolicy } from "../../../ports/outbound/path-policy.js";
 import type { ProjectIndexStore } from "../../../ports/outbound/project-index-store.js";
+import type { ProjectStore } from "../../../ports/outbound/project-store.js";
 
 export interface FeaturesDeps {
   readonly featureStore: FeatureStore;
@@ -20,4 +21,5 @@ export interface FeaturesDeps {
   readonly logger: Logger;
   readonly pathPolicy: PathPolicy;
   readonly projectIndexStore: ProjectIndexStore;
+  readonly projectStore: ProjectStore;
 }

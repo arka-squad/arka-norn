@@ -5,6 +5,7 @@ import type { ForAgents } from "../ports/inbound/for-agents.js";
 import type { ForFeatures } from "../ports/inbound/for-features.js";
 import type { ForPipeline } from "../ports/inbound/for-pipeline.js";
 import type { ForProjects } from "../ports/inbound/for-projects.js";
+import { loadVerifiedFeatureContext } from "./verified-feature-context.js";
 
 export function createAgentOrchestrationRuntime(deps: {
   readonly agents: ForAgents;
@@ -41,13 +42,12 @@ export function createAgentOrchestrationRuntime(deps: {
   }
 
   async function inspect(feature: Feature) {
-    const project = await deps.projects.show(feature.projectId);
-    const agents = await deps.agents.list(project);
+    const { authorRegistry } = await loadVerifiedFeatureContext(feature, deps);
     return deps.pipeline.inspect({
       featureRoot: feature.root,
       featureId: feature.id.value,
       pipelineId: feature.pipelineId,
-      authorRegistry: agents.map((agent) => ({ id: agent.id.value, active: agent.active, authorized: agent.coversFeature(feature.id) })),
+      authorRegistry,
     });
   }
 }

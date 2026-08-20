@@ -4,7 +4,18 @@
   "title": "Audit de l'état réel avant spécification",
   "description": "Document attestant qu'un agent a vérifié, en confrontant le plan à l'état réel du dépôt (code, disque, commit précis), ce qui est effectivement en place avant de rédiger la spécification d'intégration. Chaque constat est classé confirmé, infirmé ou découvert par rapport aux hypothèses du plan.",
   "type": "object",
-  "allOf": [{ "$ref": "document-envelope.schema.json" }],
+  "allOf": [
+    {
+      "if": {
+        "required": ["schema_version"],
+        "properties": {
+          "schema_version": { "const": 4 }
+        }
+      },
+      "then": { "$ref": "project-audit-envelope.schema.json" },
+      "else": { "$ref": "document-envelope.schema.json" }
+    }
+  ],
   "unevaluatedProperties": false,
   "properties": {
     "id": {
@@ -116,6 +127,30 @@
           "id": "c3",
           "description": "Un mécanisme de fallback vers l'ancien format de stockage existe et n'était documenté nulle part dans le plan.",
           "statut": "decouvert"
+        }
+      ]
+    },
+    {
+      "schema_version": 4,
+      "author_agent_id": "OpenAI-Codex_audit_20260820",
+      "id": "audit-project-arka-norn-20260820",
+      "project_id": "arka-norn",
+      "type": "audit_etat_reel",
+      "sequence": 1,
+      "created_at": "2026-08-20T12:00:00.000Z",
+      "depends_on_document_ids": [],
+      "tache_id": "AUDIT-PROJECT-001",
+      "sources_plan": ["audit complet"],
+      "depot_audite": "arka-norn",
+      "reference_auditee": "eca803e",
+      "date_audit": "2026-08-20",
+      "methode": "lecture directe",
+      "verdict_global": "Exemple d'audit Project v4.",
+      "constats": [
+        {
+          "id": "exemple",
+          "description": "Le scope Project est explicite.",
+          "statut": "confirme"
         }
       ]
     }

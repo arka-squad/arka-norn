@@ -7,7 +7,7 @@ import type { Feature } from "../../domain/feature/feature.js";
 import type { AgentRegistration } from "../../domain/agent/agent.js";
 import { AgentScopeViolationError } from "../../domain/errors.js";
 import { relative } from "node:path";
-import type { ForPipeline } from "../../ports/inbound/for-pipeline.js";
+import type { ForPipeline, PipelineAuthorAuthorization } from "../../ports/inbound/for-pipeline.js";
 
 export interface PipelineSceneController {
   showStatus(feature: Feature): Promise<void>;
@@ -16,17 +16,27 @@ export interface PipelineSceneController {
   validate(feature: Feature): void;
 }
 
-export function createPipelineSceneController(app: TuiApp, pipeline: ForPipeline): PipelineSceneController {
+export function createPipelineSceneController(
+  app: TuiApp,
+  pipeline: ForPipeline,
+  authorRegistryForFeature: (feature: Feature) => Promise<readonly PipelineAuthorAuthorization[]> | readonly PipelineAuthorAuthorization[],
+): PipelineSceneController {
+  const inspect = async (feature: Feature) => pipeline.inspect({
+    featureRoot: feature.root,
+    featureId: feature.id.value,
+    pipelineId: feature.pipelineId,
+    authorRegistry: await authorRegistryForFeature(feature),
+  });
   return {
     async showStatus(feature): Promise<void> {
-      const report = await pipeline.inspect({ featureRoot: feature.root, featureId: feature.id.value, pipelineId: feature.pipelineId });
+      const report = await inspect(feature);
       app.push(createResultView({
         title: "Statut du pipeline", code: pipelineExitCode(report), output: presentPipelineReport(report), onBack: () => {},
         nextStep: report.nextActions[0] === undefined ? "le Pipeline est complet ; vérifiez le handoff ou clôturez la Feature" : `${report.nextActions[0].kind} → ${report.nextActions[0].stepId} : ${report.nextActions[0].reason}`,
       }));
     },
     async showGuidance(feature): Promise<void> {
-      const report = await pipeline.inspect({ featureRoot: feature.root, featureId: feature.id.value, pipelineId: feature.pipelineId });
+      const report = await inspect(feature);
       const action = report.nextActions[0];
       const output = action === undefined
         ? "Le workflow est terminé : aucune nouvelle action n'est requise.\n"
@@ -51,7 +61,7 @@ export function createPipelineSceneController(app: TuiApp, pipeline: ForPipeline
       const authorAgentId = author.id.value;
       const [steps, report] = await Promise.all([
         pipeline.listSteps(feature.pipelineId),
-        pipeline.inspect({ featureRoot: feature.root, featureId: feature.id.value, pipelineId: feature.pipelineId }),
+        inspect(feature),
       ]);
       const recommended = report.nextActions[0]?.stepId;
       const orderedSteps = [...steps].sort((left, right) => Number(right.id === recommended) - Number(left.id === recommended));

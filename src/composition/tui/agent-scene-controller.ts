@@ -14,6 +14,8 @@ export interface AgentSceneController {
 }
 
 export function createAgentSceneController(app: TuiApp, agentsPort: ForAgents): AgentSceneController {
+  let mutationInFlight = false;
+
   return {
     async open(project, onChanged) {
       await pushRegistry(project, onChanged);
@@ -159,6 +161,10 @@ export function createAgentSceneController(app: TuiApp, agentsPort: ForAgents): 
     title: string,
     onChanged: (agents: readonly AgentRegistration[], current: AgentRegistration | undefined) => void,
   ): Promise<void> {
+    // Les callbacks de menu sont asynchrones : deux entrées rapprochées ne
+    // doivent jamais créer deux écritures concurrentes dans le registre.
+    if (mutationInFlight) return;
+    mutationInFlight = true;
     try {
       const result = await operation();
       if (fromDetail) app.pop();
@@ -177,6 +183,8 @@ export function createAgentSceneController(app: TuiApp, agentsPort: ForAgents): 
         output: `${error instanceof Error ? error.message : String(error)}\nAucune transition n’a été confirmée.\n`,
         onBack: () => {},
       }));
+    } finally {
+      mutationInFlight = false;
     }
   }
 }

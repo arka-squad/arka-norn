@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "catalogVersion": "1.4.0",
+  "catalogVersion": "1.5.0",
   "profiles": {
     "all": "18 skills, catalogue complet",
     "core": "8 skills de socle, démarrage et pilotage Product",
@@ -23,7 +23,7 @@
     { "name": "arka-framework-concept", "version": "1.1.0", "source": "arka-framework-concept.json", "checksum": "c82acfa8941ae59bbab349b12458b9ef43f15ae3d9806347cfb346ba70f99a6e", "step": "concept", "profiles": ["all", "product"] },
     { "name": "arka-framework-plan", "version": "1.0.0", "source": "arka-framework-plan.json", "checksum": "ac5db89430e7665e5e11e580e873d649285bf0fea7fdba4b5ee9bf0d5c3ba614", "step": "plan", "profiles": ["all", "delivery", "product"] },
     { "name": "arka-framework-annexe-technique", "version": "1.0.0", "source": "arka-framework-annexe-technique.json", "checksum": "604d32332126b420d76412893b19d8d5a36b71861cb68885db6bf6b1472e3f02", "step": "annexe_contrat_technique", "profiles": ["all", "architecture"] },
-    { "name": "arka-framework-audit", "version": "1.0.0", "source": "arka-framework-audit.json", "checksum": "57216ec415dc552224184725b8c100c196516c8dcc6b5e76f4f504f3ac995a82", "step": "audit_etat_reel", "profiles": ["all", "delivery", "architecture", "audit"] },
+    { "name": "arka-framework-audit", "version": "1.1.0", "source": "arka-framework-audit.json", "checksum": "13aef9314e948384c0417619561b59e3bce239dfa8326accb976e050461ffbe3", "step": "audit_etat_reel", "profiles": ["all", "delivery", "architecture", "audit"] },
     { "name": "arka-framework-invariants", "version": "1.0.0", "source": "arka-framework-invariants.json", "checksum": "e41b979a8b57ad79d9c8c137976ef8b04a8eb31d1bcf7ab52583b0deac809417", "step": "invariants_figes", "profiles": ["all", "delivery", "architecture", "audit"] },
     { "name": "arka-framework-dettes", "version": "1.0.0", "source": "arka-framework-dettes.json", "checksum": "4b3bcc39bf5a53bdaeb892edd78d77e107cced585145ef65eae30426b8521fc8", "step": "registre_dettes", "profiles": ["all", "delivery", "product"] },
     { "name": "arka-framework-taches", "version": "1.0.0", "source": "arka-framework-taches.json", "checksum": "7a7f4abc7329e0595fe8238846047d5fce4132ab616d544f829f55d3f14be2fb", "step": "tache_agent", "profiles": ["all", "delivery", "product"] },

@@ -25,6 +25,7 @@ export class FsProjectStore {
         await writeJsonAtomic(projectMarkerPath(project.root), serialize(project), { mode: 0o644, exclusive: true });
     }
     async load(root) {
+        await rejectMarkerDirectorySymlink(root);
         const current = await readJson(projectMarkerPath(root));
         let marker;
         if (current !== undefined) {

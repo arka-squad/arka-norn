@@ -8,7 +8,7 @@ export class AjvDocumentValidator implements DocumentValidator {
   private readonly ajv: Ajv2020;
   private readonly cache = new Map<string, ValidateFunction>();
   private readonly frameworkRoot: string;
-  private envelopeLoaded = false;
+  private envelopesLoaded = false;
 
   public constructor(frameworkRoot: string) {
     this.frameworkRoot = frameworkRoot;
@@ -29,7 +29,7 @@ export class AjvDocumentValidator implements DocumentValidator {
   private async validator(schemaPath: string): Promise<ValidateFunction> {
     const cached = this.cache.get(schemaPath);
     if (cached !== undefined) return cached;
-    await this.loadEnvelope();
+    await this.loadEnvelopes();
     const raw = await fs.readFile(resolve(this.frameworkRoot, schemaPath), "utf8");
     const schema = JSON.parse(raw) as AnySchema;
     const validate = this.ajv.compile(schema);
@@ -37,11 +37,14 @@ export class AjvDocumentValidator implements DocumentValidator {
     return validate;
   }
 
-  private async loadEnvelope(): Promise<void> {
-    if (this.envelopeLoaded) return;
-    const raw = await fs.readFile(resolve(this.frameworkRoot, "schemas", "document-envelope.schema.json"), "utf8");
-    this.ajv.addSchema(JSON.parse(raw) as AnySchema);
-    this.envelopeLoaded = true;
+  private async loadEnvelopes(): Promise<void> {
+    if (this.envelopesLoaded) return;
+    const schemas = await Promise.all([
+      fs.readFile(resolve(this.frameworkRoot, "schemas", "document-envelope.schema.json"), "utf8"),
+      fs.readFile(resolve(this.frameworkRoot, "schemas", "project-audit-envelope.schema.json"), "utf8"),
+    ]);
+    for (const raw of schemas) this.ajv.addSchema(JSON.parse(raw) as AnySchema);
+    this.envelopesLoaded = true;
   }
 }
 

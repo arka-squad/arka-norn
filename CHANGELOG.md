@@ -4,7 +4,18 @@ Toutes les modifications notables d’arka-norn sont consignées ici. Le projet
 utilise le versionnement sémantique ; les artefacts sont produits à partir des
 tags `vX.Y.Z`.
 
-## Non publié
+## 1.2.0 — 2026-08-20
+
+- les inspections et commandes Pipeline d'une Feature marquée refusent désormais toute vérification d'auteur sans registre Agent valide ;
+- les markers et index Project/Feature sont réconciliés avant usage ; les racines forgées, les répertoires de markers symboliques et les chemins de migration symboliques sont refusés ;
+- `doctor` traite l'absence d'une skill cœur comme un échec bloquant ;
+- les actions asynchrones de la TUI sont capturées et sérialisées pour éviter les erreurs non gérées et les mutations concurrentes ;
+- la TUI rafraîchit son diagnostic de santé après installation d'une skill ;
+- la gate de release couvre explicitement le code CLI, en complément de la couverture globale ;
+- l'audit Project `audit_etat_reel` dispose d'une enveloppe v4 ciblée, avec `project_id` exclusif de `feature_id` et scaffold CLI autorisé strictement ;
+- les scaffolds sont journalisés avant mutation, refusent toute zone `.arka-norn` et un audit Project v4 ne peut pas écrire dans une Feature ou un Project enfant ; le journal refuse aussi les symlinks, fichiers spéciaux et hardlinks ;
+- `selftest` fonctionne hors npm ;
+- l'aide de `validate` distingue validation structurelle et complétude métier.
 
 - README refondu en porte d’entrée produit, guide développeur de référence et manuel utilisateur non technique garantis dans le package ;
 - Product principal stable dans la session `main`, conseil de prochaine étape et orchestration des profils spécialisés ;

@@ -1,11 +1,17 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import type { Scene, TuiApp } from "../../src/adapters/inbound/tui/runtime/tui-app.ts";
 import { createProjectDetailView } from "../../src/adapters/inbound/tui/views/project-detail-view.ts";
+import { createAgentSceneController } from "../../src/composition/tui/agent-scene-controller.ts";
+import { AgentRegistration } from "../../src/domain/agent/agent.ts";
+import { AgentId } from "../../src/domain/agent/agent-id.ts";
+import { AgentSessionId } from "../../src/domain/agent/agent-session-id.ts";
 import { FeatureId } from "../../src/domain/feature/feature-id.ts";
 import { Feature } from "../../src/domain/feature/feature.ts";
 import { ProjectId } from "../../src/domain/project/project-id.ts";
 import { Project } from "../../src/domain/project/project.ts";
+import type { ForAgents } from "../../src/ports/inbound/for-agents.ts";
 import type { ForFeatures } from "../../src/ports/inbound/for-features.ts";
 
 test("ProjectDetail sérialise deux validations Entrée sur une action lente", async () => {
@@ -55,4 +61,61 @@ test("ProjectDetail sérialise deux validations Entrée sur une action lente", a
   releaseSwitch?.();
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(openCalls, 1);
+});
+
+test("AgentScene ignore une seconde mutation pendant la première", async () => {
+  const at = new Date("2026-08-20T10:00:00.000Z");
+  const projectId = ProjectId.of("project");
+  const project = Project.create({ id: projectId, name: "Project", root: "/workspace/project", schemaVersion: 3, createdAt: at, updatedAt: at });
+  const agent = AgentRegistration.create({
+    id: AgentId.of("Codex_dev_20260820"),
+    provider: "Codex",
+    role: "dev",
+    active: true,
+    scope: { projectId, featureIds: [], paths: [], responsibilities: [] },
+    registeredAt: at,
+    updatedAt: at,
+  });
+  const stack: Scene[] = [];
+  const app: TuiApp = {
+    push(scene) { stack.push(scene); },
+    pop() { stack.pop(); },
+    topScene: () => stack.at(-1),
+    redraw() {},
+    run: async () => {},
+  };
+  let releaseSelection: (() => void) | undefined;
+  const selection = new Promise<void>((resolvePromise) => { releaseSelection = resolvePromise; });
+  let selectCalls = 0;
+  const agents: ForAgents = {
+    sessionId: AgentSessionId.MAIN,
+    list: async () => [agent],
+    sessions: async () => [],
+    show: async () => agent,
+    register: async () => agent,
+    deactivate: async () => agent,
+    replace: async () => agent,
+    async select() {
+      selectCalls += 1;
+      await selection;
+      return agent;
+    },
+    current: async () => undefined,
+  };
+  const controller = createAgentSceneController(app, agents);
+  await controller.open(project, () => {});
+  const registry = app.topScene();
+  assert.ok(registry);
+  registry.onKey({ kind: "down" });
+  registry.onKey({ kind: "enter" });
+  const detail = app.topScene();
+  assert.ok(detail);
+
+  detail.onKey({ kind: "enter" });
+  detail.onKey({ kind: "enter" });
+  await new Promise((resolvePromise) => setImmediate(resolvePromise));
+  assert.equal(selectCalls, 1);
+
+  releaseSelection?.();
+  await new Promise((resolvePromise) => setImmediate(resolvePromise));
 });

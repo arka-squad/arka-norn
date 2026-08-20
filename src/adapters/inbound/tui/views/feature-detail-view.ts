@@ -119,9 +119,12 @@ export function createFeatureDetailView(deps: FeatureDetailViewDeps): FeatureDet
 
   async function run(task: () => Promise<void> | void): Promise<void> {
     busy = true;
+    status = undefined;
     deps.redraw();
     try {
       await task();
+    } catch (error) {
+      status = `Action impossible : ${error instanceof Error ? error.message : String(error)}`;
     } finally {
       busy = false;
       deps.redraw();

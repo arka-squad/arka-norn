@@ -11,17 +11,18 @@
 import type { Feature } from "../../domain/feature/feature.js";
 import { mapConcurrent } from "../../application/shared/map-concurrent.js";
 import type { FeaturesDeps } from "./_shared/features-deps.js";
+import { loadIndexedFeatureWithinProject } from "./_shared/verified-feature.js";
 
 export type ListFeaturesUseCase = () => Promise<readonly Feature[]>;
 
 export function listFeaturesUseCaseFactory(deps: FeaturesDeps): ListFeaturesUseCase {
-  const { featureStore, indexStore, logger } = deps;
+  const { indexStore, logger } = deps;
 
   return async (): Promise<readonly Feature[]> => {
     const entries = await indexStore.load();
     const features = await mapConcurrent(entries, 8, async (entry): Promise<Feature | undefined> => {
       try {
-        const feature = await featureStore.load(entry.root);
+        const feature = await loadIndexedFeatureWithinProject(deps, entry);
         const reconciled =
           feature.updatedAt.getTime() === entry.updatedAt.getTime() ? feature : feature.touched(entry.updatedAt);
         return reconciled;

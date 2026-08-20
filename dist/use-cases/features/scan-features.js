@@ -1,3 +1,4 @@
+import { loadFeatureWithinProject, loadIndexedFeatureWithinProject, loadProjectForFeature } from "./_shared/verified-feature.js";
 export function scanFeaturesUseCaseFactory(deps) {
     const { featureStore, indexStore, filesystem, logger } = deps;
     return async (options) => {
@@ -6,9 +7,7 @@ export function scanFeaturesUseCaseFactory(deps) {
         try {
             target = await deps.pathPolicy.canonicalDirectory(requestedTarget);
             if (options?.projectId !== undefined) {
-                const project = await deps.projectIndexStore.find(options.projectId);
-                if (project === undefined)
-                    return [];
+                const project = await loadProjectForFeature(deps, options.projectId);
                 const canonicalProject = await deps.pathPolicy.canonicalDirectory(project.root);
                 if (target !== canonicalProject)
                     await deps.pathPolicy.assertContained(canonicalProject, target);
@@ -59,7 +58,7 @@ export function scanFeaturesUseCaseFactory(deps) {
             let feature;
             const legacyMarker = await featureStore.hasLegacyMarker(root);
             try {
-                feature = await featureStore.load(root);
+                feature = await loadFeatureWithinProject(deps, root);
                 if (options?.projectId !== undefined && !feature.belongsTo(options.projectId))
                     feature = undefined;
             }
@@ -95,7 +94,7 @@ export function scanFeaturesUseCaseFactory(deps) {
                 continue;
             let duplicateIsActive = false;
             try {
-                duplicateIsActive = (await featureStore.load(indexed.root)).id.value === entry.id;
+                duplicateIsActive = (await loadIndexedFeatureWithinProject(deps, indexed)).id.value === entry.id;
             }
             catch {
                 duplicateIsActive = false;

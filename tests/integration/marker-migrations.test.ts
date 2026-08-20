@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync } from "node:fs";
 import { realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -50,6 +50,23 @@ test("la migration Feature applique le projectId explicite et sauvegarde v1", as
   assert.deepEqual(migrated, { ...migrated, schemaVersion: 3, projectId: "arka-norn" });
   assert.equal("root" in migrated, false);
   assert.equal(JSON.parse(readFileSync(`${markerPath}.v1.bak`, "utf8")).version, 1);
+});
+
+test("la migration directe refuse un parent de marker symbolique avant le backup", async (context) => {
+  const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-migrate-marker-symlink-"));
+  context.after(() => rmSync(sandbox, { recursive: true, force: true }));
+  const external = resolve(sandbox, "external");
+  const linked = resolve(sandbox, "linked");
+  mkdirSync(external);
+  const source = resolve(external, "project.json");
+  copyFileSync(resolve(FIXTURES, "project-marker-v1.json"), source);
+  symlinkSync(external, linked, "dir");
+
+  await assert.rejects(
+    migrateMarkerFile({ kind: "project", sourcePath: resolve(linked, "project.json"), apply: true }),
+    (error: unknown) => error instanceof Error && "code" in error && error.code === "PATH_SECURITY",
+  );
+  assert.equal(existsSync(`${source}.v1.bak`), false);
 });
 
 test("les stores écrivent uniquement les markers Project et Feature v3 portables", async (context) => {

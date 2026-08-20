@@ -5,6 +5,7 @@ import { createAgentRegistryView } from "../../adapters/inbound/tui/views/agent-
 import { createResultView } from "../../adapters/inbound/tui/views/result-view.js";
 import { FeatureId } from "../../domain/feature/feature-id.js";
 export function createAgentSceneController(app, agentsPort) {
+    let mutationInFlight = false;
     return {
         async open(project, onChanged) {
             await pushRegistry(project, onChanged);
@@ -95,6 +96,11 @@ export function createAgentSceneController(app, agentsPort) {
         }));
     }
     async function runMutation(project, fromDetail, operation, title, onChanged) {
+        // Les callbacks de menu sont asynchrones : deux entrées rapprochées ne
+        // doivent jamais créer deux écritures concurrentes dans le registre.
+        if (mutationInFlight)
+            return;
+        mutationInFlight = true;
         try {
             const result = await operation();
             if (fromDetail)
@@ -115,6 +121,9 @@ export function createAgentSceneController(app, agentsPort) {
                 output: `${error instanceof Error ? error.message : String(error)}\nAucune transition n’a été confirmée.\n`,
                 onBack: () => { },
             }));
+        }
+        finally {
+            mutationInFlight = false;
         }
     }
 }

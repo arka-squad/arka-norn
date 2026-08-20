@@ -8,7 +8,10 @@ est un tarball npm attaché au workflow GitHub déclenché par un tag `vX.Y.Z`.
 
 1. Mettre à jour `version` dans `package.json` et `package-lock.json`.
 2. Mettre à jour `CHANGELOG.md`.
-3. Exécuter `npm run release:verify`.
+3. Exécuter `npm run release:verify`. Cette commande inclut les gates qualité,
+   la couverture globale et la couverture dédiée au code CLI
+   (`npm run test:coverage:cli`), le benchmark, l'audit des dépendances et le
+   contrôle du contenu du tarball.
 4. Créer et pousser le tag signé ou protégé `vX.Y.Z` depuis un commit vert.
 
 La CI reconstruit le package, produit un SBOM CycloneDX, un fichier de checksums
@@ -21,6 +24,6 @@ Installer un artefact vérifié avec `npm install -g ./arka-norn-X.Y.Z.tgz`, pui
 exécuter `arka-norn selftest`. Pour revenir en arrière, vérifier le checksum du
 tarball précédent, le réinstaller et relancer `selftest` puis `doctor`.
 
-Les checks `quality`, `coverage` et `dependencies` doivent être requis par la
-protection de `main`. Cette règle de dépôt reste une configuration GitHub, pas
-un fichier applicatif.
+Les checks `quality`, `coverage`, `cli-coverage` et `dependencies` doivent être
+requis par la protection de `main`. Cette règle de dépôt reste une configuration
+GitHub, pas un fichier applicatif.

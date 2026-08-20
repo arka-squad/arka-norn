@@ -27,6 +27,7 @@ export class FsFeatureStore implements FeatureStore {
   }
 
   public async hasLegacyMarker(root: string): Promise<boolean> {
+    await rejectMarkerDirectorySymlink(root);
     const value = await readJson<unknown>(markerPath(root));
     return typeof value === "object" && value !== null && "version" in value && value.version === 1;
   }
@@ -39,6 +40,7 @@ export class FsFeatureStore implements FeatureStore {
   }
 
   public async load(root: string): Promise<Feature> {
+    await rejectMarkerDirectorySymlink(root);
     const value = await readJson<unknown>(markerPath(root));
     if (value === undefined) throw new FeatureMarkerNotFoundError(root);
     const marker = planFeatureMarkerMigration(value).output;

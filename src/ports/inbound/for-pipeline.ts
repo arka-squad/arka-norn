@@ -3,6 +3,10 @@ import type { PipelineWorkflow } from "../../domain/pipeline/pipeline-catalog.js
 
 export interface InspectPipelineInput {
   readonly featureRoot: string;
+  /**
+   * A defined feature id denotes a managed Feature. Its inspection must also
+   * provide the Project registry; otherwise the resulting report is invalid.
+   */
   readonly featureId?: string;
   readonly pipelineId?: string;
   readonly authorRegistry?: readonly PipelineAuthorAuthorization[];
@@ -17,7 +21,7 @@ export interface PipelineAuthorAuthorization {
 export interface ForPipeline {
   inspect(input: InspectPipelineInput): Promise<PipelineReport>;
   validate(input: { readonly filePath: string; readonly pipelineId?: string }): Promise<PipelineDocumentValidation>;
-  scaffold(input: { readonly stepId: string; readonly outputPath: string; readonly authorAgentId: string; readonly featureId?: string; readonly pipelineId?: string; readonly force?: boolean; readonly allowedRoot?: string }): Promise<PipelineScaffoldResult>;
+  scaffold(input: { readonly stepId: string; readonly outputPath: string; readonly authorAgentId: string; readonly featureId?: string; readonly projectId?: string; readonly pipelineId?: string; readonly force?: boolean; readonly allowedRoot?: string }): Promise<PipelineScaffoldResult>;
   listSteps(pipelineId?: string): Promise<readonly PipelineStepOption[]>;
   listWorkflows(): Promise<readonly PipelineWorkflow[]>;
   showWorkflow(pipelineId: string): Promise<PipelineWorkflow>;

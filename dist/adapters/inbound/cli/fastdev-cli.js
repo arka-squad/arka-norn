@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import { createManagementRuntime } from "../../../composition/management-runtime.js";
 import { createPipelineRuntime } from "../../../composition/pipeline-runtime.js";
+import { loadVerifiedFeatureContext } from "../../../composition/verified-feature-context.js";
 import { AgentSessionId } from "../../../domain/agent/agent-session-id.js";
 import { FeatureId } from "../../../domain/feature/feature-id.js";
 import { ProjectId } from "../../../domain/project/project-id.js";
@@ -13,9 +14,9 @@ export async function runFastDevCommand(argv, context) {
     const json = rest.includes("--json");
     try {
         if (action === "start")
-            return start(rest, context, json);
+            return await start(rest, context, json);
         if (action === "status" || action === "next")
-            return inspect(action, rest, context, json);
+            return await inspect(action, rest, context, json);
         throw new CliUsageError("fastdev action must be start, status or next");
     }
     catch (error) {
@@ -37,7 +38,7 @@ async function start(argv, context, json) {
     const name = parsed.positionals[0];
     const root = resolve(context.cwd, parsed.values.get("path") ?? resolve(project.root, slugify(name)));
     const id = FeatureId.of(`${slugify(name).slice(0, 54)}-${createHash("sha256").update(root).digest("hex").slice(0, 8)}`);
-    const pipelineId = (await createPipelineRuntime(context.frameworkRoot).showWorkflow("fastdev")).id;
+    const pipelineId = (await createPipelineRuntime(context.frameworkRoot, { homeDir: context.homeDir }).showWorkflow("fastdev")).id;
     const feature = await management.features.create({ id, projectId, name, root, pipelineId });
     const data = serializeFeature(feature);
     const human = [
@@ -55,13 +56,12 @@ async function inspect(action, argv, context, json) {
     const feature = await management.features.show(FeatureId.of(parsed.positionals[0]));
     if (feature.pipelineId !== "arka-norn-fastdev")
         throw new CliUsageError(`Feature ${feature.id.value} uses ${feature.pipelineId}, not FastDev.`);
-    const project = await management.projects.show(feature.projectId);
-    const agents = await management.agents.list(project);
-    const report = await createPipelineRuntime(context.frameworkRoot).inspect({
+    const { authorRegistry } = await loadVerifiedFeatureContext(feature, management);
+    const report = await createPipelineRuntime(context.frameworkRoot, { homeDir: context.homeDir }).inspect({
         featureRoot: feature.root,
         featureId: feature.id.value,
         pipelineId: feature.pipelineId,
-        authorRegistry: agents.map((agent) => ({ id: agent.id.value, active: agent.active, authorized: agent.coversFeature(feature.id) })),
+        authorRegistry,
     });
     if (action === "status") {
         return { code: pipelineExitCode(report), stdout: json ? `${JSON.stringify(pipelineReportEnvelope(report))}\n` : presentPipelineReport(report), stderr: "" };

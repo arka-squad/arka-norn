@@ -31,6 +31,11 @@ test("workflow et FastDev offrent un parcours CLI humain et JSON sans décision 
   assert.equal(started.json.data.pipelineId, "arka-norn-fastdev");
   assert.equal(existsSync(resolve(started.json.data.root, ".arka-norn", "feature.json")), true);
 
+  const agent = run<{ readonly id: string }>([
+    "agent", "register", "--project", "project", "--provider", "Codex", "--role", "product", "--features", started.json.data.id, "--session", "main", "--json",
+  ], home, projectRoot);
+  assert.equal(agent.status, 0, agent.stderr);
+
   const next = run<{
     readonly phase: string;
     readonly iteration: number;
@@ -48,10 +53,6 @@ test("workflow et FastDev offrent un parcours CLI humain et JSON sans décision 
   assert.match(next.json.data.suggestedCommand, /pipeline scaffold cadrage_rework/);
   assert.match(next.json.data.suggestedCommand, /--session product-rework$/);
 
-  const agent = run<{ readonly id: string }>([
-    "agent", "register", "--project", "project", "--provider", "Codex", "--role", "product", "--features", started.json.data.id, "--session", "main", "--json",
-  ], home, projectRoot);
-  assert.equal(agent.status, 0, agent.stderr);
   const scaffolded = run<{ readonly outputPath: string }>([
     "pipeline", "scaffold", "cadrage_rework", "--feature", started.json.data.id, "--json",
   ], home, projectRoot);

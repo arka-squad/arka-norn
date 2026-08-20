@@ -29,7 +29,7 @@ Le registre est écrit atomiquement sous lock. Les sélections restent locales d
 
 ## Documents produit
 
-Tout nouveau scaffold produit un document `schema_version: 3` avec :
+Tout nouveau scaffold de Feature produit un document `schema_version: 3` avec :
 
 ```json
 {
@@ -39,6 +39,11 @@ Tout nouveau scaffold produit un document `schema_version: 3` avec :
 ```
 
 Les documents v2 restent lisibles pour assurer la compatibilité. Une v3 sans `author_agent_id`, avec un identifiant mal formé ou produite par un agent inactif via la CLI est refusée. Le remplacement ne réécrit jamais les documents historiques.
+
+`audit_etat_reel` possède une exception strictement bornée : un audit du Project
+entier peut utiliser `schema_version: 4` et `project_id`, sans `feature_id`.
+Il est généré uniquement par `scaffold audit_etat_reel … --project … --agent …`,
+qui vérifie l’Agent actif et son scope. Aucun autre document v4 n’est admis.
 
 ## Commandes
 

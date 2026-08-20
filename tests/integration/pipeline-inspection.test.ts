@@ -9,9 +9,17 @@ import { createPipelineRuntime } from "../../src/composition/pipeline-runtime.ts
 const ROOT = resolve(import.meta.dirname, "..", "..");
 const EXAMPLE = resolve(ROOT, "examples", "feature-notion-linear");
 const FASTDEV_EXAMPLE = resolve(ROOT, "examples", "feature-fastdev");
+const LINEAR_AUTHORS = [{ id: "Codex_dev_20260819", active: true, authorized: true }];
+const FASTDEV_AUTHORS = [
+  { id: "Codex_dev_20260820", active: true, authorized: true },
+  { id: "Codex_audit_20260820", active: true, authorized: true },
+  { id: "Codex_qa_20260820", active: true, authorized: true },
+];
 
 test("l'exemple FastDev ferme l'audit par un CR correctif puis valide le dernier CR", async () => {
-  const report = await createPipelineRuntime(ROOT).inspect({ featureRoot: FASTDEV_EXAMPLE, featureId: "rework-navigation", pipelineId: "fastdev" });
+  const report = await createPipelineRuntime(ROOT).inspect({
+    featureRoot: FASTDEV_EXAMPLE, featureId: "rework-navigation", pipelineId: "fastdev", authorRegistry: FASTDEV_AUTHORS,
+  });
   assert.equal(report.pipelineId, "arka-norn-fastdev");
   assert.equal(report.overallStatus, "completed", report.errors.join("\n"));
   assert.equal(report.latestCrDevId, "cr-navigation-2");
@@ -21,7 +29,9 @@ test("l'exemple FastDev ferme l'audit par un CR correctif puis valide le dernier
 });
 
 test("l'inspection réelle sépare les 6 dimensions des 10 étapes", async () => {
-  const report = await createPipelineRuntime(ROOT).inspect({ featureRoot: EXAMPLE, featureId: "connecteurs-notion-linear" });
+  const report = await createPipelineRuntime(ROOT).inspect({
+    featureRoot: EXAMPLE, featureId: "connecteurs-notion-linear", authorRegistry: LINEAR_AUTHORS,
+  });
   assert.equal(report.steps.length, 10);
   assert.equal(report.overallStatus, "failed");
   assert.equal(report.latestCrDevId, "cr-dev-cortex-lot5-connecteurs-20260701-01");
@@ -71,13 +81,13 @@ test("un nouveau CR rend une ancienne QA pass obsolète jusqu'à la nouvelle rec
 test("les handoffs sont validés et exposés comme documents transversaux", async (context) => {
   const sandbox = copyExample(context);
   const runtime = createPipelineRuntime(ROOT);
-  const valid = await runtime.inspect({ featureRoot: sandbox, featureId: "connecteurs-notion-linear" });
+  const valid = await runtime.inspect({ featureRoot: sandbox, featureId: "connecteurs-notion-linear", authorRegistry: LINEAR_AUTHORS });
   const handoffs = valid.transversalDocuments.find((state) => state.type === "handoff");
   assert.equal(handoffs?.documents.length, 1);
   assert.equal(handoffs?.documents[0]?.valid, true);
 
   writeFileSync(resolve(sandbox, "11-handoff.json"), '{"type":"handoff"}\n', "utf8");
-  const invalid = await runtime.inspect({ featureRoot: sandbox, featureId: "connecteurs-notion-linear" });
+  const invalid = await runtime.inspect({ featureRoot: sandbox, featureId: "connecteurs-notion-linear", authorRegistry: LINEAR_AUTHORS });
   assert.equal(invalid.overallStatus, "invalid");
   assert.equal(invalid.transversalDocuments[0]?.documents[0]?.valid, false);
   assert.ok(invalid.errors.some((error) => error.includes("11-handoff.json")));

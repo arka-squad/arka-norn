@@ -37,6 +37,7 @@ export class FsProjectStore implements ProjectStore {
   }
 
   public async load(root: string): Promise<Project> {
+    await rejectMarkerDirectorySymlink(root);
     const current = await readJson<unknown>(projectMarkerPath(root));
     let marker: ProjectMarkerV3;
     if (current !== undefined) {
