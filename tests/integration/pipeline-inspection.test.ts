@@ -8,6 +8,17 @@ import { createPipelineRuntime } from "../../src/composition/pipeline-runtime.ts
 
 const ROOT = resolve(import.meta.dirname, "..", "..");
 const EXAMPLE = resolve(ROOT, "examples", "feature-notion-linear");
+const FASTDEV_EXAMPLE = resolve(ROOT, "examples", "feature-fastdev");
+
+test("l'exemple FastDev ferme l'audit par un CR correctif puis valide le dernier CR", async () => {
+  const report = await createPipelineRuntime(ROOT).inspect({ featureRoot: FASTDEV_EXAMPLE, featureId: "rework-navigation", pipelineId: "fastdev" });
+  assert.equal(report.pipelineId, "arka-norn-fastdev");
+  assert.equal(report.overallStatus, "completed", report.errors.join("\n"));
+  assert.equal(report.latestCrDevId, "cr-navigation-2");
+  assert.equal(report.selectedAuditId, "audit-navigation-1");
+  assert.equal(report.selectedValidationId, "validation-navigation-1");
+  assert.equal(report.steps.find((step) => step.id === "audit_rework")?.businessStatus, "passed");
+});
 
 test("l'inspection réelle sépare les 6 dimensions des 10 étapes", async () => {
   const report = await createPipelineRuntime(ROOT).inspect({ featureRoot: EXAMPLE, featureId: "connecteurs-notion-linear" });

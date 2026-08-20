@@ -17,7 +17,7 @@ import type { Feature } from "../../../../domain/feature/feature.js";
 import type { PipelineReport } from "../../../../domain/pipeline/pipeline-report.js";
 import { createFeatureCockpitViewModel } from "../../../../application/view-models/feature-cockpit.js";
 
-type FeatureDetailAction = "action:status" | "action:scaffold" | "action:validate" | "action:forget" | "action:back";
+type FeatureDetailAction = "action:continue" | "action:status" | "action:scaffold" | "action:validate" | "action:forget" | "action:back";
 
 export interface FeatureDetailViewDeps {
   readonly feature: Feature;
@@ -26,6 +26,7 @@ export interface FeatureDetailViewDeps {
   readonly redraw: () => void;
   readonly onBack: () => void;
   readonly onShowStatus?: (feature: Feature) => Promise<void> | void;
+  readonly onContinue?: (feature: Feature) => Promise<void> | void;
   readonly onScaffold?: (feature: Feature) => Promise<void> | void;
   readonly onValidate?: (feature: Feature) => Promise<void> | void;
   readonly onForget?: (feature: Feature) => Promise<void> | void;
@@ -60,6 +61,14 @@ export function createFeatureDetailView(deps: FeatureDetailViewDeps): FeatureDet
     if (busy) return;
 
     switch (value) {
+      case "action:continue":
+        if (deps.onContinue !== undefined) {
+          await run(() => deps.onContinue!(deps.feature));
+          return;
+        }
+        status = "Action indisponible.";
+        deps.redraw();
+        return;
       case "action:status":
         if (deps.onShowStatus !== undefined) {
           await run(() => deps.onShowStatus!(deps.feature));
@@ -143,7 +152,9 @@ export function createFeatureDetailView(deps: FeatureDetailViewDeps): FeatureDet
     if (helpVisible) {
       return renderGuidance({
         title: "Aide — cockpit Feature",
-        purpose: "Le Pipeline décide de la prochaine action à partir des documents réellement présents, de leur schéma, de leurs dépendances et du verdict métier.",
+        purpose: cockpit.workflowBadge === "FASTDEV"
+          ? "FastDev guide un rework borné : quatre documents, audit bloquant et correction conditionnelle. La validation doit viser le dernier CR."
+          : "Le Pipeline décide de la prochaine action à partir des documents réellement présents, de leur schéma, de leurs dépendances et du verdict métier.",
         steps: [
           "Lisez l’action recommandée et sa raison ; ne sautez pas à une étape ultérieure.",
           "Si l’action demande un document, vérifiez qu’un agent actif est affiché puis utilisez le scaffold.",
@@ -154,13 +165,17 @@ export function createFeatureDetailView(deps: FeatureDetailViewDeps): FeatureDet
       }, theme);
     }
     const lines = [
-      `  ${theme.bold(deps.feature.name)}`,
+      `  ${cockpit.workflowBadge === undefined ? "" : `${theme.arkaRed(`[${cockpit.workflowBadge}]`)} `}${theme.bold(deps.feature.name)}`,
       `  ${theme.gray(deps.feature.root)}`,
       `  État : ${theme.arkaAccent(cockpit.overallStatus)} · ${cockpit.progress}`,
       `  Agent auteur : ${deps.currentAgentId ?? "aucun — revenez au Project > Gérer les agents"}`,
       `  Prochaine action : ${cockpit.nextAction}`,
       `  Pourquoi : ${cockpit.nextReason}`,
       `  Runs : dev=${cockpit.developmentRuns} QA=${cockpit.qaRuns} échecs=${cockpit.qaFailures} · dettes=${cockpit.debtDocuments} · handoffs=${cockpit.handoffSignals}`,
+      ...(cockpit.workflowBadge === "FASTDEV" ? [
+        `  Itération Dev : ${cockpit.iteration} · constats ouverts : ${cockpit.openFindings} · corrections fermées : ${cockpit.closedCorrections}`,
+        `  Commit audité : ${cockpit.latestAuditedCommit ?? "aucun"} · validation : ${cockpit.validationState}`,
+      ] : []),
       "",
       `  ${theme.bold("Timeline du pipeline")}`,
       ...cockpit.timeline.map((step) => `    ${step}`),
@@ -210,8 +225,9 @@ export function createFeatureDetailView(deps: FeatureDetailViewDeps): FeatureDet
 
   function buildMenuItems(): readonly MenuItem<FeatureDetailAction>[] {
     return [
+      { label: deps.feature.pipelineId === "arka-norn-fastdev" ? "Continuer le rework" : "Continuer la Feature", value: "action:continue", description: "ouvre l'action guidée, sa raison, ses preuves et sa commande" },
       { label: "Voir le diagnostic complet", value: "action:status", description: "présence, schéma, métier, dépendances et raison de blocage" },
-      { label: "Générer le prochain document", value: "action:scaffold", description: deps.currentAgentId === undefined ? "bloqué : sélectionnez d’abord un agent dans le Project" : `document v3 signé par ${deps.currentAgentId}` },
+      { label: "Scaffold manuel", value: "action:scaffold", description: deps.currentAgentId === undefined ? "bloqué : sélectionnez d’abord un agent dans le Project" : `action secondaire · document v3 signé par ${deps.currentAgentId}` },
       { label: "Valider un document rempli", value: "action:validate", description: "détecte champs manquants, sentinelles et contrat invalide" },
       { label: "Retirer de l'index", value: "action:forget", description: "conserve les fichiers et le marqueur sur disque" },
       { label: `${LEFT_ARROW} Retour`, value: "action:back" },

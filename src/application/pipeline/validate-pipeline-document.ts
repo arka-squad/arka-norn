@@ -4,12 +4,12 @@ import type { DocumentValidator } from "../../ports/outbound/document-validator.
 import type { PipelineDocumentSource } from "../../ports/outbound/pipeline-document-source.js";
 
 export function validatePipelineDocumentUseCaseFactory(deps: { readonly source: PipelineDocumentSource; readonly validator: DocumentValidator }) {
-  return async (input: { readonly filePath: string }): Promise<PipelineDocumentValidation> => {
+  return async (input: { readonly filePath: string; readonly pipelineId?: string }): Promise<PipelineDocumentValidation> => {
     const candidate = await deps.source.read(input.filePath);
     if (candidate.content === undefined) return { valid: false, errors: candidate.readErrors };
     const type = candidate.content["type"];
     if (typeof type !== "string") return { valid: false, errors: ['missing string field "type"'] };
-    const definition = await deps.source.loadDefinition();
+    const definition = await deps.source.loadDefinition(input.pipelineId);
     const schemaPath = definition.steps.find((step) => step.id === type)?.schemaPath
       ?? definition.transversalDocuments.find((document) => document.type === type)?.schemaPath;
     if (schemaPath === undefined) return { valid: false, type, errors: [`unknown pipeline document type: ${type}`] };

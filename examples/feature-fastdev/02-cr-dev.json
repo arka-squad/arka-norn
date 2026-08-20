@@ -1,0 +1,21 @@
+{
+  "schema_version": 3,
+  "author_agent_id": "Codex_dev_20260820",
+  "id": "cr-navigation-1",
+  "feature_id": "rework-navigation",
+  "type": "cr_dev",
+  "sequence": 1,
+  "created_at": "2026-08-20T11:00:00.000Z",
+  "depends_on_document_ids": ["scope-navigation-1"],
+  "ref": "CR-NAV-01",
+  "date": "2026-08-20",
+  "agent": { "nom": "Codex dev", "provider": "OpenAI Codex" },
+  "spec_source": ["scope-navigation-1"],
+  "statut": "livre",
+  "fichiers_livres": [
+    { "chemin": "src/adapters/inbound/tui/views/feature-detail-view.ts", "action": "modifie", "lignes": 20, "role": "guidage" }
+  ],
+  "exigences_couvertes": [
+    { "id": "C-UX", "exigence": "Afficher la commande", "couvert": true, "preuve": "test TUI" }
+  ]
+}

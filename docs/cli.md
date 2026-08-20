@@ -13,6 +13,8 @@ arka-norn project list|add|import|scan|show|use|forget|reconcile
 arka-norn feature list|create|import|scan|show|use|forget|reconcile
 arka-norn agent list|register|show|current|use|deactivate|replace
 arka-norn pipeline status|next|scaffold|validate
+arka-norn workflow list|show
+arka-norn fastdev start|status|next
 arka-norn skills list|install|doctor [--global]
 arka-norn doctor [--repair [--apply]]
 arka-norn migrate [--target <path>] [--dry-run|--apply]
@@ -34,6 +36,20 @@ arka-norn pipeline scaffold concept --feature secure-cockpit
 ```
 
 Le scaffold écrit automatiquement `schema_version: 3`, `feature_id` et `author_agent_id`. L’alias bas niveau `scaffold` exige `--agent <id>` explicitement.
+
+## FastDev
+
+```text
+arka-norn workflow list
+arka-norn workflow show fastdev
+arka-norn feature create "Nom" --project <id> --workflow fastdev
+arka-norn feature set-workflow <feature> --workflow fastdev
+arka-norn fastdev start "Nom" --project <id> [--path <dossier>]
+arka-norn fastdev status <feature>
+arka-norn fastdev next <feature> [--json]
+```
+
+`set-workflow` est refusé dès qu’un document Pipeline reconnu existe. `fastdev next` expose `phase`, `iteration`, `prerequisites`, `reason`, `instructions`, `expectedArtifact` et `suggestedCommand`. Une commande historique ciblant un dossier sans marqueur conserve le pipeline standard avec avertissement.
 
 Lorsque la prochaine étape est `concept`, la skill `arka-framework-concept` peut proposer un brainstorming dans ChatGPT ou Claude.ai. L’agent fournit alors le mode d’emploi et un prompt autonome prérempli ; l’utilisateur rapporte la réponse complète, qui est vérifiée avant la génération du document signé.
 

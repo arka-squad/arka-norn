@@ -48,7 +48,7 @@ test("le cockpit Feature expose l’auteur, la raison et l’aide opératoire", 
   const view = createFeatureDetailView({ feature, report, currentAgentId: "Codex_dev_20260819", redraw() {}, onBack() {} });
   view.render(renderer, theme);
   assert.match(output, /Agent auteur : Codex_dev_20260819/);
-  assert.match(output, /Pourquoi : QA failed for the latest development run/);
+  assert.match(output, /Pourquoi : recette_qa a échoué sur le dernier cr_dev/);
   output = "";
   view.onKey({ kind: "help" });
   view.render(renderer, theme);

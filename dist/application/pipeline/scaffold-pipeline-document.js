@@ -3,7 +3,7 @@ import { AgentId } from "../../domain/agent/agent-id.js";
 export function scaffoldPipelineDocumentUseCaseFactory(deps) {
     return async (input) => {
         const authorAgentId = AgentId.of(input.authorAgentId).value;
-        const definition = await deps.source.loadDefinition();
+        const definition = await deps.source.loadDefinition(input.pipelineId);
         const schemaPath = definition.steps.find((step) => step.id === input.stepId)?.schemaPath
             ?? definition.transversalDocuments.find((document) => document.type === input.stepId)?.schemaPath;
         if (schemaPath === undefined)

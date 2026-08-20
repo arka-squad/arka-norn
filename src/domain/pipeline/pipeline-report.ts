@@ -11,13 +11,18 @@ export type NextActionKind =
   | "continue_development"
   | "run_qa"
   | "return_to_development"
-  | "resolve_qa";
+  | "resolve_qa"
+  | "run_audit"
+  | "run_validation";
 
 export interface NextAction {
   readonly kind: NextActionKind;
   readonly stepId: string;
   readonly reason: string;
   readonly relatedDocumentId?: string;
+  readonly phase?: string;
+  readonly instructions?: readonly string[];
+  readonly suggestedCommand?: string;
 }
 
 export interface DocumentSummary {
@@ -31,6 +36,11 @@ export interface DocumentSummary {
   readonly featureId?: string;
   readonly crDevId?: string;
   readonly businessVerdict?: string;
+  readonly authorAgentId?: string;
+  readonly exactCommit?: string;
+  readonly findingCount?: number;
+  readonly openFindingCount?: number;
+  readonly correctionCount?: number;
   readonly dependencyDocumentIds: readonly string[];
 }
 
@@ -62,6 +72,8 @@ export interface PipelineReport {
   readonly overallStatus: PipelineOverallStatus;
   readonly latestCrDevId?: string;
   readonly selectedQaId?: string;
+  readonly selectedAuditId?: string;
+  readonly selectedValidationId?: string;
   readonly steps: readonly StepState[];
   readonly transversalDocuments: readonly TransversalDocumentState[];
   readonly nextActions: readonly NextAction[];
@@ -84,9 +96,16 @@ export interface PipelineEvaluationInput {
     readonly required: boolean;
     readonly multiple: boolean;
     readonly dependsOn: readonly string[];
+    readonly businessPolicy?: PipelineBusinessPolicy;
   }[];
   readonly documents: readonly EvaluatedDocument[];
   readonly unknownFiles?: readonly string[];
   readonly sourceErrors?: readonly string[];
   readonly transversalDocumentTypes?: readonly string[];
+  readonly authorRegistry?: readonly {
+    readonly id: string;
+    readonly active: boolean;
+    readonly authorized: boolean;
+  }[];
 }
+import type { PipelineBusinessPolicy } from "./pipeline-definition.js";

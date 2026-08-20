@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "defaultPipelineId": "arka-norn-default",
+  "pipelines": [
+    {
+      "id": "arka-norn-default",
+      "aliases": ["standard"],
+      "name": "Pipeline standard",
+      "description": "Cycle complet à dix étapes pour une Feature structurante ou incertaine.",
+      "definition": "pipeline.json"
+    },
+    {
+      "id": "arka-norn-fastdev",
+      "aliases": ["fastdev"],
+      "name": "FastDev rework",
+      "description": "Cycle court et contrôlé pour une correction, un refactor ou une amélioration UX bornée.",
+      "definition": "pipelines/arka-norn-fastdev.json"
+    }
+  ]
+}

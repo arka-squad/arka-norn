@@ -6,8 +6,8 @@ import type { EvaluatedDocument, PipelineEvaluationInput } from "../../src/domai
 
 const steps = [
   { id: "concept", order: 1, required: true, multiple: false, dependsOn: [] },
-  { id: "cr_dev", order: 2, required: true, multiple: true, dependsOn: ["concept"] },
-  { id: "recette_qa", order: 3, required: true, multiple: true, dependsOn: ["cr_dev"] },
+  { id: "cr_dev", order: 2, required: true, multiple: true, dependsOn: ["concept"], businessPolicy: { type: "delivery", verdictField: "statut", passValues: ["livre"], inProgressValues: ["partiel"] } },
+  { id: "recette_qa", order: 3, required: true, multiple: true, dependsOn: ["cr_dev"], businessPolicy: { type: "review_latest", targetStep: "cr_dev", targetDocumentField: "cr_dev_id", verdictField: "statut_global", passValues: ["pass"], failValues: ["fail"], inProgressValues: ["partial"], retryStep: "cr_dev" } },
 ] as const;
 
 test("un Pipeline vide propose concept", () => {
@@ -71,7 +71,7 @@ test("la sélection multiple est indépendante de l'ordre disque", () => {
 test("une QA vers un CR inconnu invalide le graphe", () => {
   const report = evaluate([concept(), cr("cr-1", 1, "2026-08-19T10:00:00.000Z"), qa("qa-forged", 1, "cr-unknown", "pass")]);
   assert.equal(report.overallStatus, "invalid");
-  assert.ok(report.errors.some((error) => /unknown CR Dev/.test(error)));
+  assert.ok(report.errors.some((error) => /unknown target/.test(error)));
 });
 
 test("les identifiants dupliqués et les cardinalités singleton invalident le graphe", () => {
@@ -113,7 +113,7 @@ function concept(): EvaluatedDocument {
 }
 
 function cr(id: string, sequence: number, createdAt: string): EvaluatedDocument {
-  return document("cr_dev", id, { sequence, createdAt, businessVerdict: "livre", dependencyDocumentIds: ["concept-1"] });
+  return document("cr_dev", id, { sequence, createdAt, businessVerdict: "livre", dependencyDocumentIds: ["concept-1"], content: { statut: "livre" } });
 }
 
 function qa(id: string, sequence: number, crDevId: string, businessVerdict: string): EvaluatedDocument {
@@ -123,13 +123,14 @@ function qa(id: string, sequence: number, crDevId: string, businessVerdict: stri
     crDevId,
     businessVerdict,
     dependencyDocumentIds: [crDevId],
+    content: { cr_dev_id: crDevId, statut_global: businessVerdict },
   });
 }
 
 function document(
   type: string,
   id: string,
-  options: Partial<Omit<EvaluatedDocument, "content" | "filePath" | "type" | "id">> = {},
+  options: Partial<Omit<EvaluatedDocument, "filePath" | "type" | "id">> = {},
 ): EvaluatedDocument {
   return {
     type,

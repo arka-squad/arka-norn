@@ -11,6 +11,8 @@ import { runManagementCommand } from "./management-cli.js";
 import { runMigrateCommand } from "./migrate-cli.js";
 import { runPipelineCommand, runScaffoldCommand, runStatusCommand, runValidateCommand } from "./pipeline-cli.js";
 import { runSkillsCommand } from "./skills-cli.js";
+import { runWorkflowCommand } from "./workflow-cli.js";
+import { runFastDevCommand } from "./fastdev-cli.js";
 
 const FRAMEWORK_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
 
@@ -22,9 +24,19 @@ Depuis un agent provider : /arka-norn (Claude) ou $arka-norn (Codex)
 
 Gestion :
   project <list|add|import|scan|show|use|forget|reconcile>
-  feature <list|create|import|scan|show|use|forget|reconcile>
+  feature <list|create|import|scan|show|use|forget|reconcile|set-workflow>
   agent <list|register|show|current|use|deactivate|replace>
   pipeline <status|next|scaffold|validate>
+  workflow <list|show>
+  fastdev <start|status|next>
+
+Rework FastDev :
+  workflow list                         Liste les workflows autorisés.
+  feature create "Nom" --project <id> --workflow fastdev
+  feature set-workflow <id> --workflow fastdev
+  fastdev start "Nom" --project <id> [--path <dossier>]
+  fastdev status <feature>
+  fastdev next <feature> [--json]       Donne une action exacte et son livrable.
 
 Documents et santé :
   status [feature-root]                 État complet et prochaine action.
@@ -63,7 +75,9 @@ Depuis un agent provider
 
 4. Déclarer ou ouvrir la Feature
    arka-norn feature list --project <project-id>
+   arka-norn workflow list
    arka-norn feature create "Nom" --project <project-id> --path <dossier>
+   arka-norn fastdev start "Rework" --project <project-id>
 
 5. Suivre la prochaine action calculée
    arka-norn pipeline status <feature-id>
@@ -110,6 +124,12 @@ export async function runCli(argv: readonly string[]): Promise<number> {
         break;
       case "pipeline":
         result = await runPipelineCommand(rest, pipelineContext);
+        break;
+      case "workflow":
+        result = await runWorkflowCommand(rest, FRAMEWORK_ROOT);
+        break;
+      case "fastdev":
+        result = await runFastDevCommand(rest, pipelineContext);
         break;
       case "status":
         result = await runStatusCommand(rest, pipelineContext);

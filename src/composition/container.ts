@@ -129,7 +129,13 @@ export function createContainer(env: Env, ui: ContainerUiOptions = {}): Containe
     const project = await projects.show(feature.projectId);
     const currentAgent = await management.agents.current(project);
     uiState.currentAgent = currentAgent;
-    const report = await pipeline.inspect({ featureRoot: feature.root, featureId: feature.id.value });
+    const agents = await management.agents.list(project);
+    const report = await pipeline.inspect({
+      featureRoot: feature.root,
+      featureId: feature.id.value,
+      pipelineId: feature.pipelineId,
+      authorRegistry: agents.map((agent) => ({ id: agent.id.value, active: agent.active, authorized: agent.coversFeature(feature.id) })),
+    });
     app.push(
       createFeatureDetailView({
         feature,
@@ -138,6 +144,7 @@ export function createContainer(env: Env, ui: ContainerUiOptions = {}): Containe
         redraw: () => app.redraw(),
         onBack: () => app.pop(),
         onShowStatus: (selected) => pipelineScenes.showStatus(selected),
+        onContinue: (selected) => pipelineScenes.showGuidance(selected),
         onScaffold: async (selected) => {
           const project = await projects.show(selected.projectId);
           const agent = await management.agents.current(project);
@@ -180,7 +187,7 @@ export function createContainer(env: Env, ui: ContainerUiOptions = {}): Containe
           uiState.currentFeature = feature;
         },
         onOpenFeature: (feature) => openFeatureDetail(feature),
-        metricsForFeature: async (feature) => metricsFromReport(await pipeline.inspect({ featureRoot: feature.root, featureId: feature.id.value })),
+        metricsForFeature: async (feature) => metricsFromReport(await pipeline.inspect({ featureRoot: feature.root, featureId: feature.id.value, pipelineId: feature.pipelineId }), feature.pipelineId),
         onForget: (selected) => confirmations.forgetProject(selected),
         onManageAgents: (selected) => agentScenes.open(selected, (agents, current) => {
           uiState.currentAgent = current;

@@ -7,6 +7,7 @@ import type { Feature } from "../../../domain/feature/feature.js";
 import { ProjectId } from "../../../domain/project/project-id.js";
 import type { Project } from "../../../domain/project/project.js";
 import { createManagementRuntime } from "../../../composition/management-runtime.js";
+import { createPipelineRuntime } from "../../../composition/pipeline-runtime.js";
 import type { CliExecution } from "./cli-execution.js";
 import { CliUsageError, parseStrictArguments, type StrictArguments, type StrictArgumentSpec } from "./strict-arguments.js";
 
@@ -99,7 +100,8 @@ async function executeFeature(action: string, args: ParsedArguments, runtime: Ru
       const name = args.positionals[0]!;
       const root = resolve(context.cwd, args.values.get("path") ?? resolve(project.root, slugify(name)));
       const id = FeatureId.of(args.values.get("id") ?? deriveId(name, root));
-      return serializeFeature(await runtime.features.create({ id, projectId, name, root }));
+      const pipelineId = await resolveWorkflowId(args.values.get("workflow"));
+      return serializeFeature(await runtime.features.create({ id, projectId, name, root, pipelineId }));
     }
     case "import": {
       requirePositionals(args, 1);
@@ -113,6 +115,18 @@ async function executeFeature(action: string, args: ParsedArguments, runtime: Ru
     case "use": {
       requirePositionals(args, 1);
       return serializeFeature(await runtime.features.switchTo(FeatureId.of(args.positionals[0]!)));
+    }
+    case "set-workflow": {
+      requirePositionals(args, 1);
+      const workflow = requiredValue(args, "workflow");
+      const pipeline = createPipelineRuntime(FRAMEWORK_ROOT);
+      const selected = await pipeline.showWorkflow(workflow);
+      const workflows = await pipeline.listWorkflows();
+      return serializeFeature(await runtime.features.setWorkflow({
+        id: FeatureId.of(args.positionals[0]!),
+        pipelineId: selected.id,
+        recognizedDocumentTypes: [...new Set([...workflows.flatMap((item) => item.steps.map((step) => step.id)), "handoff"])],
+      }));
     }
     case "forget": {
       requirePositionals(args, 1);
@@ -150,10 +164,11 @@ function argumentSpec(resource: "project" | "feature", action: string): StrictAr
     "project.scan": { options: json, minPositionals: 0, maxPositionals: 1 },
     "project.reconcile": { options: json, minPositionals: 0, maxPositionals: 1 },
     "feature.list": { options: { ...json, project: "string" }, minPositionals: 0, maxPositionals: 0 },
-    "feature.create": { options: { ...json, project: "string", path: "string", id: "string" }, minPositionals: 1, maxPositionals: 1 },
+    "feature.create": { options: { ...json, project: "string", path: "string", id: "string", workflow: "string" }, minPositionals: 1, maxPositionals: 1 },
     "feature.import": { options: { ...json, project: "string" }, minPositionals: 1, maxPositionals: 1 },
     "feature.show": { options: json, minPositionals: 1, maxPositionals: 1 },
     "feature.use": { options: json, minPositionals: 1, maxPositionals: 1 },
+    "feature.set-workflow": { options: { ...json, workflow: "string" }, minPositionals: 1, maxPositionals: 1 },
     "feature.forget": { options: { ...json, yes: "boolean" }, minPositionals: 1, maxPositionals: 1 },
     "feature.scan": { options: { ...json, project: "string", path: "string" }, minPositionals: 0, maxPositionals: 0 },
     "feature.reconcile": { options: { ...json, project: "string", path: "string" }, minPositionals: 0, maxPositionals: 0 },
@@ -229,3 +244,11 @@ function errorCode(error: unknown): number {
 }
 
 class UsageError extends Error {}
+
+const FRAMEWORK_ROOT = resolve(import.meta.dirname, "..", "..", "..", "..");
+
+async function resolveWorkflowId(workflow: string | undefined): Promise<string> {
+  return workflow === undefined
+    ? (await createPipelineRuntime(FRAMEWORK_ROOT).showWorkflow("standard")).id
+    : (await createPipelineRuntime(FRAMEWORK_ROOT).showWorkflow(workflow)).id;
+}

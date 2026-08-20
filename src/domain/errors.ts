@@ -17,6 +17,7 @@ export type DomainErrorCode =
   | "FEATURE_ALREADY_EXISTS"
   | "FEATURE_NOT_FOUND"
   | "FEATURE_MARKER_NOT_FOUND"
+  | "FEATURE_WORKFLOW_IMMUTABLE"
   | "INVALID_PROJECT_ID"
   | "INVALID_PROJECT_OPTION"
   | "PROJECT_ALREADY_EXISTS"
@@ -119,6 +120,12 @@ export class FeatureNotFoundError extends DomainError {
 export class FeatureMarkerNotFoundError extends DomainError {
   public constructor(root: string) {
     super("FEATURE_MARKER_NOT_FOUND", `Feature marker not found at "${root}/.arka-norn/feature.json".`);
+  }
+}
+
+export class FeatureWorkflowImmutableError extends DomainError {
+  public constructor(id: string, documentType: string) {
+    super("FEATURE_WORKFLOW_IMMUTABLE", `Feature "${id}" already contains pipeline document type "${documentType}"; its workflow is immutable.`);
   }
 }
 

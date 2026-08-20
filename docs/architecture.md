@@ -22,11 +22,12 @@ arka-norn est un plan de contrôle local-first pour des Projects et leurs Featur
 - Agent courant : `~/.arka-norn/context/agents.json`, contexte privé reconstructible.
 - Documents : JSON de la Feature, validés par les schémas et le graphe Pipeline.
 - Index : `~/.arka-norn/index/*.json`, caches privés reconstructibles.
-- Catalogue skills : `skills-src/catalog/skills.json` et les 16 sources JSON référencées.
+- Catalogue pipelines : `pipelines/catalog.json`, résolu sans chemin fourni par l’utilisateur.
+- Catalogue skills : `skills-src/catalog/skills.json` et les 17 sources JSON référencées.
 
 Les marqueurs Project/Feature v3 ne stockent aucun chemin machine. Les adapters dérivent la racine runtime du dossier canonique qui contient le marqueur ; seuls les index locaux enregistrent des chemins absolus. Un clone ou un déplacement conserve ainsi sa source de vérité, puis un scan reconstruit le cache de la machine courante. Si l'ancien emplacement indexé n'est plus lisible, le cache est relocalisé atomiquement ; si les deux emplacements portent encore la même identité, le doublon actif est refusé.
 
-Le `PipelineReport` sépare présence, conformité de schéma, verdict métier, dépendances, complétude et prochaines actions. Une QA `pass` ne termine la Feature que si elle référence le dernier CR de développement valide.
+Le `PipelineReport` sépare présence, conformité de schéma, verdict métier, dépendances, complétude et prochaines actions. Les politiques déclaratives `delivery`, `audit_then_fix` et `review_latest` sélectionnent le dernier CR, imposent les corrections et rendent les anciennes validations obsolètes. CLI, TUI et skills consomment la même résolution `Feature.pipelineId`.
 
 Les documents historiques utilisent l’enveloppe v2. Tout nouveau scaffold utilise la v3 commune : `id`, `feature_id`, `author_agent_id`,
 `schema_version`, `sequence`, `created_at` et relations explicites. Le moteur

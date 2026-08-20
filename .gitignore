@@ -5,6 +5,8 @@ node_modules/
 coverage/
 .agents/skills/arka-framework-*/
 .agents/skills/arka-norn/
+.agents/skills/arka-fastdev/
 .claude/skills/arka-framework-*/
 .claude/skills/arka-norn/
+.claude/skills/arka-fastdev/
 .arka-norn/backups/skills/

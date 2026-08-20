@@ -84,6 +84,9 @@ export class Feature {
     touched(now) {
         return Feature.create({ ...this.toProps(), updatedAt: now });
     }
+    withPipelineId(pipelineId, now) {
+        return Feature.create({ ...this.toProps(), pipelineId, updatedAt: now });
+    }
     // --- Identity --------------------------------------------------------------
     sameIdentity(other) {
         return this.id.equals(other.id);

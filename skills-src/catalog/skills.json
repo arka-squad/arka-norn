@@ -1,14 +1,15 @@
 {
   "schemaVersion": 1,
-  "catalogVersion": "1.2.0",
+  "catalogVersion": "1.3.0",
   "profiles": {
-    "all": "16 skills, catalogue complet",
-    "core": "6 skills de socle et démarrage",
-    "delivery": "14 skills de préparation, développement et QA"
+    "all": "17 skills, catalogue complet",
+    "core": "7 skills de socle et démarrage",
+    "delivery": "15 skills de préparation, développement et QA"
   },
   "skills": [
-    { "name": "arka-norn", "version": "1.0.0", "source": "arka-norn.json", "checksum": "852c194726bc078d0149803bad0572145286541818ddc44833221b8ac8d5ace6", "step": "core.bootstrap", "profiles": ["all", "core", "delivery"] },
-    { "name": "arka-framework-maitrise", "version": "1.1.0", "source": "arka-framework-maitrise.json", "checksum": "9a9db9bac0fdf5f72712606bb98e54b44905feaf62b706f5bae4cf94a04152a8", "step": "core.mastery", "profiles": ["all", "core", "delivery"] },
+    { "name": "arka-norn", "version": "1.1.0", "source": "arka-norn.json", "checksum": "40fa8bea30e8797278515caeecd338f079f4ab971ead38e2948357400393e178", "step": "core.bootstrap", "profiles": ["all", "core", "delivery"] },
+    { "name": "arka-fastdev", "version": "1.0.0", "source": "arka-fastdev.json", "checksum": "f008789c38130d667f570cf9d5811f7144af13dae75dcaa4e07d229a70b387d6", "step": "core.fastdev", "profiles": ["all", "core", "delivery"] },
+    { "name": "arka-framework-maitrise", "version": "1.2.0", "source": "arka-framework-maitrise.json", "checksum": "671676af0f8ae69db64c9945f9d389348f4ab64b051ff2990f4ce3853978cb95", "step": "core.mastery", "profiles": ["all", "core", "delivery"] },
     { "name": "arka-framework-statut", "version": "1.0.0", "source": "arka-framework-statut.json", "checksum": "5cda80db55abf00ab0eeeec53c3186d86816c7ad45e5d5987b46253ededa62fa", "step": "core.status", "profiles": ["all", "core", "delivery"] },
     { "name": "arka-framework-scaffold", "version": "1.0.0", "source": "arka-framework-scaffold.json", "checksum": "438aa0df69db38185fdc17039723990f67f3bb31cd1b24f41152dccddb41ff6a", "step": "core.scaffold", "profiles": ["all", "core", "delivery"] },
     { "name": "arka-framework-valider", "version": "1.0.0", "source": "arka-framework-valider.json", "checksum": "b3553534193c0d1fa6fa8c32c546761c5bc692e175efeee4d8797aee194c5302", "step": "core.validate", "profiles": ["all", "core", "delivery"] },

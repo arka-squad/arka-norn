@@ -11,6 +11,7 @@ import type { ForPipeline } from "../../ports/inbound/for-pipeline.js";
 
 export interface PipelineSceneController {
   showStatus(feature: Feature): Promise<void>;
+  showGuidance(feature: Feature): Promise<void>;
   scaffold(feature: Feature, author: AgentRegistration, projectRoot: string): Promise<void>;
   validate(feature: Feature): void;
 }
@@ -18,18 +19,39 @@ export interface PipelineSceneController {
 export function createPipelineSceneController(app: TuiApp, pipeline: ForPipeline): PipelineSceneController {
   return {
     async showStatus(feature): Promise<void> {
-      const report = await pipeline.inspect({ featureRoot: feature.root, featureId: feature.id.value });
+      const report = await pipeline.inspect({ featureRoot: feature.root, featureId: feature.id.value, pipelineId: feature.pipelineId });
       app.push(createResultView({
         title: "Statut du pipeline", code: pipelineExitCode(report), output: presentPipelineReport(report), onBack: () => {},
         nextStep: report.nextActions[0] === undefined ? "le Pipeline est complet ; vérifiez le handoff ou clôturez la Feature" : `${report.nextActions[0].kind} → ${report.nextActions[0].stepId} : ${report.nextActions[0].reason}`,
+      }));
+    },
+    async showGuidance(feature): Promise<void> {
+      const report = await pipeline.inspect({ featureRoot: feature.root, featureId: feature.id.value, pipelineId: feature.pipelineId });
+      const action = report.nextActions[0];
+      const output = action === undefined
+        ? "Le workflow est terminé : aucune nouvelle action n'est requise.\n"
+        : [
+            `Phase : ${action.phase ?? action.stepId}`,
+            `Ce qu'il faut faire : ${(action.instructions ?? []).join(" ")}`,
+            `Pourquoi : ${action.reason}`,
+            `Preuves attendues : document signé, dépendances exactes et résultats reproductibles.`,
+            `Document à produire : ${action.stepId}.json`,
+            `Commande : ${action.suggestedCommand ?? `arka-norn pipeline scaffold ${action.stepId} --feature ${feature.id.value}`}`,
+          ].join("\n") + "\n";
+      app.push(createResultView({
+        title: feature.pipelineId === "arka-norn-fastdev" ? "Continuer le rework FastDev" : "Continuer la Feature",
+        code: pipelineExitCode(report),
+        output,
+        onBack: () => {},
+        nextStep: action === undefined ? "le workflow est terminé" : "exécutez la commande affichée, remplissez les preuves puis validez le document",
       }));
     },
     async scaffold(feature, author, projectRoot): Promise<void> {
       if (!author.coversFeature(feature.id)) throw new AgentScopeViolationError(author.id.value, `feature:${feature.id.value}`);
       const authorAgentId = author.id.value;
       const [steps, report] = await Promise.all([
-        pipeline.listSteps(),
-        pipeline.inspect({ featureRoot: feature.root, featureId: feature.id.value }),
+        pipeline.listSteps(feature.pipelineId),
+        pipeline.inspect({ featureRoot: feature.root, featureId: feature.id.value, pipelineId: feature.pipelineId }),
       ]);
       const recommended = report.nextActions[0]?.stepId;
       const orderedSteps = [...steps].sort((left, right) => Number(right.id === recommended) - Number(left.id === recommended));
@@ -57,7 +79,7 @@ export function createPipelineSceneController(app: TuiApp, pipeline: ForPipeline
                   app.push(errorView(`Squelette — ${stepId}`, new AgentScopeViolationError(author.id.value, `path:${projectRelativeOutput}`)));
                   return;
                 }
-                void pipeline.scaffold({ stepId, outputPath, allowedRoot: feature.root, authorAgentId, featureId: feature.id.value }).then(
+                void pipeline.scaffold({ stepId, outputPath, allowedRoot: feature.root, authorAgentId, featureId: feature.id.value, pipelineId: feature.pipelineId }).then(
                   (result) => app.push(createResultView({
                     title: `Squelette — ${stepId}`,
                     code: 0,
@@ -82,7 +104,7 @@ export function createPipelineSceneController(app: TuiApp, pipeline: ForPipeline
         initialValue: `${feature.root}/`,
         onSubmit: (filePath) => {
           app.pop();
-          void pipeline.validate({ filePath }).then(
+          void pipeline.validate({ filePath, pipelineId: feature.pipelineId }).then(
             (result) => app.push(createResultView({
               title: "Validation",
               code: result.valid ? 0 : 3,

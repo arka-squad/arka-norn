@@ -1,0 +1,44 @@
+{
+  "name": "arka-fastdev",
+  "titre_h1_repo": "Arka FastDev — Exécuter un rework guidé",
+  "titre_h1_global": "Skill Arka FastDev — Rework guidé",
+  "description_courte": "Pilote une seule phase calculée d'un rework FastDev arka-norn, depuis la découverte du contexte et de l'Agent jusqu'à la validation du document signé produit.",
+  "description_do_use": "Use when une Feature utilise le workflow arka-norn-fastdev, que l'utilisateur demande de continuer un rework, ou que `arka-norn fastdev next` désigne cadrage_rework, cr_dev, audit_rework ou validation_fastdev.",
+  "description_do_not_use": "Do NOT use pour une nouvelle architecture, une migration critique, un périmètre incertain, une Feature standard, plusieurs phases à la fois, ni pour contourner un audit ou une validation.",
+  "declencheurs_globaux": "Déclencher sur `$arka-fastdev`, « continue le rework FastDev », ou lorsqu'une Feature active porte `pipelineId: arka-norn-fastdev`. Résoudre Project, Feature, Agent et phase avec la CLI ; exécuter exactement une action calculée, produire un document v3 signé et le valider avant de s'arrêter.",
+  "interface": {
+    "display_name": "Arka FastDev — Rework",
+    "short_description": "Exécuter une phase FastDev guidée et vérifiable",
+    "default_prompt": "Utilise $arka-fastdev pour exécuter uniquement la prochaine phase calculée de ce rework."
+  },
+  "allowed_tools": ["Read", "Bash", "Grep", "Glob"],
+  "quand_utiliser": [
+    "correction, refactor ou amélioration UX bornée déjà enregistrée comme Feature FastDev",
+    "reprise d'un audit corrections_requises ou d'une validation fail/partial",
+    "Agent qui doit recevoir une commande, un livrable et des preuves exactes sans deviner le framework"
+  ],
+  "quand_ne_pas_utiliser": [
+    "pipelineId différent de arka-norn-fastdev",
+    "travail hors du périmètre de l'Agent actif",
+    "demande qui exige de modifier plusieurs phases documentaires dans la même exécution",
+    "audit bloque ou contexte incomplet qui nécessite une décision humaine"
+  ],
+  "inputs": [
+    { "obligatoire": true, "nom": "feature", "description": "identifiant exact de la Feature FastDev" },
+    { "obligatoire": false, "nom": "agent_id", "description": "identité active explicite ; sinon utiliser l'Agent courant du Project" }
+  ],
+  "note_inputs": "Ne jamais déduire la phase depuis les noms de fichiers. `arka-norn fastdev next <feature> --json` est la source de vérité.",
+  "referentiel_extra": [
+    "`{{FRAMEWORK_DIR}}/pipelines/arka-norn-fastdev.json` — ordre et politiques métier",
+    "`{{FRAMEWORK_DIR}}/docs/cli.md` — commandes et sorties JSON",
+    "`{{FRAMEWORK_DIR}}/docs/agent-registry.md` — identité, activité et scope",
+    "`{{FRAMEWORK_DIR}}/schemas/` — contrats des quatre documents FastDev"
+  ],
+  "procedure": [
+    { "titre": "Résoudre le contexte réel", "contenu": "Lancer `arka-norn feature show <feature> --json`, confirmer `pipelineId: arka-norn-fastdev`, puis lire le Project et `arka-norn agent current --project <project-id> --json`. Refuser toute écriture si l'Agent est absent, inactif ou hors périmètre. Lancer `arka-norn doctor` et traiter un FAIL avant la suite." },
+    { "titre": "Lire une seule action calculée", "contenu": "Lancer `arka-norn fastdev next <feature> --json`. Reprendre sans interprétation `phase`, `iteration`, `prerequisites`, `reason`, `instructions`, `expectedArtifact` et `suggestedCommand`. Si l'action vaut null, annoncer la fin ; ne créer aucun document supplémentaire." },
+    { "titre": "Exécuter la phase bornée", "contenu": "Générer le squelette avec la commande proposée. Pour `cadrage_rework`, couvrir code, fonctionnel, UX et sécurité. Pour `cr_dev`, développer dans le scope et, après audit, fermer chaque constat `corriger` dans `corrections_apportees`. Pour `audit_rework`, contrôler le dernier CR et son commit exact sans corriger silencieusement. Pour `validation_fastdev`, viser uniquement le dernier CR, l'audit associé et les preuves attendues." },
+    { "titre": "Valider et s'arrêter", "contenu": "Remplacer toutes les sentinelles puis lancer `arka-norn pipeline validate <feature> --document <fichier>`. Relancer `arka-norn fastdev next <feature> --json` pour constater la transition, mais ne pas exécuter cette nouvelle action dans la même invocation. Rapporter le document signé, les preuves, le verdict et la prochaine commande." }
+  ],
+  "format_sortie": "```markdown\n## FastDev — phase exécutée\n- Project : <id>\n- Feature : <id>\n- Agent actif : <Provider_role_YYYYMMDD>\n- Phase / itération : <phase · n>\n- Action exécutée : <action>\n- Document signé : <chemin · id>\n- Validation schema : <pass/fail>\n- Preuves : <résumé vérifiable>\n- Prochaine action observée : <phase ou terminé>\n- Commande suivante : <commande exacte ou aucune>\n```"
+}

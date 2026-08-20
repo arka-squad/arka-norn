@@ -17,6 +17,7 @@ import { listFeaturesUseCaseFactory } from "../use-cases/features/list-features.
 import { scanFeaturesUseCaseFactory } from "../use-cases/features/scan-features.js";
 import { showFeatureUseCaseFactory } from "../use-cases/features/show-feature.js";
 import { switchToFeatureUseCaseFactory } from "../use-cases/features/switch-to-feature.js";
+import { setFeatureWorkflowUseCaseFactory } from "../use-cases/features/set-feature-workflow.js";
 import { createProjectUseCaseFactory } from "../use-cases/projects/create-project.js";
 import { forgetProjectUseCaseFactory } from "../use-cases/projects/forget-project.js";
 import { importProjectUseCaseFactory } from "../use-cases/projects/import-project.js";
@@ -54,6 +55,7 @@ export function createManagementRuntime(options) {
         show: showFeatureUseCaseFactory(featuresDeps),
         forget: forgetFeatureUseCaseFactory(featuresDeps),
         switchTo: switchToFeatureUseCaseFactory(featuresDeps),
+        setWorkflow: setFeatureWorkflowUseCaseFactory(featuresDeps),
     };
     const rawScanProjects = scanProjectsUseCaseFactory(projectsDeps);
     const rawScanFeatures = scanFeaturesUseCaseFactory(featuresDeps);
@@ -118,6 +120,7 @@ function auditFeatures(base, audit, logger, clock) {
         create: (input) => auditedValue(audit, logger, clock, { action: "feature.create", entityType: "feature", entityId: input.id.value, root: input.root }, () => base.create(input)),
         importFrom: (input) => auditedValue(audit, logger, clock, { action: "feature.import", entityType: "feature", root: input.root }, () => base.importFrom(input)),
         async switchTo(id) { const current = await base.show(id); return auditedValue(audit, logger, clock, { action: "feature.use", entityType: "feature", entityId: id.value, root: current.root }, () => base.switchTo(id)); },
+        async setWorkflow(input) { const current = await base.show(input.id); return auditedValue(audit, logger, clock, { action: "feature.set-workflow", entityType: "feature", entityId: input.id.value, root: current.root, details: { pipelineId: input.pipelineId } }, () => base.setWorkflow(input)); },
         async forget(id) { const current = await base.show(id); await auditedValue(audit, logger, clock, { action: "feature.forget", entityType: "feature", entityId: id.value, root: current.root }, async () => { await base.forget(id); }); },
     };
 }

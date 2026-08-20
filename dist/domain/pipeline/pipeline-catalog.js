@@ -1,0 +1,44 @@
+const PIPELINE_ID = /^[a-z0-9][a-z0-9._-]{0,127}$/;
+const SAFE_DEFINITION = /^(?:[a-zA-Z0-9._-]+\/)*[a-zA-Z0-9._-]+\.json$/;
+export function createPipelineCatalog(input) {
+    if (input.schemaVersion !== 1)
+        throw new Error("Unsupported pipeline catalog schemaVersion.");
+    if (input.pipelines.length === 0)
+        throw new Error("Pipeline catalog must not be empty.");
+    const tokens = new Set();
+    for (const entry of input.pipelines) {
+        if (!PIPELINE_ID.test(entry.id))
+            throw new Error(`Invalid catalog pipeline id: ${entry.id}.`);
+        if (entry.name.trim().length === 0 || entry.description.trim().length === 0)
+            throw new Error(`Pipeline ${entry.id} needs a name and description.`);
+        if (!SAFE_DEFINITION.test(entry.definitionPath) || entry.definitionPath.split("/").includes("..")) {
+            throw new Error(`Unsafe pipeline definition path for ${entry.id}: ${entry.definitionPath}.`);
+        }
+        for (const token of [entry.id, ...entry.aliases]) {
+            if (!PIPELINE_ID.test(token) || tokens.has(token))
+                throw new Error(`Duplicate or invalid pipeline catalog token: ${token}.`);
+            tokens.add(token);
+        }
+    }
+    if (!input.pipelines.some((entry) => entry.id === input.defaultPipelineId)) {
+        throw new Error(`Unknown default pipeline id: ${input.defaultPipelineId}.`);
+    }
+    return { ...input, pipelines: input.pipelines.map((entry) => ({ ...entry, aliases: [...entry.aliases] })) };
+}
+export function resolvePipelineEntry(catalog, requestedId) {
+    const token = requestedId ?? catalog.defaultPipelineId;
+    const entry = catalog.pipelines.find((candidate) => candidate.id === token || candidate.aliases.includes(token));
+    if (entry === undefined)
+        throw new Error(`Unknown pipeline id: ${token}. Use "arka-norn workflow list".`);
+    return entry;
+}
+export function workflowFrom(entry, definition) {
+    if (definition.pipelineId !== entry.id) {
+        throw new Error(`Pipeline catalog mismatch: ${entry.id} resolves to ${definition.pipelineId}.`);
+    }
+    return {
+        ...entry,
+        steps: definition.steps.map((step) => ({ id: step.id, required: step.required, multiple: step.multiple })),
+    };
+}
+//# sourceMappingURL=pipeline-catalog.js.map

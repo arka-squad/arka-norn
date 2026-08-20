@@ -142,6 +142,22 @@
           }
         }
       }
+    },
+    "corrections_apportees": {
+      "type": "array",
+      "description": "Fermetures explicites de constats provenant d'un audit ou d'une validation FastDev.",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_document_id", "constat_id", "action", "preuve"],
+        "properties": {
+          "source_document_id": { "type": "string", "minLength": 1 },
+          "constat_id": { "type": "string", "minLength": 1 },
+          "action": { "type": "string", "minLength": 1 },
+          "preuve": { "type": "string", "minLength": 1 }
+        }
+      }
     }
   },
   "examples": [

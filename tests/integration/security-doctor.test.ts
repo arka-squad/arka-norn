@@ -68,6 +68,7 @@ test("doctor expose les markers cassés, les locks abandonnés, l'audit et les s
   assert.equal(report.checks.find((check) => check.id === "lock.features.json.lock")?.status, "fail");
   assert.equal(report.checks.find((check) => check.id === "audit.trail")?.status, "pass");
   assert.ok(report.checks.some((check) => check.id === "skills.installation"));
+  assert.ok(report.checks.some((check) => check.id === "pipelines.catalog" && check.status === "pass"));
   assert.equal(report.summary.fail, 2);
 
   const repaired = await runtime.run({ repair: true, apply: true });

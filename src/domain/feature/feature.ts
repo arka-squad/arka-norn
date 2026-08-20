@@ -108,6 +108,10 @@ export class Feature {
     return Feature.create({ ...this.toProps(), updatedAt: now });
   }
 
+  public withPipelineId(pipelineId: string, now: Date): Feature {
+    return Feature.create({ ...this.toProps(), pipelineId, updatedAt: now });
+  }
+
   // --- Identity --------------------------------------------------------------
 
   public sameIdentity(other: Feature): boolean {

@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "audit-rework.schema.json",
+  "title": "Audit d'un rework FastDev",
+  "type": "object",
+  "unevaluatedProperties": false,
+  "required": [
+    "schema_version", "author_agent_id", "id", "feature_id", "type", "sequence", "created_at", "depends_on_document_ids",
+    "cr_dev_id", "commit_exact", "commandes_executees", "dimensions_controlees", "constats", "limites", "verdict"
+  ],
+  "properties": {
+    "schema_version": { "const": 3 },
+    "author_agent_id": { "type": "string" },
+    "id": { "type": "string" },
+    "feature_id": { "type": "string" },
+    "type": { "const": "audit_rework" },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "created_at": { "type": "string", "format": "date-time" },
+    "depends_on_document_ids": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+    "cr_dev_id": { "type": "string", "minLength": 1 },
+    "commit_exact": { "type": "string", "pattern": "^[0-9a-fA-F]{7,64}$" },
+    "commandes_executees": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["commande", "resultat", "preuve"],
+        "properties": {
+          "commande": { "type": "string", "minLength": 1 },
+          "resultat": { "enum": ["pass", "fail", "non_executee"] },
+          "preuve": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "dimensions_controlees": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 4,
+      "items": { "enum": ["code", "fonctionnel", "ux", "securite"] }
+    },
+    "constats": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "type", "priorite", "description", "preuve", "decision"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$" },
+          "type": { "enum": ["code", "fonctionnel", "ux", "securite"] },
+          "priorite": { "enum": ["bloquante", "haute", "moyenne", "basse"] },
+          "description": { "type": "string", "minLength": 1 },
+          "preuve": { "type": "string", "minLength": 1 },
+          "decision": { "enum": ["corriger", "accepter", "aucune"] }
+        }
+      }
+    },
+    "limites": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "verdict": { "enum": ["pass", "corrections_requises", "bloque"] }
+  },
+  "allOf": [
+    { "$ref": "document-envelope.schema.json" },
+    {
+      "if": { "properties": { "verdict": { "const": "corrections_requises" } }, "required": ["verdict"] },
+      "then": {
+        "properties": {
+          "constats": {
+            "type": "array",
+            "contains": { "type": "object", "properties": { "decision": { "const": "corriger" } }, "required": ["decision"] }
+          }
+        }
+      }
+    }
+  ]
+}

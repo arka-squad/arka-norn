@@ -11,7 +11,7 @@ export interface InspectPipelineDeps {
 
 export function inspectPipelineUseCaseFactory(deps: InspectPipelineDeps): ForPipeline["inspect"] {
   return async (input: InspectPipelineInput): Promise<PipelineReport> => {
-    const definition = await deps.source.loadDefinition();
+    const definition = await deps.source.loadDefinition(input.pipelineId);
     const candidates = await deps.source.list(input.featureRoot);
     const knownSchemas = new Map([
       ...definition.steps.map((step) => [step.id, step.schemaPath] as const),
@@ -45,6 +45,7 @@ export function inspectPipelineUseCaseFactory(deps: InspectPipelineDeps): ForPip
       documents,
       sourceErrors,
       transversalDocumentTypes: definition.transversalDocuments.map((document) => document.type),
+      ...(input.authorRegistry === undefined ? {} : { authorRegistry: input.authorRegistry }),
     });
   };
 }
@@ -60,8 +61,12 @@ function toEvaluatedDocument(
   const createdAt = stringField(content, "created_at") ?? stringField(content, "date");
   const sequence = numberField(content, "sequence");
   const crDevId = stringField(content, "cr_dev_id");
-  const businessVerdict = type === "recette_qa" ? stringField(content, "statut_global") : type === "cr_dev" ? stringField(content, "statut") : undefined;
+  const businessVerdict = type === "recette_qa" ? stringField(content, "statut_global")
+    : type === "cr_dev" ? stringField(content, "statut")
+      : type === "audit_rework" || type === "validation_fastdev" ? stringField(content, "verdict") : undefined;
   const dependencyDocumentIds = stringArrayField(content, "depends_on_document_ids");
+  const findings = recordArrayField(content, "constats");
+  const corrections = recordArrayField(content, "corrections_apportees");
   return {
     filePath,
     type,
@@ -75,7 +80,21 @@ function toEvaluatedDocument(
     ...(sequence !== undefined ? { sequence } : {}),
     ...(crDevId !== undefined ? { crDevId } : {}),
     ...(businessVerdict !== undefined ? { businessVerdict } : {}),
+    ...(stringField(content, "author_agent_id") === undefined ? {} : { authorAgentId: stringField(content, "author_agent_id")! }),
+    ...(stringField(content, "commit_exact") === undefined ? {} : { exactCommit: stringField(content, "commit_exact")! }),
+    ...(findings === undefined ? {} : {
+      findingCount: findings.length,
+      openFindingCount: findings.filter((finding) => finding["decision"] === "corriger").length,
+    }),
+    ...(corrections === undefined ? {} : { correctionCount: corrections.length }),
   };
+}
+
+function recordArrayField(content: Readonly<Record<string, unknown>>, field: string): readonly Readonly<Record<string, unknown>>[] | undefined {
+  const value = content[field];
+  return Array.isArray(value) && value.every((item) => typeof item === "object" && item !== null && !Array.isArray(item))
+    ? value as readonly Readonly<Record<string, unknown>>[]
+    : undefined;
 }
 
 function stringArrayField(content: Readonly<Record<string, unknown>>, field: string): readonly string[] {

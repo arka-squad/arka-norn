@@ -1,0 +1,29 @@
+{
+  "schema_version": 3,
+  "author_agent_id": "Codex_dev_20260820",
+  "id": "scope-navigation-1",
+  "feature_id": "rework-navigation",
+  "type": "cadrage_rework",
+  "sequence": 1,
+  "created_at": "2026-08-20T10:00:00.000Z",
+  "depends_on_document_ids": [],
+  "probleme": "La navigation clavier n'indique pas l'action principale.",
+  "resultat_attendu": "Un utilisateur et un Agent identifient la prochaine action sans documentation externe.",
+  "perimetre": {
+    "inclus": ["libellés TUI", "guidage clavier"],
+    "exclus": ["refonte du moteur de rendu"]
+  },
+  "zones_impactees": ["src/adapters/inbound/tui"],
+  "strategie": "Ajouter un guidage contextuel sans modifier le contrat de navigation.",
+  "criteres_acceptation": [
+    { "id": "C-CODE", "dimension": "code", "critere": "Le guidage partage le NextAction du moteur.", "preuve_attendue": "test unitaire" },
+    { "id": "C-FONC", "dimension": "fonctionnel", "critere": "Entrée ouvre l'action recommandée.", "preuve_attendue": "test clavier" },
+    { "id": "C-UX", "dimension": "ux", "critere": "La commande et les preuves attendues sont visibles.", "preuve_attendue": "capture textuelle" },
+    { "id": "C-SEC", "dimension": "securite", "critere": "Aucun chemin arbitraire n'est exécuté.", "preuve_attendue": "test de refus" }
+  ],
+  "tests_attendus": ["tests TUI clavier", "régression pipeline"],
+  "risques": [
+    { "id": "R-1", "risque": "Divergence CLI/TUI", "mitigation": "Consommer le même rapport" }
+  ],
+  "definition_de_fini": ["tests verts", "validation FastDev pass"]
+}

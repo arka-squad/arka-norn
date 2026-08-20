@@ -1,6 +1,10 @@
+import { createGuidedAction, evaluateBusinessPolicy } from "./evaluate-business-policy.js";
+import { selectLatestRun } from "./select-latest-run.js";
+export { selectLatestRun } from "./select-latest-run.js";
 export function evaluatePipeline(input) {
     const stepTypes = new Set(input.steps.map((step) => step.id));
-    const knownTypes = new Set([...stepTypes, ...(input.transversalDocumentTypes ?? [])]);
+    const transversalTypes = new Set(input.transversalDocumentTypes ?? []);
+    const knownTypes = new Set([...stepTypes, ...transversalTypes]);
     const knownDocuments = input.documents.filter((document) => document.type !== undefined && knownTypes.has(document.type));
     const unknownFiles = [
         ...(input.unknownFiles ?? []),
@@ -8,47 +12,39 @@ export function evaluatePipeline(input) {
     ].sort();
     const warnings = unknownFiles.map((file) => `Unknown pipeline document: ${file}`);
     const errors = [...(input.sourceErrors ?? [])];
-    const transversalTypes = new Set(input.transversalDocumentTypes ?? []);
     for (const document of knownDocuments.filter((candidate) => candidate.type !== undefined && transversalTypes.has(candidate.type) && !candidate.valid)) {
         errors.push(...document.errors.map((error) => `${document.filePath}: ${error}`));
     }
     validateDocumentGraph(input, knownDocuments, errors);
-    for (const document of knownDocuments) {
-        if (input.featureId !== undefined && document.featureId !== input.featureId) {
-            errors.push(document.featureId === undefined
-                ? `Document ${document.filePath} has no feature_id; expected ${input.featureId}.`
-                : `Document ${document.filePath} belongs to feature ${document.featureId}, expected ${input.featureId}.`);
-        }
-    }
-    const crDocuments = validDocuments(knownDocuments, "cr_dev");
-    const latestCr = selectLatestRun(crDocuments);
-    const qaDocuments = validDocuments(knownDocuments, "recette_qa");
-    const qaForLatestCr = latestCr === undefined ? [] : qaDocuments.filter((document) => document.crDevId === latestCr.id);
-    const selectedQa = selectLatestRun(qaForLatestCr);
-    const referencedCrIds = new Set(qaDocuments.map((document) => document.crDevId).filter((value) => value !== undefined));
-    const knownCrIds = new Set(crDocuments.map((document) => document.id).filter((value) => value !== undefined));
-    for (const crDevId of referencedCrIds) {
-        if (!knownCrIds.has(crDevId))
-            errors.push(`QA references unknown CR Dev: ${crDevId}.`);
-    }
-    if (latestCr !== undefined && qaDocuments.some((document) => document.crDevId !== latestCr.id && document.businessVerdict === "pass")) {
-        warnings.push(`A passing QA exists for an older CR Dev; latest CR Dev is ${latestCr.id ?? "unknown"}.`);
-    }
+    validateFeatureAndAuthors(input, knownDocuments, errors);
     const states = new Map();
-    for (const definition of [...input.steps].sort((a, b) => a.order - b.order)) {
+    for (const definition of [...input.steps].sort((left, right) => left.order - right.order)) {
         const documents = knownDocuments.filter((document) => document.type === definition.id);
-        if (!definition.multiple && documents.length > 1) {
+        if (!definition.multiple && documents.length > 1)
             errors.push(`Step ${definition.id} allows one document, found ${documents.length}.`);
-        }
         const dependencyStatus = definition.dependsOn.every((dependency) => states.get(dependency)?.completionStatus === "completed")
             ? "satisfied"
             : "unsatisfied";
         const presenceStatus = documents.length === 0 ? "absent" : "present";
         const schemaStatus = documents.every((document) => document.valid) ? "valid" : "invalid";
-        const selected = definition.id === "cr_dev" ? latestCr : definition.id === "recette_qa" ? selectedQa : selectLatestRun(documents.filter((document) => document.valid));
-        const businessStatus = businessStatusFor(definition.id, presenceStatus, schemaStatus, selected);
-        const completionStatus = completionFor({ required: definition.required, presenceStatus, schemaStatus, dependencyStatus, businessStatus });
-        const nextActions = actionsFor({ stepId: definition.id, required: definition.required, presenceStatus, schemaStatus, dependencyStatus, businessStatus, selected, latestCr });
+        const policy = evaluateBusinessPolicy({
+            step: definition,
+            documents,
+            allDocuments: knownDocuments,
+            ...(input.featureId === undefined ? {} : { featureId: input.featureId }),
+        });
+        errors.push(...policy.errors);
+        warnings.push(...policy.warnings);
+        const completionStatus = completionFor({ required: definition.required, presenceStatus, schemaStatus, dependencyStatus, businessStatus: policy.status });
+        const nextActions = actionsFor({
+            stepId: definition.id,
+            required: definition.required,
+            presenceStatus,
+            schemaStatus,
+            dependencyStatus,
+            ...(policy.action === undefined ? {} : { policyAction: policy.action }),
+            ...(input.featureId === undefined ? {} : { featureId: input.featureId }),
+        });
         states.set(definition.id, {
             id: definition.id,
             order: definition.order,
@@ -56,11 +52,11 @@ export function evaluatePipeline(input) {
             multiple: definition.multiple,
             presenceStatus,
             schemaStatus,
-            businessStatus,
+            businessStatus: policy.status,
             dependencyStatus,
             completionStatus,
             documents: documents.map(withoutContent),
-            ...(selected?.id !== undefined ? { selectedDocumentId: selected.id } : {}),
+            ...(policy.selected?.id === undefined ? {} : { selectedDocumentId: policy.selected.id }),
             nextActions,
         });
     }
@@ -69,21 +65,26 @@ export function evaluatePipeline(input) {
         type,
         documents: knownDocuments.filter((document) => document.type === type).map(withoutContent),
     }));
-    const nextActions = steps.flatMap((step) => step.nextActions).slice(0, 1);
+    const latestCr = selectedFor("cr_dev", states, knownDocuments);
+    const selectedQa = selectedFor("recette_qa", states, knownDocuments);
+    const selectedAudit = selectedFor("audit_rework", states, knownDocuments);
+    const selectedValidation = selectedFor("validation_fastdev", states, knownDocuments);
     const overallStatus = overallStatusFor(steps, errors);
     return {
         schemaVersion: 1,
         pipelineId: input.pipelineId,
         featureRoot: input.featureRoot,
-        ...(input.featureId !== undefined ? { featureId: input.featureId } : {}),
+        ...(input.featureId === undefined ? {} : { featureId: input.featureId }),
         overallStatus,
-        ...(latestCr?.id !== undefined ? { latestCrDevId: latestCr.id } : {}),
-        ...(selectedQa?.id !== undefined ? { selectedQaId: selectedQa.id } : {}),
+        ...(latestCr?.id === undefined ? {} : { latestCrDevId: latestCr.id }),
+        ...(selectedQa?.id === undefined ? {} : { selectedQaId: selectedQa.id }),
+        ...(selectedAudit?.id === undefined ? {} : { selectedAuditId: selectedAudit.id }),
+        ...(selectedValidation?.id === undefined ? {} : { selectedValidationId: selectedValidation.id }),
         steps,
         transversalDocuments,
-        nextActions,
-        errors,
-        warnings,
+        nextActions: steps.flatMap((step) => step.nextActions).slice(0, 1),
+        errors: unique(errors),
+        warnings: unique(warnings),
         unknownFiles,
     };
 }
@@ -116,14 +117,39 @@ function validateRequiredStepRelations(input, documents, byId, errors) {
         for (const document of documents.filter((candidate) => candidate.type === step.id)) {
             const referencedTypes = new Set(document.dependencyDocumentIds.map((id) => byId.get(id)?.type).filter((type) => type !== undefined));
             for (const dependencyType of step.dependsOn) {
-                if (!referencedTypes.has(dependencyType)) {
+                if (!referencedTypes.has(dependencyType))
                     errors.push(`Document ${document.filePath} must reference a ${dependencyType} document.`);
+            }
+            const policy = step.businessPolicy;
+            if (policy !== undefined && (policy.type === "audit_then_fix" || policy.type === "review_latest")) {
+                const targetId = stringField(document.content, policy.targetDocumentField);
+                if (targetId !== undefined && !document.dependencyDocumentIds.includes(targetId)) {
+                    errors.push(`${step.id} ${document.filePath} must include ${policy.targetDocumentField} ${targetId} in depends_on_document_ids.`);
                 }
             }
-            if (document.type === "recette_qa" && document.crDevId !== undefined && !document.dependencyDocumentIds.includes(document.crDevId)) {
-                errors.push(`QA ${document.filePath} must include cr_dev_id ${document.crDevId} in depends_on_document_ids.`);
+            const auditId = stringField(document.content, "audit_rework_id");
+            if (auditId !== undefined && !document.dependencyDocumentIds.includes(auditId)) {
+                errors.push(`${step.id} ${document.filePath} must include audit_rework_id ${auditId} in depends_on_document_ids.`);
             }
         }
+    }
+}
+function validateFeatureAndAuthors(input, documents, errors) {
+    const registry = input.authorRegistry === undefined ? undefined : new Map(input.authorRegistry.map((agent) => [agent.id, agent]));
+    for (const document of documents) {
+        if (input.featureId !== undefined && document.featureId !== input.featureId) {
+            errors.push(document.featureId === undefined
+                ? `Document ${document.filePath} has no feature_id; expected ${input.featureId}.`
+                : `Document ${document.filePath} belongs to feature ${document.featureId}, expected ${input.featureId}.`);
+        }
+        if (registry === undefined || document.content["schema_version"] !== 3)
+            continue;
+        const authorId = stringField(document.content, "author_agent_id");
+        const agent = authorId === undefined ? undefined : registry.get(authorId);
+        if (authorId !== undefined && agent === undefined)
+            errors.push(`Document ${document.filePath} author ${authorId} is absent from the Project registry.`);
+        else if (agent !== undefined && !agent.authorized)
+            errors.push(`Document ${document.filePath} author ${agent.id} is outside the Feature scope.`);
     }
 }
 function validateAcyclicGraph(byId, errors) {
@@ -137,54 +163,14 @@ function validateAcyclicGraph(byId, errors) {
             return;
         }
         visiting.add(id);
-        for (const dependencyId of byId.get(id)?.dependencyDocumentIds ?? []) {
+        for (const dependencyId of byId.get(id)?.dependencyDocumentIds ?? [])
             if (byId.has(dependencyId))
                 visit(dependencyId);
-        }
         visiting.delete(id);
         visited.add(id);
     };
     for (const id of byId.keys())
         visit(id);
-}
-export function selectLatestRun(documents) {
-    return [...documents].sort((left, right) => {
-        const bySequence = (right.sequence ?? -1) - (left.sequence ?? -1);
-        if (bySequence !== 0)
-            return bySequence;
-        const byDate = timestamp(right.createdAt) - timestamp(left.createdAt);
-        if (byDate !== 0)
-            return byDate;
-        return (right.id ?? "").localeCompare(left.id ?? "");
-    })[0];
-}
-function validDocuments(documents, type) {
-    return documents.filter((document) => document.type === type && document.valid);
-}
-function businessStatusFor(stepId, presenceStatus, schemaStatus, selected) {
-    if (presenceStatus === "absent")
-        return "not_started";
-    if (schemaStatus === "invalid")
-        return "blocked";
-    if (stepId === "cr_dev") {
-        if (selected?.businessVerdict === "livre")
-            return "passed";
-        if (selected?.businessVerdict === "partiel")
-            return "in_progress";
-        return "blocked";
-    }
-    if (stepId === "recette_qa") {
-        if (selected === undefined)
-            return "not_started";
-        if (selected.businessVerdict === "pass")
-            return "passed";
-        if (selected.businessVerdict === "fail")
-            return "failed";
-        if (selected.businessVerdict === "partial")
-            return "in_progress";
-        return "blocked";
-    }
-    return "passed";
 }
 function completionFor(input) {
     if (input.presenceStatus === "absent")
@@ -201,28 +187,23 @@ function completionFor(input) {
 }
 function actionsFor(input) {
     if (input.schemaStatus === "invalid") {
-        return [{ kind: "fix_document", stepId: input.stepId, reason: "At least one document fails schema validation." }];
+        return [createGuidedAction("fix_document", input.stepId, "Au moins un document ne valide pas son schéma.", input.featureId)];
     }
     if (input.dependencyStatus === "unsatisfied")
         return [];
     if (input.presenceStatus === "absent" && input.required) {
-        return [{ kind: "create_document", stepId: input.stepId, reason: "Required pipeline step is absent." }];
+        return [createGuidedAction("create_document", input.stepId, "Cette étape obligatoire est absente.", input.featureId)];
     }
-    if (input.stepId === "cr_dev" && input.businessStatus !== "passed") {
-        return [{ kind: "continue_development", stepId: "cr_dev", reason: "Latest development run is not delivered.", ...(input.selected?.id !== undefined ? { relatedDocumentId: input.selected.id } : {}) }];
-    }
-    if (input.stepId === "recette_qa") {
-        if (input.businessStatus === "failed") {
-            return [{ kind: "return_to_development", stepId: "cr_dev", reason: "QA failed for the latest development run.", ...(input.latestCr?.id !== undefined ? { relatedDocumentId: input.latestCr.id } : {}) }];
-        }
-        if (input.businessStatus === "in_progress") {
-            return [{ kind: "resolve_qa", stepId: "recette_qa", reason: "QA is partial and does not complete the pipeline.", ...(input.latestCr?.id !== undefined ? { relatedDocumentId: input.latestCr.id } : {}) }];
-        }
-        if (input.businessStatus !== "passed" && input.latestCr !== undefined) {
-            return [{ kind: "run_qa", stepId: "recette_qa", reason: "No passing QA references the latest development run.", ...(input.latestCr.id !== undefined ? { relatedDocumentId: input.latestCr.id } : {}) }];
-        }
-    }
-    return [];
+    return input.policyAction === undefined ? [] : [input.policyAction];
+}
+function selectedFor(type, states, documents) {
+    const state = states.get(type);
+    const selectedId = state?.selectedDocumentId;
+    if (selectedId !== undefined)
+        return documents.find((document) => document.id === selectedId);
+    if (state !== undefined)
+        return undefined;
+    return selectLatestRun(documents.filter((document) => document.type === type && document.valid));
 }
 function overallStatusFor(steps, errors) {
     if (errors.length > 0 || steps.some((step) => step.schemaStatus === "invalid"))
@@ -246,12 +227,18 @@ function withoutContent(document) {
         ...(document.featureId === undefined ? {} : { featureId: document.featureId }),
         ...(document.crDevId === undefined ? {} : { crDevId: document.crDevId }),
         ...(document.businessVerdict === undefined ? {} : { businessVerdict: document.businessVerdict }),
+        ...(document.authorAgentId === undefined ? {} : { authorAgentId: document.authorAgentId }),
+        ...(document.exactCommit === undefined ? {} : { exactCommit: document.exactCommit }),
+        ...(document.findingCount === undefined ? {} : { findingCount: document.findingCount }),
+        ...(document.openFindingCount === undefined ? {} : { openFindingCount: document.openFindingCount }),
+        ...(document.correctionCount === undefined ? {} : { correctionCount: document.correctionCount }),
     };
 }
-function timestamp(value) {
-    if (value === undefined)
-        return -1;
-    const parsed = Date.parse(value);
-    return Number.isNaN(parsed) ? -1 : parsed;
+function stringField(content, field) {
+    const value = content[field];
+    return typeof value === "string" ? value : undefined;
+}
+function unique(values) {
+    return [...new Set(values)];
 }
 //# sourceMappingURL=evaluate-pipeline.js.map

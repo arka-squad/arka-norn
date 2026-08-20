@@ -77,6 +77,11 @@ export class FeatureMarkerNotFoundError extends DomainError {
         super("FEATURE_MARKER_NOT_FOUND", `Feature marker not found at "${root}/.arka-norn/feature.json".`);
     }
 }
+export class FeatureWorkflowImmutableError extends DomainError {
+    constructor(id, documentType) {
+        super("FEATURE_WORKFLOW_IMMUTABLE", `Feature "${id}" already contains pipeline document type "${documentType}"; its workflow is immutable.`);
+    }
+}
 export class InvalidProjectIdError extends DomainError {
     constructor(value, reason) {
         super("INVALID_PROJECT_ID", `Invalid project id "${value}": ${reason}`);

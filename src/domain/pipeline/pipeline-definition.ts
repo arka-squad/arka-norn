@@ -18,7 +18,36 @@ export interface PipelineStepDefinition {
   readonly multiple: boolean;
   readonly dependsOn: readonly string[];
   readonly loopTo?: string;
+  readonly businessPolicy?: PipelineBusinessPolicy;
 }
+
+export type PipelineBusinessPolicy =
+  | { readonly type: "presence" }
+  | {
+      readonly type: "delivery";
+      readonly verdictField: string;
+      readonly passValues: readonly string[];
+      readonly inProgressValues: readonly string[];
+    }
+  | {
+      readonly type: "audit_then_fix";
+      readonly targetStep: string;
+      readonly targetDocumentField: string;
+      readonly verdictField: string;
+      readonly passValues: readonly string[];
+      readonly failValues: readonly string[];
+      readonly retryStep: string;
+    }
+  | {
+      readonly type: "review_latest";
+      readonly targetStep: string;
+      readonly targetDocumentField: string;
+      readonly verdictField: string;
+      readonly passValues: readonly string[];
+      readonly failValues: readonly string[];
+      readonly inProgressValues: readonly string[];
+      readonly retryStep: string;
+    };
 
 export function createPipelineDefinition(input: PipelineDefinition): PipelineDefinition {
   if (!Number.isInteger(input.schemaVersion) || input.schemaVersion < 1) throw new Error("Pipeline schemaVersion must be positive.");
@@ -47,6 +76,11 @@ export function createPipelineDefinition(input: PipelineDefinition): PipelineDef
       }
     }
     if (step.loopTo !== undefined && !ids.has(step.loopTo)) throw new Error(`Unknown loop target ${step.loopTo}.`);
+    const policy = step.businessPolicy;
+    if (policy !== undefined && (policy.type === "audit_then_fix" || policy.type === "review_latest")) {
+      if (!ids.has(policy.targetStep)) throw new Error(`Unknown business policy target ${policy.targetStep} for ${step.id}.`);
+      if (!ids.has(policy.retryStep)) throw new Error(`Unknown business policy retry step ${policy.retryStep} for ${step.id}.`);
+    }
   }
   return { ...input, steps: [...input.steps].sort((a, b) => a.order - b.order) };
 }

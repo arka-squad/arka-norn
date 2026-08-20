@@ -1,11 +1,11 @@
 import { mapConcurrent } from "../../application/shared/map-concurrent.js";
 export async function loadProjectMetrics(features, pipeline) {
     return new Map(await mapConcurrent(features, 4, async (feature) => {
-        const report = await pipeline.inspect({ featureRoot: feature.root, featureId: feature.id.value });
-        return [feature.id.value, metricsFromReport(report)];
+        const report = await pipeline.inspect({ featureRoot: feature.root, featureId: feature.id.value, pipelineId: feature.pipelineId });
+        return [feature.id.value, metricsFromReport(report, feature.pipelineId)];
     }));
 }
-export function metricsFromReport(report) {
+export function metricsFromReport(report, pipelineId = report.pipelineId) {
     const debts = report.steps.find((step) => step.id === "registre_dettes");
     const qa = report.steps.find((step) => step.id === "recette_qa");
     return {
@@ -14,6 +14,10 @@ export function metricsFromReport(report) {
         qaFailures: qa?.documents.filter((document) => document.businessVerdict === "fail").length ?? 0,
         handoffSignals: report.transversalDocuments.find((state) => state.type === "handoff")?.documents.length ?? 0,
         invalidDocuments: report.steps.reduce((count, step) => count + step.documents.filter((document) => !document.valid).length, 0),
+        pipelineId,
+        phase: report.nextActions[0]?.phase ?? (report.overallStatus === "completed" ? "Terminé" : "Diagnostic"),
+        progress: `${report.steps.filter((step) => step.completionStatus === "completed").length}/${report.steps.filter((step) => step.required).length}`,
+        iteration: Math.max(1, report.steps.find((step) => step.id === "cr_dev")?.documents.length ?? 0),
     };
 }
 //# sourceMappingURL=project-dashboard.js.map

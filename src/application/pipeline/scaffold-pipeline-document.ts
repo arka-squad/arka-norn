@@ -4,9 +4,9 @@ import type { PipelineScaffoldResult } from "../../ports/inbound/for-pipeline.js
 import type { PipelineDocumentSource } from "../../ports/outbound/pipeline-document-source.js";
 
 export function scaffoldPipelineDocumentUseCaseFactory(deps: { readonly source: PipelineDocumentSource }) {
-  return async (input: { readonly stepId: string; readonly outputPath: string; readonly authorAgentId: string; readonly featureId?: string; readonly force?: boolean; readonly allowedRoot?: string }): Promise<PipelineScaffoldResult> => {
+  return async (input: { readonly stepId: string; readonly outputPath: string; readonly authorAgentId: string; readonly featureId?: string; readonly pipelineId?: string; readonly force?: boolean; readonly allowedRoot?: string }): Promise<PipelineScaffoldResult> => {
     const authorAgentId = AgentId.of(input.authorAgentId).value;
-    const definition = await deps.source.loadDefinition();
+    const definition = await deps.source.loadDefinition(input.pipelineId);
     const schemaPath = definition.steps.find((step) => step.id === input.stepId)?.schemaPath
       ?? definition.transversalDocuments.find((document) => document.type === input.stepId)?.schemaPath;
     if (schemaPath === undefined) throw new Error(`Unknown pipeline step: ${input.stepId}.`);

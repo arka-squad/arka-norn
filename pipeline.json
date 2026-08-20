@@ -75,7 +75,13 @@
       "schema": "schemas/cr-dev.schema.json",
       "obligatoire": true,
       "multiple": true,
-      "depend_de": ["spec_integration_technique"]
+      "depend_de": ["spec_integration_technique"],
+      "business_policy": {
+        "type": "delivery",
+        "verdict_field": "statut",
+        "pass_values": ["livre"],
+        "in_progress_values": ["partiel"]
+      }
     },
     {
       "id": "recette_qa",
@@ -84,7 +90,17 @@
       "obligatoire": true,
       "multiple": true,
       "depend_de": ["cr_dev"],
-      "peut_boucler_vers": "cr_dev"
+      "peut_boucler_vers": "cr_dev",
+      "business_policy": {
+        "type": "review_latest",
+        "target_step": "cr_dev",
+        "target_document_field": "cr_dev_id",
+        "verdict_field": "statut_global",
+        "pass_values": ["pass"],
+        "fail_values": ["fail"],
+        "in_progress_values": ["partial"],
+        "retry_step": "cr_dev"
+      }
     }
   ],
   "transversal": {

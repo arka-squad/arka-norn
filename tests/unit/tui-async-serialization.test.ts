@@ -24,6 +24,7 @@ test("ProjectDetail sérialise deux validations Entrée sur une action lente", a
     importFrom: async () => feature,
     show: async () => feature,
     forget: async () => {},
+    setWorkflow: async () => feature,
     async switchTo() {
       switchCalls += 1;
       await waitForRelease;
@@ -33,7 +34,7 @@ test("ProjectDetail sérialise deux validations Entrée sur une action lente", a
   const view = createProjectDetailView({
     project,
     initialFeatures: [feature],
-    initialMetrics: new Map([[feature.id.value, { status: "incomplete", debtDocuments: 0, qaFailures: 0, handoffSignals: 0, invalidDocuments: 0 }]]),
+    initialMetrics: new Map([[feature.id.value, { status: "incomplete", debtDocuments: 0, qaFailures: 0, handoffSignals: 0, invalidDocuments: 0, pipelineId: feature.pipelineId, phase: "Concept", progress: "0/10", iteration: 1 }]]),
     features,
     scan: { scan: async () => [] },
     redraw() {},
@@ -41,6 +42,8 @@ test("ProjectDetail sérialise deux validations Entrée sur une action lente", a
     async onOpenFeature() { openCalls += 1; },
   });
 
+  view.onKey({ kind: "down" });
+  view.onKey({ kind: "down" });
   view.onKey({ kind: "down" });
   view.onKey({ kind: "enter" });
   view.onKey({ kind: "enter" });

@@ -7,7 +7,7 @@ export function validatePipelineDocumentUseCaseFactory(deps) {
         const type = candidate.content["type"];
         if (typeof type !== "string")
             return { valid: false, errors: ['missing string field "type"'] };
-        const definition = await deps.source.loadDefinition();
+        const definition = await deps.source.loadDefinition(input.pipelineId);
         const schemaPath = definition.steps.find((step) => step.id === type)?.schemaPath
             ?? definition.transversalDocuments.find((document) => document.type === type)?.schemaPath;
         if (schemaPath === undefined)

@@ -6,6 +6,10 @@ tags `vX.Y.Z`.
 
 ## Non publié
 
+- workflow `arka-norn-fastdev` catalogué, avec boucle audit/correction et validation du dernier CR ;
+- commandes `workflow`, `feature --workflow`, `feature set-workflow` et `fastdev start|status|next` ;
+- schémas `cadrage_rework`, `audit_rework`, `validation_fastdev` et fermetures de constats dans `cr_dev` ;
+- cockpit TUI FastDev guidé et skill `arka-fastdev`, catalogue porté à 17 skills ;
 - marqueurs Project/Feature v3 réellement portables, sans chemin machine, avec migration v1/v2 sauvegardée ;
 - scans Project/Feature capables de reconnaître directement la racine transmise par les skills ;
 - `doctor` vérifie le contexte Project et les références de session jusqu'à l'Agent actif, sans mutation silencieuse de `agent current` ;

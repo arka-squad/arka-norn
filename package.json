@@ -20,6 +20,7 @@
     "docs/",
     "examples/",
     "schemas/",
+    "pipelines/",
     "skills-src/",
     "scripts/",
     "README.md",

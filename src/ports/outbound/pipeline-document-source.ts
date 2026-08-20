@@ -1,3 +1,4 @@
+import type { PipelineCatalog } from "../../domain/pipeline/pipeline-catalog.js";
 import type { PipelineDefinition } from "../../domain/pipeline/pipeline-definition.js";
 
 export interface PipelineDocumentCandidate {
@@ -7,7 +8,8 @@ export interface PipelineDocumentCandidate {
 }
 
 export interface PipelineDocumentSource {
-  loadDefinition(): Promise<PipelineDefinition>;
+  loadCatalog(): Promise<PipelineCatalog>;
+  loadDefinition(pipelineId?: string): Promise<PipelineDefinition>;
   list(featureRoot: string): Promise<readonly PipelineDocumentCandidate[]>;
   read(filePath: string): Promise<PipelineDocumentCandidate>;
   loadSchema(schemaPath: string): Promise<Readonly<Record<string, unknown>>>;

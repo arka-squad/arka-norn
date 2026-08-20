@@ -1,7 +1,8 @@
 import * as fs from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { dirname, isAbsolute, relative, resolve } from "node:path";
 
-import { createPipelineDefinition, type PipelineDefinition } from "../../../domain/pipeline/pipeline-definition.js";
+import { createPipelineCatalog, resolvePipelineEntry, type PipelineCatalog } from "../../../domain/pipeline/pipeline-catalog.js";
+import { createPipelineDefinition, type PipelineBusinessPolicy, type PipelineDefinition } from "../../../domain/pipeline/pipeline-definition.js";
 import type { PipelineDocumentCandidate, PipelineDocumentSource } from "../../../ports/outbound/pipeline-document-source.js";
 import { readRaw, writeFileAtomic } from "../filesystem/_shared/atomic-json.js";
 import { FsPathPolicy } from "../filesystem/fs-path-policy.js";
@@ -16,17 +17,37 @@ export class FsPipelineDocumentSource implements PipelineDocumentSource {
     this.frameworkRoot = frameworkRoot;
   }
 
-  public async loadDefinition(): Promise<PipelineDefinition> {
-    const content = await readJsonObject(resolve(this.frameworkRoot, "pipeline.json"));
-    if (content === undefined) throw new Error("pipeline.json must contain a JSON object.");
+  public async loadCatalog(): Promise<PipelineCatalog> {
+    const content = await readJsonObject(resolve(this.frameworkRoot, "pipelines", "catalog.json"));
+    if (content === undefined) throw new Error("pipelines/catalog.json must contain a JSON object.");
+    const rawEntries = content["pipelines"];
+    if (!Array.isArray(rawEntries)) throw new Error("pipelines/catalog.json pipelines must be an array.");
+    return createPipelineCatalog({
+      schemaVersion: requirePositiveInteger(content["schemaVersion"], "catalog.schemaVersion") as 1,
+      defaultPipelineId: requireString(content["defaultPipelineId"], "catalog.defaultPipelineId"),
+      pipelines: rawEntries.map((value, index) => parseCatalogEntry(value, index)),
+    });
+  }
+
+  public async loadDefinition(pipelineId?: string): Promise<PipelineDefinition> {
+    const entry = resolvePipelineEntry(await this.loadCatalog(), pipelineId);
+    const definitionPath = resolve(this.frameworkRoot, entry.definitionPath);
+    const relation = relative(resolve(this.frameworkRoot), definitionPath);
+    if (relation.startsWith("..") || isAbsolute(relation)) {
+      throw new Error(`Pipeline definition escapes framework root: ${entry.definitionPath}.`);
+    }
+    const content = await readJsonObject(definitionPath);
+    if (content === undefined) throw new Error(`${entry.definitionPath} must contain a JSON object.`);
     const rawSteps = content["steps"];
     if (!Array.isArray(rawSteps)) throw new Error("pipeline.json steps must be an array.");
-    return createPipelineDefinition({
+    const definition = createPipelineDefinition({
       schemaVersion: requirePositiveInteger(content["schemaVersion"], "pipeline.schemaVersion"),
       pipelineId: requireString(content["pipelineId"], "pipeline.pipelineId"),
       steps: rawSteps.map((value, index) => parseStep(value, index)),
       transversalDocuments: parseTransversalDocuments(content["transversal"]),
     });
+    if (definition.pipelineId !== entry.id) throw new Error(`Pipeline catalog mismatch: ${entry.id} resolves to ${definition.pipelineId}.`);
+    return definition;
   }
 
   public async list(featureRoot: string): Promise<readonly PipelineDocumentCandidate[]> {
@@ -99,7 +120,68 @@ function parseStep(value: unknown, index: number) {
     multiple: requireBoolean(step["multiple"], `pipeline.steps[${index}].multiple`),
     dependsOn: dependencies,
     ...(typeof loopTo === "string" ? { loopTo } : {}),
+    ...(step["business_policy"] === undefined ? {} : { businessPolicy: parseBusinessPolicy(step["business_policy"], index) }),
   };
+}
+
+function parseCatalogEntry(value: unknown, index: number) {
+  const entry = requireRecord(value, `catalog.pipelines[${index}]`);
+  const aliases = entry["aliases"];
+  if (!Array.isArray(aliases) || !aliases.every((alias) => typeof alias === "string")) {
+    throw new Error(`catalog.pipelines[${index}].aliases must be a string array.`);
+  }
+  return {
+    id: requireString(entry["id"], `catalog.pipelines[${index}].id`),
+    aliases,
+    name: requireString(entry["name"], `catalog.pipelines[${index}].name`),
+    description: requireString(entry["description"], `catalog.pipelines[${index}].description`),
+    definitionPath: requireString(entry["definition"], `catalog.pipelines[${index}].definition`),
+  };
+}
+
+function parseBusinessPolicy(value: unknown, index: number): PipelineBusinessPolicy {
+  const policy = requireRecord(value, `pipeline.steps[${index}].business_policy`);
+  const type = requireString(policy["type"], `pipeline.steps[${index}].business_policy.type`);
+  if (type === "presence") return { type };
+  if (type === "delivery") {
+    return {
+      type,
+      verdictField: requireString(policy["verdict_field"], policyField(index, "verdict_field")),
+      passValues: requireStringArray(policy["pass_values"], policyField(index, "pass_values")),
+      inProgressValues: requireStringArray(policy["in_progress_values"], policyField(index, "in_progress_values")),
+    };
+  }
+  if (type === "audit_then_fix" || type === "review_latest") {
+    const common = {
+      targetStep: requireString(policy["target_step"], policyField(index, "target_step")),
+      targetDocumentField: requireString(policy["target_document_field"], policyField(index, "target_document_field")),
+      verdictField: requireString(policy["verdict_field"], policyField(index, "verdict_field")),
+      passValues: requireStringArray(policy["pass_values"], policyField(index, "pass_values")),
+      failValues: requireStringArray(policy["fail_values"], policyField(index, "fail_values")),
+      retryStep: requireString(policy["retry_step"], policyField(index, "retry_step")),
+    };
+    if (type === "review_latest") {
+      return { ...common, type: "review_latest", inProgressValues: requireStringArray(policy["in_progress_values"], policyField(index, "in_progress_values")) };
+    }
+    return { ...common, type: "audit_then_fix" };
+  }
+  throw new Error(`Unsupported business policy type for pipeline.steps[${index}]: ${type}.`);
+}
+
+function policyField(index: number, field: string): string {
+  return `pipeline.steps[${index}].business_policy.${field}`;
+}
+
+function requireRecord(value: unknown, field: string): Readonly<Record<string, unknown>> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error(`${field} must be an object.`);
+  return value as Readonly<Record<string, unknown>>;
+}
+
+function requireStringArray(value: unknown, field: string): readonly string[] {
+  if (!Array.isArray(value) || value.length === 0 || !value.every((item) => typeof item === "string" && item.length > 0)) {
+    throw new Error(`${field} must be a non-empty string array.`);
+  }
+  return value as readonly string[];
 }
 
 function requireString(value: unknown, field: string): string {

@@ -20,6 +20,12 @@ export interface ImportFeatureInput {
   readonly projectId: ProjectId;
 }
 
+export interface SetFeatureWorkflowInput {
+  readonly id: FeatureId;
+  readonly pipelineId: string;
+  readonly recognizedDocumentTypes: readonly string[];
+}
+
 export interface ForFeatures {
   list(): Promise<readonly Feature[]>;
   create(input: CreateFeatureInput): Promise<Feature>;
@@ -27,4 +33,5 @@ export interface ForFeatures {
   show(id: FeatureId): Promise<Feature>;
   forget(id: FeatureId): Promise<void>;
   switchTo(id: FeatureId): Promise<Feature>;
+  setWorkflow(input: SetFeatureWorkflowInput): Promise<Feature>;
 }

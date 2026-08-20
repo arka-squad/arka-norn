@@ -29,11 +29,17 @@ export function presentPipelineReport(report: PipelineReport): string {
   }
   if (report.latestCrDevId !== undefined) lines.push("", `Dernier CR Dev : ${report.latestCrDevId}`);
   if (report.selectedQaId !== undefined) lines.push(`Recette retenue : ${report.selectedQaId}`);
+  if (report.selectedAuditId !== undefined) lines.push(`Audit retenu : ${report.selectedAuditId}`);
+  if (report.selectedValidationId !== undefined) lines.push(`Validation retenue : ${report.selectedValidationId}`);
   if (report.errors.length > 0) lines.push("", "Erreurs :", ...report.errors.map((error) => `- ${error}`));
   if (report.warnings.length > 0) lines.push("", "Avertissements :", ...report.warnings.map((warning) => `- ${warning}`));
   if (report.nextActions.length > 0) {
     lines.push("", "=== Prochaine action ===");
-    lines.push(...report.nextActions.map((action) => `${action.kind} -> ${action.stepId} : ${action.reason}`));
+    lines.push(...report.nextActions.flatMap((action) => [
+      `${action.phase ?? action.stepId} · ${action.kind} -> ${action.stepId} : ${action.reason}`,
+      ...(action.instructions ?? []).map((instruction) => `- ${instruction}`),
+      ...(action.suggestedCommand === undefined ? [] : [`Commande : ${action.suggestedCommand}`]),
+    ]));
   } else if (report.overallStatus === "completed") {
     lines.push("", "Pipeline complet.");
   }

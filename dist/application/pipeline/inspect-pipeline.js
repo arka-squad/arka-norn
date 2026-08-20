@@ -1,7 +1,7 @@
 import { evaluatePipeline } from "../../domain/pipeline/evaluate-pipeline.js";
 export function inspectPipelineUseCaseFactory(deps) {
     return async (input) => {
-        const definition = await deps.source.loadDefinition();
+        const definition = await deps.source.loadDefinition(input.pipelineId);
         const candidates = await deps.source.list(input.featureRoot);
         const knownSchemas = new Map([
             ...definition.steps.map((step) => [step.id, step.schemaPath]),
@@ -33,6 +33,7 @@ export function inspectPipelineUseCaseFactory(deps) {
             documents,
             sourceErrors,
             transversalDocumentTypes: definition.transversalDocuments.map((document) => document.type),
+            ...(input.authorRegistry === undefined ? {} : { authorRegistry: input.authorRegistry }),
         });
     };
 }
@@ -42,8 +43,12 @@ function toEvaluatedDocument(filePath, content, type, validation) {
     const createdAt = stringField(content, "created_at") ?? stringField(content, "date");
     const sequence = numberField(content, "sequence");
     const crDevId = stringField(content, "cr_dev_id");
-    const businessVerdict = type === "recette_qa" ? stringField(content, "statut_global") : type === "cr_dev" ? stringField(content, "statut") : undefined;
+    const businessVerdict = type === "recette_qa" ? stringField(content, "statut_global")
+        : type === "cr_dev" ? stringField(content, "statut")
+            : type === "audit_rework" || type === "validation_fastdev" ? stringField(content, "verdict") : undefined;
     const dependencyDocumentIds = stringArrayField(content, "depends_on_document_ids");
+    const findings = recordArrayField(content, "constats");
+    const corrections = recordArrayField(content, "corrections_apportees");
     return {
         filePath,
         type,
@@ -57,7 +62,20 @@ function toEvaluatedDocument(filePath, content, type, validation) {
         ...(sequence !== undefined ? { sequence } : {}),
         ...(crDevId !== undefined ? { crDevId } : {}),
         ...(businessVerdict !== undefined ? { businessVerdict } : {}),
+        ...(stringField(content, "author_agent_id") === undefined ? {} : { authorAgentId: stringField(content, "author_agent_id") }),
+        ...(stringField(content, "commit_exact") === undefined ? {} : { exactCommit: stringField(content, "commit_exact") }),
+        ...(findings === undefined ? {} : {
+            findingCount: findings.length,
+            openFindingCount: findings.filter((finding) => finding["decision"] === "corriger").length,
+        }),
+        ...(corrections === undefined ? {} : { correctionCount: corrections.length }),
     };
+}
+function recordArrayField(content, field) {
+    const value = content[field];
+    return Array.isArray(value) && value.every((item) => typeof item === "object" && item !== null && !Array.isArray(item))
+        ? value
+        : undefined;
 }
 function stringArrayField(content, field) {
     const value = content[field];

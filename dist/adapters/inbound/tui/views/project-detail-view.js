@@ -13,6 +13,7 @@ export function createProjectDetailView(deps) {
     let agents = [...(deps.initialAgents ?? [])];
     let currentAgentId = deps.currentAgentId;
     let mode = "menu";
+    let createKind = "standard";
     let createPath = `${deps.project.root}/`;
     let message;
     let busy = false;
@@ -24,8 +25,15 @@ export function createProjectDetailView(deps) {
             return byStatus === 0 ? left.name.localeCompare(right.name) : byStatus;
         });
         return [
-            { label: "Créer ou importer une feature", value: "action:create" },
-            ...groupedFeatures.map((feature) => ({ label: `● [${statuses.get(feature.id.value) ?? "inconnu"}] ${feature.name}`, value: `feature:${feature.id.value}`, description: feature.root })),
+            { label: "Démarrer un rework FastDev", value: "action:fastdev", description: "4 documents · audit bloquant · correction conditionnelle" },
+            { label: "Créer une Feature standard", value: "action:standard", description: "cycle complet à dix étapes" },
+            { label: "Importer une Feature existante", value: "action:import", description: "utilise son marqueur et son workflow" },
+            ...groupedFeatures.map((feature) => {
+                const featureMetrics = metrics.get(feature.id.value);
+                const badge = feature.pipelineId === "arka-norn-fastdev" ? "[FASTDEV] " : "";
+                const progress = featureMetrics === undefined ? "" : ` · ${featureMetrics.phase} · ${featureMetrics.progress}${featureMetrics.phase === "Développement" && featureMetrics.iteration > 1 ? ` · itération ${featureMetrics.iteration}` : ""}`;
+                return { label: `● ${badge}[${statuses.get(feature.id.value) ?? "inconnu"}] ${feature.name}${progress}`, value: `feature:${feature.id.value}`, description: feature.root };
+            }),
             { label: "Gérer les agents du projet", value: "action:agents", description: "identités, périmètres, agent courant et remplacements" },
             { label: "Rescanner le projet", value: "action:scan" },
             { label: "Retirer ce projet de l’index", value: "action:forget" },
@@ -48,7 +56,18 @@ export function createProjectDetailView(deps) {
                 await deps.onOpenFeature?.(feature);
             });
         }
-        else if (value === "action:create") {
+        else if (value === "action:fastdev") {
+            createKind = "fastdev";
+            mode = "confirm-fastdev";
+            deps.redraw();
+        }
+        else if (value === "action:standard") {
+            createKind = "standard";
+            mode = "create";
+            deps.redraw();
+        }
+        else if (value === "action:import") {
+            createKind = "import";
             mode = "create";
             deps.redraw();
         }
@@ -80,13 +99,17 @@ export function createProjectDetailView(deps) {
         }
         await run(async () => {
             const name = basename(root);
-            try {
+            if (createKind === "import") {
                 await deps.features.importFrom({ root, projectId: deps.project.id });
             }
-            catch (error) {
-                if (!(error instanceof DomainError) || error.code !== "FEATURE_NOT_FOUND")
-                    throw error;
-                await deps.features.create({ id: deriveFeatureId(root, slugify(name)), projectId: deps.project.id, name, root });
+            else {
+                await deps.features.create({
+                    id: deriveFeatureId(root, slugify(name)),
+                    projectId: deps.project.id,
+                    name,
+                    root,
+                    pipelineId: createKind === "fastdev" ? "arka-norn-fastdev" : "arka-norn-default",
+                });
             }
             mode = "menu";
             await refresh();
@@ -145,6 +168,14 @@ export function createProjectDetailView(deps) {
                 deps.redraw();
                 return "consumed";
             }
+            if (mode === "confirm-fastdev") {
+                if (event.kind === "escape")
+                    mode = "menu";
+                else if (event.kind === "enter")
+                    mode = "create";
+                deps.redraw();
+                return "consumed";
+            }
             if (event.kind === "escape") {
                 deps.onBack();
                 return "consumed";
@@ -168,9 +199,25 @@ export function createProjectDetailView(deps) {
                         line(value);
                     return;
                 }
+                if (mode === "confirm-fastdev") {
+                    for (const value of titledBox("Démarrer un rework FastDev", [
+                        "Parcours court : cadrage → développement → audit → validation.",
+                        "4 documents structurés · un même Agent peut tout exécuter.",
+                        "L'audit est bloquant ; une seconde passe Dev n'existe que si des corrections sont requises.",
+                        "FastDev convient uniquement à un rework borné.",
+                        "",
+                        "Entrée continue · Échap annule sans modifier",
+                    ], theme, { border: theme.arkaRed }).split("\n"))
+                        line(value);
+                    return;
+                }
                 if (mode === "create") {
-                    for (const value of titledBox("Créer ou importer une Feature", [
-                        "Indiquez un dossier enfant du Project. Un marqueur existant sera importé ; sinon une nouvelle Feature sera créée.",
+                    const title = createKind === "import" ? "Importer une Feature existante" : createKind === "fastdev" ? "Dossier du rework FastDev" : "Créer une Feature standard";
+                    const explanation = createKind === "import"
+                        ? "Indiquez un dossier enfant qui contient déjà .arka-norn/feature.json."
+                        : `Indiquez le nouveau dossier enfant. Workflow : ${createKind === "fastdev" ? "FastDev" : "standard"}.`;
+                    for (const value of titledBox(title, [
+                        explanation,
                         `Racine autorisée : ${deps.project.root}`,
                         `Exemple : ${deps.project.root}/ma-feature`,
                         "",
@@ -197,7 +244,7 @@ export function createProjectDetailView(deps) {
                 ], theme, { border: theme.arkaRed }).split("\n"))
                     line(value);
                 line("");
-                line(nextActionLine(currentAgentId === undefined ? "Gérer les agents du projet" : features.length === 0 ? "Créer ou importer une Feature" : "Ouvrir une Feature", currentAgentId === undefined ? "une identité active est requise avant tout document" : features.length === 0 ? "aucun pipeline n’est encore piloté" : "le Pipeline indiquera quoi faire et pourquoi", theme));
+                line(nextActionLine(currentAgentId === undefined ? "Gérer les agents du projet" : features.length === 0 ? "Choisir FastDev, standard ou import" : "Ouvrir une Feature", currentAgentId === undefined ? "une identité active est requise avant tout document" : features.length === 0 ? "aucun pipeline n’est encore piloté" : "le Pipeline indiquera quoi faire et pourquoi", theme));
                 if (features.length === 0)
                     line(`  ${theme.dim("Démarrage guidé : identité → Feature → statut Pipeline → scaffold signé → validation.")}`);
                 if (busy)

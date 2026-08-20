@@ -11,15 +11,15 @@ import type { SkillManager } from "../../src/ports/outbound/skill-manager.ts";
 
 const ROOT = resolve(import.meta.dirname, "..", "..");
 
-test("le manager TUI installe directement les 16 skills sans sous-processus", async (context) => {
+test("le manager TUI installe directement les 17 skills sans sous-processus", async (context) => {
   const target = mkdtempSync(join(tmpdir(), "arka-norn-direct-skills-"));
   context.after(() => rmSync(target, { recursive: true, force: true }));
   const manager = new DirectSkillManager(ROOT);
 
-  assert.deepEqual(await manager.inspect(target), { total: 16, healthy: 0, missing: 16, divergent: 0 });
+  assert.deepEqual(await manager.inspect(target), { total: 17, healthy: 0, missing: 17, divergent: 0 });
   const installed = await manager.install({ target });
   assert.equal(installed.code, 0, installed.output);
-  assert.deepEqual(await manager.inspect(target), { total: 16, healthy: 16, missing: 0, divergent: 0 });
+  assert.deepEqual(await manager.inspect(target), { total: 17, healthy: 17, missing: 0, divergent: 0 });
 });
 
 test("les skills audit, dev et QA générés portent un workflow exécutable sans réponse métier préremplie", async (context) => {
@@ -30,6 +30,7 @@ test("les skills audit, dev et QA générés portent un workflow exécutable san
 
   const audit = skill(target, "arka-framework-audit");
   const bootstrap = skill(target, "arka-norn");
+  const fastdev = skill(target, "arka-fastdev");
   const concept = skill(target, "arka-framework-concept");
   const dev = skill(target, "arka-framework-dev");
   const qa = skill(target, "arka-framework-recette-qa");
@@ -47,16 +48,18 @@ test("les skills audit, dev et QA générés portent un workflow exécutable san
   assert.match(bootstrap, /project add/);
   assert.match(bootstrap, /agent register/);
   assert.match(bootstrap, /Ne pas utiliser `--force`|ne pas utiliser `--force`/i);
+  assert.match(fastdev, /fastdev next/);
+  assert.match(fastdev, /une seule action calculée|exactement une action calculée/i);
   assert.doesNotMatch(`${audit}${dev}${qa}`, /\/Users\/|À_REMPLIR|résultat attendu de cette Feature/);
 });
 
 test("le parcours TUI de réparation force le remplacement après sauvegarde", async () => {
   const calls: { readonly target: string; readonly global?: boolean; readonly force?: boolean }[] = [];
   const manager: SkillManager = {
-    inspect: async () => ({ total: 16, healthy: 14, missing: 0, divergent: 2 }),
+    inspect: async () => ({ total: 17, healthy: 15, missing: 0, divergent: 2 }),
     async install(input) {
       calls.push(input);
-      return { code: 0, output: "16/16 skills healthy" };
+      return { code: 0, output: "17/17 skills healthy" };
     },
   };
   const stack: Scene[] = [];

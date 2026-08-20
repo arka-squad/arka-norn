@@ -23,7 +23,7 @@ test("un consumer vierge installe le tarball sans node_modules du worktree", (co
     npm_config_ignore_scripts: "true",
   };
   for (const entry of [
-    "bin", "dist", "docs", "examples", "schemas", "skills-src", "scripts",
+    "bin", "dist", "docs", "examples", "schemas", "skills-src", "scripts", "pipelines",
     "README.md", "CHANGELOG.md", "LICENSE", "SECURITY.md", "manifest.json", "pipeline.json",
   ]) {
     cpSync(resolve(ROOT, entry), resolve(staging, entry), { recursive: true });
@@ -48,6 +48,8 @@ test("un consumer vierge installe le tarball sans node_modules du worktree", (co
   assert.ok(packagedPaths.includes("dist/adapters/inbound/cli/main-cli.js"));
   assert.ok(packagedPaths.includes("skills-src/catalog/skills.json"));
   assert.ok(packagedPaths.includes("skills-src/arka-norn.json"));
+  assert.ok(packagedPaths.includes("skills-src/arka-fastdev.json"));
+  assert.ok(packagedPaths.includes("pipelines/arka-norn-fastdev.json"));
   assert.equal(packagedPaths.some((file) => file.startsWith("tests/") || file.startsWith(".input/") || file.startsWith("src/")), false);
 
   const productionTree = runNpm(["ls", "--omit=dev", "--all", "--parseable"], { cwd: ROOT, encoding: "utf8" });
@@ -83,7 +85,7 @@ test("un consumer vierge installe le tarball sans node_modules du worktree", (co
   assert.match(help.stdout, /project <list\|add\|import/);
   const skills = spawnSync(process.execPath, [command, "skills", "list", "--json"], { cwd: consumer, encoding: "utf8" });
   assert.equal(skills.status, 0, `${skills.stdout}\n${skills.stderr}`);
-  assert.equal((JSON.parse(skills.stdout) as { readonly data: readonly unknown[] }).data.length, 16);
+  assert.equal((JSON.parse(skills.stdout) as { readonly data: readonly unknown[] }).data.length, 17);
   const selftest = spawnSync(process.execPath, [command, "selftest"], { cwd: consumer, encoding: "utf8" });
   assert.equal(selftest.status, 0, `${selftest.stdout}\n${selftest.stderr}`);
   assert.match(selftest.stdout, /Toutes les vérifications réelles passent/);

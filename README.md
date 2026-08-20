@@ -30,6 +30,8 @@ arka-norn project list|add|import|scan|show|use|forget|reconcile
 arka-norn feature list|create|import|scan|show|use|forget|reconcile
 arka-norn agent list|register|show|current|use|deactivate|replace
 arka-norn pipeline status|next|scaffold|validate
+arka-norn workflow list|show
+arka-norn fastdev start|status|next
 arka-norn skills list|install|doctor [--global]
 arka-norn doctor [--repair [--apply]]
 arka-norn migrate [--target <path>] [--dry-run|--apply]
@@ -55,15 +57,23 @@ Les markers portables sont les sources de vérité. Les index locaux sont des ca
 
 Le registre Agents porte des identifiants lisibles `Provider_role_YYYYMMDD`, le provider, le rôle, le périmètre, `active` et la lignée de remplacement. La sélection courante est locale. Voir [`docs/agent-registry.md`](docs/agent-registry.md).
 
-## Pipeline
+## Pipelines
 
-Les étapes sont définies dans [`pipeline.json`](pipeline.json) et leurs structures dans [`schemas/`](schemas/). Une conformité JSON ne suffit pas à terminer le Pipeline : la recette QA courante doit être `pass` et référencer le dernier CR valide.
+Le catalogue fermé [`pipelines/catalog.json`](pipelines/catalog.json) résout le `pipelineId` de chaque Feature. Le workflow standard reste dans [`pipeline.json`](pipeline.json). FastDev est réservé aux reworks bornés : `cadrage_rework → cr_dev → audit_rework → correction conditionnelle → validation_fastdev`. Un identifiant inconnu est refusé sans fallback ni chemin arbitraire.
+
+```bash
+arka-norn workflow list
+arka-norn fastdev start "Rework navigation" --project product
+arka-norn fastdev next <feature> --json
+```
+
+Une conformité JSON ne suffit pas à terminer un Pipeline : la revue courante doit être `pass` et viser le dernier CR livré. L’exemple [`examples/feature-fastdev/`](examples/feature-fastdev/) illustre une boucle de correction complète. Voir le [guide FastDev](docs/fastdev.md).
 
 L’exemple [`examples/feature-notion-linear/`](examples/feature-notion-linear/) illustre volontairement une QA en échec ; `status` renvoie donc le code `2` et propose un retour vers `cr_dev`.
 
 ## Skills
 
-Les définitions sources vivent uniquement dans [`skills-src/`](skills-src/). Le catalogue versionné contient exactement 16 skills, dont le point d'entrée public `arka-norn`, la maîtrise du framework, l'audit, le développement et la recette QA. L'installation supporte les profils `core` (6), `delivery` (14) et `all` (16, défaut), un dry-run, les backups et le diagnostic par checksum.
+Les définitions sources vivent uniquement dans [`skills-src/`](skills-src/). Le catalogue versionné contient exactement 17 skills, dont `arka-norn`, `arka-fastdev`, la maîtrise du framework, l'audit, le développement et la recette QA. L'installation supporte les profils `core` (7), `delivery` (15) et `all` (17, défaut), un dry-run, les backups et le diagnostic par checksum.
 
 Pour lancer un agent sur un nouveau Project, l'utilisateur lui envoie `/arka-norn` dans Claude Code, `$arka-norn` dans Codex, ou lui demande explicitement d'utiliser la skill `arka-norn`. L'agent vérifie alors le socle, résout le Project et enregistre son identité avant tout travail produit. Le [mode d'emploi complet](docs/agent-bootstrap.md) décrit l'installation globale multiprovider et les garde-fous.
 
@@ -86,6 +96,7 @@ arka-norn skills doctor --target . --global --json       # inclut ~/.claude et ~
 - [Registre Agents](docs/agent-registry.md)
 - [Démarrer un agent avec `/arka-norn`](docs/agent-bootstrap.md)
 - [Brainstorming Concept avec ChatGPT ou Claude.ai](docs/concept-brainstorming-web.md)
+- [Reworks FastDev](docs/fastdev.md)
 - [Skills](docs/skills.md)
 - [Sécurité](docs/security.md)
 - [Dépannage](docs/troubleshooting.md)

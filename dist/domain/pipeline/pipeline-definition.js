@@ -33,6 +33,13 @@ export function createPipelineDefinition(input) {
         }
         if (step.loopTo !== undefined && !ids.has(step.loopTo))
             throw new Error(`Unknown loop target ${step.loopTo}.`);
+        const policy = step.businessPolicy;
+        if (policy !== undefined && (policy.type === "audit_then_fix" || policy.type === "review_latest")) {
+            if (!ids.has(policy.targetStep))
+                throw new Error(`Unknown business policy target ${policy.targetStep} for ${step.id}.`);
+            if (!ids.has(policy.retryStep))
+                throw new Error(`Unknown business policy retry step ${policy.retryStep} for ${step.id}.`);
+        }
     }
     return { ...input, steps: [...input.steps].sort((a, b) => a.order - b.order) };
 }
