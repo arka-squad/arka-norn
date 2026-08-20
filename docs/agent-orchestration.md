@@ -40,7 +40,11 @@ arka-norn agent prompt dev --project product --feature navigation --provider "Co
 
 Le prompt rendu contient la racine, le workflow, le rôle, la session isolée, le profil de skills, l’étape attendue, les permissions, les commandes d’enregistrement et les preuves de fin. Un mode `execute` incohérent avec `pipeline next` est refusé. En FastDev, les rôles audit/dev/QA invoquent `arka-fastdev`, qui exécute une seule phase calculée.
 
-Le Product transmet le prompt tel quel dans une nouvelle session provider. L’Agent destinataire vérifie toutes les valeurs avec la CLI avant d’écrire.
+La sortie sépare un **préflight Product** et le **prompt à transmettre**. Le Product installe d’abord le profil de skills indiqué, puis ouvre la nouvelle session provider : une skill absente n’est ainsi jamais invoquée avant son installation. Le `provider` est obligatoire lors de la création d’une nouvelle identité ; si la session est déjà liée à un Agent compatible, la commande générée réutilise directement son identifiant exact.
+
+Le Product transmet ensuite le prompt tel quel. Un Agent spécialisé démarre avec `arka-framework-maitrise`, jamais avec `/arka-norn` qui reste réservé au Product principal. Son enregistrement est borné à la Feature et, lorsque sa racine est interne au Project, à son chemin relatif. L’Agent destinataire vérifie toutes les valeurs avec la CLI avant d’écrire.
+
+En FastDev, `fastdev next <feature> --session <session-id>` injecte la session dans la commande de scaffold. La skill exige la même session pour `agent current`, `fastdev next` et la production du document afin d’empêcher une signature accidentelle par le Product `main`.
 
 ## Reprise du Product principal
 
@@ -50,7 +54,7 @@ Avant saturation du contexte ou changement de conversation :
 arka-norn agent handoff-prompt --project <project-id> [--feature <feature-id>]
 ```
 
-Le prompt de reprise embarque l’identité Product à réutiliser, la session `main`, les sessions spécialisées observées, les documents valides, la phase et les commandes de contrôle. Une reprise ne crée pas un suffixe `_02` : l’identité ne change que lors d’un remplacement explicite.
+Le prompt de reprise embarque la racine et la commande `cd`, l’identité Product à réutiliser, la session `main`, les sessions spécialisées observées, les documents valides, la phase et les commandes de contrôle. Une reprise relit le registre des sessions et ne crée pas un suffixe `_02` : l’identité ne change que lors d’un remplacement explicite.
 
 ## Boucle d’organisation
 

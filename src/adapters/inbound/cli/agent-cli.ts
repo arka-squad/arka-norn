@@ -210,7 +210,11 @@ function output(command: string, data: unknown, json: boolean, action: string, s
   if (json) return { code: 0, stdout: `${JSON.stringify({ schemaVersion: 1, command, ok: true, data, errors: [], warnings: [] })}\n`, stderr: "" };
   if (data === null) return { code: 0, stdout: `Aucun agent actif dans la session ${sessionId}. Utilise \`arka-norn agent use <id> --project <id> --session ${sessionId}\`.\n`, stderr: "" };
   if (action === "advise") return { code: 0, stdout: humanAdvice(data), stderr: "" };
-  if (action === "prompt" || action === "handoff-prompt" || action === "resume-prompt") {
+  if (action === "prompt") {
+    const prompt = data as { readonly preflightCommand: string; readonly prompt: string };
+    return { code: 0, stdout: `PRÉREQUIS À EXÉCUTER AVANT D'OUVRIR LA SESSION PROVIDER\n${prompt.preflightCommand}\n\nPROMPT À TRANSMETTRE\n${prompt.prompt}\n`, stderr: "" };
+  }
+  if (action === "handoff-prompt" || action === "resume-prompt") {
     return { code: 0, stdout: `${(data as { readonly prompt: string }).prompt}\n`, stderr: "" };
   }
   if (action === "sessions") {

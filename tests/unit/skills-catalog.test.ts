@@ -77,6 +77,7 @@ test("chaque définition est complète et les skills audit/dev/QA imposent leurs
   assert.match(byName.get("arka-product") ?? "", /ne produit pas lui-même.*architecture.*audit.*développement.*QA/i);
   assert.match(byName.get("arka-fastdev") ?? "", /fastdev next.*une seule action|exactement une action calculée/i);
   assert.match(byName.get("arka-fastdev") ?? "", /corrections_apportees.*audit_rework.*validation_fastdev/);
+  assert.match(byName.get("arka-fastdev") ?? "", /agent current.*--session.*fastdev next.*--session.*suggestedCommand.*--session/);
   assert.match(byName.get("arka-framework-audit") ?? "", /preuves reproductibles|Vérifier directement/);
   assert.match(byName.get("arka-framework-audit") ?? "", /correction silencieuse/);
   assert.match(byName.get("arka-framework-dev") ?? "", /scope_fichiers/);

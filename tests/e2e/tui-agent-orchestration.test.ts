@@ -42,6 +42,7 @@ test("le menu TUI Product ouvre le prompt du rôle calculé avec session et perm
       sessionId: "audit-feature",
       skill: "arka-fastdev",
       skillProfile: "audit",
+      preflightCommand: "arka-norn skills install --profile audit",
       canWrite: true,
       expectedStepId: "audit_rework",
       prompt: "SESSION ISOLÉE audit-feature\nÉCRITURE BORNÉE audit_rework",
@@ -59,6 +60,10 @@ test("le menu TUI Product ouvre le prompt du rôle calculé avec session et perm
   assert.ok(menu);
   menu.onKey({ kind: "down" });
   menu.onKey({ kind: "enter" });
+  const providerInput = app.topScene();
+  assert.ok(providerInput);
+  providerInput.onKey({ kind: "char", value: "Claude Code" });
+  providerInput.onKey({ kind: "enter" });
   await new Promise((resolvePromise) => setImmediate(resolvePromise));
 
   const prompt = app.topScene();
@@ -66,6 +71,8 @@ test("le menu TUI Product ouvre le prompt du rôle calculé avec session et perm
   let output = "";
   prompt.render(createRenderer({ write: (chunk) => { output += chunk; }, isTTY: false, columns: 120 }), createTheme({ NO_COLOR: "1" }, false));
   assert.match(output, /Prompt Agent audit/);
+  assert.match(output, /PRÉREQUIS PRODUCT AVANT LA NOUVELLE SESSION/);
+  assert.match(output, /skills install --profile audit/);
   assert.match(output, /SESSION ISOLÉE audit-feature/);
   assert.match(output, /ÉCRITURE BORNÉE audit_rework/);
 });

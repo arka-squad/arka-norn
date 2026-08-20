@@ -36,7 +36,8 @@ Rework FastDev :
   feature set-workflow <id> --workflow fastdev
   fastdev start "Nom" --project <id> [--path <dossier>]
   fastdev status <feature>
-  fastdev next <feature> [--json]       Donne une action exacte et son livrable.
+  fastdev next <feature> [--session <id>] [--json]
+                                        Donne une action exacte, signée dans la bonne session.
 
 Documents et santé :
   status [feature-root]                 État complet et prochaine action.
@@ -81,7 +82,7 @@ Depuis un agent provider
 
 5. Obtenir le conseil et le prompt du rôle calculé
    arka-norn agent advise --project <project-id> --feature <feature-id>
-   arka-norn agent prompt <rôle> --project <project-id> --feature <feature-id> --mode execute
+   arka-norn agent prompt <rôle> --project <project-id> --feature <feature-id> --provider <provider> --mode execute
 
 6. Suivre la prochaine action calculée dans la session spécialisée
    arka-norn pipeline status <feature-id>

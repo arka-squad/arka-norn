@@ -38,7 +38,7 @@ test("workflow et FastDev offrent un parcours CLI humain et JSON sans décision 
     readonly reason: string;
     readonly expectedArtifact: string;
     readonly suggestedCommand: string;
-  }>(["fastdev", "next", started.json.data.id, "--json"], home, projectRoot);
+  }>(["fastdev", "next", started.json.data.id, "--session", "product-rework", "--json"], home, projectRoot);
   assert.equal(next.status, 2);
   assert.equal(next.json.data.phase, "Cadrage");
   assert.equal(next.json.data.iteration, 1);
@@ -46,6 +46,7 @@ test("workflow et FastDev offrent un parcours CLI humain et JSON sans décision 
   assert.match(next.json.data.reason, /obligatoire/);
   assert.equal(next.json.data.expectedArtifact, "cadrage_rework.json");
   assert.match(next.json.data.suggestedCommand, /pipeline scaffold cadrage_rework/);
+  assert.match(next.json.data.suggestedCommand, /--session product-rework$/);
 
   const agent = run<{ readonly id: string }>([
     "agent", "register", "--project", "project", "--provider", "Codex", "--role", "product", "--features", started.json.data.id, "--session", "main", "--json",

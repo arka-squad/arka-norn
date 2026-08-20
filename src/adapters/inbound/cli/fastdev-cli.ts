@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 
 import { createManagementRuntime } from "../../../composition/management-runtime.js";
 import { createPipelineRuntime } from "../../../composition/pipeline-runtime.js";
+import { AgentSessionId } from "../../../domain/agent/agent-session-id.js";
 import { FeatureId } from "../../../domain/feature/feature-id.js";
 import type { Feature } from "../../../domain/feature/feature.js";
 import { ProjectId } from "../../../domain/project/project-id.js";
@@ -15,6 +16,7 @@ export interface FastDevCliContext {
   readonly cwd: string;
   readonly homeDir: string;
   readonly frameworkRoot: string;
+  readonly sessionId: AgentSessionId;
 }
 
 export async function runFastDevCommand(argv: readonly string[], context: FastDevCliContext): Promise<CliExecution> {
@@ -57,7 +59,8 @@ async function start(argv: readonly string[], context: FastDevCliContext, json: 
 }
 
 async function inspect(action: "status" | "next", argv: readonly string[], context: FastDevCliContext, json: boolean): Promise<CliExecution> {
-  const parsed = parseStrictArguments(argv, { options: { json: "boolean" }, minPositionals: 1, maxPositionals: 1 });
+  const parsed = parseStrictArguments(argv, { options: { json: "boolean", session: "string" }, minPositionals: 1, maxPositionals: 1 });
+  const sessionId = parsed.values.get("session") === undefined ? context.sessionId : AgentSessionId.of(parsed.values.get("session")!);
   const management = createManagementRuntime({ homeDir: context.homeDir });
   const feature = await management.features.show(FeatureId.of(parsed.positionals[0]!));
   if (feature.pipelineId !== "arka-norn-fastdev") throw new CliUsageError(`Feature ${feature.id.value} uses ${feature.pipelineId}, not FastDev.`);
@@ -72,7 +75,7 @@ async function inspect(action: "status" | "next", argv: readonly string[], conte
   if (action === "status") {
     return { code: pipelineExitCode(report), stdout: json ? `${JSON.stringify(pipelineReportEnvelope(report))}\n` : presentPipelineReport(report), stderr: "" };
   }
-  const data = nextData(report, feature.id.value);
+  const data = nextData(report, feature.id.value, sessionId.value);
   if (json) {
     return {
       code: pipelineExitCode(report),
@@ -95,7 +98,7 @@ async function inspect(action: "status" | "next", argv: readonly string[], conte
   };
 }
 
-function nextData(report: PipelineReport, featureId: string) {
+function nextData(report: PipelineReport, featureId: string, sessionId: string) {
   const action = report.nextActions[0];
   const crRuns = report.steps.find((step) => step.id === "cr_dev")?.documents.length ?? 0;
   if (action === undefined) {
@@ -112,8 +115,12 @@ function nextData(report: PipelineReport, featureId: string) {
     reason: action.reason,
     instructions: action.instructions ?? [],
     expectedArtifact: `${action.stepId}.json`,
-    suggestedCommand: action.suggestedCommand ?? `arka-norn pipeline scaffold ${action.stepId} --feature ${featureId}`,
+    suggestedCommand: withSession(action.suggestedCommand ?? `arka-norn pipeline scaffold ${action.stepId} --feature ${featureId}`, sessionId),
   };
+}
+
+function withSession(command: string, sessionId: string): string {
+  return command.includes(" --session ") ? command : `${command} --session ${sessionId}`;
 }
 
 function slugify(value: string): string {

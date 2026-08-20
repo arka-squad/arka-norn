@@ -1,4 +1,5 @@
 import { createMenuScene } from "../../adapters/inbound/tui/components/menu.js";
+import { createTextInputScene } from "../../adapters/inbound/tui/components/text-input.js";
 import { createResultView } from "../../adapters/inbound/tui/views/result-view.js";
 export function createAgentOrchestrationSceneController(app, orchestration) {
     return {
@@ -47,14 +48,25 @@ export function createAgentOrchestrationSceneController(app, orchestration) {
                 const recommendation = advice.recommendations[Number(value.slice("prompt:".length))];
                 if (recommendation === undefined)
                     return;
+                app.push(createTextInputScene({
+                    title: `Provider de l'Agent ${recommendation.role}`,
+                    hint: "Exemples : Claude Code, Codex CLI, Antigravity. Ce nom entre dans l'identité humaine de l'Agent.",
+                    onSubmit(provider) {
+                        app.pop();
+                        void openPrompt(recommendation, provider.trim());
+                    },
+                }));
+            }
+            async function openPrompt(recommendation, provider) {
                 try {
                     const result = await orchestration.initializationPrompt({
                         projectId: feature.projectId,
                         featureId: feature.id,
                         role: recommendation.role,
                         mode: recommendation.mode,
+                        provider,
                     });
-                    app.push(promptView(`Prompt Agent ${recommendation.role}`, result.prompt));
+                    app.push(promptView(`Prompt Agent ${recommendation.role}`, result.prompt, result.preflightCommand));
                 }
                 catch (error) {
                     app.push(errorView("Prompt Agent impossible", error));
@@ -86,11 +98,11 @@ function adviceView(advice) {
         nextStep: advice.recommendations[0]?.command ?? advice.handoffPromptCommand,
     });
 }
-function promptView(title, prompt) {
+function promptView(title, prompt, preflightCommand) {
     return createResultView({
         title,
         code: 0,
-        output: `${prompt}\n`,
+        output: `${preflightCommand === undefined ? "" : `PRÉREQUIS PRODUCT AVANT LA NOUVELLE SESSION\n${preflightCommand}\n\n`}${prompt}\n`,
         onBack: () => { },
         nextStep: "copiez ce prompt dans une nouvelle session Agent ; la session vérifiera elle-même chaque identifiant",
     });

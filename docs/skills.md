@@ -19,7 +19,7 @@ L'utilisateur déclenche le point d'entrée avec `/arka-norn` dans Claude Code o
 
 Une installation locale écrit les rendus dans `.claude/skills/` et `.agents/skills/`. Avec `--global`, l'installateur ajoute les rendus utilisables avant l'ouverture d'un Project dans `~/.claude/skills/` et `~/.codex/skills/`.
 
-`arka-fastdev` exécute exactement une action issue de `fastdev next`, produit un document v3 signé, le valide puis s’arrête. Elle couvre cadrage, livraison, audit du commit exact, corrections référencées et validation du dernier CR.
+`arka-fastdev` exécute exactement une action issue de `fastdev next`, dans une `session_id` obligatoire, produit un document v3 signé par l’Agent de cette session, le valide puis s’arrête. Elle couvre cadrage, livraison, audit du commit exact, corrections référencées et validation du dernier CR.
 
 `arka-product` reste dans la session `main`, consulte `agent advise`, prépare `agent prompt` pour les rôles spécialisés et fournit `agent handoff-prompt` avant une reprise. Elle n’exécute pas les livrables spécialisés. Voir [`agent-orchestration.md`](agent-orchestration.md).
 

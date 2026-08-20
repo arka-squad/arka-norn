@@ -13,7 +13,7 @@ Le second CR n’existe que si l’audit demande des corrections ou si la valida
 ```bash
 arka-norn workflow show fastdev
 arka-norn fastdev start "Corriger la navigation" --project product
-arka-norn fastdev next <feature> --json
+arka-norn fastdev next <feature> --session <session-id> --json
 ```
 
 Pour une Feature vide existante :
@@ -32,4 +32,4 @@ Le choix devient immuable au premier document reconnu.
 - Une validation ancienne devient obsolète après un nouveau CR.
 - Seul `validation_fastdev: pass` visant le dernier CR termine le workflow.
 
-La commande `fastdev next` donne phase, itération, prérequis, raison, instructions, livrable et commande exacte. La skill `$arka-fastdev` exécute une seule de ces actions puis valide le document produit.
+La commande `fastdev next` donne phase, itération, prérequis, raison, instructions, livrable et commande exacte. Elle propage `--session` jusque dans le scaffold afin que `author_agent_id` soit celui du rôle spécialisé, pas celui du Product `main`. La skill `$arka-fastdev` exécute une seule de ces actions puis valide le document produit.

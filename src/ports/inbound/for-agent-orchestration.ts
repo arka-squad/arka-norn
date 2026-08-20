@@ -44,6 +44,8 @@ export interface AgentInitializationPrompt {
   readonly sessionId: string;
   readonly skill: string;
   readonly skillProfile: string;
+  /** Commande idempotente à exécuter par le Product avant d'ouvrir la session provider. */
+  readonly preflightCommand: string;
   readonly canWrite: boolean;
   readonly expectedStepId?: string;
   readonly prompt: string;

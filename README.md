@@ -65,7 +65,7 @@ Le catalogue fermé [`pipelines/catalog.json`](pipelines/catalog.json) résout l
 ```bash
 arka-norn workflow list
 arka-norn fastdev start "Rework navigation" --project product
-arka-norn fastdev next <feature> --json
+arka-norn fastdev next <feature> --session <session-id> --json
 ```
 
 Une conformité JSON ne suffit pas à terminer un Pipeline : la revue courante doit être `pass` et viser le dernier CR livré. L’exemple [`examples/feature-fastdev/`](examples/feature-fastdev/) illustre une boucle de correction complète. Voir le [guide FastDev](docs/fastdev.md).

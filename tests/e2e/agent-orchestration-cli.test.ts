@@ -43,11 +43,18 @@ test("la CLI isole les sessions et livre des prompts Product/spécialistes direc
   assert.match(productPrompt.stdout, /\$arka-product/);
   assert.match(productPrompt.stdout, /Session isolée: main/);
   assert.match(productPrompt.stdout, /Étape attendue: concept/);
+  assert.match(productPrompt.stdout, /PRÉREQUIS À EXÉCUTER AVANT D'OUVRIR/);
 
   const auditPreparation = run(["agent", "prompt", "audit", "--project", "product", "--feature", "navigation", "--mode", "prepare"], home, workspace);
   assert.equal(auditPreparation.status, 0, auditPreparation.stderr);
   assert.match(auditPreparation.stdout, /Session isolée: audit-navigation/);
   assert.match(auditPreparation.stdout, /Travail en lecture seule/);
+  assert.match(auditPreparation.stdout, new RegExp(`agent use ${audit.data.id}.*--session audit-navigation`));
+  assert.doesNotMatch(auditPreparation.stdout, /Utilise \$arka-norn puis \$arka-fastdev/);
+
+  const missingProvider = run(["agent", "prompt", "dev", "--project", "product", "--feature", "navigation", "--mode", "prepare", "--json"], home, workspace);
+  assert.equal(missingProvider.status, 3);
+  assert.match(missingProvider.stdout, /--provider est requis/);
 
   const refusedDev = run(["agent", "prompt", "dev", "--project", "product", "--feature", "navigation", "--mode", "execute", "--json"], home, workspace);
   assert.equal(refusedDev.status, 3);
@@ -58,6 +65,7 @@ test("la CLI isole les sessions et livre des prompts Product/spécialistes direc
   assert.match(handoff.stdout, new RegExp(`Agent Product à réutiliser: ${product.data.id}`));
   assert.match(handoff.stdout, /audit-navigation: .*_audit_/);
   assert.match(handoff.stdout, /Ne réalise pas l'audit, le développement ou la QA/);
+  assert.match(handoff.stdout, /cd '.*\/workspace\/product'/);
 });
 
 function run(args: readonly string[], home: string, cwd: string) {

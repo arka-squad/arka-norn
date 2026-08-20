@@ -13,8 +13,8 @@
   },
   "skills": [
     { "name": "arka-norn", "version": "1.2.0", "source": "arka-norn.json", "checksum": "392735e804ebf8be5937501d464da7c99aeff7e85d68c9d5af90972bef320bd3", "step": "core.bootstrap", "profiles": ["all", "core", "delivery", "product", "architecture", "audit", "dev", "qa"] },
-    { "name": "arka-product", "version": "1.0.0", "source": "arka-product.json", "checksum": "834394846d0575285678333ce2452ff7bb44c76f22d8bb2b95f96d9b6fbf1707", "step": "core.product", "profiles": ["all", "core", "delivery", "product"] },
-    { "name": "arka-fastdev", "version": "1.0.0", "source": "arka-fastdev.json", "checksum": "f008789c38130d667f570cf9d5811f7144af13dae75dcaa4e07d229a70b387d6", "step": "core.fastdev", "profiles": ["all", "core", "delivery", "audit", "dev", "qa"] },
+    { "name": "arka-product", "version": "1.1.0", "source": "arka-product.json", "checksum": "c698534f6a352d739158707da830992ae4bdf285ab85cda71741cf3d849056f4", "step": "core.product", "profiles": ["all", "core", "delivery", "product"] },
+    { "name": "arka-fastdev", "version": "1.1.0", "source": "arka-fastdev.json", "checksum": "d74fa61bee1881c0187be04286cdc8c01ef4049a4376d919c26b4142cba5c6d9", "step": "core.fastdev", "profiles": ["all", "core", "delivery", "audit", "dev", "qa"] },
     { "name": "arka-framework-maitrise", "version": "1.3.0", "source": "arka-framework-maitrise.json", "checksum": "d56b714476f1541b6d559923c8714cca87070a0c1091d0bf8b0ea4b66ec254f4", "step": "core.mastery", "profiles": ["all", "core", "delivery", "product", "architecture", "audit", "dev", "qa"] },
     { "name": "arka-framework-statut", "version": "1.0.0", "source": "arka-framework-statut.json", "checksum": "5cda80db55abf00ab0eeeec53c3186d86816c7ad45e5d5987b46253ededa62fa", "step": "core.status", "profiles": ["all", "core", "delivery", "product", "architecture", "audit", "dev", "qa"] },
     { "name": "arka-framework-scaffold", "version": "1.0.0", "source": "arka-framework-scaffold.json", "checksum": "438aa0df69db38185fdc17039723990f67f3bb31cd1b24f41152dccddb41ff6a", "step": "core.scaffold", "profiles": ["all", "core", "delivery", "product", "architecture", "audit", "dev", "qa"] },

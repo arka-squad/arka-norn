@@ -57,10 +57,10 @@ arka-norn feature create "Nom" --project <id> --workflow fastdev
 arka-norn feature set-workflow <feature> --workflow fastdev
 arka-norn fastdev start "Nom" --project <id> [--path <dossier>]
 arka-norn fastdev status <feature>
-arka-norn fastdev next <feature> [--json]
+arka-norn fastdev next <feature> [--session <session-id>] [--json]
 ```
 
-`set-workflow` est refusé dès qu’un document Pipeline reconnu existe. `fastdev next` expose `phase`, `iteration`, `prerequisites`, `reason`, `instructions`, `expectedArtifact` et `suggestedCommand`. Une commande historique ciblant un dossier sans marqueur conserve le pipeline standard avec avertissement.
+`set-workflow` est refusé dès qu’un document Pipeline reconnu existe. `fastdev next` expose `phase`, `iteration`, `prerequisites`, `reason`, `instructions`, `expectedArtifact` et `suggestedCommand`. La session explicite — ou `ARKA_NORN_SESSION` — est ajoutée à la commande de scaffold pour signer avec le bon Agent. Une commande historique ciblant un dossier sans marqueur conserve le pipeline standard avec avertissement.
 
 Lorsque la prochaine étape est `concept`, la skill `arka-framework-concept` peut proposer un brainstorming dans ChatGPT ou Claude.ai. L’agent fournit alors le mode d’emploi et un prompt autonome prérempli ; l’utilisateur rapporte la réponse complète, qui est vérifiée avant la génération du document signé.
 

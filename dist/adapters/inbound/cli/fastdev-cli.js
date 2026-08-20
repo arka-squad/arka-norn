@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import { createManagementRuntime } from "../../../composition/management-runtime.js";
 import { createPipelineRuntime } from "../../../composition/pipeline-runtime.js";
+import { AgentSessionId } from "../../../domain/agent/agent-session-id.js";
 import { FeatureId } from "../../../domain/feature/feature-id.js";
 import { ProjectId } from "../../../domain/project/project-id.js";
 import { pipelineExitCode, pipelineReportEnvelope, presentPipelineReport } from "./presenters/pipeline-report-presenter.js";
@@ -48,7 +49,8 @@ async function start(argv, context, json) {
     return json ? envelope("fastdev.start", data) : { code: 0, stdout: `${human}\n`, stderr: "" };
 }
 async function inspect(action, argv, context, json) {
-    const parsed = parseStrictArguments(argv, { options: { json: "boolean" }, minPositionals: 1, maxPositionals: 1 });
+    const parsed = parseStrictArguments(argv, { options: { json: "boolean", session: "string" }, minPositionals: 1, maxPositionals: 1 });
+    const sessionId = parsed.values.get("session") === undefined ? context.sessionId : AgentSessionId.of(parsed.values.get("session"));
     const management = createManagementRuntime({ homeDir: context.homeDir });
     const feature = await management.features.show(FeatureId.of(parsed.positionals[0]));
     if (feature.pipelineId !== "arka-norn-fastdev")
@@ -64,7 +66,7 @@ async function inspect(action, argv, context, json) {
     if (action === "status") {
         return { code: pipelineExitCode(report), stdout: json ? `${JSON.stringify(pipelineReportEnvelope(report))}\n` : presentPipelineReport(report), stderr: "" };
     }
-    const data = nextData(report, feature.id.value);
+    const data = nextData(report, feature.id.value, sessionId.value);
     if (json) {
         return {
             code: pipelineExitCode(report),
@@ -87,7 +89,7 @@ async function inspect(action, argv, context, json) {
         stderr: "",
     };
 }
-function nextData(report, featureId) {
+function nextData(report, featureId, sessionId) {
     const action = report.nextActions[0];
     const crRuns = report.steps.find((step) => step.id === "cr_dev")?.documents.length ?? 0;
     if (action === undefined) {
@@ -104,8 +106,11 @@ function nextData(report, featureId) {
         reason: action.reason,
         instructions: action.instructions ?? [],
         expectedArtifact: `${action.stepId}.json`,
-        suggestedCommand: action.suggestedCommand ?? `arka-norn pipeline scaffold ${action.stepId} --feature ${featureId}`,
+        suggestedCommand: withSession(action.suggestedCommand ?? `arka-norn pipeline scaffold ${action.stepId} --feature ${featureId}`, sessionId),
     };
+}
+function withSession(command, sessionId) {
+    return command.includes(" --session ") ? command : `${command} --session ${sessionId}`;
 }
 function slugify(value) {
     const slug = value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");

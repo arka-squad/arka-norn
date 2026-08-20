@@ -38,8 +38,25 @@ test("un prompt spécialisé interdit d'exécuter une phase qui ne lui appartien
   assert.equal(prompt.canWrite, false);
   assert.equal(prompt.sessionId, "dev-navigation-tui");
   assert.equal(prompt.skill, "arka-fastdev");
+  assert.match(prompt.preflightCommand, /skills install.*--profile dev/);
+  assert.doesNotMatch(prompt.prompt, /Utilise \$arka-norn puis \$arka-fastdev/);
+  assert.match(prompt.prompt, /\$arka-framework-maitrise puis \$arka-fastdev/);
+  assert.match(prompt.prompt, /--paths 'features\/navigation-tui'/);
   assert.match(prompt.prompt, /ne sélectionne et ne remplace jamais.*session main/i);
   assert.match(prompt.prompt, /Travail en lecture seule/);
+});
+
+test("un prompt réutilise exactement l'Agent déjà lié et refuse un provider implicite pour une nouvelle session", () => {
+  const audit = agent("Claude_audit_20260820", "audit");
+  const state = stateFor(report("audit_rework", "Audit · 3/4"), [
+    { sessionId: AgentSessionId.MAIN, agent: PRODUCT },
+    { sessionId: AgentSessionId.of("audit-navigation-tui"), agent: audit },
+  ]);
+  const reused = createInitializationPrompt(state, { role: "audit", mode: "execute" });
+  assert.match(reused.prompt, new RegExp(`agent use ${audit.id.value}.*--session audit-navigation-tui`));
+  assert.doesNotMatch(reused.prompt, /agent register/);
+
+  assert.throws(() => createInitializationPrompt(stateFor(report("cr_dev", "Dev")), { role: "dev", mode: "execute" }), /--provider est requis/);
 });
 
 test("le Product principal est stable dans main et son prompt de reprise conserve son identité", () => {
@@ -53,6 +70,8 @@ test("le Product principal est stable dans main et son prompt de reprise conserv
   assert.equal(handoff.sessionId, "main");
   assert.match(handoff.prompt, /agent use Codex_product_20260820.*--session main/);
   assert.match(handoff.prompt, /audit-navigation-tui: Claude_audit_20260820/);
+  assert.match(handoff.prompt, /cd '\/workspace\/arka-norn'/);
+  assert.match(handoff.prompt, /agent sessions --project arka-norn/);
   assert.match(handoff.prompt, /Ne réalise pas l'audit, le développement ou la QA/);
 });
 

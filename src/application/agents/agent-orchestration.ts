@@ -105,7 +105,9 @@ export function createInitializationPrompt(
   if (input.role === "product" && input.sessionId !== undefined && !input.sessionId.equals(AgentSessionId.MAIN)) {
     throw new InvalidAgentOptionError("session", "le Product principal utilise toujours la session main");
   }
+  const existingAgent = resolveSessionAgent(state, sessionId, input.role, feature, input.provider);
   const canWrite = mode === "execute";
+  const preflightCommand = `arka-norn skills install --target ${shellQuote(state.project.root)} --profile ${policy.profile}`;
   return {
     schemaVersion: 1,
     projectId: state.project.id.value,
@@ -115,9 +117,10 @@ export function createInitializationPrompt(
     sessionId: sessionId.value,
     skill: policy.skill,
     skillProfile: policy.profile,
+    preflightCommand,
     canWrite,
     ...(canWrite && next !== undefined ? { expectedStepId: next.stepId } : {}),
-    prompt: renderInitializationPrompt(state, input.provider, policy, sessionId, mode, canWrite ? next?.stepId : undefined),
+    prompt: renderInitializationPrompt(state, input.provider, policy, sessionId, mode, canWrite ? next?.stepId : undefined, existingAgent, preflightCommand),
   };
 }
 
@@ -152,15 +155,16 @@ export function createProductHandoffPrompt(state: AgentOrchestrationState, reque
     ...(documents.length === 0 ? ["- aucun"] : documents.map((file) => `- ${file}`)),
     "",
     "PROCÉDURE OBLIGATOIRE",
-    `1. Exécute arka-norn agent use ${agent.id.value} --project ${state.project.id.value} --session main.`,
-    `2. Confirme avec arka-norn agent current --project ${state.project.id.value} --session main.`,
-    "3. Lance arka-norn doctor et traite tout FAIL avant la suite.",
-    ...(feature === undefined ? ["4. Liste les Features et demande laquelle piloter si le choix n'est pas univoque."] : [
-      `4. Lance arka-norn pipeline status ${feature.id.value} puis arka-norn pipeline next ${feature.id.value}.`,
-      `5. Lance arka-norn agent advise --project ${state.project.id.value} --feature ${feature.id.value}.`,
+    `1. Place-toi dans la racine vérifiée : cd ${shellQuote(state.project.root)}.`,
+    `2. Exécute arka-norn agent use ${agent.id.value} --project ${state.project.id.value} --session main.`,
+    `3. Confirme avec arka-norn agent current --project ${state.project.id.value} --session main, puis relis arka-norn agent sessions --project ${state.project.id.value}.`,
+    "4. Lance arka-norn doctor et traite tout FAIL avant la suite.",
+    ...(feature === undefined ? ["5. Liste les Features et demande laquelle piloter si le choix n'est pas univoque."] : [
+      `5. Lance arka-norn pipeline status ${feature.id.value} puis arka-norn pipeline next ${feature.id.value}.`,
+      `6. Lance arka-norn agent advise --project ${state.project.id.value} --feature ${feature.id.value}.`,
     ]),
-    "6. Reste dans le rôle product : organisation, décisions produit, priorisation et passations. Ne réalise pas l'audit, le développement ou la QA à la place des profils dédiés.",
-    "7. Résume l'état vérifié, conseille la suite et fournis les prompts des agents à lancer. Ne te fie pas à ce prompt si la CLI le contredit.",
+    "7. Reste dans le rôle product : organisation, décisions produit, priorisation et passations. Ne réalise pas l'audit, le développement ou la QA à la place des profils dédiés.",
+    "8. Résume l'état vérifié, conseille la suite et fournis les prompts des agents à lancer. Ne te fie pas à ce prompt si la CLI le contredit.",
   ].join("\n");
   return {
     schemaVersion: 1,
@@ -226,7 +230,7 @@ function recommendation(role: OrchestratedAgentRole, mode: AgentWorkMode, stepId
     skill: policy.skill,
     skillProfile: policy.profile,
     reason,
-    command: `arka-norn agent prompt ${role} --project ${feature.projectId.value} --feature ${feature.id.value} --mode ${mode}`,
+    command: `arka-norn agent prompt ${role} --project ${feature.projectId.value} --feature ${feature.id.value} --provider '<provider>' --mode ${mode}`,
   };
 }
 
@@ -244,16 +248,27 @@ function renderInitializationPrompt(
   sessionId: AgentSessionId,
   mode: AgentWorkMode,
   expectedStepId: string | undefined,
+  existingAgent: AgentRegistration | undefined,
+  preflightCommand: string,
 ): string {
   const feature = state.feature;
-  const providerValue = provider ?? "<provider-observé>";
   const featureOption = feature === undefined ? "" : ` --features ${feature.id.value}`;
-  const register = `arka-norn agent register --project ${state.project.id.value} --provider ${shellQuote(providerValue)} --role ${policy.role}${featureOption} --responsibilities ${shellQuote(responsibilities(policy.role))} --session ${sessionId.value}`;
+  const featurePath = feature === undefined ? undefined : relativeFeaturePath(state.project.root, feature.root);
+  const pathOption = featurePath === undefined ? "" : ` --paths ${shellQuote(featurePath)}`;
+  const register = existingAgent === undefined
+    ? `arka-norn agent register --project ${state.project.id.value} --provider ${shellQuote(provider!)} --role ${policy.role}${featureOption}${pathOption} --responsibilities ${shellQuote(responsibilities(policy.role))} --session ${sessionId.value}`
+    : `arka-norn agent use ${existingAgent.id.value} --project ${state.project.id.value} --session ${sessionId.value}`;
   const permission = mode === "execute"
     ? `Tu peux produire uniquement ${expectedStepId}. Vérifie que pipeline next retourne encore cette étape avant toute écriture.`
     : "Travail en lecture seule : analyse, dépendances, questions et risques. Ne modifie aucun fichier et ne produis aucun document Pipeline ou CR.";
   return [
-    `Utilise $arka-norn puis $${policy.skill} pour initialiser cette session Agent ${policy.role}.`,
+    policy.role === "product"
+      ? "Utilise $arka-norn puis $arka-product pour reprendre le pilotage Product."
+      : `Utilise $arka-framework-maitrise puis $${policy.skill} pour initialiser cette session Agent ${policy.role}. N'utilise pas $arka-norn, réservé au Product principal et aux nouveaux Projects.`,
+    "",
+    "PRÉREQUIS EXÉCUTÉ PAR LE PRODUCT AVANT L'OUVERTURE DE CETTE SESSION",
+    `- ${preflightCommand}`,
+    `- Si $${policy.skill} n'est pas disponible, arrête-toi et demande au Product de corriger l'installation.`,
     "",
     "CONTEXTE FOURNI — le vérifier avec arka-norn, ne jamais le deviner",
     `- Project: ${state.project.id.value}`,
@@ -271,10 +286,10 @@ function renderInitializationPrompt(
     "- Si la CLI contredit ce prompt, arrête-toi et remonte l'écart au Product principal.",
     "",
     "INITIALISATION",
-    `1. Lance arka-norn skills doctor --target ${shellQuote(state.project.root)} --profile ${policy.profile}.`,
-    `2. Si seules des skills manquent, lance arka-norn skills install --target ${shellQuote(state.project.root)} --profile ${policy.profile}. N'utilise jamais --force sans accord.`,
-    `3. Lance arka-norn agent list --project ${state.project.id.value} --active.`,
-    `4. Réutilise une identité exacte avec agent use --session ${sessionId.value}, sinon lance :`,
+    `1. Place-toi dans la racine vérifiée : cd ${shellQuote(state.project.root)}.`,
+    `2. Lance arka-norn skills doctor --target ${shellQuote(state.project.root)} --profile ${policy.profile}.`,
+    `3. Lance arka-norn agent list --project ${state.project.id.value} --active et arka-norn agent sessions --project ${state.project.id.value}.`,
+    `4. ${existingAgent === undefined ? "Crée et sélectionne l'identité bornée avec" : `Réutilise l'identité compatible ${existingAgent.id.value} avec`} :`,
     `   ${register}`,
     `5. Confirme avec arka-norn agent current --project ${state.project.id.value} --session ${sessionId.value}.`,
     ...(feature === undefined ? [] : [
@@ -283,6 +298,41 @@ function renderInitializationPrompt(
     ]),
     "8. Termine par un état factuel destiné au Product principal : identité, session, périmètre, preuves, blocages et prochaine décision.",
   ].join("\n");
+}
+
+function canReuseBinding(agent: AgentRegistration, role: OrchestratedAgentRole, project: Project, feature: Feature | undefined): boolean {
+  if (!agent.active || roleCategory(agent.role) !== role || !agent.scope.projectId.equals(project.id)) return false;
+  if (feature === undefined || agent.scope.featureIds.length === 0) return true;
+  return agent.scope.featureIds.some((id) => id.equals(feature.id));
+}
+
+function resolveSessionAgent(
+  state: AgentOrchestrationState,
+  sessionId: AgentSessionId,
+  role: OrchestratedAgentRole,
+  feature: Feature | undefined,
+  provider: string | undefined,
+): AgentRegistration | undefined {
+  const binding = state.sessions.find((candidate) => candidate.sessionId.equals(sessionId));
+  if (binding !== undefined && !canReuseBinding(binding.agent, role, state.project, feature)) {
+    throw new InvalidAgentOptionError("session", `la session ${sessionId.value} est déjà liée à ${binding.agent.id.value} avec un rôle, un état ou un périmètre incompatible`);
+  }
+  if (binding !== undefined) return binding.agent;
+  if (provider?.trim() === "") throw new InvalidAgentOptionError("provider", "le provider ne peut pas être vide");
+  if (provider === undefined) throw new InvalidAgentOptionError("provider", `--provider est requis pour créer l'identité ${role} de la session ${sessionId.value}`);
+  return undefined;
+}
+
+function relativeFeaturePath(projectRoot: string, featureRoot: string): string | undefined {
+  const project = normalizePath(projectRoot);
+  const feature = normalizePath(featureRoot);
+  if (feature === project) return ".";
+  return feature.startsWith(`${project}/`) ? feature.slice(project.length + 1) : undefined;
+}
+
+function normalizePath(value: string): string {
+  const normalized = value.replaceAll("\\", "/").replace(/\/+$/, "");
+  return normalized === "" ? "/" : normalized;
 }
 
 function roleForStep(stepId: string): OrchestratedAgentRole | undefined {
