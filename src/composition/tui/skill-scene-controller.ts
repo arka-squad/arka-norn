@@ -10,7 +10,7 @@ export function showHealthReport(app: TuiApp, report: DoctorReport, skills: Skil
   const skillSummary = `SKILLS ${skills.healthy}/${skills.total} sains · ${skills.missing} absents · ${skills.divergent} divergents`;
   app.push(createResultView({
     title: "Santé arka-norn",
-    code: report.ok && skills.missing === 0 && skills.divergent === 0 ? 0 : 3,
+    code: report.ok ? 0 : 3,
     output: [`Résumé : ${report.summary.pass} PASS · ${report.summary.warn} WARN · ${report.summary.fail} FAIL`, skillSummary, "", ...checks].join("\n"),
     maxVisibleLines: 20,
     nextStep: skills.divergent > 0 ? "revenez puis choisissez « Installer / réparer les skills » ; les divergences seront sauvegardées avant remplacement" : skills.missing > 0 ? "installez les skills manquantes depuis l’accueil" : "traitez le premier contrôle FAIL, puis relancez Santé",

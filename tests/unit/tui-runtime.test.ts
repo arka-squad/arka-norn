@@ -5,6 +5,8 @@ import { createRenderer } from "../../src/adapters/inbound/tui/runtime/render.ts
 import { createTheme } from "../../src/adapters/inbound/tui/runtime/theme.ts";
 import { createTuiApp } from "../../src/adapters/inbound/tui/runtime/tui-app.ts";
 import { createResultView } from "../../src/adapters/inbound/tui/views/result-view.ts";
+import { showHealthReport } from "../../src/composition/tui/skill-scene-controller.ts";
+import type { DoctorReport } from "../../src/ports/inbound/for-doctor.ts";
 
 const theme = createTheme({ NO_COLOR: "1" }, false);
 
@@ -40,6 +42,42 @@ test("les résultats longs défilent avec les flèches", () => {
   view.render(renderer, theme);
   assert.match(output, /L5/);
   assert.match(output, /2 ligne\(s\) au-dessus/);
+});
+
+test("la Santé TUI délègue son verdict au rapport doctor", () => {
+  const warningReport: DoctorReport = {
+    schemaVersion: 1,
+    ok: true,
+    mode: "inspect",
+    checks: [{ id: "skills.installation", status: "warn", message: "8/8 core healthy; 10 optional missing; 0 divergent", repairable: true }],
+    repairs: [],
+    summary: { pass: 0, warn: 1, fail: 0 },
+  };
+  let output = "";
+  const renderer = createRenderer({ write: (chunk) => { output += chunk; }, isTTY: false });
+  const app = createTuiApp({
+    input: { start() {}, stop() {}, on() { return () => {}; } },
+    renderer,
+    theme,
+  });
+
+  showHealthReport(app, warningReport, { total: 18, healthy: 8, missing: 10, divergent: 0 });
+  app.topScene()?.render(renderer, theme);
+
+  assert.match(output, /Statut : OK/);
+  assert.doesNotMatch(output, /ÉCHEC/);
+  assert.match(output, /10 absents/);
+
+  output = "";
+  showHealthReport(app, {
+    ...warningReport,
+    ok: false,
+    checks: [{ id: "audit.trail", status: "fail", message: "audit unavailable", repairable: false }],
+    summary: { pass: 0, warn: 0, fail: 1 },
+  }, { total: 18, healthy: 18, missing: 0, divergent: 0 });
+  app.topScene()?.render(renderer, theme);
+
+  assert.match(output, /Statut : ÉCHEC \(code 3\)/);
 });
 
 test("le renderer borne une frame à la hauteur du terminal", () => {

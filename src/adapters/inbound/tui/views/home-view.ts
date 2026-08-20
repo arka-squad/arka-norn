@@ -114,7 +114,7 @@ export function createHomeView(deps: HomeViewDeps): HomeView {
       try {
         project = await deps.projects.importFrom({ root });
       } catch (error) {
-        if (!(error instanceof DomainError) || error.code !== "PROJECT_NOT_FOUND") throw error;
+        if (!(error instanceof DomainError) || error.code !== "PROJECT_MARKER_NOT_FOUND") throw error;
         project = await deps.projects.create({ id: deriveProjectId(root, slugify(name)), name, root });
       }
       mode = "menu";

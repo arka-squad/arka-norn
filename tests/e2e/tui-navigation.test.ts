@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
@@ -7,12 +7,40 @@ import { test } from "node:test";
 import type { InputSource, KeyEvent, KeyListener } from "../../src/adapters/inbound/tui/runtime/input.ts";
 import { createRenderer } from "../../src/adapters/inbound/tui/runtime/render.ts";
 import { createTheme } from "../../src/adapters/inbound/tui/runtime/theme.ts";
+import { createHomeView } from "../../src/adapters/inbound/tui/views/home-view.ts";
 import { FeatureId } from "../../src/domain/feature/feature-id.ts";
 import { AgentSessionId } from "../../src/domain/agent/agent-session-id.ts";
 import { ProjectId } from "../../src/domain/project/project-id.ts";
 import { createContainer } from "../../src/composition/container.ts";
 import { createManagementRuntime } from "../../src/composition/management-runtime.ts";
 import { readEnv } from "../../src/composition/env.ts";
+
+test("l'accueil crée un Project lorsque la racine ne contient aucun marker", async (context) => {
+  const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-tui-create-project-"));
+  const projectRoot = resolve(sandbox, "product");
+  mkdirSync(projectRoot, { recursive: true });
+  context.after(() => rmSync(sandbox, { recursive: true, force: true }));
+
+  const management = createManagementRuntime({ homeDir: sandbox });
+  const home = createHomeView({
+    initialProjects: [],
+    projects: management.projects,
+    scan: management.scanProjects,
+    cwd: projectRoot,
+    contextRoot: projectRoot,
+    redraw() {},
+  });
+
+  home.onKey({ kind: "enter" });
+  home.onKey({ kind: "enter" });
+
+  const marker = resolve(projectRoot, ".arka-norn", "project.json");
+  await waitUntil(async () => (await management.projects.list()).length === 1, "indexation du Project créé");
+  const [project] = await management.projects.list();
+  assert.equal(existsSync(marker), true);
+  assert.equal(project?.root, realpathSync.native(projectRoot));
+  assert.equal(project?.name, "product");
+});
 
 test("la composition TUI pilote Home → Project → Feature → scaffold réel", async (context) => {
   const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-tui-navigation-"));
