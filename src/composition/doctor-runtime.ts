@@ -10,7 +10,7 @@ import type { DoctorIndexInspector, IndexInspection } from "../ports/outbound/do
 const FRAMEWORK_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 export function createDoctorRuntime(homeDir: string, targetDir: string = process.cwd()): ForDoctor {
-  const filesystem = new FsDoctor(homeDir);
+  const filesystem = new FsDoctor(homeDir, targetDir);
   const skills = new DirectSkillManager(FRAMEWORK_ROOT);
   const inspector: DoctorIndexInspector = {
     inspectIndex: (kind, repair, apply) => filesystem.inspectIndex(kind, repair, apply),

@@ -8,16 +8,16 @@ import { Project } from "../../src/domain/project/project.ts";
 
 const createdAt = new Date("2026-08-19T10:00:00.000Z");
 
-test("Project expose l'identité et les timestamps du format v2", () => {
+test("Project expose l'identité et les timestamps du format v3", () => {
   const project = Project.create({
     id: ProjectId.of("arka-norn"),
     name: "Arka Norn",
     root: "/workspace/arka-norn",
-    schemaVersion: 2,
+    schemaVersion: 3,
     createdAt,
     updatedAt: createdAt,
   });
-  assert.equal(project.schemaVersion, 2);
+  assert.equal(project.schemaVersion, 3);
   assert.equal(project.id.value, "arka-norn");
   assert.equal(project.createdAt.toISOString(), "2026-08-19T10:00:00.000Z");
 });
@@ -30,7 +30,7 @@ test("Feature appartient explicitement à son Project", () => {
     name: "Project cockpit",
     root: "/workspace/arka-norn/features/project-cockpit",
     pipelineId: "arka-norn-default",
-    schemaVersion: 2,
+    schemaVersion: 3,
     createdAt,
     updatedAt: createdAt,
   });
@@ -44,7 +44,7 @@ test("les invariants temporels refusent updatedAt avant createdAt", () => {
     id: ProjectId.of("arka-norn"),
     name: "Arka Norn",
     root: "/workspace/arka-norn",
-    schemaVersion: 2,
+    schemaVersion: 3,
     createdAt,
     updatedAt: new Date("2026-08-19T09:59:59.000Z"),
   }));

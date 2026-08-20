@@ -85,13 +85,48 @@ test("doctor valide les registres Agent puis expose toute corruption", async (co
   const project = await management.projects.create({ id: ProjectId.of("project"), name: "Project", root: projectRoot });
   await management.agents.register({ project, provider: "Codex", role: "audit" });
 
-  const healthy = await createDoctorRuntime(home, home).run();
+  const healthy = await createDoctorRuntime(home, projectRoot).run();
   assert.equal(healthy.checks.find((check) => check.id === "agents.registries")?.status, "pass");
   assert.equal(healthy.checks.find((check) => check.id === "agents.session")?.status, "pass");
+  assert.equal(healthy.checks.find((check) => check.id === "project.context")?.status, "pass");
 
   writeFileSync(resolve(projectRoot, ".arka-norn", "agents.json"), "{corrupt");
   writeFileSync(resolve(home, ".arka-norn", "context", "agents.json"), "{}", { mode: 0o600 });
   const corrupted = await createDoctorRuntime(home, home).run();
   assert.equal(corrupted.checks.find((check) => check.id === "agents.registries")?.status, "fail");
   assert.equal(corrupted.checks.find((check) => check.id === "agents.session")?.status, "fail");
+});
+
+test("doctor refuse un registre orphelin dans le contexte Project ciblé", async (context) => {
+  const home = mkdtempSync(join(tmpdir(), "arka-norn-doctor-orphan-context-"));
+  const target = resolve(home, "project");
+  mkdirSync(resolve(target, ".arka-norn"), { recursive: true });
+  context.after(() => rmSync(home, { recursive: true, force: true }));
+  writeFileSync(resolve(target, ".arka-norn", "agents.json"), "{}\n");
+
+  const report = await createDoctorRuntime(home, target).run();
+  const projectContext = report.checks.find((check) => check.id === "project.context");
+
+  assert.equal(projectContext?.status, "fail");
+  assert.match(projectContext?.message ?? "", /without a Project marker/);
+});
+
+test("doctor détecte une sélection Agent inactive sans modifier la session", async (context) => {
+  const home = mkdtempSync(join(tmpdir(), "arka-norn-doctor-stale-session-"));
+  const projectRoot = resolve(home, "project");
+  mkdirSync(projectRoot, { recursive: true });
+  context.after(() => rmSync(home, { recursive: true, force: true }));
+  const management = createManagementRuntime({ homeDir: home });
+  const project = await management.projects.create({ id: ProjectId.of("project"), name: "Project", root: projectRoot });
+  const agent = await management.agents.register({ project, provider: "Codex", role: "audit" });
+  await management.agents.deactivate(project, agent.id);
+  const sessionPath = resolve(home, ".arka-norn", "context", "agents.json");
+  writeFileSync(sessionPath, `${JSON.stringify({ schemaVersion: 1, selectedByProject: { project: agent.id.value } })}\n`, { mode: 0o600 });
+  const before = readFileSync(sessionPath, "utf8");
+
+  const report = await createDoctorRuntime(home, projectRoot).run();
+
+  assert.equal(report.checks.find((check) => check.id === "agents.session")?.status, "fail");
+  assert.match(report.checks.find((check) => check.id === "agents.session")?.message ?? "", /inactive/);
+  assert.equal(readFileSync(sessionPath, "utf8"), before);
 });

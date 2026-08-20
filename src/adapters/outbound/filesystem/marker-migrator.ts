@@ -1,9 +1,9 @@
 import * as fs from "node:fs/promises";
 
 import {
-  type FeatureMarkerV2,
+  type FeatureMarkerV3,
   type MarkerMigrationPlan,
-  type ProjectMarkerV2,
+  type ProjectMarkerV3,
   planFeatureMarkerMigration,
   planProjectMarkerMigration,
 } from "../../../domain/shared/marker-formats.js";
@@ -26,8 +26,8 @@ export type MarkerMigrationRequest =
     };
 
 export type MarkerMigrationResult =
-  | { readonly plan: MarkerMigrationPlan<ProjectMarkerV2>; readonly backupPath?: string }
-  | { readonly plan: MarkerMigrationPlan<FeatureMarkerV2>; readonly backupPath?: string };
+  | { readonly plan: MarkerMigrationPlan<ProjectMarkerV3>; readonly backupPath?: string }
+  | { readonly plan: MarkerMigrationPlan<FeatureMarkerV3>; readonly backupPath?: string };
 
 export async function migrateMarkerFile(request: MarkerMigrationRequest): Promise<MarkerMigrationResult> {
   const value = await readJson<unknown>(request.sourcePath);

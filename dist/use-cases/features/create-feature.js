@@ -58,7 +58,7 @@ export function createFeatureUseCaseFactory(deps) {
             name: input.name,
             root: confined.child,
             pipelineId: input.pipelineId ?? DEFAULT_PIPELINE_ID,
-            schemaVersion: 2,
+            schemaVersion: 3,
             createdAt: now,
             updatedAt: now,
         });

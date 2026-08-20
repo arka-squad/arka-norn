@@ -1,9 +1,9 @@
 import * as fs from "node:fs/promises";
 import { join } from "node:path";
-import { PathSecurityError, ProjectAlreadyExistsError, ProjectNotFoundError } from "../../../domain/errors.js";
+import { PathSecurityError, ProjectAlreadyExistsError, ProjectMarkerNotFoundError } from "../../../domain/errors.js";
 import { ProjectId } from "../../../domain/project/project-id.js";
 import { Project } from "../../../domain/project/project.js";
-import { isProjectMarkerV2, planProjectMarkerMigration, } from "../../../domain/shared/marker-formats.js";
+import { planProjectMarkerMigration, } from "../../../domain/shared/marker-formats.js";
 import { readJson, writeJsonAtomic } from "./_shared/atomic-json.js";
 import { FsPathPolicy } from "./fs-path-policy.js";
 export class FsProjectStore {
@@ -28,17 +28,15 @@ export class FsProjectStore {
         const current = await readJson(projectMarkerPath(root));
         let marker;
         if (current !== undefined) {
-            if (!isProjectMarkerV2(current))
-                throw new ProjectNotFoundError(root);
-            marker = current;
+            marker = planProjectMarkerMigration(current).output;
         }
         else {
             const legacy = await readJson(legacyMarkerPath(root));
             if (legacy === undefined)
-                throw new ProjectNotFoundError(root);
+                throw new ProjectMarkerNotFoundError(root);
             marker = planProjectMarkerMigration(legacy).output;
         }
-        const canonicalRoot = await this.paths.assertMarkerRoot(marker.root, root);
+        const canonicalRoot = await this.paths.assertMarkerRoot(root, root);
         return Project.create({
             id: ProjectId.of(marker.id),
             name: marker.name,
@@ -56,10 +54,9 @@ export class FsProjectStore {
 }
 function serialize(project) {
     return {
-        schemaVersion: 2,
+        schemaVersion: 3,
         id: project.id.value,
         name: project.name,
-        root: project.root,
         createdAt: project.createdAt.toISOString(),
         updatedAt: project.updatedAt.toISOString(),
     };

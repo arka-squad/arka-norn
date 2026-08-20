@@ -219,7 +219,7 @@ function failure(command: string, error: unknown, json: boolean, warnings: reado
 function errorCode(error: unknown): number {
   if (error instanceof UsageError || error instanceof CliUsageError) return 64;
   if (error instanceof DomainError) {
-    if (error.code === "PROJECT_NOT_FOUND" || error.code === "FEATURE_NOT_FOUND" || error.code === "FILE_NOT_FOUND") return 4;
+    if (error.code === "PROJECT_NOT_FOUND" || error.code === "PROJECT_MARKER_NOT_FOUND" || error.code === "FEATURE_NOT_FOUND" || error.code === "FEATURE_MARKER_NOT_FOUND" || error.code === "FILE_NOT_FOUND") return 4;
     if (error.code === "PROJECT_ALREADY_EXISTS" || error.code === "FEATURE_ALREADY_EXISTS" || error.code === "LOCK_CONFLICT") return 5;
     if (error.code === "INVALID_PROJECT_ID" || error.code === "INVALID_FEATURE_ID" || error.code === "INVALID_PROJECT_OPTION" || error.code === "INVALID_FEATURE_OPTION") return 64;
     return 3;

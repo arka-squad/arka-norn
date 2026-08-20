@@ -1,8 +1,7 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "arka-norn",
   "name": "Arka Norn",
-  "root": "/workspace/arka-norn",
   "createdAt": "2026-08-19T08:00:00.000Z",
   "updatedAt": "2026-08-19T08:00:00.000Z"
 }

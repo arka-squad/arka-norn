@@ -18,7 +18,7 @@ test("le registre sérialise les inscriptions concurrentes sans collision et gar
   mkdirSync(projectRoot, { recursive: true });
   context.after(() => rmSync(sandbox, { recursive: true, force: true }));
   const at = new Date("2026-08-19T10:00:00.000Z");
-  const project = Project.create({ id: ProjectId.of("project"), name: "Project", root: projectRoot, schemaVersion: 2, createdAt: at, updatedAt: at });
+  const project = Project.create({ id: ProjectId.of("project"), name: "Project", root: projectRoot, schemaVersion: 3, createdAt: at, updatedAt: at });
   const service = manageAgentsUseCaseFactory({ registry: new FsAgentRegistryStore(), session: new FsAgentSessionStore(home), clock: new SystemClock() });
 
   const created = await Promise.all(Array.from({ length: 8 }, () => service.register({ project, provider: "Codex", role: "dev" })));
@@ -42,10 +42,30 @@ test("un registre corrompu est refusé sans réécriture silencieuse", async (co
   mkdirSync(resolve(projectRoot, ".arka-norn"), { recursive: true });
   context.after(() => rmSync(sandbox, { recursive: true, force: true }));
   const at = new Date("2026-08-19T10:00:00.000Z");
-  const project = Project.create({ id: ProjectId.of("project"), name: "Project", root: projectRoot, schemaVersion: 2, createdAt: at, updatedAt: at });
+  const project = Project.create({ id: ProjectId.of("project"), name: "Project", root: projectRoot, schemaVersion: 3, createdAt: at, updatedAt: at });
   const path = resolve(projectRoot, ".arka-norn", "agents.json");
   writeFileSync(path, '{"schemaVersion":1,"projectId":"other","updatedAt":"bad","agents":[]}\n');
   const store = new FsAgentRegistryStore();
   await assert.rejects(store.load(project), (error: unknown) => error instanceof Error && "code" in error && error.code === "INVALID_AGENT_REGISTRY");
   assert.match(readFileSync(path, "utf8"), /"projectId":"other"/);
+});
+
+test("agent current ne répare pas silencieusement une sélection inactive", async (context) => {
+  const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-agent-current-read-"));
+  const projectRoot = resolve(sandbox, "project");
+  const home = resolve(sandbox, "home");
+  mkdirSync(projectRoot, { recursive: true });
+  context.after(() => rmSync(sandbox, { recursive: true, force: true }));
+  const at = new Date("2026-08-19T10:00:00.000Z");
+  const project = Project.create({ id: ProjectId.of("project"), name: "Project", root: projectRoot, schemaVersion: 3, createdAt: at, updatedAt: at });
+  const session = new FsAgentSessionStore(home);
+  const service = manageAgentsUseCaseFactory({ registry: new FsAgentRegistryStore(), session, clock: new SystemClock() });
+  const agent = await service.register({ project, provider: "Codex", role: "dev" });
+  await service.deactivate(project, agent.id);
+  await session.select(project.id, agent.id);
+  const sessionPath = resolve(home, ".arka-norn", "context", "agents.json");
+  const before = readFileSync(sessionPath, "utf8");
+
+  assert.equal(await service.current(project), undefined);
+  assert.equal(readFileSync(sessionPath, "utf8"), before);
 });

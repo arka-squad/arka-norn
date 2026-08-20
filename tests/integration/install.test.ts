@@ -47,6 +47,24 @@ test("install déploie réellement chaque skill dans un target et un home tempor
     const content = readFileSync(file, "utf8");
     assert.doesNotMatch(content, /\{\{[^}]+\}\}|\bundefined\b/, file);
   }
+
+  const healthy = spawnSync(process.execPath, [BIN, "skills", "doctor", "--target", target, "--global", "--json"], {
+    cwd: ROOT,
+    encoding: "utf8",
+    env: { ...process.env, HOME: home, USERPROFILE: home },
+  });
+  assert.equal(healthy.status, 0, `${healthy.stdout}\n${healthy.stderr}`);
+  assert.equal((JSON.parse(healthy.stdout) as { readonly data: { readonly global: boolean } }).data.global, true);
+
+  const divergentSkill = resolve(home, ".codex", "skills", definitions[0]!.name, "SKILL.md");
+  writeFileSync(divergentSkill, "divergent\n");
+  const divergent = spawnSync(process.execPath, [BIN, "skills", "doctor", "--target", target, "--global", "--json"], {
+    cwd: ROOT,
+    encoding: "utf8",
+    env: { ...process.env, HOME: home, USERPROFILE: home },
+  });
+  assert.equal(divergent.status, 3, `${divergent.stdout}\n${divergent.stderr}`);
+  assert.match(divergent.stdout, /divergent/);
 });
 
 test("install dry-run ne crée rien et un conflit exige --force avec backup", (context) => {

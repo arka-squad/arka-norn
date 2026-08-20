@@ -8,9 +8,10 @@ arka-norn skills install --target <repo> --profile all --dry-run
 arka-norn skills install --target <repo> --profile all
 arka-norn skills install --target <repo> --profile core --global
 arka-norn skills doctor --target <repo> --json
+arka-norn skills doctor --target <repo> --global --json
 ```
 
-Profils : `core` (6), `delivery` (14), `all` (16, défaut). Le catalogue versionne chaque source et son SHA-256. `doctor` compare les rendus Claude/Codex attendus aux fichiers installés. Une divergence locale retourne le code 3 ; l'installation retourne le code 5 et n'écrase rien sans `--force`. En cas de remplacement forcé, un backup est créé sous `.arka-norn/backups/skills/`.
+Profils : `core` (6), `delivery` (14), `all` (16, défaut). Le catalogue versionne chaque source et son SHA-256. `doctor` compare les rendus Claude/Codex attendus aux fichiers installés ; `--global` inclut `~/.claude/skills/` et `~/.codex/skills/`. Une divergence retourne le code 3 ; l'installation retourne le code 5 et n'écrase rien sans `--force`. En cas de remplacement forcé, un backup est créé sous `.arka-norn/backups/skills/`.
 
 L'utilisateur déclenche le point d'entrée avec `/arka-norn` dans Claude Code ou `$arka-norn` dans Codex. Un provider sans syntaxe de skill dédiée reçoit la consigne `Utilise la skill arka-norn pour initialiser ce nouveau Project.` Le parcours et le contrat de sortie sont décrits dans [`agent-bootstrap.md`](agent-bootstrap.md).
 

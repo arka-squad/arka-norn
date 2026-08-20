@@ -1,12 +1,11 @@
 import * as fs from "node:fs/promises";
 import { join } from "node:path";
 
-import { PathSecurityError, ProjectAlreadyExistsError, ProjectNotFoundError } from "../../../domain/errors.js";
+import { PathSecurityError, ProjectAlreadyExistsError, ProjectMarkerNotFoundError } from "../../../domain/errors.js";
 import { ProjectId } from "../../../domain/project/project-id.js";
 import { Project } from "../../../domain/project/project.js";
 import {
-  type ProjectMarkerV2,
-  isProjectMarkerV2,
+  type ProjectMarkerV3,
   planProjectMarkerMigration,
 } from "../../../domain/shared/marker-formats.js";
 import type { ProjectStore } from "../../../ports/outbound/project-store.js";
@@ -39,16 +38,15 @@ export class FsProjectStore implements ProjectStore {
 
   public async load(root: string): Promise<Project> {
     const current = await readJson<unknown>(projectMarkerPath(root));
-    let marker: ProjectMarkerV2;
+    let marker: ProjectMarkerV3;
     if (current !== undefined) {
-      if (!isProjectMarkerV2(current)) throw new ProjectNotFoundError(root);
-      marker = current;
+      marker = planProjectMarkerMigration(current).output;
     } else {
       const legacy = await readJson<unknown>(legacyMarkerPath(root));
-      if (legacy === undefined) throw new ProjectNotFoundError(root);
+      if (legacy === undefined) throw new ProjectMarkerNotFoundError(root);
       marker = planProjectMarkerMigration(legacy).output;
     }
-    const canonicalRoot = await this.paths.assertMarkerRoot(marker.root, root);
+    const canonicalRoot = await this.paths.assertMarkerRoot(root, root);
     return Project.create({
       id: ProjectId.of(marker.id),
       name: marker.name,
@@ -66,12 +64,11 @@ export class FsProjectStore implements ProjectStore {
   }
 }
 
-function serialize(project: Project): ProjectMarkerV2 {
+function serialize(project: Project): ProjectMarkerV3 {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     id: project.id.value,
     name: project.name,
-    root: project.root,
     createdAt: project.createdAt.toISOString(),
     updatedAt: project.updatedAt.toISOString(),
   };

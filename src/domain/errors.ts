@@ -16,10 +16,12 @@ export type DomainErrorCode =
   | "INVALID_FEATURE_OPTION"
   | "FEATURE_ALREADY_EXISTS"
   | "FEATURE_NOT_FOUND"
+  | "FEATURE_MARKER_NOT_FOUND"
   | "INVALID_PROJECT_ID"
   | "INVALID_PROJECT_OPTION"
   | "PROJECT_ALREADY_EXISTS"
   | "PROJECT_NOT_FOUND"
+  | "PROJECT_MARKER_NOT_FOUND"
   | "FILE_NOT_FOUND"
   | "PERMISSION_DENIED"
   | "NOT_A_DIRECTORY"
@@ -102,9 +104,21 @@ export class FeatureAlreadyExistsError extends DomainError {
   }
 }
 
+export class FeatureLocationConflictError extends DomainError {
+  public constructor(id: string, indexedRoot: string, candidateRoot: string) {
+    super("FEATURE_ALREADY_EXISTS", `Feature "${id}" is already active at "${indexedRoot}"; refusing duplicate location "${candidateRoot}".`);
+  }
+}
+
 export class FeatureNotFoundError extends DomainError {
   public constructor(id: string) {
     super("FEATURE_NOT_FOUND", `Feature "${id}" not found in the index.`);
+  }
+}
+
+export class FeatureMarkerNotFoundError extends DomainError {
+  public constructor(root: string) {
+    super("FEATURE_MARKER_NOT_FOUND", `Feature marker not found at "${root}/.arka-norn/feature.json".`);
   }
 }
 
@@ -126,9 +140,21 @@ export class ProjectAlreadyExistsError extends DomainError {
   }
 }
 
+export class ProjectLocationConflictError extends DomainError {
+  public constructor(id: string, indexedRoot: string, candidateRoot: string) {
+    super("PROJECT_ALREADY_EXISTS", `Project "${id}" is already active at "${indexedRoot}"; refusing duplicate location "${candidateRoot}".`);
+  }
+}
+
 export class ProjectNotFoundError extends DomainError {
   public constructor(id: string) {
     super("PROJECT_NOT_FOUND", `Project "${id}" not found in the index.`);
+  }
+}
+
+export class ProjectMarkerNotFoundError extends DomainError {
+  public constructor(root: string) {
+    super("PROJECT_MARKER_NOT_FOUND", `Project marker not found at "${root}/.arka-norn/project.json".`);
   }
 }
 

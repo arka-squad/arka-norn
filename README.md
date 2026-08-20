@@ -30,7 +30,7 @@ arka-norn project list|add|import|scan|show|use|forget|reconcile
 arka-norn feature list|create|import|scan|show|use|forget|reconcile
 arka-norn agent list|register|show|current|use|deactivate|replace
 arka-norn pipeline status|next|scaffold|validate
-arka-norn skills list|install|doctor
+arka-norn skills list|install|doctor [--global]
 arka-norn doctor [--repair [--apply]]
 arka-norn migrate [--target <path>] [--dry-run|--apply]
 arka-norn selftest                                  # vérifie le produit
@@ -51,7 +51,7 @@ Les alias `status`, `scaffold`, `validate`, `install` et `depot` restent compati
 <feature-root>/.arka-norn/feature.json
 ```
 
-Les markers portables sont les sources de vérité. Les index locaux sont des caches reconstructibles. Les formats v2 utilisent `schemaVersion`; la Feature porte obligatoirement `projectId` et `pipelineId`. Les anciens markers v1 sont uniquement des entrées de migration, jamais de nouvelles sorties.
+Les markers portables sont les sources de vérité. Les index locaux sont des caches reconstructibles. Les formats v3 utilisent `schemaVersion`, omettent tout chemin machine et dérivent leur racine de leur emplacement canonique ; la Feature porte obligatoirement `projectId` et `pipelineId`. Les anciens markers v1/v2 restent des entrées de migration, jamais de nouvelles sorties.
 
 Le registre Agents porte des identifiants lisibles `Provider_role_YYYYMMDD`, le provider, le rôle, le périmètre, `active` et la lignée de remplacement. La sélection courante est locale. Voir [`docs/agent-registry.md`](docs/agent-registry.md).
 
@@ -75,6 +75,7 @@ arka-norn skills install --target . --profile all
 arka-norn skills install --target . --profile core --global
 arka-norn skills install --target . --profile all --force  # sauvegarde puis répare les divergences
 arka-norn skills doctor --target . --json
+arka-norn skills doctor --target . --global --json       # inclut ~/.claude et ~/.codex
 ```
 
 ## Documentation

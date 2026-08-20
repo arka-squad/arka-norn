@@ -1,13 +1,12 @@
 import * as fs from "node:fs/promises";
 import { join } from "node:path";
 
-import { FeatureAlreadyExistsError, FeatureNotFoundError, PathSecurityError } from "../../../domain/errors.js";
+import { FeatureAlreadyExistsError, FeatureMarkerNotFoundError, PathSecurityError } from "../../../domain/errors.js";
 import { FeatureId } from "../../../domain/feature/feature-id.js";
 import { Feature } from "../../../domain/feature/feature.js";
 import { ProjectId } from "../../../domain/project/project-id.js";
 import {
-  type FeatureMarkerV2,
-  isFeatureMarkerV2,
+  type FeatureMarkerV3,
   planFeatureMarkerMigration,
 } from "../../../domain/shared/marker-formats.js";
 import type { FeatureStore } from "../../../ports/outbound/feature-store.js";
@@ -41,21 +40,18 @@ export class FsFeatureStore implements FeatureStore {
 
   public async load(root: string): Promise<Feature> {
     const value = await readJson<unknown>(markerPath(root));
-    if (value === undefined) throw new FeatureNotFoundError(root);
-    if (!isFeatureMarkerV2(value)) {
-      planFeatureMarkerMigration(value);
-      throw new FeatureNotFoundError(root);
-    }
-    const canonicalRoot = await this.paths.assertMarkerRoot(value.root, root);
+    if (value === undefined) throw new FeatureMarkerNotFoundError(root);
+    const marker = planFeatureMarkerMigration(value).output;
+    const canonicalRoot = await this.paths.assertMarkerRoot(root, root);
     return Feature.create({
-      id: FeatureId.of(value.id),
-      projectId: ProjectId.of(value.projectId),
-      name: value.name,
+      id: FeatureId.of(marker.id),
+      projectId: ProjectId.of(marker.projectId),
+      name: marker.name,
       root: canonicalRoot,
-      pipelineId: value.pipelineId,
-      schemaVersion: value.schemaVersion,
-      createdAt: new Date(value.createdAt),
-      updatedAt: new Date(value.updatedAt),
+      pipelineId: marker.pipelineId,
+      schemaVersion: marker.schemaVersion,
+      createdAt: new Date(marker.createdAt),
+      updatedAt: new Date(marker.updatedAt),
     });
   }
 
@@ -66,13 +62,12 @@ export class FsFeatureStore implements FeatureStore {
   }
 }
 
-function serialize(feature: Feature): FeatureMarkerV2 {
+function serialize(feature: Feature): FeatureMarkerV3 {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     id: feature.id.value,
     projectId: feature.projectId.value,
     name: feature.name,
-    root: feature.root,
     pipelineId: feature.pipelineId,
     createdAt: feature.createdAt.toISOString(),
     updatedAt: feature.updatedAt.toISOString(),

@@ -23,6 +23,8 @@ export interface FeatureIndexStore {
   save(entries: readonly FeatureIndexEntry[]): Promise<void>;
   /** Ajoute une entrée. Lève FeatureAlreadyExistsError si l'id existe déjà. */
   add(entry: FeatureIndexEntry): Promise<void>;
+  /** Ajoute ou remplace atomiquement une entrée après arbitrage métier d'une relocalisation. */
+  upsert(entry: FeatureIndexEntry): Promise<void>;
   /** Retire une entrée par id. No-op si absente. */
   remove(id: FeatureId): Promise<void>;
   /** Met à jour updatedAt. Lève FeatureNotFoundError si absente. */

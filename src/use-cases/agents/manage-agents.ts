@@ -84,10 +84,7 @@ export function manageAgentsUseCaseFactory(deps: {
       const id = await deps.session.current(project.id);
       if (id === undefined) return undefined;
       const agent = (await deps.registry.load(project)).find((candidate) => candidate.id.equals(id));
-      if (agent === undefined || !agent.active) {
-        await deps.session.select(project.id, undefined);
-        return undefined;
-      }
+      if (agent === undefined || !agent.active) return undefined;
       return agent;
     },
   };

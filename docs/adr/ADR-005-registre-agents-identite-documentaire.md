@@ -19,4 +19,4 @@ Les noms d’agent n’étaient présents que dans quelques documents spécialis
 
 ## Conséquences
 
-Les marqueurs v2 restent stables. L’historique des auteurs ne change jamais lors d’un remplacement. Le registre et la session utilisent écritures atomiques, locks, validation stricte et permissions adaptées à leur portabilité.
+Les marqueurs v3 restent indépendants du format du registre. L’historique des auteurs ne change jamais lors d’un remplacement. Le registre et la session utilisent écritures atomiques, locks, validation stricte et permissions adaptées à leur portabilité. Une lecture `agent current` ne répare jamais silencieusement la session ; `doctor` expose toute référence absente ou inactive.

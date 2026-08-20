@@ -204,7 +204,7 @@ function errorCode(error) {
     if (error instanceof UsageError || error instanceof CliUsageError)
         return 64;
     if (error instanceof DomainError) {
-        if (error.code === "PROJECT_NOT_FOUND" || error.code === "FEATURE_NOT_FOUND" || error.code === "FILE_NOT_FOUND")
+        if (error.code === "PROJECT_NOT_FOUND" || error.code === "PROJECT_MARKER_NOT_FOUND" || error.code === "FEATURE_NOT_FOUND" || error.code === "FEATURE_MARKER_NOT_FOUND" || error.code === "FILE_NOT_FOUND")
             return 4;
         if (error.code === "PROJECT_ALREADY_EXISTS" || error.code === "FEATURE_ALREADY_EXISTS" || error.code === "LOCK_CONFLICT")
             return 5;

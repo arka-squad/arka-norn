@@ -5,7 +5,7 @@ export interface ProjectProps {
   readonly id: ProjectId;
   readonly name: string;
   readonly root: string;
-  readonly schemaVersion: 2;
+  readonly schemaVersion: 3;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }
@@ -14,7 +14,7 @@ export class Project {
   public readonly id: ProjectId;
   public readonly name: string;
   public readonly root: string;
-  public readonly schemaVersion: 2;
+  public readonly schemaVersion: 3;
   public readonly createdAt: Date;
   public readonly updatedAt: Date;
 

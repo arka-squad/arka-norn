@@ -4,7 +4,7 @@ Sont non fiables : roots fournis, markers, symlinks, noms, JSON, environnement, 
 
 - Les roots sont absolus, canonisés par `realpath` et comparés avec `path.relative`.
 - Les roots et zones sensibles symboliques sont refusés.
-- `marker.root` doit correspondre à son emplacement réel.
+- Les markers v3 ne contiennent aucun `root` non fiable ; la racine runtime est dérivée de leur emplacement après `realpath`. Le champ absolu historique des v1/v2 est validé puis supprimé par migration et n'est jamais utilisé comme destination runtime.
 - Une Feature doit être strictement contenue dans son Project.
 - Les JSON sont bornés à 2 Mio et lus via `lstat`.
 - Sur POSIX, les index/logs privés utilisent `0600` et les markers portables
@@ -25,4 +25,4 @@ Sont non fiables : roots fournis, markers, symlinks, noms, JSON, environnement, 
   à 2 Mio et conserve au plus cinq archives.
 - Aucun shell n’est utilisé pour piloter la TUI ou les cas d’usage.
 
-`arka-norn doctor --repair` ne modifie rien. Ajouter `--apply` pour isoler l’index corrompu dans un backup puis le réinitialiser. Le diagnostic couvre aussi markers, locks, audit trail et installation des skills. Les scans explicites reconstruisent ensuite les index depuis les markers valides.
+`arka-norn doctor --repair` ne modifie rien. Ajouter `--apply` pour isoler l’index corrompu dans un backup puis le réinitialiser. Le diagnostic couvre aussi markers, locks, audit trail, cohérence des sessions Agents, contexte Project courant et installation locale des skills. `arka-norn skills doctor --global` ajoute le contrôle des installations Claude/Codex du profil utilisateur. Les scans explicites reconstruisent ensuite les index depuis les markers valides.

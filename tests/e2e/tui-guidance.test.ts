@@ -41,7 +41,7 @@ test("le cockpit Feature expose l’auteur, la raison et l’aide opératoire", 
   const at = new Date("2026-08-19T10:00:00.000Z");
   const feature = Feature.create({
     id: FeatureId.of("connecteurs-notion-linear"), projectId: ProjectId.of("cortex"), name: "Notion Linear",
-    root: featureRoot, pipelineId: report.pipelineId, schemaVersion: 2, createdAt: at, updatedAt: at,
+    root: featureRoot, pipelineId: report.pipelineId, schemaVersion: 3, createdAt: at, updatedAt: at,
   });
   let output = "";
   const renderer = createRenderer({ write: (chunk) => { output += chunk; }, isTTY: false, columns: 140 });

@@ -29,6 +29,12 @@ export class FsProjectIndexStore {
             await this.saveUnlocked([...entries, entry]);
         });
     }
+    async upsert(entry) {
+        await withFileLock(this.indexPath(), async () => {
+            const entries = await this.loadUnlocked();
+            await this.saveUnlocked([...entries.filter((item) => item.id !== entry.id), entry]);
+        });
+    }
     async remove(id) {
         await withFileLock(this.indexPath(), async () => {
             const entries = await this.loadUnlocked();

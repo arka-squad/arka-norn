@@ -42,7 +42,7 @@ export function createSkillCatalogRuntime(frameworkRoot, profile = "all") {
         },
         renderGlobalSkillMd(definition) {
             const tools = definition.allowed_tools.map((tool) => `  - ${tool}`).join("\n");
-            return `---\nname: ${definition.name}\nversion: 1.0.0\ndescription: |\n${wrapYamlBlock(substitute(definition.declencheurs_globaux))}\ncompatibility: claude-code opencode claude-ai\nallowed-tools:\n${tools}\n---\n\n# ${definition.titre_h1_global}\n\n${substitute(definition.description_courte)}\n\n${renderBody(definition, substitute, frameworkName, frameworkReference)}`;
+            return `---\nname: ${definition.name}\nversion: ${definition.catalog.version}\ndescription: |\n${wrapYamlBlock(substitute(definition.declencheurs_globaux))}\ncompatibility: claude-code opencode claude-ai\nallowed-tools:\n${tools}\n---\n\n# ${definition.titre_h1_global}\n\n${substitute(definition.description_courte)}\n\n${renderBody(definition, substitute, frameworkName, frameworkReference)}`;
         },
         renderOpenaiYaml(definition) {
             const displayName = substitute(definition.interface?.display_name ?? `Arka — ${definition.name}`);

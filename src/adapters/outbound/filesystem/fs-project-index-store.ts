@@ -38,6 +38,13 @@ export class FsProjectIndexStore implements ProjectIndexStore {
     });
   }
 
+  public async upsert(entry: ProjectIndexEntry): Promise<void> {
+    await withFileLock(this.indexPath(), async () => {
+      const entries = await this.loadUnlocked();
+      await this.saveUnlocked([...entries.filter((item) => item.id !== entry.id), entry]);
+    });
+  }
+
   public async remove(id: ProjectId): Promise<void> {
     await withFileLock(this.indexPath(), async () => {
       const entries = await this.loadUnlocked();

@@ -22,7 +22,9 @@ arka-norn est un plan de contrôle local-first pour des Projects et leurs Featur
 - Agent courant : `~/.arka-norn/context/agents.json`, contexte privé reconstructible.
 - Documents : JSON de la Feature, validés par les schémas et le graphe Pipeline.
 - Index : `~/.arka-norn/index/*.json`, caches privés reconstructibles.
-- Catalogue skills : `skills-src/catalog/skills.json` et les 15 sources JSON référencées.
+- Catalogue skills : `skills-src/catalog/skills.json` et les 16 sources JSON référencées.
+
+Les marqueurs Project/Feature v3 ne stockent aucun chemin machine. Les adapters dérivent la racine runtime du dossier canonique qui contient le marqueur ; seuls les index locaux enregistrent des chemins absolus. Un clone ou un déplacement conserve ainsi sa source de vérité, puis un scan reconstruit le cache de la machine courante. Si l'ancien emplacement indexé n'est plus lisible, le cache est relocalisé atomiquement ; si les deux emplacements portent encore la même identité, le doublon actif est refusé.
 
 Le `PipelineReport` sépare présence, conformité de schéma, verdict métier, dépendances, complétude et prochaines actions. Une QA `pass` ne termine la Feature que si elle référence le dernier CR de développement valide.
 
@@ -30,7 +32,7 @@ Les documents historiques utilisent l’enveloppe v2. Tout nouveau scaffold util
 `schema_version`, `sequence`, `created_at` et relations explicites. Le moteur
 rejette IDs dupliqués, cardinalités interdites, relations inconnues et cycles.
 
-Le domaine Agent est séparé des marqueurs pour ne pas coupler leur version. Son adapter sérialise les inscriptions et remplacements sous un lock par Project ; les use cases CLI/TUI partagent exactement les mêmes transitions.
+Le domaine Agent est séparé des marqueurs pour ne pas coupler leur version. Son adapter sérialise les inscriptions et remplacements sous un lock par Project ; les use cases CLI/TUI partagent exactement les mêmes transitions. `doctor` vérifie la chaîne session locale → Project indexé → marqueur → registre → Agent actif et contrôle aussi le contexte Project du répertoire ciblé.
 
 ## Transactions locales
 

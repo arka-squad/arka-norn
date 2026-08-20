@@ -42,30 +42,35 @@ export function scanFeaturesUseCaseFactory(deps: FeaturesDeps): ScanFeaturesUseC
       return [];
     }
 
-    let children: readonly string[];
-    try {
-      children = await filesystem.readDir(target);
-    } catch (err) {
-      logger.warn("scanFeatures: scan target unreadable", {
-        target,
-        error: err instanceof Error ? err.message : String(err),
-      });
-      return [];
+    const targetMarker = await filesystem.exists(filesystem.resolve(target, ".arka-norn", "feature.json"));
+    let roots: readonly string[];
+    if (targetMarker) {
+      roots = [target];
+    } else {
+      let children: readonly string[];
+      try {
+        children = await filesystem.readDir(target);
+      } catch (err) {
+        logger.warn("scanFeatures: scan target unreadable", {
+          target,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        return [];
+      }
+      const discovered: string[] = [];
+      for (const name of children) {
+        const root = filesystem.resolve(target, name);
+        try {
+          if ((await filesystem.stat(root)).isDirectory) discovered.push(root);
+        } catch {
+          continue;
+        }
+      }
+      roots = discovered;
     }
 
     const results: FeatureScanResult[] = [];
-    for (const name of children) {
-      const root = filesystem.resolve(target, name);
-
-      let isDir = false;
-      try {
-        const s = await filesystem.stat(root);
-        isDir = s.isDirectory;
-      } catch {
-        continue;
-      }
-      if (!isDir) continue;
-
+    for (const root of roots) {
       const markerPath = filesystem.resolve(root, ".arka-norn", "feature.json");
       const hasMarker = await filesystem.exists(markerPath);
       if (!hasMarker) {
@@ -90,17 +95,35 @@ export function scanFeaturesUseCaseFactory(deps: FeaturesDeps): ScanFeaturesUseC
     }
 
     const indexEntries = await indexStore.load();
-    const knownIds = new Set(indexEntries.map((e) => e.id));
+    const known = new Map(indexEntries.map((entry) => [entry.id, entry] as const));
     for (const r of results) {
-      if (r.feature !== undefined && !knownIds.has(r.feature.id.value)) {
-        await indexStore.add({
-          id: r.feature.id.value,
-          projectId: r.feature.projectId.value,
-          root: r.feature.root,
-          name: r.feature.name,
-          updatedAt: r.feature.updatedAt,
-        });
+      if (r.feature === undefined) continue;
+      const entry = {
+        id: r.feature.id.value,
+        projectId: r.feature.projectId.value,
+        root: r.feature.root,
+        name: r.feature.name,
+        updatedAt: r.feature.updatedAt,
+      };
+      const indexed = known.get(entry.id);
+      if (indexed === undefined) {
+        await indexStore.add(entry);
+        known.set(entry.id, entry);
+        continue;
       }
+      if (indexed.root === entry.root) continue;
+      let duplicateIsActive = false;
+      try {
+        duplicateIsActive = (await featureStore.load(indexed.root)).id.value === entry.id;
+      } catch {
+        duplicateIsActive = false;
+      }
+      if (duplicateIsActive) {
+        logger.warn("scanFeatures: duplicate portable marker ignored", { id: entry.id, indexedRoot: indexed.root, candidateRoot: entry.root });
+        continue;
+      }
+      await indexStore.upsert(entry);
+      known.set(entry.id, entry);
     }
 
     return results;

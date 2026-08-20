@@ -20,4 +20,4 @@ Vérifier `pipeline status`. Une QA `fail` retourne vers `cr_dev`; une QA `pass`
 
 ## Skill divergent
 
-`arka-norn skills doctor --target <repo> --json` montre les fichiers concernés. Conserver la personnalisation ou utiliser `skills install --force`; le contenu remplacé est sauvegardé.
+`arka-norn skills doctor --target <repo> --json` montre les fichiers locaux concernés. Ajouter `--global` pour inclure les copies Claude/Codex du profil utilisateur. Conserver la personnalisation ou utiliser `skills install --force`; le contenu remplacé est sauvegardé.

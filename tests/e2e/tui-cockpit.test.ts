@@ -17,7 +17,7 @@ test("le cockpit Feature rend état, prochaine action, timeline, runs, dettes et
   const at = new Date("2026-08-19T10:00:00.000Z");
   const feature = Feature.create({
     id: FeatureId.of("connecteurs-notion-linear"), projectId: ProjectId.of("cortex"), name: "Notion Linear",
-    root: featureRoot, pipelineId: report.pipelineId, schemaVersion: 2, createdAt: at, updatedAt: at,
+    root: featureRoot, pipelineId: report.pipelineId, schemaVersion: 3, createdAt: at, updatedAt: at,
   });
   let output = "";
   const renderer = createRenderer({ write: (chunk) => { output += chunk; }, isTTY: false, columns: 120 });

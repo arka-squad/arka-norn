@@ -10,16 +10,17 @@ export function runSkillsCommand(argv, context) {
         if (action === "install")
             return install(rest, context, json);
         const parsed = parseStrictArguments(rest, {
-            options: { target: "string", profile: "string", installed: "boolean", json: "boolean" },
+            options: { target: "string", profile: "string", installed: "boolean", global: "boolean", json: "boolean" },
             minPositionals: 0,
             maxPositionals: 0,
         });
         const target = resolve(context.cwd, parsed.values.get("target") ?? context.cwd);
         const profile = parsed.values.get("profile") ?? "all";
+        const globalHome = parsed.booleans.has("global") ? context.homeDir : undefined;
         const catalog = createSkillCatalogRuntime(context.frameworkRoot, profile);
         if (action === "list") {
             const health = parsed.booleans.has("installed")
-                ? new Map(inspectSkills(context.frameworkRoot, target, profile).map((item) => [item.name, item.status]))
+                ? new Map(inspectSkills(context.frameworkRoot, target, profile, globalHome).map((item) => [item.name, item.status]))
                 : undefined;
             const data = catalog.definitions.map((definition) => ({
                 name: definition.name,
@@ -32,9 +33,9 @@ export function runSkillsCommand(argv, context) {
             return success("skills.list", data, json, data.map((item) => `${item.name}\t${item.version}\t${item.step}${"status" in item ? `\t${item.status}` : ""}`).join("\n"));
         }
         if (action === "doctor") {
-            const checks = inspectSkills(context.frameworkRoot, target, profile);
+            const checks = inspectSkills(context.frameworkRoot, target, profile, globalHome);
             const ok = checks.every((check) => check.status === "ok");
-            const data = { profile, target, checks };
+            const data = { profile, target, global: globalHome !== undefined, checks };
             const human = checks.map((check) => `${check.status.toUpperCase()}\t${check.name}`).join("\n");
             return envelope("skills.doctor", ok, data, ok ? [] : ["Skills absents ou divergents."], json, ok ? 0 : 3, human);
         }

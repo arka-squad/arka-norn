@@ -12,8 +12,8 @@ test("ProjectDetail sérialise deux validations Entrée sur une action lente", a
   const at = new Date("2026-08-19T10:00:00.000Z");
   const projectId = ProjectId.of("project");
   const featureId = FeatureId.of("feature");
-  const project = Project.create({ id: projectId, name: "Project", root: "/workspace/project", schemaVersion: 2, createdAt: at, updatedAt: at });
-  const feature = Feature.create({ id: featureId, projectId, name: "Feature", root: "/workspace/project/feature", pipelineId: "arka-norn-default", schemaVersion: 2, createdAt: at, updatedAt: at });
+  const project = Project.create({ id: projectId, name: "Project", root: "/workspace/project", schemaVersion: 3, createdAt: at, updatedAt: at });
+  const feature = Feature.create({ id: featureId, projectId, name: "Feature", root: "/workspace/project/feature", pipelineId: "arka-norn-default", schemaVersion: 3, createdAt: at, updatedAt: at });
   let releaseSwitch: (() => void) | undefined;
   const waitForRelease = new Promise<void>((resolve) => { releaseSwitch = resolve; });
   let switchCalls = 0;

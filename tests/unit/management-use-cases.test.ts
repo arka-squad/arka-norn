@@ -3,9 +3,9 @@ import { posix } from "node:path";
 import { test } from "node:test";
 
 import { FeatureId } from "../../src/domain/feature/feature-id.ts";
-import type { Feature } from "../../src/domain/feature/feature.ts";
+import { Feature } from "../../src/domain/feature/feature.ts";
 import { ProjectId } from "../../src/domain/project/project-id.ts";
-import type { Project } from "../../src/domain/project/project.ts";
+import { Project } from "../../src/domain/project/project.ts";
 import type { FeatureIndexEntry, FeatureIndexStore } from "../../src/ports/outbound/feature-index-store.ts";
 import type { FeatureStore } from "../../src/ports/outbound/feature-store.ts";
 import type { Filesystem } from "../../src/ports/outbound/filesystem.ts";
@@ -52,6 +52,20 @@ test("tous les cas d'usage Project fonctionnent derrière des ports fake", async
   const discovered = await scanProjectsUseCaseFactory(deps)({ target: "/work" });
   assert.equal(discovered[0]?.project?.id.value, id.value);
   assert.equal((await deps.indexStore.find(id))?.root, created.root);
+  await deps.indexStore.remove(id);
+  const direct = await scanProjectsUseCaseFactory(deps)({ target: created.root });
+  assert.equal(direct.length, 1);
+  assert.equal(direct[0]?.root, created.root);
+  assert.equal(direct[0]?.project?.id.value, id.value);
+
+  const movedRoot = "/work/project-moved";
+  const moved = Project.create({ ...projectProps(created), root: movedRoot });
+  harness.projects.set(movedRoot, moved);
+  await assert.rejects(importProjectUseCaseFactory(deps)({ root: movedRoot }), (error: unknown) => error instanceof Error && "code" in error && error.code === "PROJECT_ALREADY_EXISTS");
+  harness.projects.delete(created.root);
+  const relocated = await scanProjectsUseCaseFactory(deps)({ target: movedRoot });
+  assert.equal(relocated[0]?.project?.root, movedRoot);
+  assert.equal((await deps.indexStore.find(id))?.root, movedRoot);
 });
 
 test("tous les cas d'usage Feature fonctionnent derrière des ports fake", async () => {
@@ -77,6 +91,20 @@ test("tous les cas d'usage Feature fonctionnent derrière des ports fake", async
   const discovered = await scanFeaturesUseCaseFactory(deps)({ target: "/work/project", projectId });
   assert.equal(discovered[0]?.feature?.id.value, id.value);
   assert.equal((await deps.indexStore.find(id))?.root, created.root);
+  await deps.indexStore.remove(id);
+  const direct = await scanFeaturesUseCaseFactory(deps)({ target: created.root, projectId });
+  assert.equal(direct.length, 1);
+  assert.equal(direct[0]?.root, created.root);
+  assert.equal(direct[0]?.feature?.id.value, id.value);
+
+  const movedRoot = "/work/project/feature-moved";
+  const moved = Feature.create({ ...featureProps(created), root: movedRoot });
+  harness.features.set(movedRoot, moved);
+  await assert.rejects(importFeatureUseCaseFactory(deps)({ root: movedRoot, projectId }), (error: unknown) => error instanceof Error && "code" in error && error.code === "FEATURE_ALREADY_EXISTS");
+  harness.features.delete(created.root);
+  const relocated = await scanFeaturesUseCaseFactory(deps)({ target: movedRoot, projectId });
+  assert.equal(relocated[0]?.feature?.root, movedRoot);
+  assert.equal((await deps.indexStore.find(id))?.root, movedRoot);
 });
 
 function createHarness() {
@@ -105,6 +133,7 @@ function createHarness() {
     load: async () => [...projectEntries],
     save: async (entries) => { projectEntries = [...entries]; },
     add: async (entry) => { projectEntries = [...projectEntries.filter((item) => item.id !== entry.id), entry]; },
+    upsert: async (entry) => { projectEntries = [...projectEntries.filter((item) => item.id !== entry.id), entry]; },
     remove: async (id) => { projectEntries = projectEntries.filter((entry) => entry.id !== id.value); },
     touch: async (id, at) => { projectEntries = projectEntries.map((entry) => entry.id === id.value ? { ...entry, updatedAt: at } : entry); },
     find: async (id) => projectEntries.find((entry) => entry.id === id.value),
@@ -113,6 +142,7 @@ function createHarness() {
     load: async () => [...featureEntries],
     save: async (entries) => { featureEntries = [...entries]; },
     add: async (entry) => { featureEntries = [...featureEntries.filter((item) => item.id !== entry.id), entry]; },
+    upsert: async (entry) => { featureEntries = [...featureEntries.filter((item) => item.id !== entry.id), entry]; },
     remove: async (id) => { featureEntries = featureEntries.filter((entry) => entry.id !== id.value); },
     touch: async (id, at) => { featureEntries = featureEntries.map((entry) => entry.id === id.value ? { ...entry, updatedAt: at } : entry); },
     find: async (id) => featureEntries.find((entry) => entry.id === id.value),
@@ -162,4 +192,19 @@ function markerRoot(path: string, marker: string): string {
 function required<T>(value: T | undefined, key: string): T {
   if (value === undefined) throw new Error(`missing fake value: ${key}`);
   return value;
+}
+
+function projectProps(project: Project) {
+  return {
+    id: project.id, name: project.name, schemaVersion: project.schemaVersion,
+    createdAt: project.createdAt, updatedAt: project.updatedAt,
+  };
+}
+
+function featureProps(feature: Feature) {
+  return {
+    id: feature.id, projectId: feature.projectId, name: feature.name,
+    pipelineId: feature.pipelineId, schemaVersion: feature.schemaVersion,
+    createdAt: feature.createdAt, updatedAt: feature.updatedAt,
+  };
 }

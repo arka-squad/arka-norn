@@ -9,6 +9,7 @@ import { createSkillCatalogRuntime } from "../../src/adapters/outbound/skills/sk
 
 interface CatalogEntry {
   readonly name: string;
+  readonly version: string;
   readonly source: string;
   readonly checksum: string;
   readonly profiles: readonly string[];
@@ -106,6 +107,7 @@ test("les rendus Agents ont un frontmatter YAML sûr et une description UI born�
     const defaultLine = yaml.split("\n").find((line) => line.startsWith("  default_prompt: "));
     assert.ok(defaultLine);
     assert.match(JSON.parse(defaultLine.slice("  default_prompt: ".length)) as string, new RegExp(`\\$${definition.name}`));
+    assert.match(runtime.renderGlobalSkillMd(definition), new RegExp(`version: ${definition.catalog.version.replaceAll(".", "\\.")}`));
   }
   assert.match(runtime.renderOpenaiYaml(runtime.definitions.find((definition) => definition.name === "arka-norn")!), /Arka Norn — Démarrer/);
 });

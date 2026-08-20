@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { platform, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
@@ -13,7 +13,7 @@ const logger: Logger = {
   child() { return logger; },
 };
 
-test("un marker Project forgé avec une autre racine est refusé", async (context) => {
+test("une racine v2 forgée n'est jamais utilisée comme racine runtime", async (context) => {
   const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-forged-marker-"));
   context.after(() => rmSync(sandbox, { recursive: true, force: true }));
   const actual = resolve(sandbox, "actual");
@@ -25,7 +25,14 @@ test("un marker Project forgé avec une autre racine est refusé", async (contex
     createdAt: "2026-08-19T10:00:00.000Z", updatedAt: "2026-08-19T10:00:00.000Z",
   })}\n`);
 
-  await assert.rejects(new FsProjectStore().load(actual), (error: unknown) => error instanceof Error && "code" in error && error.code === "PATH_SECURITY");
+  const store = new FsProjectStore();
+  const project = await store.load(actual);
+  assert.equal(project.root, realpathSync(actual));
+  assert.notEqual(project.root, realpathSync(forged));
+  await store.save(project);
+  const portable = JSON.parse(readFileSync(resolve(actual, ".arka-norn", "project.json"), "utf8")) as Record<string, unknown>;
+  assert.equal(portable.schemaVersion, 3);
+  assert.equal("root" in portable, false);
 });
 
 test("les ajouts concurrents d'index ne perdent aucune entrée et gardent 0600 sur POSIX", async (context) => {

@@ -24,7 +24,7 @@ export interface FeatureProps {
   readonly name: string;
   readonly root: string;
   readonly pipelineId: string;
-  readonly schemaVersion: 2;
+  readonly schemaVersion: 3;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }
@@ -35,7 +35,7 @@ export class Feature {
   public readonly name: string;
   public readonly root: string;
   public readonly pipelineId: string;
-  public readonly schemaVersion: 2;
+  public readonly schemaVersion: 3;
   public readonly createdAt: Date;
   public readonly updatedAt: Date;
 

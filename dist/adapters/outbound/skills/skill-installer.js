@@ -10,12 +10,7 @@ export function installSkills(frameworkRoot, request) {
     if (request.global === true) {
         if (request.globalHome === undefined)
             throw new Error("Le home global doit être explicite pour une installation globale");
-        const globalHome = resolve(request.globalHome);
-        for (const definition of runtime.definitions) {
-            desired.push({ root: globalHome, file: join(globalHome, ".claude", "skills", definition.name, "SKILL.md"), content: runtime.renderGlobalSkillMd(definition) });
-            desired.push({ root: globalHome, file: join(globalHome, ".codex", "skills", definition.name, "SKILL.md"), content: runtime.renderRepoSkillMd(definition) });
-            desired.push({ root: globalHome, file: join(globalHome, ".codex", "skills", definition.name, "agents", "openai.yaml"), content: runtime.renderOpenaiYaml(definition) });
-        }
+        desired.push(...desiredGlobalFiles(runtime.definitions, resolve(request.globalHome), (definition) => runtime.renderGlobalSkillMd(definition), (definition) => runtime.renderRepoSkillMd(definition), (definition) => runtime.renderOpenaiYaml(definition)));
     }
     const plan = desired.map((item) => ({ ...item, action: classify(item.file, item.content) }));
     const skills = runtime.definitions.map((definition) => definition.name);
@@ -47,16 +42,26 @@ export function installSkills(frameworkRoot, request) {
         return { ok: false, code: 70, dryRun: false, profile, skills, plan, error: error instanceof Error ? error.message : String(error) };
     }
 }
-export function inspectSkills(frameworkRoot, target, profile = "all") {
+export function inspectSkills(frameworkRoot, target, profile = "all", globalHome) {
     const runtime = createSkillCatalogRuntime(frameworkRoot, profile);
     return runtime.definitions.map((definition) => {
         const expected = desiredFiles([definition], resolve(target), (item) => runtime.renderRepoSkillMd(item), (item) => runtime.renderOpenaiYaml(item));
+        if (globalHome !== undefined) {
+            expected.push(...desiredGlobalFiles([definition], resolve(globalHome), (item) => runtime.renderGlobalSkillMd(item), (item) => runtime.renderRepoSkillMd(item), (item) => runtime.renderOpenaiYaml(item)));
+        }
         const files = expected.map((item) => fileStatus(item.file, item.content));
         const status = files.every((file) => file.status === "ok")
             ? "ok"
             : files.some((file) => file.status === "divergent") ? "divergent" : "missing";
         return { name: definition.name, status, files };
     });
+}
+function desiredGlobalFiles(definitions, globalHome, renderClaude, renderCodex, renderOpenai) {
+    return definitions.flatMap((definition) => [
+        { root: globalHome, file: join(globalHome, ".claude", "skills", definition.name, "SKILL.md"), content: renderClaude(definition) },
+        { root: globalHome, file: join(globalHome, ".codex", "skills", definition.name, "SKILL.md"), content: renderCodex(definition) },
+        { root: globalHome, file: join(globalHome, ".codex", "skills", definition.name, "agents", "openai.yaml"), content: renderOpenai(definition) },
+    ]);
 }
 function desiredFiles(definitions, target, renderRepo, renderOpenai) {
     return definitions.flatMap((definition) => [

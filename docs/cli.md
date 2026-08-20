@@ -13,12 +13,16 @@ arka-norn project list|add|import|scan|show|use|forget|reconcile
 arka-norn feature list|create|import|scan|show|use|forget|reconcile
 arka-norn agent list|register|show|current|use|deactivate|replace
 arka-norn pipeline status|next|scaffold|validate
-arka-norn skills list|install|doctor
+arka-norn skills list|install|doctor [--global]
 arka-norn doctor [--repair [--apply]]
 arka-norn migrate [--target <path>] [--dry-run|--apply]
 ```
 
 `arka-norn skills install --target <repo> --profile core --global` installe le point d'entrée et le socle dans `~/.claude/skills/` et `~/.codex/skills/`, en plus des copies locales au Project.
+
+`arka-norn skills doctor --target <repo> --global --json` vérifie dans un même rapport les trois artefacts locaux et les trois artefacts globaux attendus pour chaque skill. Sans `--global`, le contrôle reste strictement local.
+
+`project scan <racine>` et `feature scan --path <racine>` reconnaissent directement un marqueur porté par la cible ; si la cible n'en porte pas, ils inspectent uniquement ses enfants immédiats. Un déplacement remplace atomiquement l'ancien chemin devenu illisible dans l'index. Une copie qui laisserait deux marqueurs actifs avec le même identifiant est refusée comme conflit d'identité.
 
 Avant un scaffold géré, enregistrez ou sélectionnez une identité active :
 

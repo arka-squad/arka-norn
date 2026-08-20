@@ -1,21 +1,21 @@
 import * as fs from "node:fs/promises";
 import { basename, join } from "node:path";
 
-import { isFeatureMarkerV2, isProjectMarkerV2 } from "../../../domain/shared/marker-formats.js";
+import { isFeatureMarkerV2, isFeatureMarkerV3, isProjectMarkerV2, isProjectMarkerV3 } from "../../../domain/shared/marker-formats.js";
 import type { DoctorIndexInspector, IndexInspection } from "../../../ports/outbound/doctor-index-inspector.js";
 import { readRaw, writeJsonAtomic } from "./_shared/atomic-json.js";
 import { inspectFileLock, repairAbandonedFileLock } from "./_shared/file-lock.js";
 import { isFeatureIndexFile, isIndexFile, isProjectIndexFile } from "./_shared/index-codec.js";
+import { FsAgentHealthInspector } from "./fs-agent-health-inspector.js";
 import { FsAuditTrail } from "./fs-audit-trail.js";
-import { FsProjectStore } from "./fs-project-store.js";
-import { FsAgentRegistryStore, agentRegistryPath } from "./fs-agent-registry-store.js";
-import { isAgentSessionFile } from "./fs-agent-session-store.js";
 
 export class FsDoctor implements DoctorIndexInspector {
   private readonly home: string;
+  private readonly agents: FsAgentHealthInspector;
 
-  public constructor(homeDir: string) {
+  public constructor(homeDir: string, targetDir?: string) {
     this.home = homeDir;
+    this.agents = new FsAgentHealthInspector(homeDir, targetDir);
   }
 
   public async inspectIndex(kind: "projects" | "features", repair: boolean, apply: boolean): Promise<IndexInspection> {
@@ -47,72 +47,16 @@ export class FsDoctor implements DoctorIndexInspector {
   }
 
   public async inspectRuntime(repair: boolean, apply: boolean): Promise<readonly IndexInspection[]> {
-    const [projectMarkers, featureMarkers, agentRegistries, agentSession, locks, audit] = await Promise.all([
+    const [projectMarkers, featureMarkers, agentRegistries, agentSession, projectContext, locks, audit] = await Promise.all([
       this.inspectMarkers("projects"),
       this.inspectMarkers("features"),
-      this.inspectAgentRegistries(),
-      this.inspectAgentSession(),
+      this.agents.inspectRegistries(),
+      this.agents.inspectSession(),
+      this.agents.inspectProjectContext(),
       this.inspectLocks(repair, apply),
       this.inspectAudit(),
     ]);
-    return [projectMarkers, featureMarkers, agentRegistries, agentSession, ...locks, audit];
-  }
-
-  private async inspectAgentSession(): Promise<IndexInspection> {
-    const target = join(this.home, ".arka-norn", "context", "agents.json");
-    const raw = await readRaw(target).catch((error: unknown) => error instanceof Error ? error : new Error(String(error)));
-    if (raw instanceof Error) return { check: { id: "agents.session", status: "fail", message: raw.message, repairable: false } };
-    if (raw === undefined) return { check: { id: "agents.session", status: "pass", message: "no local agent selection yet", repairable: false } };
-    try {
-      const value = JSON.parse(raw) as unknown;
-      if (!isAgentSessionFile(value)) return { check: { id: "agents.session", status: "fail", message: "local agent selection schema invalid", repairable: false } };
-      const mode = (await fs.stat(target)).mode & 0o777;
-      if (process.platform !== "win32" && mode !== 0o600) {
-        return { check: { id: "agents.session", status: "warn", message: `permissions are ${mode.toString(8)} instead of 600`, repairable: false } };
-      }
-      return { check: { id: "agents.session", status: "pass", message: `${Object.keys(value.selectedByProject).length} local project selection(s) valid`, repairable: false } };
-    } catch (error) {
-      return { check: { id: "agents.session", status: "fail", message: error instanceof Error ? error.message : String(error), repairable: false } };
-    }
-  }
-
-  private async inspectAgentRegistries(): Promise<IndexInspection> {
-    const target = join(this.home, ".arka-norn", "index", "projects.json");
-    const raw = await readRaw(target).catch(() => undefined);
-    if (raw === undefined) {
-      return { check: { id: "agents.registries", status: "warn", message: "project index absent; no agent registry to verify", repairable: false } };
-    }
-    let value: unknown;
-    try {
-      value = JSON.parse(raw) as unknown;
-    } catch {
-      return { check: { id: "agents.registries", status: "fail", message: "project index invalid; agent registries cannot be verified", repairable: false } };
-    }
-    if (!isProjectIndexFile(value)) {
-      return { check: { id: "agents.registries", status: "fail", message: "project index invalid; agent registries cannot be verified", repairable: false } };
-    }
-    const projectStore = new FsProjectStore();
-    const registryStore = new FsAgentRegistryStore();
-    const inspections = await Promise.all(value.entries.map(async (entry) => {
-      if (await readRaw(agentRegistryPath(entry.root)).catch(() => undefined) === undefined) return { id: entry.id, status: "missing" as const };
-      try {
-        const project = await projectStore.load(entry.root);
-        const agents = await registryStore.load(project);
-        return { id: entry.id, status: "valid" as const, active: agents.filter((agent) => agent.active).length };
-      } catch (error) {
-        return { id: entry.id, status: "invalid" as const, reason: error instanceof Error ? error.message : String(error) };
-      }
-    }));
-    const invalid = inspections.filter((item) => item.status === "invalid");
-    if (invalid.length > 0) {
-      return { check: { id: "agents.registries", status: "fail", message: `${invalid.length}/${inspections.length} invalid agent registry: ${invalid.map((item) => item.id).slice(0, 3).join(", ")}`, repairable: false } };
-    }
-    const missing = inspections.filter((item) => item.status === "missing");
-    if (missing.length > 0) {
-      return { check: { id: "agents.registries", status: "warn", message: `${missing.length}/${inspections.length} project(s) without an agent registry; register an identity before producing`, repairable: false } };
-    }
-    const active = inspections.reduce((sum, item) => sum + ("active" in item ? item.active : 0), 0);
-    return { check: { id: "agents.registries", status: "pass", message: `${inspections.length}/${inspections.length} registry file(s) valid, ${active} active agent(s)`, repairable: false } };
+    return [projectMarkers, featureMarkers, agentRegistries, agentSession, projectContext, ...locks, audit];
   }
 
   private async inspectMarkers(kind: "projects" | "features"): Promise<IndexInspection> {
@@ -140,7 +84,9 @@ export class FsDoctor implements DoctorIndexInspector {
   private async inspectProjectMarkers(entries: readonly { readonly id: string; readonly root: string }[]): Promise<IndexInspection> {
     const failures = (await Promise.all(entries.map(async (entry) => {
       const marker = await readJsonUnknown(join(entry.root, ".arka-norn", "project.json"));
-      return isProjectMarkerV2(marker) && marker.id === entry.id && marker.root === entry.root ? undefined : `${entry.id}@${entry.root}`;
+      const current = isProjectMarkerV3(marker) && marker.id === entry.id;
+      const legacy = isProjectMarkerV2(marker) && marker.id === entry.id && marker.root === entry.root;
+      return current || legacy ? undefined : `${entry.id}@${entry.root}`;
     }))).filter((failure): failure is string => failure !== undefined);
     return markerInspection("projects", entries.length, failures);
   }
@@ -148,7 +94,9 @@ export class FsDoctor implements DoctorIndexInspector {
   private async inspectFeatureMarkers(entries: readonly { readonly id: string; readonly projectId: string; readonly root: string }[]): Promise<IndexInspection> {
     const failures = (await Promise.all(entries.map(async (entry) => {
       const marker = await readJsonUnknown(join(entry.root, ".arka-norn", "feature.json"));
-      return isFeatureMarkerV2(marker) && marker.id === entry.id && marker.projectId === entry.projectId && marker.root === entry.root
+      const current = isFeatureMarkerV3(marker) && marker.id === entry.id && marker.projectId === entry.projectId;
+      const legacy = isFeatureMarkerV2(marker) && marker.id === entry.id && marker.projectId === entry.projectId && marker.root === entry.root;
+      return current || legacy
         ? undefined
         : `${entry.id}@${entry.root}`;
     }))).filter((failure): failure is string => failure !== undefined);

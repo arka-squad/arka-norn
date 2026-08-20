@@ -4,6 +4,14 @@ Toutes les modifications notables d’arka-norn sont consignées ici. Le projet
 utilise le versionnement sémantique ; les artefacts sont produits à partir des
 tags `vX.Y.Z`.
 
+## Non publié
+
+- marqueurs Project/Feature v3 réellement portables, sans chemin machine, avec migration v1/v2 sauvegardée ;
+- scans Project/Feature capables de reconnaître directement la racine transmise par les skills ;
+- `doctor` vérifie le contexte Project et les références de session jusqu'à l'Agent actif, sans mutation silencieuse de `agent current` ;
+- `skills doctor --global` contrôle les installations Claude/Codex et les rendus Claude utilisent la version exacte du catalogue ;
+- diagnostics de marqueur et documentation du catalogue corrigés.
+
 ## 1.1.0 — 2026-08-19
 
 - registre Agents portable par Project, identités lisibles, scopes, activation et remplacement traçable ;

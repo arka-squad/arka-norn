@@ -38,6 +38,13 @@ export class FsFeatureIndexStore implements FeatureIndexStore {
     });
   }
 
+  public async upsert(entry: FeatureIndexEntry): Promise<void> {
+    await withFileLock(this.indexPath(), async () => {
+      const entries = await this.loadUnlocked();
+      await this.saveUnlocked([...entries.filter((item) => item.id !== entry.id), entry]);
+    });
+  }
+
   public async remove(id: FeatureId): Promise<void> {
     await withFileLock(this.indexPath(), async () => {
       const entries = await this.loadUnlocked();

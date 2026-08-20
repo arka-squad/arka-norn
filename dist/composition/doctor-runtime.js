@@ -5,7 +5,7 @@ import { DirectSkillManager } from "../adapters/outbound/skills/direct-skill-man
 import { createDoctorUseCase } from "../application/doctor/run-doctor.js";
 const FRAMEWORK_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 export function createDoctorRuntime(homeDir, targetDir = process.cwd()) {
-    const filesystem = new FsDoctor(homeDir);
+    const filesystem = new FsDoctor(homeDir, targetDir);
     const skills = new DirectSkillManager(FRAMEWORK_ROOT);
     const inspector = {
         inspectIndex: (kind, repair, apply) => filesystem.inspectIndex(kind, repair, apply),
