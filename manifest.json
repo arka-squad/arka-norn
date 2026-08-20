@@ -17,6 +17,8 @@
     "pipelineCatalog": "pipelines/catalog.json",
     "fastdevPipeline": "pipelines/arka-norn-fastdev.json",
     "schemas": "schemas/",
+    "userManual": "docs/manuel-utilisateur.md",
+    "developerGuide": "docs/guide-developpeur.md",
     "agentBootstrapGuide": "docs/agent-bootstrap.md",
     "conceptBrainstormingGuide": "docs/concept-brainstorming-web.md",
     "adrs": [
@@ -31,7 +33,7 @@
     "tui": "arka-norn",
     "project": "arka-norn project <list|add|import|scan|show|use|forget|reconcile>",
     "feature": "arka-norn feature <list|create|import|scan|show|use|forget|reconcile|set-workflow>",
-    "agent": "arka-norn agent <list|register|show|current|use|deactivate|replace>",
+    "agent": "arka-norn agent <list|register|show|current|use|sessions|advise|prompt|handoff-prompt|deactivate|replace>",
     "pipeline": "arka-norn pipeline <status|next|scaffold|validate>",
     "workflow": "arka-norn workflow <list|show>",
     "fastdev": "arka-norn fastdev <start|status|next>",

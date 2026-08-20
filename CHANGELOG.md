@@ -6,6 +6,7 @@ tags `vX.Y.Z`.
 
 ## Non publié
 
+- README refondu en porte d’entrée produit, guide développeur de référence et manuel utilisateur non technique garantis dans le package ;
 - Product principal stable dans la session `main`, conseil de prochaine étape et orchestration des profils spécialisés ;
 - sélections Agent v2 isolées par session provider, avec migration transparente du format v1 ;
 - commandes `agent sessions|advise|prompt|handoff-prompt`, prompts autonomes `execute|prepare` et reprise après saturation du contexte ;

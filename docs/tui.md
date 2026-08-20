@@ -2,6 +2,8 @@
 
 La commande `arka-norn` ouvre un cockpit interactif uniquement dans un TTY.
 
+Pour un parcours accompagné sans prérequis technique, commencez par le [manuel utilisateur](manuel-utilisateur.md).
+
 - Accueil : portfolio Projects, action recommandée, démarrage guidé, scan, création/import, écran de santé détaillé et installation/réparation des 18 skills.
 - Project : conseil du Product principal, entrées séparées pour rework FastDev, Feature standard et import, puis registre Agents et métriques.
 - Feature : identité et session auteur, badge de workflow, phase, progression, prochaine action expliquée, timeline et runs.

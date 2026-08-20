@@ -50,6 +50,8 @@ test("un consumer vierge installe le tarball sans node_modules du worktree", (co
   assert.ok(packagedPaths.includes("skills-src/arka-norn.json"));
   assert.ok(packagedPaths.includes("skills-src/arka-fastdev.json"));
   assert.ok(packagedPaths.includes("pipelines/arka-norn-fastdev.json"));
+  assert.ok(packagedPaths.includes("docs/guide-developpeur.md"));
+  assert.ok(packagedPaths.includes("docs/manuel-utilisateur.md"));
   assert.equal(packagedPaths.some((file) => file.startsWith("tests/") || file.startsWith(".input/") || file.startsWith("src/")), false);
 
   const productionTree = runNpm(["ls", "--omit=dev", "--all", "--parseable"], { cwd: ROOT, encoding: "utf8" });
@@ -76,6 +78,8 @@ test("un consumer vierge installe le tarball sans node_modules du worktree", (co
 
   const packageRoot = resolve(consumer, "node_modules", "arka-norn");
   assert.equal(existsSync(resolve(packageRoot, "dist", "composition", "pipeline-runtime.js")), true);
+  assert.equal(existsSync(resolve(packageRoot, "docs", "guide-developpeur.md")), true);
+  assert.equal(existsSync(resolve(packageRoot, "docs", "manuel-utilisateur.md")), true);
   assert.equal(existsSync(resolve(packageRoot, "src")), false);
   assert.doesNotMatch(readFileSync(resolve(packageRoot, "skills-src", "arka-framework-dev.json"), "utf8"), /\/Users\//);
 
