@@ -1,8 +1,7 @@
 {
   "name": "arka-norn",
   "version": "1.2.0",
-  "private": true,
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/arka-squad/arka-norn.git"
@@ -26,6 +25,7 @@
     "README.md",
     "CHANGELOG.md",
     "LICENSE",
+    "NOTICE",
     "SECURITY.md",
     "manifest.json",
     "pipeline.json"

@@ -1,6 +1,6 @@
 # Politique de sécurité
 
-arka-norn est distribué comme outil interne propriétaire. Ne publiez pas une
+arka-norn est distribué sous licence Apache-2.0. Ne publiez pas une
 vulnérabilité potentielle dans une issue publique. Utilisez une GitHub Security
 Advisory privée sur le dépôt, ou contactez directement un mainteneur autorisé.
 

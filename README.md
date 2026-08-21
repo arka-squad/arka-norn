@@ -39,12 +39,12 @@ Accès directs : [cockpit TUI](docs/tui.md) · [orchestration multi-Agent](docs/
 
 ## Démarrage rapide
 
-### Installer un artefact interne
+### Installer depuis npm
 
-arka.norn est distribué en interne sous forme de tarball npm, pas sur le registre public.
+arka.norn est distribué sous licence Apache-2.0 et publié sur le registre npm public.
 
 ```bash
-npm install -g ./arka-norn-X.Y.Z.tgz
+npm install -g arka-norn
 arka-norn selftest
 arka-norn doctor
 ```
@@ -236,4 +236,4 @@ Consultez le [guide développeur](docs/guide-developpeur.md) avant de modifier u
 
 arka.norn considère les chemins, marqueurs, JSON, symlinks, processus concurrents, skills existantes et réponses externes comme non fiables. Les règles détaillées sont documentées dans [Sécurité locale](docs/security.md).
 
-Le package est privé et propriétaire (`UNLICENSED`). Sa distribution officielle passe par les artefacts internes produits depuis un tag versionné.
+Le package est distribué sous licence Apache-2.0 (voir [LICENSE](LICENSE) et [NOTICE](NOTICE)). Il est publié sur le registre npm public ; les artefacts internes produits depuis un tag versionné restent disponibles pour les environnements internes.
