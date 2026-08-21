@@ -17,12 +17,17 @@ tags `vX.Y.Z`.
   Feature, les preuves sont liées à l’étape, l’Agent et le provider attendus,
   la sélection est historisée et les permissions shell/commandes ne sont plus
   préautorisées par défaut ;
-- l’échec avant dispatch devient terminal et audité, le smoke ACP réutilise la
-  configuration runtime et l’annulation POSIX termine aussi les descendants du
+- l'échec avant dispatch devient terminal et audité, le smoke ACP réutilise la
+  configuration runtime et l'annulation POSIX termine aussi les descendants du
   worker.
-- `skills doctor --profile all --global` contrôle désormais les 18 skills
-  locales et globales Claude/Codex avant un point d’entrée ; les divergences
-  sont visibles et une réparation globale est sauvegardée avant remplacement.
+- `skills doctor --profile all --global` contrôle désormais les 19 skills
+  locales et globales Claude/Codex avant un point d'entrée, signale les
+  entrées `arka-*` non gérées et installe `arka-git-steward` comme discipline
+  Git partagée des runs multi-agents.
+- les schémas `concept` et `plan` exigent au moins une hypothèse tranchée, un
+  concept source et un critère de fin : le scaffold guide déjà ces tableaux
+  par des sentinelles, et la validation rejette désormais un document vide sur
+  ces champs ; `sections` reste volontairement vide-possible.
 
 ## 1.2.0 — 2026-08-20
 

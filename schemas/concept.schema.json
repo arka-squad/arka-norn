@@ -52,6 +52,7 @@
     "hypotheses": {
       "type": "array",
       "description": "Liste des hypothèses tranchées pour ce concept, chacune avec le sujet traité et la position retenue.",
+      "minItems": 1,
       "default": [
         {
           "sujet": "À_REMPLIR",

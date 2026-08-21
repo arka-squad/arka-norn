@@ -44,6 +44,7 @@
     "concepts_sources": {
       "type": "array",
       "description": "Chemins ou identifiants des documents de type \"concept\" dont ce plan s'inspire. Peut en contenir plusieurs lorsqu'un plan fusionne plusieurs concepts.",
+      "minItems": 1,
       "default": ["À_REMPLIR"],
       "items": {
         "type": "string"
@@ -56,6 +57,7 @@
     "criteres_de_fini": {
       "type": "array",
       "description": "Critères qui définissent \"fini\" pour ce plan.",
+      "minItems": 1,
       "default": ["À_REMPLIR"],
       "items": {
         "type": "string"
