@@ -43,6 +43,7 @@ export class FsProjectStore {
             name: marker.name,
             root: canonicalRoot,
             schemaVersion: marker.schemaVersion,
+            orchestrationMode: marker.orchestrationMode,
             createdAt: new Date(marker.createdAt),
             updatedAt: new Date(marker.updatedAt),
         });
@@ -55,9 +56,10 @@ export class FsProjectStore {
 }
 function serialize(project) {
     return {
-        schemaVersion: 3,
+        schemaVersion: 4,
         id: project.id.value,
         name: project.name,
+        orchestrationMode: project.orchestrationMode,
         createdAt: project.createdAt.toISOString(),
         updatedAt: project.updatedAt.toISOString(),
     };

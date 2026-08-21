@@ -27,6 +27,7 @@ import { listProjectsUseCaseFactory } from "../../src/use-cases/projects/list-pr
 import { scanProjectsUseCaseFactory } from "../../src/use-cases/projects/scan-projects.ts";
 import { showProjectUseCaseFactory } from "../../src/use-cases/projects/show-project.ts";
 import { switchToProjectUseCaseFactory } from "../../src/use-cases/projects/switch-to-project.ts";
+import { setProjectOrchestrationModeUseCaseFactory } from "../../src/use-cases/projects/set-project-orchestration-mode.ts";
 
 const first = new Date("2026-08-19T10:00:00.000Z");
 const second = new Date("2026-08-19T11:00:00.000Z");
@@ -38,11 +39,15 @@ test("tous les cas d'usage Project fonctionnent derrière des ports fake", async
 
   const created = await createProjectUseCaseFactory(deps)({ id, name: "Project Alpha", root: "/work/project" });
   assert.equal(created.root, "/work/project");
+  assert.equal(created.orchestrationMode, "manual");
   assert.deepEqual(await listProjectsUseCaseFactory(deps)(), [created]);
   assert.equal((await showProjectUseCaseFactory(deps)(id)).name, "Project Alpha");
 
   const selected = await switchToProjectUseCaseFactory(deps)(id);
   assert.equal(selected.updatedAt.toISOString(), second.toISOString());
+  const automatic = await setProjectOrchestrationModeUseCaseFactory(deps)({ id, orchestrationMode: "automatic" });
+  assert.equal(automatic.orchestrationMode, "automatic");
+  assert.equal((await deps.indexStore.find(id))?.updatedAt.toISOString(), second.toISOString());
   await forgetProjectUseCaseFactory(deps)(id);
   assert.equal((await deps.indexStore.load()).length, 0);
   assert.equal(harness.projects.has(created.root), true, "forget ne supprime pas le marker");
@@ -115,7 +120,7 @@ test("un index Project falsifié ne redéfinit jamais la frontière d'une Featur
   const foreignRoot = "/work/foreign";
   const forgedFeatureRoot = "/work/foreign/feature";
   const foreign = Project.create({
-    id: foreignId, name: "Foreign", root: foreignRoot, schemaVersion: 3, createdAt: first, updatedAt: first,
+    id: foreignId, name: "Foreign", root: foreignRoot, schemaVersion: 4, orchestrationMode: "manual", createdAt: first, updatedAt: first,
   });
   const forgedFeature = Feature.create({
     id: featureId, projectId: productId, name: "Forged", root: forgedFeatureRoot,
@@ -228,6 +233,7 @@ function isPathSecurityError(error: unknown): boolean {
 function projectProps(project: Project) {
   return {
     id: project.id, name: project.name, schemaVersion: project.schemaVersion,
+    orchestrationMode: project.orchestrationMode,
     createdAt: project.createdAt, updatedAt: project.updatedAt,
   };
 }

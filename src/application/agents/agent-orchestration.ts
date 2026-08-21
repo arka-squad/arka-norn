@@ -335,7 +335,8 @@ function normalizePath(value: string): string {
   return normalized === "" ? "/" : normalized;
 }
 
-function roleForStep(stepId: string): OrchestratedAgentRole | undefined {
+/** Stable routing used by the control plane before it prepares a bounded mission. */
+export function roleForStep(stepId: string): OrchestratedAgentRole | undefined {
   return STEP_ROLES[stepId];
 }
 

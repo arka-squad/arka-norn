@@ -23,6 +23,7 @@ test("la vraie vue d'accueil expose uniquement le vocabulaire Project", () => {
       show: async (_id: ProjectId) => { throw new Error("not used"); },
       forget: async (_id: ProjectId) => { throw new Error("not used"); },
       switchTo: async (_id: ProjectId) => { throw new Error("not used"); },
+      setOrchestrationMode: async () => { throw new Error("not used"); },
     },
     scan: { scan: async () => [] },
     cwd: "/workspace",

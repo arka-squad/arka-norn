@@ -4,7 +4,7 @@ Sont non fiables : roots fournis, markers, symlinks, noms, JSON, environnement, 
 
 - Les roots sont absolus, canonisés par `realpath` et comparés avec `path.relative`.
 - Les roots et zones sensibles symboliques sont refusés.
-- Les markers v3 ne contiennent aucun `root` non fiable ; la racine runtime est dérivée de leur emplacement après `realpath`. Le champ absolu historique des v1/v2 est validé puis supprimé par migration et n'est jamais utilisé comme destination runtime.
+- Le marker Project v4 et le marker Feature v3 ne contiennent aucun `root` non fiable ; la racine runtime est dérivée de leur emplacement après `realpath`. Le champ absolu historique des v1/v2 est validé puis supprimé par migration et n'est jamais utilisé comme destination runtime.
 - Les index locaux ne redéfinissent jamais une identité : chaque Project et Feature indexé est rechargé depuis son marker et son identité est comparée avant lecture ou écriture.
 - Une Feature doit être strictement contenue dans son Project.
 - Les JSON sont bornés à 2 Mio et lus via `lstat`.
@@ -28,5 +28,52 @@ Sont non fiables : roots fournis, markers, symlinks, noms, JSON, environnement, 
   Le journal masque les secrets, refuse ses chemins symboliques, fichiers
   spéciaux et liens matériels, tourne à 2 Mio et conserve au plus cinq archives.
 - Aucun shell n’est utilisé pour piloter la TUI ou les cas d’usage.
+
+## Orchestration automatique et workers
+
+- `<project>/.arka-norn/orchestration.json` ne conserve que la politique
+  Project : providers, capacités, permissions et priorité. Il ne contient
+  jamais de secret, token, PID, budget, état Mastra ni session de processus.
+- `<project>/.arka-norn/executions.json` conserve la trace métier des ordres,
+  provider choisi, tentatives, événements bornés, preuves et suspensions. Les
+  résumés, raisons et événements sont refusés s’ils ressemblent à des
+  identifiants ou à du matériel d’autorisation.
+- Les métadonnées de processus sont privées, jetables et reconstructibles sous
+  `$ARKA_NORN_HOME/.arka-norn/workers/`. Elles ne sont pas source de vérité
+  portable et un PID stale ou réutilisé ne permet jamais d’envoyer un signal à
+  un autre processus.
+- Le broker de permissions est deny-by-default. Seules les actions dont le
+  provider expose un chemin structuré et vérifiable dans la racine Feature
+  peuvent être préautorisées ; shell, sous-processus et réseau restent
+  interdits. Une demande opaque est refusée avec
+  `permission_not_preapproved`, jamais convertie en grant par `approve`.
+- Même lorsqu’une mission couvre toute la Feature, `.arka-norn/**` et
+  `.git/**` restent hors de portée du worker. `Glob` et `Grep` exigent un
+  chemin relatif explicite et refusent les motifs seuls, traversals, chemins
+  absolus et liens symboliques qui sortent de la Feature.
+- Avant le dispatch et avant `running`, le worker revalide le même
+  `MissionOrder`. Une réussite exige à la fois un marqueur de preuve lié à
+  l’exécution, une transition Pipeline et un document valide nouveau de
+  l’étape attendue signé par l’Agent lié au provider sélectionné ; la sortie
+  brute provider n’est jamais mise dans le registre.
+- Le worker vérifie l’ordre de mission immuable contre le Project, la Feature,
+  les chemins, le Pipeline et la prochaine étape actuels. Un écart est refusé :
+  il n’est jamais « corrigé » par un élargissement de périmètre.
+- Le workspace Mastra n’est pas une sandbox. L’adapter démarre un environnement
+  temporaire minimal et n’hérite ni les variables arbitraires ni les
+  identifiants ambiants. Un identifiant provider explicitement fourni est
+  transmis seulement au processus provider correspondant, en mémoire ; il est
+  absent du `MissionOrder`, du JSON worker, des logs et des registres. Cela ne
+  remplace pas une isolation système ou conteneur.
+- Le provider est choisi avant le dispatch par la politique Project. Aucun
+  fallback n’est autorisé après le début d’une exécution ; Codex ACP relance
+  une nouvelle exécution après interruption et ne promet pas une reprise
+  générique de session.
+- La récupération d’un worker abandonné utilise seulement son heartbeat privé,
+  au prochain acte explicite. Elle le marque `interrupted` ou `rejected` après
+  expiration et ne signale jamais le PID mémorisé.
+- L’annulation lance les workers dans un groupe de processus dédié sous POSIX
+  et termine ce groupe ; sous Windows, le repli Node ne garantit que le worker
+  direct. Aucun PID privé persistant n’est utilisé pour cette terminaison.
 
 `arka-norn doctor --repair` ne modifie rien. Ajouter `--apply` pour isoler l’index corrompu dans un backup puis le réinitialiser. Le diagnostic couvre aussi markers, locks, audit trail, toutes les sessions Agents, contexte Project courant et installation locale des skills. Une skill `core` absente ou divergente est un échec ; seules les skills de profils spécialisés encore absentes restent des avertissements. `arka-norn skills doctor --global` ajoute le contrôle des installations Claude/Codex du profil utilisateur.

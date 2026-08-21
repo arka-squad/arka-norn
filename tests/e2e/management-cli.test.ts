@@ -16,9 +16,20 @@ test("la CLI couvre le cycle Project/Feature et reconstruit les index", (context
   mkdirSync(projectRoot, { recursive: true });
   context.after(() => rmSync(sandbox, { recursive: true, force: true }));
 
-  const project = run<{ readonly id: string }>(["project", "add", projectRoot, "--id", "product", "--name", "Product", "--json"], home, workspace);
+  const project = run<{ readonly id: string; readonly orchestrationMode: string }>(["project", "add", projectRoot, "--id", "product", "--name", "Product", "--orchestration-mode", "automatic", "--json"], home, workspace);
   assert.equal(project.status, 0, project.stderr);
   assert.equal(project.json.data.id, "product");
+  assert.equal(project.json.data.orchestrationMode, "automatic");
+  const persistedProject = JSON.parse(readFileSync(resolve(projectRoot, ".arka-norn", "project.json"), "utf8")) as { readonly schemaVersion: number; readonly orchestrationMode: string };
+  assert.equal(persistedProject.schemaVersion, 4);
+  assert.equal(persistedProject.orchestrationMode, "automatic");
+  const manual = run<{ readonly orchestrationMode: string }>(["project", "set-orchestration-mode", "product", "--orchestration-mode", "manual", "--json"], home, workspace);
+  assert.equal(manual.status, 0, manual.stderr);
+  assert.equal(manual.json.data.orchestrationMode, "manual");
+  assert.equal(run<{ readonly orchestrationMode: string }>(["project", "show", "product", "--json"], home, workspace).json.data.orchestrationMode, "manual");
+  const invalidMode = run(["project", "set-orchestration-mode", "product", "--orchestration-mode", "invalid", "--json"], home, workspace);
+  assert.equal(invalidMode.status, 64);
+  assert.equal(invalidMode.json.ok, false);
   assert.equal(run<readonly unknown[]>(["project", "list", "--json"], home, workspace).json.data.length, 1);
   const ignoredOption = run(["project", "list", "--name", "ignored", "--json"], home, workspace);
   assert.equal(ignoredOption.status, 64);
@@ -94,6 +105,7 @@ test("la CLI couvre le cycle Project/Feature et reconstruit les index", (context
 
   const audit = readFileSync(resolve(home, ".arka-norn", "logs", "audit.jsonl"), "utf8").trim().split("\n").map((line) => JSON.parse(line) as { readonly action: string });
   assert.ok(audit.some((event) => event.action === "project.create"));
+  assert.ok(audit.some((event) => event.action === "project.set-orchestration-mode"));
   assert.ok(audit.some((event) => event.action === "feature.create"));
   assert.ok(audit.some((event) => event.action === "feature.forget"));
   assert.ok(audit.some((event) => event.action === "agent.register"));

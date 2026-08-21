@@ -7,6 +7,7 @@ import { titledBox } from "../components/box.js";
 import { GUIDED_SHORTCUTS, nextActionLine, renderGuidance } from "../components/guidance.js";
 import { createMenuScene } from "../components/menu.js";
 export function createProjectDetailView(deps) {
+    let project = deps.project;
     let features = [...deps.initialFeatures];
     let statuses = new Map(deps.initialStatuses ?? []);
     let metrics = new Map(deps.initialMetrics ?? []);
@@ -14,7 +15,9 @@ export function createProjectDetailView(deps) {
     let currentAgentId = deps.currentAgentId;
     let mode = "menu";
     let createKind = "standard";
-    let createPath = `${deps.project.root}/`;
+    let createPath = `${project.root}/`;
+    let selectedOrchestrationMode = project.orchestrationMode;
+    let orchestrationModeDirty = false;
     let message;
     let busy = false;
     let helpVisible = false;
@@ -36,6 +39,17 @@ export function createProjectDetailView(deps) {
                 return { label: `● ${badge}[${statuses.get(feature.id.value) ?? "inconnu"}] ${feature.name}${progress}`, value: `feature:${feature.id.value}`, description: feature.root };
             }),
             { label: "Gérer les agents du projet", value: "action:agents", description: "identités, périmètres, agent courant et remplacements" },
+            ...(deps.projects === undefined ? [] : [{
+                    label: `Mode d’orchestration — ${project.orchestrationMode === "automatic" ? "AUTOMATIQUE" : "MANUEL"}`,
+                    value: "action:orchestration",
+                    description: project.orchestrationMode === "automatic"
+                        ? "les prochaines missions validées peuvent être confiées au worker local"
+                        : "aucune nouvelle mission automatique ne sera planifiée",
+                }]),
+            ...(deps.onOpenOrchestration === undefined ? [] : [{
+                    label: "Suivre l’orchestration", value: "action:orchestration-dashboard",
+                    description: "mission active, provider, événements et action utilisateur attendue",
+                }]),
             { label: "Rescanner le projet", value: "action:scan" },
             { label: "Retirer ce projet de l’index", value: "action:forget" },
             { label: "← Retour", value: "action:back" },
@@ -58,7 +72,7 @@ export function createProjectDetailView(deps) {
             });
         }
         else if (value === "action:product") {
-            await run(async () => { await deps.onShowProductAdvice?.(deps.project); });
+            await run(async () => { await deps.onShowProductAdvice?.(project); });
         }
         else if (value === "action:fastdev") {
             createKind = "fastdev";
@@ -76,17 +90,26 @@ export function createProjectDetailView(deps) {
             deps.redraw();
         }
         else if (value === "action:agents") {
-            await run(async () => { await deps.onManageAgents?.(deps.project); });
+            await run(async () => { await deps.onManageAgents?.(project); });
+        }
+        else if (value === "action:orchestration") {
+            selectedOrchestrationMode = project.orchestrationMode;
+            orchestrationModeDirty = false;
+            mode = "orchestration-mode";
+            deps.redraw();
+        }
+        else if (value === "action:orchestration-dashboard") {
+            await run(async () => { await deps.onOpenOrchestration?.(project); });
         }
         else if (value === "action:scan") {
             await run(async () => {
-                const results = await deps.scan.scan({ target: deps.project.root, projectId: deps.project.id });
+                const results = await deps.scan.scan({ target: project.root, projectId: project.id });
                 await refresh();
                 message = `Scan terminé : ${results.filter((entry) => entry.feature !== undefined).length} feature(s).`;
             });
         }
         else if (value === "action:forget") {
-            await run(() => deps.onForget?.(deps.project));
+            await run(() => deps.onForget?.(project));
         }
         else {
             deps.onBack();
@@ -96,20 +119,20 @@ export function createProjectDetailView(deps) {
         if (busy)
             return;
         const root = resolve(createPath.trim());
-        if (!isContained(deps.project.root, root)) {
-            message = `La Feature doit rester dans le Project "${deps.project.root}".`;
+        if (!isContained(project.root, root)) {
+            message = `La Feature doit rester dans le Project "${project.root}".`;
             deps.redraw();
             return;
         }
         await run(async () => {
             const name = basename(root);
             if (createKind === "import") {
-                await deps.features.importFrom({ root, projectId: deps.project.id });
+                await deps.features.importFrom({ root, projectId: project.id });
             }
             else {
                 await deps.features.create({
                     id: deriveFeatureId(root, slugify(name)),
-                    projectId: deps.project.id,
+                    projectId: project.id,
                     name,
                     root,
                     pipelineId: createKind === "fastdev" ? "arka-norn-fastdev" : "arka-norn-default",
@@ -119,8 +142,46 @@ export function createProjectDetailView(deps) {
             await refresh();
         });
     }
+    function toggleOrchestrationMode() {
+        selectedOrchestrationMode = selectedOrchestrationMode === "manual" ? "automatic" : "manual";
+        orchestrationModeDirty = true;
+    }
+    async function saveOrchestrationMode() {
+        if (deps.projects === undefined)
+            return;
+        await run(async () => {
+            const persistedProject = await deps.projects.show(project.id);
+            const persistedMode = persistedProject.orchestrationMode;
+            // A long-lived detail scene may have been covered by the orchestration
+            // dashboard while `start` armed automatic mode. Never turn it back to
+            // manual merely because the user confirms the stale default selection.
+            if (!orchestrationModeDirty && selectedOrchestrationMode !== persistedMode) {
+                project = persistedProject;
+                selectedOrchestrationMode = persistedMode;
+                mode = "menu";
+                menu = buildMenu();
+                message = `Mode d’orchestration actualisé : ${persistedMode === "automatic" ? "automatique" : "manuel"}.`;
+                return;
+            }
+            if (selectedOrchestrationMode === persistedMode) {
+                project = persistedProject;
+                mode = "menu";
+                menu = buildMenu();
+                message = persistedMode === "automatic"
+                    ? "Mode automatique déjà armé."
+                    : "Mode manuel déjà actif.";
+                return;
+            }
+            project = await deps.projects.setOrchestrationMode({ id: project.id, orchestrationMode: selectedOrchestrationMode });
+            mode = "menu";
+            menu = buildMenu();
+            message = selectedOrchestrationMode === "automatic"
+                ? "Mode automatique armé : seules les prochaines missions validées pourront être planifiées."
+                : "Mode manuel activé : l’exécution active n’est pas annulée ; aucune nouvelle mission automatique ne sera planifiée.";
+        });
+    }
     async function refresh() {
-        features = (await deps.features.list()).filter((feature) => feature.belongsTo(deps.project.id));
+        features = (await deps.features.list()).filter((feature) => feature.belongsTo(project.id));
         if (deps.metricsForFeature !== undefined) {
             metrics = new Map(await mapConcurrent(features, 4, async (feature) => [feature.id.value, await deps.metricsForFeature(feature)]));
             statuses = new Map([...metrics].map(([id, value]) => [id, value.status]));
@@ -180,6 +241,16 @@ export function createProjectDetailView(deps) {
                 deps.redraw();
                 return "consumed";
             }
+            if (mode === "orchestration-mode") {
+                if (event.kind === "escape")
+                    mode = "menu";
+                else if (event.kind === "up" || event.kind === "down" || event.kind === "left" || event.kind === "right")
+                    toggleOrchestrationMode();
+                else if (event.kind === "enter" && !busy)
+                    void saveOrchestrationMode();
+                deps.redraw();
+                return "consumed";
+            }
             if (event.kind === "escape") {
                 deps.onBack();
                 return "consumed";
@@ -222,12 +293,26 @@ export function createProjectDetailView(deps) {
                         : `Indiquez le nouveau dossier enfant. Workflow : ${createKind === "fastdev" ? "FastDev" : "standard"}.`;
                     for (const value of titledBox(title, [
                         explanation,
-                        `Racine autorisée : ${deps.project.root}`,
-                        `Exemple : ${deps.project.root}/ma-feature`,
+                        `Racine autorisée : ${project.root}`,
+                        `Exemple : ${project.root}/ma-feature`,
                         "",
                         `${createPath}${theme.dim("_")}`,
                         message ?? "Entrée confirme · Échap annule sans modifier",
                     ], theme).split("\n"))
+                        line(value);
+                    return;
+                }
+                if (mode === "orchestration-mode") {
+                    const selected = selectedOrchestrationMode === "automatic" ? "Automatique" : "Manuel";
+                    for (const value of titledBox("Mode d’orchestration", [
+                        `Mode actuel : ${project.orchestrationMode === "automatic" ? "Automatique" : "Manuel"}.`,
+                        "",
+                        `Nouveau mode : ${selected}`,
+                        selectedOrchestrationMode === "automatic"
+                            ? "Arka valide chaque mission ; le worker local n’exécute que ces ordres."
+                            : "Le passage au manuel arrête la planification suivante sans annuler silencieusement l’exécution active.",
+                        "↑/↓ ou ←/→ change · Entrée enregistre · Échap annule",
+                    ], theme, { border: selectedOrchestrationMode === "automatic" ? theme.arkaAccent : theme.arkaRed }).split("\n"))
                         line(value);
                     return;
                 }
@@ -239,8 +324,9 @@ export function createProjectDetailView(deps) {
                     handoffs: sum.handoffs + item.handoffSignals,
                     invalid: sum.invalid + item.invalidDocuments,
                 }), { debts: 0, qa: 0, handoffs: 0, invalid: 0 });
-                for (const value of titledBox(deps.project.name, [
-                    `Racine : ${deps.project.root}`,
+                for (const value of titledBox(project.name, [
+                    `Racine : ${project.root}`,
+                    `Orchestration : ${project.orchestrationMode === "automatic" ? "automatique (Arka contrôle les missions)" : "manuelle"}`,
                     `Features : ${features.length}`,
                     `États : ${groups}`,
                     `Dettes : ${totals.debts} · anomalies QA : ${totals.qa} · handoffs : ${totals.handoffs} · documents invalides : ${totals.invalid}`,
@@ -263,6 +349,15 @@ export function createProjectDetailView(deps) {
         setAgents(updatedAgents, updatedCurrentAgentId) {
             agents = [...updatedAgents];
             currentAgentId = updatedCurrentAgentId;
+            deps.redraw();
+        },
+        setProject(updatedProject) {
+            if (!project.sameIdentity(updatedProject))
+                return;
+            project = updatedProject;
+            selectedOrchestrationMode = updatedProject.orchestrationMode;
+            orchestrationModeDirty = false;
+            menu = buildMenu();
             deps.redraw();
         },
     };

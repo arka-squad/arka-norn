@@ -1,18 +1,30 @@
 import { DomainError } from "../errors.js";
-export const CURRENT_MARKER_SCHEMA_VERSION = 3;
+import { isProjectOrchestrationMode } from "../project/project.js";
+export const CURRENT_PROJECT_MARKER_SCHEMA_VERSION = 4;
+export const CURRENT_FEATURE_MARKER_SCHEMA_VERSION = 3;
 export const DEFAULT_PIPELINE_ID = "arka-norn-default";
 export function planProjectMarkerMigration(value) {
+    if (isProjectMarkerV4(value)) {
+        return unchanged("project", CURRENT_PROJECT_MARKER_SCHEMA_VERSION, value);
+    }
     if (isProjectMarkerV3(value)) {
-        return unchanged("project", value);
+        return {
+            kind: "project",
+            fromVersion: 3,
+            toVersion: CURRENT_PROJECT_MARKER_SCHEMA_VERSION,
+            changed: true,
+            output: withManualProjectOrchestration(value),
+            warnings: ["Orchestration mode was absent; defaulted to manual."],
+        };
     }
     if (isProjectMarkerV2(value)) {
         return {
             kind: "project",
             fromVersion: 2,
-            toVersion: CURRENT_MARKER_SCHEMA_VERSION,
+            toVersion: CURRENT_PROJECT_MARKER_SCHEMA_VERSION,
             changed: true,
             output: withoutProjectRoot(value),
-            warnings: ["The absolute v2 root was removed; runtime root is now derived from marker location."],
+            warnings: ["The absolute v2 root was removed; runtime root is now derived from marker location.", "Orchestration mode was absent; defaulted to manual."],
         };
     }
     if (!isLegacyMarkerV1(value))
@@ -22,27 +34,28 @@ export function planProjectMarkerMigration(value) {
     return {
         kind: "project",
         fromVersion: 1,
-        toVersion: CURRENT_MARKER_SCHEMA_VERSION,
+        toVersion: CURRENT_PROJECT_MARKER_SCHEMA_VERSION,
         changed: true,
         output: {
-            schemaVersion: CURRENT_MARKER_SCHEMA_VERSION,
+            schemaVersion: CURRENT_PROJECT_MARKER_SCHEMA_VERSION,
             id: requireId(value.id, "id"),
             name: requireName(value.name),
+            orchestrationMode: "manual",
             createdAt: timestamp,
             updatedAt: timestamp,
         },
-        warnings: ["Legacy lastUsedAt is used for both createdAt and updatedAt.", "The absolute v1 root was removed; runtime root is now derived from marker location."],
+        warnings: ["Legacy lastUsedAt is used for both createdAt and updatedAt.", "The absolute v1 root was removed; runtime root is now derived from marker location.", "Orchestration mode was absent; defaulted to manual."],
     };
 }
 export function planFeatureMarkerMigration(value, context = {}) {
     if (isFeatureMarkerV3(value)) {
-        return unchanged("feature", value);
+        return unchanged("feature", CURRENT_FEATURE_MARKER_SCHEMA_VERSION, value);
     }
     if (isFeatureMarkerV2(value)) {
         return {
             kind: "feature",
             fromVersion: 2,
-            toVersion: CURRENT_MARKER_SCHEMA_VERSION,
+            toVersion: CURRENT_FEATURE_MARKER_SCHEMA_VERSION,
             changed: true,
             output: withoutFeatureRoot(value),
             warnings: ["The absolute v2 root was removed; runtime root is now derived from marker location."],
@@ -58,10 +71,10 @@ export function planFeatureMarkerMigration(value, context = {}) {
     return {
         kind: "feature",
         fromVersion: 1,
-        toVersion: CURRENT_MARKER_SCHEMA_VERSION,
+        toVersion: CURRENT_FEATURE_MARKER_SCHEMA_VERSION,
         changed: true,
         output: {
-            schemaVersion: CURRENT_MARKER_SCHEMA_VERSION,
+            schemaVersion: CURRENT_FEATURE_MARKER_SCHEMA_VERSION,
             id: requireId(value.id, "id"),
             projectId: requireId(context.projectId, "projectId"),
             name: requireName(value.name),
@@ -88,21 +101,28 @@ export function isFeatureMarkerV2(value) {
 }
 export function isProjectMarkerV3(value) {
     return isRecord(value)
-        && value.schemaVersion === CURRENT_MARKER_SCHEMA_VERSION
+        && value.schemaVersion === 3
         && hasCommonPortableFields(value)
         && hasOnlyKeys(value, ["schemaVersion", "id", "name", "createdAt", "updatedAt"]);
 }
+export function isProjectMarkerV4(value) {
+    return isRecord(value)
+        && value.schemaVersion === CURRENT_PROJECT_MARKER_SCHEMA_VERSION
+        && hasCommonPortableFields(value)
+        && isProjectOrchestrationMode(value.orchestrationMode)
+        && hasOnlyKeys(value, ["schemaVersion", "id", "name", "orchestrationMode", "createdAt", "updatedAt"]);
+}
 export function isFeatureMarkerV3(value) {
     return isRecord(value)
-        && value.schemaVersion === CURRENT_MARKER_SCHEMA_VERSION
+        && value.schemaVersion === CURRENT_FEATURE_MARKER_SCHEMA_VERSION
         && hasCommonPortableFields(value)
         && isValidId(value.projectId)
         && typeof value.pipelineId === "string"
         && /^[a-z0-9][a-z0-9._-]{0,127}$/.test(value.pipelineId)
         && hasOnlyKeys(value, ["schemaVersion", "id", "projectId", "name", "pipelineId", "createdAt", "updatedAt"]);
 }
-function unchanged(kind, output) {
-    return { kind, fromVersion: 3, toVersion: 3, changed: false, output, warnings: [] };
+function unchanged(kind, version, output) {
+    return { kind, fromVersion: version, toVersion: version, changed: false, output, warnings: [] };
 }
 function hasCommonV2Fields(value) {
     return (isValidId(value.id) &&
@@ -123,16 +143,27 @@ function hasCommonPortableFields(value) {
 }
 function withoutProjectRoot(value) {
     return {
-        schemaVersion: CURRENT_MARKER_SCHEMA_VERSION,
+        schemaVersion: CURRENT_PROJECT_MARKER_SCHEMA_VERSION,
         id: value.id,
         name: value.name,
+        orchestrationMode: "manual",
+        createdAt: value.createdAt,
+        updatedAt: value.updatedAt,
+    };
+}
+function withManualProjectOrchestration(value) {
+    return {
+        schemaVersion: CURRENT_PROJECT_MARKER_SCHEMA_VERSION,
+        id: value.id,
+        name: value.name,
+        orchestrationMode: "manual",
         createdAt: value.createdAt,
         updatedAt: value.updatedAt,
     };
 }
 function withoutFeatureRoot(value) {
     return {
-        schemaVersion: CURRENT_MARKER_SCHEMA_VERSION,
+        schemaVersion: CURRENT_FEATURE_MARKER_SCHEMA_VERSION,
         id: value.id,
         projectId: value.projectId,
         name: value.name,
@@ -185,9 +216,11 @@ function markerError(message) {
     return new DomainError("INVALID_MARKER", message);
 }
 function unsupportedMarker(kind, value) {
-    if (isRecord(value) && typeof value.schemaVersion === "number" && value.schemaVersion > CURRENT_MARKER_SCHEMA_VERSION) {
-        return new DomainError("UNSUPPORTED_SCHEMA_VERSION", `${kind} marker schemaVersion ${value.schemaVersion} is newer than supported version ${CURRENT_MARKER_SCHEMA_VERSION}.`);
+    const currentVersion = kind === "Project" ? CURRENT_PROJECT_MARKER_SCHEMA_VERSION : CURRENT_FEATURE_MARKER_SCHEMA_VERSION;
+    if (isRecord(value) && typeof value.schemaVersion === "number" && value.schemaVersion > currentVersion) {
+        return new DomainError("UNSUPPORTED_SCHEMA_VERSION", `${kind} marker schemaVersion ${value.schemaVersion} is newer than supported version ${currentVersion}.`);
     }
-    return markerError(`${kind} marker is not a valid supported v1, v2 or v3 marker.`);
+    const supportedVersions = kind === "Project" ? "v1, v2, v3 or v4" : "v1, v2 or v3";
+    return markerError(`${kind} marker is not a valid supported ${supportedVersions} marker.`);
 }
 //# sourceMappingURL=marker-formats.js.map

@@ -1,14 +1,21 @@
 import type { Project } from "../../domain/project/project.js";
+import type { ProjectOrchestrationMode } from "../../domain/project/project.js";
 import type { ProjectId } from "../../domain/project/project-id.js";
 
 export interface CreateProjectInput {
   readonly id: ProjectId;
   readonly name: string;
   readonly root: string;
+  readonly orchestrationMode?: ProjectOrchestrationMode;
 }
 
 export interface ImportProjectInput {
   readonly root: string;
+}
+
+export interface SetProjectOrchestrationModeInput {
+  readonly id: ProjectId;
+  readonly orchestrationMode: ProjectOrchestrationMode;
 }
 
 export interface ForProjects {
@@ -18,4 +25,5 @@ export interface ForProjects {
   show(id: ProjectId): Promise<Project>;
   forget(id: ProjectId): Promise<void>;
   switchTo(id: ProjectId): Promise<Project>;
+  setOrchestrationMode(input: SetProjectOrchestrationModeInput): Promise<Project>;
 }

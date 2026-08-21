@@ -12,6 +12,8 @@ export function createHomeView(deps) {
     let projects = [...deps.initialProjects];
     let mode = "menu";
     let createPath = deps.cwd;
+    let pendingProject;
+    let orchestrationMode = "manual";
     let message;
     let busy = false;
     let helpVisible = false;
@@ -23,7 +25,7 @@ export function createHomeView(deps) {
         return [
             { label: "Créer ou importer un Project", value: "action:create", description: "déclare la racine qui contiendra Features et registre Agents" },
             ...projects.map((project) => ({
-                label: `${CIRCLE} ${project.name}`,
+                label: `${CIRCLE} ${project.name} · ${project.orchestrationMode === "automatic" ? "AUTO" : "MANUEL"}`,
                 value: `project:${project.id.value}`,
                 description: `${project.root}  ${formatActivity(project.updatedAt, now())}`,
             })),
@@ -53,6 +55,8 @@ export function createHomeView(deps) {
         if (value === "action:create") {
             mode = "create";
             createPath = deps.cwd;
+            pendingProject = undefined;
+            orchestrationMode = "manual";
             message = undefined;
             deps.redraw();
             return;
@@ -81,19 +85,37 @@ export function createHomeView(deps) {
         }
         await run(async () => {
             const name = basename(root);
-            let project;
             try {
-                project = await deps.projects.importFrom({ root });
+                const project = await deps.projects.importFrom({ root });
+                mode = "menu";
+                message = `Projet importé : ${project.name}`;
+                await refresh();
             }
             catch (error) {
                 if (!(error instanceof DomainError) || error.code !== "PROJECT_MARKER_NOT_FOUND")
                     throw error;
-                project = await deps.projects.create({ id: deriveProjectId(root, slugify(name)), name, root });
+                pendingProject = { id: deriveProjectId(root, slugify(name)), name, root };
+                mode = "orchestration-mode";
+                message = undefined;
             }
+        });
+    }
+    async function confirmOrchestrationMode() {
+        const input = pendingProject;
+        if (input === undefined) {
+            mode = "create";
+            return;
+        }
+        await run(async () => {
+            const project = await deps.projects.create({ ...input, orchestrationMode });
+            pendingProject = undefined;
             mode = "menu";
-            message = `Projet créé : ${project.name}`;
+            message = `Projet créé : ${project.name} (${orchestrationMode === "automatic" ? "orchestration automatique" : "orchestration manuelle"}).`;
             await refresh();
         });
+    }
+    function toggleOrchestrationMode() {
+        orchestrationMode = orchestrationMode === "manual" ? "automatic" : "manual";
     }
     async function refresh() {
         projects = [...await deps.projects.list()];
@@ -162,6 +184,20 @@ export function createHomeView(deps) {
                 deps.redraw();
                 return "consumed";
             }
+            if (mode === "orchestration-mode") {
+                if (event.kind === "escape") {
+                    mode = "create";
+                    pendingProject = undefined;
+                }
+                else if ((event.kind === "up" || event.kind === "down" || event.kind === "left" || event.kind === "right") && !busy) {
+                    toggleOrchestrationMode();
+                }
+                else if (event.kind === "enter" && !busy) {
+                    void confirmOrchestrationMode();
+                }
+                deps.redraw();
+                return "consumed";
+            }
             const result = menu.onKey(event);
             if (result !== undefined)
                 syncFocus();
@@ -193,6 +229,19 @@ export function createHomeView(deps) {
                         `Chemin absolu : ${createPath}${theme.dim("_")}`,
                         message ?? "Entrée confirme · Échap annule sans modifier",
                     ], theme).split("\n"))
+                        line(value);
+                    return;
+                }
+                if (mode === "orchestration-mode") {
+                    const selected = orchestrationMode === "manual" ? "Manuelle" : "Automatique";
+                    for (const value of titledBox("Mode d’orchestration du Project", [
+                        "Choisissez comment le framework exécute les missions autorisées.",
+                        "Manuelle : vous lancez et suivez chaque agent.",
+                        "Automatique : Arka garde le contrôle, Mastra exécute les ordres validés.",
+                        "",
+                        `Choix : ${selected}`,
+                        "↑/↓ ou ←/→ change · Entrée confirme · Échap revient au chemin sans créer",
+                    ], theme, { border: orchestrationMode === "automatic" ? theme.arkaAccent : theme.arkaRed }).split("\n"))
                         line(value);
                     return;
                 }

@@ -23,7 +23,8 @@ export function createProjectUseCaseFactory(deps: ProjectsDeps): CreateProjectUs
       id: input.id,
       name: input.name,
       root: canonicalRoot,
-      schemaVersion: 3,
+      schemaVersion: 4,
+      orchestrationMode: input.orchestrationMode ?? "manual",
       createdAt: now,
       updatedAt: now,
     });

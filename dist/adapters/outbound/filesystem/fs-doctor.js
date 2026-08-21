@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import { basename, join } from "node:path";
-import { isFeatureMarkerV2, isFeatureMarkerV3, isProjectMarkerV2, isProjectMarkerV3 } from "../../../domain/shared/marker-formats.js";
+import { isFeatureMarkerV2, isFeatureMarkerV3, isProjectMarkerV2, isProjectMarkerV3, isProjectMarkerV4 } from "../../../domain/shared/marker-formats.js";
 import { readRaw, writeJsonAtomic } from "./_shared/atomic-json.js";
 import { inspectFileLock, repairAbandonedFileLock } from "./_shared/file-lock.js";
 import { isFeatureIndexFile, isIndexFile, isProjectIndexFile } from "./_shared/index-codec.js";
@@ -83,9 +83,10 @@ export class FsDoctor {
     async inspectProjectMarkers(entries) {
         const failures = (await Promise.all(entries.map(async (entry) => {
             const marker = await readJsonUnknown(join(entry.root, ".arka-norn", "project.json"));
-            const current = isProjectMarkerV3(marker) && marker.id === entry.id;
+            const current = isProjectMarkerV4(marker) && marker.id === entry.id;
+            const transitional = isProjectMarkerV3(marker) && marker.id === entry.id;
             const legacy = isProjectMarkerV2(marker) && marker.id === entry.id && marker.root === entry.root;
-            return current || legacy ? undefined : `${entry.id}@${entry.root}`;
+            return current || transitional || legacy ? undefined : `${entry.id}@${entry.root}`;
         }))).filter((failure) => failure !== undefined);
         return markerInspection("projects", entries.length, failures);
     }

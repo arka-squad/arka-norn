@@ -21,13 +21,16 @@ Pour installer l’environnement, étendre un contrat et choisir les bons tests,
 - Project : `<project>/.arka-norn/project.json`.
 - Feature : `<feature>/.arka-norn/feature.json`.
 - Registre Agents : `<project>/.arka-norn/agents.json`.
+- Politique d’orchestration : `<project>/.arka-norn/orchestration.json`, sans secret ni état de processus.
+- Registre d’exécutions : `<project>/.arka-norn/executions.json`, séparé du marker et des états privés du worker.
 - Agents courants par session : `~/.arka-norn/context/agents.json`, contexte privé reconstructible au format v2.
+- État jetable du worker : `$ARKA_NORN_HOME/.arka-norn/workers/<project>/<execution>.json`, privé et reconstructible.
 - Documents : JSON de la Feature, validés par les schémas et le graphe Pipeline.
 - Index : `~/.arka-norn/index/*.json`, caches privés reconstructibles.
 - Catalogue pipelines : `pipelines/catalog.json`, résolu sans chemin fourni par l’utilisateur.
 - Catalogue skills : `skills-src/catalog/skills.json` et les 18 sources JSON référencées.
 
-Les marqueurs Project/Feature v3 ne stockent aucun chemin machine. Les adapters dérivent la racine runtime du dossier canonique qui contient le marqueur ; seuls les index locaux enregistrent des chemins absolus et restent des caches non fiables. Toute entrée indexée est rechargée puis comparée au marker avant lecture ou écriture. Un clone ou un déplacement conserve ainsi sa source de vérité, puis un scan reconstruit le cache de la machine courante. Si l'ancien emplacement indexé n'est plus lisible, le cache est relocalisé atomiquement ; si les deux emplacements portent encore la même identité, le doublon actif est refusé.
+Le marker Project v4 porte `orchestrationMode: manual | automatic`; le marker Feature reste v3. Aucun de ces markers ne stocke un chemin machine. Les adapters dérivent la racine runtime du dossier canonique qui contient le marker ; seuls les index locaux enregistrent des chemins absolus et restent des caches non fiables. Toute entrée indexée est rechargée puis comparée au marker avant lecture ou écriture. Un clone ou un déplacement conserve ainsi sa source de vérité, puis un scan reconstruit le cache de la machine courante. Si l'ancien emplacement indexé n'est plus lisible, le cache est relocalisé atomiquement ; si les deux emplacements portent encore la même identité, le doublon actif est refusé.
 
 Le `PipelineReport` sépare présence, conformité de schéma, verdict métier, dépendances, complétude et prochaines actions. Les politiques déclaratives `delivery`, `audit_then_fix` et `review_latest` sélectionnent le dernier CR, imposent les corrections et rendent les anciennes validations obsolètes. CLI, TUI et skills consomment la même résolution `Feature.pipelineId`.
 
@@ -44,6 +47,30 @@ dupliqués, cardinalités interdites, relations inconnues et cycles.
 Le domaine Agent est séparé des marqueurs pour ne pas coupler leur version. Son adapter sérialise les inscriptions et remplacements sous un lock par Project ; les use cases CLI/TUI partagent exactement les mêmes transitions. La sélection privée v2 est indexée par `AgentSessionId` puis `ProjectId`, avec lecture compatible du format v1 dans `main`. Le Product principal occupe `main`; chaque provider spécialisé possède sa propre session. Une Feature marquée est toujours inspectée avec son registre Project : une erreur de Project ou de registre échoue, elle ne déclenche jamais un rapport permissif. `doctor` vérifie chaque chaîne session locale → Project indexé → marqueur → registre → Agent actif et contrôle aussi le contexte Project du répertoire ciblé.
 
 La politique pure `application/agents/agent-orchestration` mappe la prochaine étape au rôle autorisé, distingue exécution et préparation, choisit la skill/profil et construit les prompts sans mutation. Le runtime compose Projects, Features, registre, sessions et `PipelineReport`; la CLI et le contrôleur TUI ne réimplémentent aucune règle.
+
+## Orchestration automatique
+
+Arka Norn reste le plan de contrôle. Il transforme une évaluation fraîche du
+Pipeline en `MissionOrder` immuable, puis vérifie à nouveau Project, Feature,
+chemins, Pipeline et prochaine étape avant le dispatch. Mastra est un worker
+local derrière un port d’exécution : il n’a pas le droit de choisir une étape,
+un provider ou un périmètre.
+
+La politique Project sélectionne un provider une seule fois parmi ceux qui sont
+autorisés, activés, sains et capables, selon la priorité puis un départage
+stable. Le provider est figé dans l’`ExecutionRecord`; aucun fallback ne
+survient après le début d’une mission. Le registre d’exécutions conserve les
+tentatives, événements bornés, preuves et suspensions, tandis que les PID et
+autres détails de processus restent privés sous `ARKA_NORN_HOME`.
+
+Le broker de permissions est deny-by-default. Seules les actions à chemin
+structuré prouvables dans la racine Feature peuvent être préautorisées ; shell,
+sous-processus, réseau et demandes ACP opaques sont refusés. Avant le dispatch,
+le `MissionOrder` est revalidé deux fois et une réussite demande un marqueur
+lié à l’exécution, une transition Pipeline et un document valide nouveau. Le
+workspace Mastra n’est pas une sandbox ; l’isolation effective dépend du
+runtime local. Le contrat complet est documenté dans
+[l’orchestration automatique contrôlée](automatic-orchestration.md).
 
 ## Transactions locales
 

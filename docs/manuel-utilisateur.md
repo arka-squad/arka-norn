@@ -181,6 +181,39 @@ Le Product peut proposer deux modes :
 
 Ce découpage permet de mobiliser une autre conversation à l’avance sans contourner l’ordre du workflow.
 
+### Choisir l’orchestration manuelle ou automatique
+
+Le Project possède aussi un mode d’organisation, distinct de `prepare` et
+`execute` :
+
+- **manuel** : vous transmettez vous-même les prompts aux Agents ;
+- **automatique** : Arka Norn conserve la décision de la prochaine étape et
+  confie seulement les missions validées à son worker local Mastra.
+
+Le mode automatique n’autorise pas un Agent à avancer seul dans le workflow.
+Avant chaque mission, Arka Norn vérifie le Project, la Feature, le périmètre et
+l’étape attendue. Il choisit uniquement un provider autorisé, disponible et
+capable à partir de la politique du Project, jamais sur une préférence libre du
+worker. Claude et Codex sont reconnus comme providers ; en V1, Codex ACP reste
+exclu des écritures dans une Feature tant que son environnement ne décrit pas
+les permissions de manière vérifiable.
+
+Dans le cockpit Project, l’écran d’orchestration affiche le mode, la mission
+active, le provider, les événements et l’action à faire. Démarrez
+l’automatisation avec `orchestration start` ou l’action équivalente de la
+TUI. Si une permission non prévue ou opaque, une erreur ou une preuve manquante
+apparaît, le flux s’arrête : inspectez l’état, corrigez le contrat ou le
+provider, puis annulez ou relancez explicitement la mission. La commande
+`approve` n’est utilisable que lorsqu’une demande détaille précisément l’action
+et le périmètre concernés ; elle ne transforme jamais une demande opaque en
+autorisation. Repasser en manuel empêche seulement les missions suivantes ; une
+mission déjà lancée n’est jamais annulée sans vous le dire.
+
+Une interruption Codex ACP se relance comme une nouvelle tentative : ne partez
+pas du principe qu’une conversation interrompue peut reprendre exactement au
+même endroit. Le guide complet est
+[Orchestration automatique contrôlée](automatic-orchestration.md).
+
 ### Changer de conversation sans perdre le contexte
 
 Avant qu’une conversation Product devienne trop longue, demandez une passation. Le prompt généré contient les identifiants, l’état, les décisions, les points ouverts et les commandes de reprise. Collez-le dans la nouvelle conversation principale.

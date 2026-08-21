@@ -69,3 +69,43 @@ Product main
 ```
 
 Une préparation parallèle peut anticiper les risques et questions, mais n’acquiert jamais implicitement le droit d’écrire. Le registre partagé conserve les identités et périmètres ; le fichier de sessions reste privé à la machine.
+
+## Mode automatique contrôlé
+
+Le mode d’orchestration du **Project** est indépendant du mode de prompt :
+`manual|automatic` règle la planification des missions, alors que
+`prepare|execute` règle le droit d’action d’un Agent spécialisé.
+
+En `manual`, le Product prépare les prompts comme décrit ci-dessus. En
+`automatic`, il garde la même responsabilité de lecture du Pipeline et de
+décision utilisateur, mais Arka Norn peut déléguer au worker Mastra une mission
+déjà validée :
+
+```text
+Arka Norn (Pipeline et preuves)
+  → MissionOrder immuable
+  → sélection déterministe Claude/Codex par politique Project
+  → worker Mastra local
+  → preuves vérifiées par Arka Norn
+```
+
+Le Product ne choisit pas librement le provider dans ce parcours : seuls les
+providers autorisés, sains et capables sont candidats, puis la priorité
+Project et un départage stable décident. Une fois l’exécution commencée, aucun
+fallback provider n’est permis.
+
+Pour armer le mode et lancer une mission validée :
+
+```text
+arka-norn orchestration start --project <project-id> [--feature <feature-id>]
+arka-norn orchestration status --project <project-id>
+```
+
+Une permission non préautorisée, une preuve absente, un scope modifié ou une
+erreur suspend le flux. Le Product présente alors la raison et la commande
+appropriée (`approve`, `cancel` ou `retry`) ; il ne contourne ni la
+suspension ni le broker deny-by-default. Pour Codex ACP, une interruption est
+une nouvelle tentative, pas une reprise générique de session.
+
+Le détail des données persistées, des permissions et de la TUI se trouve dans
+[l’orchestration automatique contrôlée](automatic-orchestration.md).

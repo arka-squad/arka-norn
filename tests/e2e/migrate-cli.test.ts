@@ -28,6 +28,30 @@ test("migrate est dry-run par défaut puis applique avec backup", (context) => {
   assert.equal(applied.status, 0, applied.stderr);
   assert.equal(existsSync(resolve(markerDir, "project.json")), true);
   assert.equal(existsSync(`${legacy}.v1.bak`), true);
+  const migrated = JSON.parse(readFileSync(resolve(markerDir, "project.json"), "utf8")) as { readonly schemaVersion: number; readonly orchestrationMode: string };
+  assert.equal(migrated.schemaVersion, 4);
+  assert.equal(migrated.orchestrationMode, "manual");
+});
+
+test("migrate prévisualise puis applique Project v3 vers v4 manuel", (context) => {
+  const projectRoot = mkdtempSync(join(tmpdir(), "arka-norn-migrate-v3-cli-"));
+  context.after(() => rmSync(projectRoot, { recursive: true, force: true }));
+  const markerDir = resolve(projectRoot, ".arka-norn");
+  mkdirSync(markerDir);
+  const source = resolve(markerDir, "project.json");
+  const fixture = readFileSync(resolve(ROOT, "tests", "fixtures", "formats", "project-marker-v3.json"), "utf8");
+  writeFileSync(source, fixture);
+
+  const preview = run(["migrate", "--target", projectRoot, "--json"], projectRoot);
+  assert.equal(preview.status, 0, preview.stderr);
+  assert.equal(readFileSync(source, "utf8"), fixture);
+
+  const applied = run(["migrate", "--target", projectRoot, "--apply", "--json"], projectRoot);
+  assert.equal(applied.status, 0, applied.stderr);
+  assert.equal(readFileSync(`${source}.v3.bak`, "utf8"), fixture);
+  const migrated = JSON.parse(readFileSync(source, "utf8")) as { readonly schemaVersion: number; readonly orchestrationMode: string };
+  assert.equal(migrated.schemaVersion, 4);
+  assert.equal(migrated.orchestrationMode, "manual");
 });
 
 test("migrate refuse un répertoire de marker symbolique sans créer de backup externe", (context) => {

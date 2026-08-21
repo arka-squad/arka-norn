@@ -4,6 +4,22 @@ Toutes les modifications notables d’arka-norn sont consignées ici. Le projet
 utilise le versionnement sémantique ; les artefacts sont produits à partir des
 tags `vX.Y.Z`.
 
+## Unreleased
+
+- marker Project porté en v4 avec le mode persistant `manual|automatic`, tandis que les markers Feature restent en v3 ; les migrations Project v1/v2/v3 choisissent `manual` sans mutation lors d’une lecture ;
+- politique d’exécution et registre de missions séparés sous `.arka-norn/`, sans secret, token, PID ni état de processus portable ;
+- orchestration Mastra locale contrôlée par Arka Norn : ordres de mission immuables, sélection déterministe Claude/Codex, permissions deny-by-default, suspension vérifiable et absence de fallback après démarrage ;
+- commandes et cockpit d’orchestration pour armer, consulter, annuler, approuver et relancer une mission sans exposer le worker interne ;
+- Codex ACP documenté en annulation/relance contrôlée, sans promesse de reprise générique d’une exécution interrompue ;
+- prérequis et CI portés à Node.js 22.13+ (matrices 22/24) ; tests CI avec providers fake et smoke réels opt-in avec identifiants explicitement fournis.
+- durcissement post-audit : le worker ne peut pas accéder aux zones de contrôle
+  Feature, les preuves sont liées à l’étape, l’Agent et le provider attendus,
+  la sélection est historisée et les permissions shell/commandes ne sont plus
+  préautorisées par défaut ;
+- l’échec avant dispatch devient terminal et audité, le smoke ACP réutilise la
+  configuration runtime et l’annulation POSIX termine aussi les descendants du
+  worker.
+
 ## 1.2.0 — 2026-08-20
 
 - les inspections et commandes Pipeline d'une Feature marquée refusent désormais toute vérification d'auteur sans registre Agent valide ;

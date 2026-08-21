@@ -2,9 +2,8 @@ import * as fs from "node:fs/promises";
 import { dirname } from "node:path";
 
 import {
-  type FeatureMarkerV3,
-  type MarkerMigrationPlan,
-  type ProjectMarkerV3,
+  type FeatureMarkerMigrationPlan,
+  type ProjectMarkerMigrationPlan,
   planFeatureMarkerMigration,
   planProjectMarkerMigration,
 } from "../../../domain/shared/marker-formats.js";
@@ -27,9 +26,10 @@ export type MarkerMigrationRequest =
       readonly apply?: boolean;
     };
 
-export type MarkerMigrationResult =
-  | { readonly plan: MarkerMigrationPlan<ProjectMarkerV3>; readonly backupPath?: string }
-  | { readonly plan: MarkerMigrationPlan<FeatureMarkerV3>; readonly backupPath?: string };
+export interface MarkerMigrationResult {
+  readonly plan: ProjectMarkerMigrationPlan | FeatureMarkerMigrationPlan;
+  readonly backupPath?: string;
+}
 
 export async function migrateMarkerFile(request: MarkerMigrationRequest): Promise<MarkerMigrationResult> {
   await assertRegularParentDirectory(request.sourcePath);

@@ -138,6 +138,28 @@ test("doctor valide les registres Agent puis expose toute corruption", async (co
   assert.equal(corrupted.checks.find((check) => check.id === "agents.session")?.status, "fail");
 });
 
+test("doctor accepte un marker Project v3 transitoire et le runtime le lit en mode manuel", async (context) => {
+  const home = mkdtempSync(join(tmpdir(), "arka-norn-doctor-project-v3-"));
+  const projectRoot = resolve(home, "project");
+  mkdirSync(projectRoot, { recursive: true });
+  context.after(() => rmSync(home, { recursive: true, force: true }));
+  const management = createManagementRuntime({ homeDir: home });
+  const project = await management.projects.create({ id: ProjectId.of("project"), name: "Project", root: projectRoot });
+  writeFileSync(resolve(projectRoot, ".arka-norn", "project.json"), `${JSON.stringify({
+    schemaVersion: 3,
+    id: project.id.value,
+    name: project.name,
+    createdAt: project.createdAt.toISOString(),
+    updatedAt: project.updatedAt.toISOString(),
+  })}\n`);
+
+  const report = await createDoctorRuntime(home, projectRoot).run();
+  const loaded = await management.projects.show(project.id);
+
+  assert.equal(report.checks.find((check) => check.id === "markers.projects")?.status, "pass");
+  assert.equal(loaded.orchestrationMode, "manual");
+});
+
 test("doctor refuse un registre orphelin dans le contexte Project ciblé", async (context) => {
   const home = mkdtempSync(join(tmpdir(), "arka-norn-doctor-orphan-context-"));
   const target = resolve(home, "project");

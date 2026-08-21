@@ -12,10 +12,14 @@ est un tarball npm attaché au workflow GitHub déclenché par un tag `vX.Y.Z`.
    la couverture globale et la couverture dédiée au code CLI
    (`npm run test:coverage:cli`), le benchmark, l'audit des dépendances et le
    contrôle du contenu du tarball.
-4. Créer et pousser le tag signé ou protégé `vX.Y.Z` depuis un commit vert.
+4. Vérifier la compatibilité Node.js `>=22.13` et les matrices CI Node 22/24.
+5. Créer et pousser le tag signé ou protégé `vX.Y.Z` depuis un commit vert.
 
 La CI reconstruit le package, produit un SBOM CycloneDX, un fichier de checksums
-SHA-256 et une attestation GitHub de provenance. L’artefact ne contient ni
+SHA-256 et une attestation GitHub de provenance. Les tests d’orchestration y
+utilisent des providers fake ; un smoke Claude/Codex réel reste opt-in, avec
+identifiants et configuration fournis explicitement, et ne doit pas être une
+gate de release ordinaire. L’artefact ne contient ni
 sources TypeScript, ni tests, ni dossiers `.input/` ou `input/`.
 
 ## Installer et revenir en arrière

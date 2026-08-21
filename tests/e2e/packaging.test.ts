@@ -2,17 +2,34 @@ import assert from "node:assert/strict";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-import { spawnSync, type SpawnSyncOptionsWithStringEncoding, type SpawnSyncReturns } from "node:child_process";
+import { spawn, spawnSync, type ChildProcessWithoutNullStreams, type SpawnSyncOptionsWithStringEncoding, type SpawnSyncReturns } from "node:child_process";
 import { test } from "node:test";
 
 const ROOT = resolve(import.meta.dirname, "..", "..");
-test("un consumer vierge installe le tarball sans node_modules du worktree", (context) => {
+const LOCAL_NPM_REGISTRY = resolve(import.meta.dirname, "..", "helpers", "local-npm-registry.mjs");
+
+interface LocalNpmPackage {
+  readonly artifact: string;
+  readonly integrity: string;
+  readonly manifest: Record<string, unknown>;
+}
+
+interface LocalNpmRegistry {
+  readonly url: string;
+  stop(): Promise<void>;
+}
+
+test("un consumer vierge installe le tarball sans node_modules du worktree", async (context) => {
   const sandbox = mkdtempSync(resolve(tmpdir(), "arka-norn-package-"));
   const consumer = resolve(sandbox, "consumer");
   const staging = resolve(sandbox, "staging");
   mkdirSync(consumer);
   mkdirSync(staging);
-  context.after(() => rmSync(sandbox, { recursive: true, force: true }));
+  const cleanup: { registry?: LocalNpmRegistry } = {};
+  context.after(async () => {
+    await cleanup.registry?.stop();
+    rmSync(sandbox, { recursive: true, force: true });
+  });
   const isolatedEnvironment: NodeJS.ProcessEnv = {
     ...process.env,
     npm_config_cache: resolve(sandbox, "npm-cache"),
@@ -53,23 +70,40 @@ test("un consumer vierge installe le tarball sans node_modules du worktree", (co
 
   const productionTree = runNpm(["ls", "--omit=dev", "--all", "--parseable"], { cwd: ROOT, encoding: "utf8" });
   assert.equal(productionTree.status, 0, productionTree.stderr);
-  const dependencyArtifacts = productionTree.stdout.trim().split(/\r?\n/).slice(1).map((packageDirectory) => {
-    const dependencyPack = runNpm(["pack", packageDirectory, "--ignore-scripts", "--json", "--pack-destination", sandbox], {
+  const dependencyArtifacts = productionTree.stdout.trim().split(/\r?\n/).slice(1).map((packageDirectory, index) => {
+    const packageForPacking = stageDependencyWithoutLifecycleScripts(packageDirectory, resolve(sandbox, "dependencies", String(index)));
+    const dependencyPack = runNpm(["pack", packageForPacking, "--ignore-scripts", "--json", "--pack-destination", sandbox], {
       cwd: ROOT,
       encoding: "utf8",
       env: isolatedEnvironment,
     });
     assert.equal(dependencyPack.status, 0, `${dependencyPack.stdout}\n${dependencyPack.stderr}`);
-    const dependencyMetadata = JSON.parse(dependencyPack.stdout) as readonly { readonly filename: string }[];
-    return resolve(sandbox, dependencyMetadata[0]!.filename);
+    const dependencyMetadata = JSON.parse(dependencyPack.stdout) as readonly {
+      readonly filename: string;
+      readonly integrity: string;
+      readonly name: string;
+      readonly version: string;
+    }[];
+    const metadata = dependencyMetadata[0]!;
+    return {
+      artifact: resolve(sandbox, metadata.filename),
+      integrity: metadata.integrity,
+      manifest: JSON.parse(readFileSync(resolve(packageForPacking, "package.json"), "utf8")) as Record<string, unknown>,
+    };
   });
 
   const initialized = runNpm(["init", "--yes"], { cwd: consumer, encoding: "utf8", env: isolatedEnvironment });
   assert.equal(initialized.status, 0, initialized.stderr);
-  const installed = runNpm(["install", "--ignore-scripts", "--offline", "--no-audit", "--no-fund", ...dependencyArtifacts, artifact], {
+  const registry = await startLocalNpmRegistry(sandbox, dependencyArtifacts);
+  cleanup.registry = registry;
+  const consumerManifestPath = resolve(consumer, "package.json");
+  const consumerManifest = JSON.parse(readFileSync(consumerManifestPath, "utf8")) as Record<string, unknown>;
+  consumerManifest["dependencies"] = { "arka-norn": `file:${artifact}` };
+  writeFileSync(consumerManifestPath, `${JSON.stringify(consumerManifest, null, 2)}\n`);
+  const installed = runNpm(["install", "--ignore-scripts", "--no-audit", "--no-fund"], {
     cwd: consumer,
     encoding: "utf8",
-    env: isolatedEnvironment,
+    env: { ...isolatedEnvironment, npm_config_registry: registry.url },
   });
   assert.equal(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
 
@@ -91,6 +125,95 @@ test("un consumer vierge installe le tarball sans node_modules du worktree", (co
   assert.equal(selftest.status, 0, `${selftest.stdout}\n${selftest.stderr}`);
   assert.match(selftest.stdout, /Toutes les vérifications réelles passent/);
 });
+
+async function startLocalNpmRegistry(sandbox: string, dependencies: readonly LocalNpmPackage[]): Promise<LocalNpmRegistry> {
+  const artifacts: Record<string, string> = {};
+  const packages: Record<string, {
+    latest: string;
+    versions: Record<string, { artifactId: string; integrity: string; manifest: Record<string, unknown> }>;
+  }> = {};
+  for (const [index, dependency] of dependencies.entries()) {
+    const name = dependency.manifest["name"];
+    const version = dependency.manifest["version"];
+    if (typeof name !== "string" || typeof version !== "string") throw new Error("Dépendance packagée sans identité npm exploitable.");
+    const artifactId = String(index);
+    artifacts[artifactId] = dependency.artifact;
+    const current = packages[name] ?? { latest: version, versions: {} };
+    current.latest = version.localeCompare(current.latest, undefined, { numeric: true }) > 0 ? version : current.latest;
+    current.versions[version] = { artifactId, integrity: dependency.integrity, manifest: dependency.manifest };
+    packages[name] = current;
+  }
+  const configurationPath = resolve(sandbox, "local-npm-registry.json");
+  writeFileSync(configurationPath, `${JSON.stringify({ artifacts, packages })}\n`);
+  const child = spawn(process.execPath, [LOCAL_NPM_REGISTRY, configurationPath], { stdio: "pipe" });
+  const url = await waitForRegistryStart(child);
+  return { url, stop: () => stopRegistry(child) };
+}
+
+function waitForRegistryStart(child: ChildProcessWithoutNullStreams): Promise<string> {
+  return new Promise((resolveUrl, reject) => {
+    let output = "";
+    let errorOutput = "";
+    let settled = false;
+    const timeout = setTimeout(() => finish(new Error(`Démarrage du registre npm local expiré : ${errorOutput}`)), 10_000);
+    const finish = (error: Error | undefined, url?: string) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (error !== undefined) {
+        child.kill("SIGTERM");
+        reject(error);
+        return;
+      }
+      resolveUrl(url!);
+    };
+    child.stdout.on("data", (chunk: Buffer) => {
+      output += chunk.toString("utf8");
+      const newline = output.indexOf("\n");
+      if (newline < 0) return;
+      try {
+        const payload = JSON.parse(output.slice(0, newline)) as { readonly url?: unknown };
+        if (typeof payload.url !== "string") throw new Error("URL absente dans la réponse du registre npm local.");
+        finish(undefined, payload.url);
+      } catch (error) {
+        finish(error instanceof Error ? error : new Error(String(error)));
+      }
+    });
+    child.stderr.on("data", (chunk: Buffer) => {
+      errorOutput += chunk.toString("utf8");
+    });
+    child.once("error", (error) => finish(error));
+    child.once("exit", (code) => {
+      if (!settled) finish(new Error(`Le registre npm local s'est arrêté prématurément (${code ?? "signal"}) : ${errorOutput}`));
+    });
+  });
+}
+
+function stopRegistry(child: ChildProcessWithoutNullStreams): Promise<void> {
+  if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve();
+  return new Promise((resolveStop) => {
+    const timeout = setTimeout(() => child.kill("SIGKILL"), 3_000);
+    child.once("exit", () => {
+      clearTimeout(timeout);
+      resolveStop();
+    });
+    child.kill("SIGTERM");
+  });
+}
+
+function stageDependencyWithoutLifecycleScripts(packageDirectory: string, destination: string): string {
+  cpSync(packageDirectory, destination, { recursive: true });
+  const manifestPath = resolve(destination, "package.json");
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as Record<string, unknown>;
+  const scripts = manifest["scripts"];
+  if (scripts !== null && typeof scripts === "object" && !Array.isArray(scripts)) {
+    const safeScripts = { ...(scripts as Record<string, unknown>) };
+    for (const lifecycle of ["prepare", "prepack", "postpack", "prepublish", "prepublishOnly"]) delete safeScripts[lifecycle];
+    manifest["scripts"] = safeScripts;
+    writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  }
+  return destination;
+}
 
 function runNpm(args: readonly string[], options: SpawnSyncOptionsWithStringEncoding): SpawnSyncReturns<string> {
   const npmCli = options.env === undefined ? process.env["npm_execpath"] : options.env["npm_execpath"];

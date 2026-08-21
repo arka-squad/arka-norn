@@ -21,7 +21,7 @@ Une installation locale écrit les rendus dans `.claude/skills/` et `.agents/ski
 
 `arka-fastdev` exécute exactement une action issue de `fastdev next`, dans une `session_id` obligatoire, produit un document v3 signé par l’Agent de cette session, le valide puis s’arrête. Elle couvre cadrage, livraison, audit du commit exact, corrections référencées et validation du dernier CR.
 
-`arka-product` reste dans la session `main`, consulte `agent advise`, prépare `agent prompt` pour les rôles spécialisés et fournit `agent handoff-prompt` avant une reprise. Elle n’exécute pas les livrables spécialisés. Voir [`agent-orchestration.md`](agent-orchestration.md).
+`arka-product` reste dans la session `main`, consulte `agent advise`, prépare `agent prompt` pour les rôles spécialisés et fournit `agent handoff-prompt` avant une reprise. Dans un Project en `automatic`, elle présente le statut et les commandes d’orchestration, sans choisir librement un provider ni contourner une suspension. Elle n’exécute pas les livrables spécialisés. Voir [`agent-orchestration.md`](agent-orchestration.md) et [`automatic-orchestration.md`](automatic-orchestration.md).
 
 Le skill audit impose observation directe et absence de correction silencieuse. Il produit un audit v3 pour une Feature ou, lorsqu’aucune Feature n’est concernée, l’audit Project v4 explicite avec `project_id`; il ne fabrique jamais de Feature de convenance. Le skill dev impose lecture de la spec, scope fichiers, tests, CR de dev et handoff. Le skill QA cible le dernier CR, conserve les preuves et sépare structure, verdict métier, anomalies et décision.
 

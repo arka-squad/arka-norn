@@ -19,7 +19,7 @@ La règle structurante est : **une règle métier n’appartient jamais à la CL
 
 ### Environnement
 
-- Node.js `>= 20.11` ;
+- Node.js `>= 22.13` ;
 - npm compatible avec la version de Node utilisée ;
 - Git ;
 - un terminal TTY pour tester la TUI.
@@ -34,7 +34,12 @@ npm link
 arka-norn selftest
 ```
 
-`npm link` expose la commande globale `arka-norn` vers le worktree. Pendant un développement, utilisez de préférence `node bin/arka-norn.mjs …` dans les scripts reproductibles afin de savoir exactement quelle copie est exécutée.
+`npm link` expose la commande globale `arka-norn` vers le worktree. Après une
+modification de la distribution, exécutez `npm run build` ; le lien utilise
+alors immédiatement ce nouveau `dist`. Relancez `npm link` seulement si le lien
+global a été remplacé. Pendant un développement, utilisez de préférence
+`node bin/arka-norn.mjs …` dans les scripts reproductibles afin de savoir
+exactement quelle copie est exécutée.
 
 ### Boucle de travail recommandée
 
@@ -65,6 +70,8 @@ Project
 ├── Product principal (session main)
 ├── Registre Agents
 ├── Sessions spécialisées
+├── Politique d’exécution
+├── Registre d’exécutions
 └── Feature
     ├── pipelineId
     ├── Documents signés
@@ -83,6 +90,8 @@ Les termes canoniques sont définis dans le [vocabulaire du domaine](domain/voca
 5. Un Pipeline ne se termine pas sur la seule conformité JSON : le verdict métier doit viser le dernier CR livré.
 6. Les marqueurs portables sont les sources de vérité ; les index locaux restent reconstructibles.
 7. Une lecture ou une commande de diagnostic ne répare jamais silencieusement l’état.
+8. Le marker Project v4 porte `manual|automatic`; le marker Feature reste v3.
+9. Une mission automatique ne peut partir que d’une évaluation fraîche du Pipeline et conserve un provider immuable.
 
 ## 4. Architecture du code
 
@@ -219,6 +228,33 @@ L’orchestrateur pur dans `src/application/agents/agent-orchestration.ts` :
 
 Le runtime charge Project, Feature, registre, sessions et rapport Pipeline. Les interfaces ne doivent pas refaire ce calcul.
 
+### Worker Mastra et mode automatique
+
+Le worker Mastra est un adapter derrière un port d’exécution. Il n’est pas un
+second orchestrateur : Arka Norn crée un `MissionOrder` immuable, vérifie ses
+préconditions, sélectionne le provider et conserve les preuves dans le registre
+d’exécutions séparé. Le Project v4 porte seulement le mode
+`manual|automatic`; la politique et les exécutions vivent dans leurs propres
+fichiers `.arka-norn/`.
+
+Le sélecteur ne retient que les providers autorisés, activés, sains et capables,
+puis applique priorité Project et départage stable. Le provider est inscrit
+avant le dispatch et il n’existe aucun fallback après le début de l’exécution.
+Un `retry` conserve le provider d’origine. Codex ACP reprend par une nouvelle
+exécution après interruption : aucune reprise exacte générique ne doit être
+promise par l’adapter. En V1, l’adapter Codex ACP est volontairement exclu des
+missions d’écriture Feature : son protocole ne fournit pas encore les détails
+de permission nécessaires au broker. Ne contournez jamais cette capacité par
+une permission large ou un fallback non audité.
+
+Le broker est deny-by-default. Le workspace Mastra n’est pas une sandbox :
+validez le scope, réduisez l’environnement, ne persistez ni secret ni PID dans
+le Project, et suspendez dès qu’une permission, une précondition, une preuve ou
+un scope sort du contrat. Une demande ACP opaque est refusée ; `approve` ne
+peut accepter qu’une demande structurée, liée à un chemin et à une opération.
+Les métadonnées de processus sont privées et reconstructibles sous
+`ARKA_NORN_HOME`.
+
 ### Ajouter un rôle orchestré
 
 1. Étendre le type public du rôle.
@@ -315,6 +351,12 @@ Une skill doit dire quand l’utiliser, quand ne pas l’utiliser, quels inputs 
 - Commande publique : E2E humain et JSON.
 - Parcours TUI : test clavier.
 - Distribution : installation du tarball dans un consumer vierge.
+- Orchestration : providers fake en CI pour sélection, refus, annulation,
+  interruption, retry, verrou et audit trail.
+
+Les smoke tests Claude/Codex réels sont opt-in. Ils exigent des identifiants et
+une configuration provider fournis explicitement par l’environnement ; ne les
+branchez jamais aux gates CI ordinaires ni aux fixtures.
 
 Un test ne doit pas dépendre du vrai `~/.arka-norn`. Utilisez un home temporaire et nettoyez-le dans le teardown.
 
@@ -347,7 +389,7 @@ arka-norn feature scan --project <project-id> --path . --json
 
 `doctor --repair` produit uniquement un plan. `--repair --apply` est nécessaire pour l’appliquer. Ne transformez jamais un diagnostic en mutation implicite.
 
-Pour isoler les données locales d’un scénario manuel, utilisez un répertoire temporaire via `ARKA_NORN_HOME`, puis supprimez uniquement ce répertoire une fois le test terminé.
+Pour isoler les données locales d’un scénario manuel ou automatique, utilisez un répertoire temporaire via `ARKA_NORN_HOME`, puis supprimez uniquement ce répertoire une fois le test terminé. Il contient aussi les métadonnées privées et jetables des workers.
 
 ## 14. Git et release
 

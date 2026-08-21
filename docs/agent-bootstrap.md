@@ -26,7 +26,7 @@ L'agent :
 
 1. confirme l'activation du mode arka-norn et lit l'aide du produit ;
 2. vérifie une racine existante et la santé du profil `core` ;
-3. découvre, importe ou crée le Project avec une décision explicite de l'utilisateur ;
+3. découvre, importe ou crée le Project avec une décision explicite de l'utilisateur, y compris son mode d’orchestration `manual` ou `automatic` ;
 4. sélectionne ou enregistre l’unique identité Product principale `Provider_product_YYYYMMDD` dans la session `main` ;
 5. lance `agent advise` pour expliquer la prochaine décision et les rôles mobilisables ;
 6. route vers `arka-product`, qui prépare les prompts spécialisés et la reprise de contexte ;
@@ -38,6 +38,6 @@ La sortie attendue commence par `Mode arka-norn activé` et se termine par un bl
 
 La skill ne doit jamais créer silencieusement un Project, choisir une Feature à la place de l'utilisateur, élargir le périmètre de l'agent ou réparer une divergence avec `--force` sans décision explicite. Une skill absente peut être installée ; une skill divergente doit d'abord être expliquée.
 
-Une nouvelle conversation ne crée pas un nouvel identifiant Product : `arka-norn agent handoff-prompt --project <id> [--feature <id>]` fournit le prompt de reprise qui sélectionne la même identité dans `main`.
+Une nouvelle conversation ne crée pas un nouvel identifiant Product : `arka-norn agent handoff-prompt --project <id> [--feature <id>]` fournit le prompt de reprise qui sélectionne la même identité dans `main`. Le mode automatique reste borné : Arka Norn valide chaque mission, sélectionne le provider selon la politique Project et suspend toute permission ou preuve non prévue. Voir [l’orchestration automatique contrôlée](automatic-orchestration.md).
 
 Après l'initialisation, `arka-product` organise le Project. Les Agents spécialisés utilisent une session dédiée et `arka-framework-maitrise` ou `arka-fastdev` selon le workflow. Voir [`agent-orchestration.md`](agent-orchestration.md).

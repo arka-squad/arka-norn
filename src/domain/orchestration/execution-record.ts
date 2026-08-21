@@ -1,0 +1,520 @@
+import { InvalidExecutionRecordError } from "./errors.js";
+import { containsSecretLikeText, MissionOrder } from "./mission-order.js";
+import {
+  isExecutionAttemptStatus,
+  isExecutionRecordStatus,
+  type ExecutionAttemptStatus,
+  type ExecutionProvider,
+  type ExecutionRecordStatus,
+} from "./types.js";
+
+const EXECUTION_ID_PATTERN = /^[a-z][a-z0-9-]{0,95}$/;
+const EVENT_TYPE_PATTERN = /^[a-z][a-z0-9_]{0,63}$/;
+const MAX_EXECUTION_ATTEMPTS = 20;
+const MAX_EXECUTION_EVENTS = 100;
+const MAX_PROOF_REFERENCES = 50;
+
+export const EXECUTION_SUSPENSION_CODES = [
+  "permission_not_preapproved",
+  "permission_requested",
+  "automatic_disabled",
+  "scope_changed",
+  "precondition_changed",
+  "missing_proof",
+  "provider_error",
+  "worker_unavailable",
+  "cancelled_by_user",
+  "interrupted",
+  "policy_rejected",
+] as const;
+
+export type ExecutionSuspensionCode = typeof EXECUTION_SUSPENSION_CODES[number];
+
+export interface ExecutionSuspensionReason {
+  readonly code: ExecutionSuspensionCode;
+  readonly detail: string;
+}
+
+export interface ExecutionEvent {
+  readonly at: Date;
+  readonly type: string;
+  readonly detail: string;
+}
+
+export interface ExecutionAttempt {
+  readonly number: number;
+  readonly status: ExecutionAttemptStatus;
+  readonly startedAt: Date;
+  readonly endedAt?: Date;
+  readonly providerSessionId?: string;
+}
+
+export interface ExecutionRecordProps {
+  readonly id: string;
+  readonly order: MissionOrder;
+  readonly provider: ExecutionProvider;
+  readonly status: ExecutionRecordStatus;
+  readonly attempts: readonly ExecutionAttempt[];
+  readonly events: readonly ExecutionEvent[];
+  readonly truncatedEventCount: number;
+  readonly proofReferences: readonly string[];
+  readonly suspensionReason?: ExecutionSuspensionReason;
+  readonly providerSessionId?: string;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+}
+
+export interface BeginExecutionInput {
+  readonly at: Date;
+  readonly providerSessionId?: string;
+}
+
+/**
+ * A history-bearing execution. Its selected provider and MissionOrder are
+ * immutable: retries reuse the same provider instead of silently falling back.
+ */
+export class ExecutionRecord {
+  public readonly id: string;
+  public readonly order: MissionOrder;
+  public readonly provider: ExecutionProvider;
+  public readonly status: ExecutionRecordStatus;
+  public readonly attempts: readonly ExecutionAttempt[];
+  public readonly events: readonly ExecutionEvent[];
+  public readonly truncatedEventCount: number;
+  public readonly proofReferences: readonly string[];
+  public readonly suspensionReason: ExecutionSuspensionReason | undefined;
+  public readonly providerSessionId: string | undefined;
+  private readonly createdAtValue: Date;
+  private readonly updatedAtValue: Date;
+
+  private constructor(props: ExecutionRecordProps) {
+    this.id = props.id;
+    this.order = MissionOrder.create(props.order.toProps());
+    this.provider = props.provider;
+    this.status = props.status;
+    this.attempts = freezeAttempts(props.attempts);
+    this.events = freezeEvents(props.events);
+    this.truncatedEventCount = props.truncatedEventCount;
+    this.proofReferences = Object.freeze([...props.proofReferences]);
+    this.suspensionReason = props.suspensionReason === undefined ? undefined : Object.freeze({ ...props.suspensionReason });
+    this.providerSessionId = props.providerSessionId;
+    this.createdAtValue = new Date(props.createdAt.getTime());
+    this.updatedAtValue = new Date(props.updatedAt.getTime());
+  }
+
+  public static create(props: ExecutionRecordProps): ExecutionRecord {
+    validateRecordProps(props);
+    return new ExecutionRecord(props);
+  }
+
+  public static planned(id: string, order: MissionOrder, provider: ExecutionProvider, at: Date): ExecutionRecord {
+    return ExecutionRecord.create({
+      id,
+      order,
+      provider,
+      status: "planned",
+      attempts: [],
+      events: [{ at, type: "planned", detail: "Mission order accepted by the control plane." }],
+      truncatedEventCount: 0,
+      proofReferences: [],
+      createdAt: at,
+      updatedAt: at,
+    });
+  }
+
+  public get createdAt(): Date {
+    return new Date(this.createdAtValue.getTime());
+  }
+
+  public get updatedAt(): Date {
+    return new Date(this.updatedAtValue.getTime());
+  }
+
+  public begin(input: BeginExecutionInput): ExecutionRecord {
+    this.requireStatus("planned");
+    validateDate(input.at, "begin.at");
+    if (this.attempts.length >= MAX_EXECUTION_ATTEMPTS) {
+      throw new InvalidExecutionRecordError(`attempts must not exceed ${MAX_EXECUTION_ATTEMPTS}`);
+    }
+    const attempt: ExecutionAttempt = {
+      number: this.attempts.length + 1,
+      status: "running",
+      startedAt: input.at,
+      ...(input.providerSessionId === undefined ? {} : { providerSessionId: input.providerSessionId }),
+    };
+    return this.transition({
+      status: "running",
+      at: input.at,
+      attempts: [...this.attempts, attempt],
+      ...(input.providerSessionId === undefined ? {} : { providerSessionId: input.providerSessionId }),
+      event: { type: "started", detail: "Worker dispatch started." },
+    });
+  }
+
+  public awaitApproval(reason: ExecutionSuspensionReason, at: Date): ExecutionRecord {
+    this.requireStatus("running");
+    return this.transition({
+      status: "awaiting_approval",
+      at,
+      suspensionReason: reason,
+      event: { type: "approval_requested", detail: reason.detail },
+    });
+  }
+
+  public approve(at: Date): ExecutionRecord {
+    this.requireStatus("awaiting_approval");
+    return this.transition({
+      status: "planned",
+      at,
+      attempts: finishLatestAttempt(this.attempts, "interrupted", at),
+      event: { type: "approved", detail: "Required approval granted; mission can be dispatched again." },
+    });
+  }
+
+  public succeed(proofReferences: readonly string[], at: Date): ExecutionRecord {
+    this.requireStatus("running");
+    const proofs = mergeProofReferences(this.proofReferences, proofReferences);
+    if (proofs.length === 0) throw new InvalidExecutionRecordError("succeeded execution requires at least one proof reference");
+    return this.transition({
+      status: "succeeded",
+      at,
+      attempts: finishLatestAttempt(this.attempts, "succeeded", at),
+      proofReferences: proofs,
+      event: { type: "succeeded", detail: "Worker returned verifiable proof references." },
+    });
+  }
+
+  /**
+   * Persist only a validated provider session identifier. The provider is
+   * immutable and the session remains diagnostic metadata: retry still starts
+   * a new run.
+   */
+  public recordProviderSession(providerSessionId: string, at: Date): ExecutionRecord {
+    if (this.status !== "running" && this.status !== "awaiting_approval") {
+      throw new InvalidExecutionRecordError(`cannot record a provider session in ${this.status}`);
+    }
+    validateProviderSessionId(providerSessionId);
+    const latest = this.attempts.at(-1);
+    if (latest === undefined || latest.status !== "running") {
+      throw new InvalidExecutionRecordError("a running attempt is required to record a provider session");
+    }
+    if (latest.providerSessionId === providerSessionId && this.providerSessionId === providerSessionId) return this;
+    const attempts = [...this.attempts.slice(0, -1), { ...latest, providerSessionId }];
+    return this.transition({
+      status: this.status,
+      at,
+      attempts,
+      providerSessionId,
+      event: { type: "provider_session_recorded", detail: "External provider session reference recorded." },
+    });
+  }
+
+  public fail(reason: ExecutionSuspensionReason, at: Date): ExecutionRecord {
+    this.requireStatus("running");
+    return this.transition({
+      status: "failed",
+      at,
+      attempts: finishLatestAttempt(this.attempts, "failed", at),
+      suspensionReason: reason,
+      event: { type: "failed", detail: reason.detail },
+    });
+  }
+
+  public cancel(reason: ExecutionSuspensionReason, at: Date): ExecutionRecord {
+    if (this.status !== "planned" && this.status !== "running" && this.status !== "awaiting_approval") {
+      throw new InvalidExecutionRecordError(`cannot cancel an execution in ${this.status}`);
+    }
+    const attempts = this.status === "running" || this.status === "awaiting_approval"
+      ? finishLatestAttempt(this.attempts, "cancelled", at)
+      : this.attempts;
+    return this.transition({
+      status: "cancelled",
+      at,
+      attempts,
+      suspensionReason: reason,
+      event: { type: "cancelled", detail: reason.detail },
+    });
+  }
+
+  public interrupt(reason: ExecutionSuspensionReason, at: Date): ExecutionRecord {
+    if (this.status !== "running" && this.status !== "awaiting_approval") {
+      throw new InvalidExecutionRecordError(`cannot interrupt an execution in ${this.status}`);
+    }
+    return this.transition({
+      status: "interrupted",
+      at,
+      attempts: finishLatestAttempt(this.attempts, "interrupted", at),
+      suspensionReason: reason,
+      event: { type: "interrupted", detail: reason.detail },
+    });
+  }
+
+  public reject(reason: ExecutionSuspensionReason, at: Date): ExecutionRecord {
+    this.requireStatus("planned");
+    return this.transition({
+      status: "rejected",
+      at,
+      suspensionReason: reason,
+      event: { type: "rejected", detail: reason.detail },
+    });
+  }
+
+  public retry(at: Date): ExecutionRecord {
+    if (this.status !== "failed" && this.status !== "cancelled" && this.status !== "interrupted") {
+      throw new InvalidExecutionRecordError(`cannot retry an execution in ${this.status}`);
+    }
+    if (this.attempts.length >= MAX_EXECUTION_ATTEMPTS) {
+      throw new InvalidExecutionRecordError(`attempts must not exceed ${MAX_EXECUTION_ATTEMPTS}`);
+    }
+    return this.transition({
+      status: "planned",
+      at,
+      event: { type: "retry_planned", detail: "Retry planned with the provider selected for the original execution." },
+    });
+  }
+
+  public appendEvent(type: string, detail: string, at: Date): ExecutionRecord {
+    validateEvent({ type, detail, at });
+    return this.transition({ status: this.status, at, event: { type, detail } });
+  }
+
+  public toProps(): ExecutionRecordProps {
+    return {
+      id: this.id,
+      order: MissionOrder.create(this.order.toProps()),
+      provider: this.provider,
+      status: this.status,
+      attempts: cloneAttempts(this.attempts),
+      events: cloneEvents(this.events),
+      truncatedEventCount: this.truncatedEventCount,
+      proofReferences: [...this.proofReferences],
+      ...(this.suspensionReason === undefined ? {} : { suspensionReason: { ...this.suspensionReason } }),
+      ...(this.providerSessionId === undefined ? {} : { providerSessionId: this.providerSessionId }),
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+    };
+  }
+
+  private requireStatus(expected: ExecutionRecordStatus): void {
+    if (this.status !== expected) throw new InvalidExecutionRecordError(`expected ${expected} status, received ${this.status}`);
+  }
+
+  private transition(input: {
+    readonly status: ExecutionRecordStatus;
+    readonly at: Date;
+    readonly attempts?: readonly ExecutionAttempt[];
+    readonly proofReferences?: readonly string[];
+    readonly suspensionReason?: ExecutionSuspensionReason;
+    readonly providerSessionId?: string;
+    readonly event: { readonly type: string; readonly detail: string };
+  }): ExecutionRecord {
+    validateDate(input.at, "transition.at");
+    if (input.at.getTime() < this.updatedAtValue.getTime()) {
+      throw new InvalidExecutionRecordError("transition time must not precede the current update time");
+    }
+    const event = { at: input.at, type: input.event.type, detail: input.event.detail };
+    const bounded = appendBoundedEvent(this.events, event, this.truncatedEventCount);
+    const suspensionReason = input.status === "planned" || input.status === "succeeded"
+      ? undefined
+      : input.suspensionReason ?? this.suspensionReason;
+    return ExecutionRecord.create({
+      id: this.id,
+      order: this.order,
+      provider: this.provider,
+      status: input.status,
+      attempts: input.attempts ?? this.attempts,
+      events: bounded.events,
+      truncatedEventCount: bounded.truncatedEventCount,
+      proofReferences: input.proofReferences ?? this.proofReferences,
+      ...(suspensionReason === undefined ? {} : { suspensionReason }),
+      ...(input.providerSessionId === undefined ? (this.providerSessionId === undefined ? {} : { providerSessionId: this.providerSessionId }) : { providerSessionId: input.providerSessionId }),
+      createdAt: this.createdAt,
+      updatedAt: input.at,
+    });
+  }
+}
+
+export function executionSuspensionReason(code: ExecutionSuspensionCode, detail: string): ExecutionSuspensionReason {
+  const value = { code, detail };
+  validateSuspensionReason(value);
+  return Object.freeze({ ...value });
+}
+
+export function isExecutionSuspensionCode(value: unknown): value is ExecutionSuspensionCode {
+  return typeof value === "string" && (EXECUTION_SUSPENSION_CODES as readonly string[]).includes(value);
+}
+
+function validateRecordProps(props: ExecutionRecordProps): void {
+  if (typeof props.id !== "string" || !EXECUTION_ID_PATTERN.test(props.id)) {
+    throw new InvalidExecutionRecordError("id must match [a-z][a-z0-9-]{0,95}");
+  }
+  if (!(props.order instanceof MissionOrder)) throw new InvalidExecutionRecordError("order must be a MissionOrder");
+  if (props.provider !== "claude" && props.provider !== "codex") throw new InvalidExecutionRecordError("provider is unsupported");
+  if (!isExecutionRecordStatus(props.status)) throw new InvalidExecutionRecordError("status is unsupported");
+  validateAttempts(props.attempts);
+  validateEvents(props.events);
+  if (!Number.isInteger(props.truncatedEventCount) || props.truncatedEventCount < 0) {
+    throw new InvalidExecutionRecordError("truncatedEventCount must be a non-negative integer");
+  }
+  validateProofReferences(props.proofReferences);
+  if (props.suspensionReason !== undefined) validateSuspensionReason(props.suspensionReason);
+  if (props.providerSessionId !== undefined) validateProviderSessionId(props.providerSessionId);
+  validateDate(props.createdAt, "createdAt");
+  validateDate(props.updatedAt, "updatedAt");
+  if (props.updatedAt.getTime() < props.createdAt.getTime()) throw new InvalidExecutionRecordError("updatedAt must not precede createdAt");
+  validateStateConsistency(props);
+}
+
+function validateStateConsistency(props: ExecutionRecordProps): void {
+  const lastAttempt = props.attempts.at(-1);
+  if (props.status === "succeeded") {
+    if (props.proofReferences.length === 0) throw new InvalidExecutionRecordError("succeeded execution requires proof references");
+    if (lastAttempt?.status !== "succeeded") throw new InvalidExecutionRecordError("succeeded execution requires a succeeded attempt");
+  }
+  if (props.status === "running" && lastAttempt?.status !== "running") {
+    throw new InvalidExecutionRecordError("running execution requires a running attempt");
+  }
+  if (props.status === "awaiting_approval") {
+    if (props.suspensionReason === undefined) throw new InvalidExecutionRecordError("awaiting approval requires a suspension reason");
+    if (lastAttempt?.status !== "running") throw new InvalidExecutionRecordError("awaiting approval requires a running attempt");
+  }
+  if (["failed", "cancelled", "interrupted", "rejected"].includes(props.status) && props.suspensionReason === undefined) {
+    throw new InvalidExecutionRecordError(`${props.status} execution requires a suspension reason`);
+  }
+}
+
+function validateAttempts(value: unknown): void {
+  if (!isUnknownArray(value) || value.length > MAX_EXECUTION_ATTEMPTS) {
+    throw new InvalidExecutionRecordError(`attempts must contain at most ${MAX_EXECUTION_ATTEMPTS} entries`);
+  }
+  let previousStart = -Infinity;
+  for (const [index, attempt] of value.entries()) {
+    validateAttempt(attempt);
+    if (!Number.isInteger(attempt.number) || attempt.number !== index + 1) throw new InvalidExecutionRecordError("attempt numbers must be contiguous");
+    validateDate(attempt.startedAt, "attempt.startedAt");
+    if (attempt.startedAt.getTime() < previousStart) throw new InvalidExecutionRecordError("attempts must be ordered by start time");
+    previousStart = attempt.startedAt.getTime();
+    if (attempt.endedAt !== undefined) {
+      validateDate(attempt.endedAt, "attempt.endedAt");
+      if (attempt.endedAt.getTime() < attempt.startedAt.getTime()) throw new InvalidExecutionRecordError("attempt end must not precede start");
+    }
+    if (attempt.status === "running" && attempt.endedAt !== undefined) throw new InvalidExecutionRecordError("running attempt cannot have endedAt");
+    if (attempt.status !== "running" && attempt.endedAt === undefined) throw new InvalidExecutionRecordError("finished attempt requires endedAt");
+    if (attempt.providerSessionId !== undefined) validateProviderSessionId(attempt.providerSessionId);
+  }
+}
+
+function validateAttempt(value: unknown): asserts value is ExecutionAttempt {
+  if (!isRecord(value)) throw new InvalidExecutionRecordError("attempt must be an object");
+  const number = value["number"];
+  const status = value["status"];
+  if (typeof number !== "number" || !Number.isInteger(number)) throw new InvalidExecutionRecordError("attempt number is invalid");
+  if (!isExecutionAttemptStatus(status)) throw new InvalidExecutionRecordError("attempt status is unsupported");
+  validateDate(value["startedAt"], "attempt.startedAt");
+  if (value["endedAt"] !== undefined) validateDate(value["endedAt"], "attempt.endedAt");
+  if (value["providerSessionId"] !== undefined) validateProviderSessionId(value["providerSessionId"]);
+}
+
+function validateEvents(value: unknown): void {
+  if (!isUnknownArray(value) || value.length > MAX_EXECUTION_EVENTS) {
+    throw new InvalidExecutionRecordError(`events must contain at most ${MAX_EXECUTION_EVENTS} entries`);
+  }
+  let previous = -Infinity;
+  for (const event of value) {
+    validateEvent(event);
+    if (event.at.getTime() < previous) throw new InvalidExecutionRecordError("events must be ordered by time");
+    previous = event.at.getTime();
+  }
+}
+
+function validateEvent(event: unknown): asserts event is ExecutionEvent {
+  if (!isRecord(event)) throw new InvalidExecutionRecordError("event must be an object");
+  validateDate(event.at, "event.at");
+  if (typeof event.type !== "string" || !EVENT_TYPE_PATTERN.test(event.type)) {
+    throw new InvalidExecutionRecordError("event.type is invalid");
+  }
+  validateSafeText(event.detail, "event.detail", 500);
+}
+
+function validateProofReferences(value: unknown): void {
+  if (!isUnknownArray(value) || value.length > MAX_PROOF_REFERENCES || new Set(value).size !== value.length) {
+    throw new InvalidExecutionRecordError(`proofReferences must contain at most ${MAX_PROOF_REFERENCES} unique entries`);
+  }
+  for (const reference of value) validateSafeText(reference, "proofReferences", 512);
+}
+
+function validateSuspensionReason(reason: unknown): asserts reason is ExecutionSuspensionReason {
+  if (!isRecord(reason)) throw new InvalidExecutionRecordError("suspension reason must be an object");
+  if (!isExecutionSuspensionCode(reason.code)) throw new InvalidExecutionRecordError("suspension reason code is unsupported");
+  validateSafeText(reason.detail, "suspension reason detail", 500);
+}
+
+function validateProviderSessionId(value: unknown): asserts value is string {
+  validateSafeText(value, "providerSessionId", 256);
+}
+
+function validateSafeText(value: unknown, field: string, maximum: number): asserts value is string {
+  if (typeof value !== "string" || value.trim().length === 0 || value.length > maximum || /[\u0000-\u001f\u007f]/.test(value)) {
+    throw new InvalidExecutionRecordError(`${field} must contain 1..${maximum} printable characters`);
+  }
+  if (containsSecretLikeText(value)) throw new InvalidExecutionRecordError(`${field} must not include credentials or authorization material`);
+}
+
+function validateDate(value: unknown, field: string): asserts value is Date {
+  if (!(value instanceof Date) || Number.isNaN(value.getTime())) throw new InvalidExecutionRecordError(`${field} must be a valid date`);
+}
+
+function isUnknownArray(value: unknown): value is readonly unknown[] {
+  return Array.isArray(value);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function finishLatestAttempt(attempts: readonly ExecutionAttempt[], status: Exclude<ExecutionAttemptStatus, "running">, at: Date): readonly ExecutionAttempt[] {
+  const current = attempts.at(-1);
+  if (current === undefined || current.status !== "running") throw new InvalidExecutionRecordError("no running attempt to finish");
+  return [...attempts.slice(0, -1), { ...current, status, endedAt: at }];
+}
+
+function mergeProofReferences(current: readonly string[], incoming: readonly string[]): readonly string[] {
+  const merged = [...current, ...incoming];
+  validateProofReferences(merged);
+  return merged;
+}
+
+function appendBoundedEvent(
+  events: readonly ExecutionEvent[],
+  event: ExecutionEvent,
+  truncatedEventCount: number,
+): { readonly events: readonly ExecutionEvent[]; readonly truncatedEventCount: number } {
+  validateEvent(event);
+  const next = [...events, event];
+  if (next.length <= MAX_EXECUTION_EVENTS) return { events: next, truncatedEventCount };
+  return { events: next.slice(1), truncatedEventCount: truncatedEventCount + 1 };
+}
+
+function freezeAttempts(attempts: readonly ExecutionAttempt[]): readonly ExecutionAttempt[] {
+  return Object.freeze(attempts.map((attempt) => Object.freeze({
+    ...attempt,
+    startedAt: new Date(attempt.startedAt.getTime()),
+    ...(attempt.endedAt === undefined ? {} : { endedAt: new Date(attempt.endedAt.getTime()) }),
+  })));
+}
+
+function freezeEvents(events: readonly ExecutionEvent[]): readonly ExecutionEvent[] {
+  return Object.freeze(events.map((event) => Object.freeze({ ...event, at: new Date(event.at.getTime()) })));
+}
+
+function cloneAttempts(attempts: readonly ExecutionAttempt[]): readonly ExecutionAttempt[] {
+  return attempts.map((attempt) => ({
+    ...attempt,
+    startedAt: new Date(attempt.startedAt.getTime()),
+    ...(attempt.endedAt === undefined ? {} : { endedAt: new Date(attempt.endedAt.getTime()) }),
+  }));
+}
+
+function cloneEvents(events: readonly ExecutionEvent[]): readonly ExecutionEvent[] {
+  return events.map((event) => ({ ...event, at: new Date(event.at.getTime()) }));
+}

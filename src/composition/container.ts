@@ -25,6 +25,7 @@ import { createTheme, type Theme } from "../adapters/inbound/tui/runtime/theme.j
 import { createTuiApp, type TuiApp } from "../adapters/inbound/tui/runtime/tui-app.js";
 import { createProjectDetailView } from "../adapters/inbound/tui/views/project-detail-view.js";
 import { createFeatureDetailView } from "../adapters/inbound/tui/views/feature-detail-view.js";
+import { createOrchestrationView } from "../adapters/inbound/tui/views/orchestration-view.js";
 import { createHomeView, type HomeView } from "../adapters/inbound/tui/views/home-view.js";
 import { createResultView } from "../adapters/inbound/tui/views/result-view.js";
 import { FsFilesystem } from "../adapters/outbound/filesystem/fs-filesystem.js";
@@ -48,6 +49,7 @@ import { createResourceConfirmationController } from "./tui/resource-confirmatio
 import { showHealthReport, showSkillInstallation } from "./tui/skill-scene-controller.js";
 import { createAgentSceneController } from "./tui/agent-scene-controller.js";
 import { createAgentOrchestrationRuntime } from "./agent-orchestration-runtime.js";
+import { createOrchestrationRuntime } from "./orchestration-runtime.js";
 import { createAgentOrchestrationSceneController } from "./tui/agent-orchestration-scene-controller.js";
 
 export interface Container {
@@ -118,6 +120,7 @@ export function createContainer(env: Env, ui: ContainerUiOptions = {}): Containe
   const agentScenes = createAgentSceneController(app, management.agents);
   const orchestration = createAgentOrchestrationRuntime({ ...management, pipeline });
   const orchestrationScenes = createAgentOrchestrationSceneController(app, orchestration);
+  const automaticOrchestration = createOrchestrationRuntime({ ...management, pipeline, homeDir, frameworkRoot: FRAMEWORK_ROOT });
   const confirmations = createResourceConfirmationController({
     app,
     projects,
@@ -190,6 +193,7 @@ export function createContainer(env: Env, ui: ContainerUiOptions = {}): Containe
         initialAgents,
         ...(currentAgent === undefined ? {} : { currentAgentId: currentAgent.id.value }),
         sessionId: env.agentSessionId.value,
+        projects,
         features,
         scan,
         redraw: () => app.redraw(),
@@ -210,6 +214,22 @@ export function createContainer(env: Env, ui: ContainerUiOptions = {}): Containe
           projectView.setAgents(agents, current?.id.value);
         }),
         onShowProductAdvice: (selected) => orchestrationScenes.showProjectAdvice(selected),
+        onOpenOrchestration: async (selected) => {
+          const status = await automaticOrchestration.status({ projectId: selected.id });
+          app.push(createOrchestrationView({
+            project: selected,
+            initialStatus: status,
+            orchestration: automaticOrchestration,
+            refreshProject: async () => {
+              const refreshed = await projects.show(selected.id);
+              uiState.currentProject = refreshed;
+              projectView.setProject(refreshed);
+              return refreshed;
+            },
+            redraw: () => app.redraw(),
+            onBack: () => app.pop(),
+          }));
+        },
       });
     app.push(projectView);
   }

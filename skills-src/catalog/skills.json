@@ -12,8 +12,8 @@
     "qa": "8 skills pour la recette et la validation"
   },
   "skills": [
-    { "name": "arka-norn", "version": "1.2.0", "source": "arka-norn.json", "checksum": "392735e804ebf8be5937501d464da7c99aeff7e85d68c9d5af90972bef320bd3", "step": "core.bootstrap", "profiles": ["all", "core", "delivery", "product", "architecture", "audit", "dev", "qa"] },
-    { "name": "arka-product", "version": "1.1.0", "source": "arka-product.json", "checksum": "c698534f6a352d739158707da830992ae4bdf285ab85cda71741cf3d849056f4", "step": "core.product", "profiles": ["all", "core", "delivery", "product"] },
+    { "name": "arka-norn", "version": "1.2.0", "source": "arka-norn.json", "checksum": "4ec8fac0b07826ea3dcff76004824236857d09fb94c3bdb7a2f2a66656ee0549", "step": "core.bootstrap", "profiles": ["all", "core", "delivery", "product", "architecture", "audit", "dev", "qa"] },
+    { "name": "arka-product", "version": "1.2.0", "source": "arka-product.json", "checksum": "d14697bf15d0820e3da1307c82c828429ebe625d4473d99f349324a676213145", "step": "core.product", "profiles": ["all", "core", "delivery", "product"] },
     { "name": "arka-fastdev", "version": "1.1.0", "source": "arka-fastdev.json", "checksum": "d74fa61bee1881c0187be04286cdc8c01ef4049a4376d919c26b4142cba5c6d9", "step": "core.fastdev", "profiles": ["all", "core", "delivery", "audit", "dev", "qa"] },
     { "name": "arka-framework-maitrise", "version": "1.3.0", "source": "arka-framework-maitrise.json", "checksum": "d56b714476f1541b6d559923c8714cca87070a0c1091d0bf8b0ea4b66ec254f4", "step": "core.mastery", "profiles": ["all", "core", "delivery", "product", "architecture", "audit", "dev", "qa"] },
     { "name": "arka-framework-statut", "version": "1.0.0", "source": "arka-framework-statut.json", "checksum": "5cda80db55abf00ab0eeeec53c3186d86816c7ad45e5d5987b46253ededa62fa", "step": "core.status", "profiles": ["all", "core", "delivery", "product", "architecture", "audit", "dev", "qa"] },

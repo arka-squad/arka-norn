@@ -9,12 +9,13 @@ Pour initialiser un provider avant de choisir une Feature, l'utilisateur lui env
 ## Gestion
 
 ```text
-arka-norn project list|add|import|scan|show|use|forget|reconcile
+arka-norn project list|add|import|scan|show|use|forget|reconcile|set-orchestration-mode
 arka-norn feature list|create|import|scan|show|use|forget|reconcile
 arka-norn agent list|register|show|current|use|sessions|advise|prompt|handoff-prompt|deactivate|replace
 arka-norn pipeline status|next|scaffold|validate
 arka-norn workflow list|show
 arka-norn fastdev start|status|next
+arka-norn orchestration start|status|cancel|approve|retry
 arka-norn skills list|install|doctor [--global]
 arka-norn doctor [--repair [--apply]]
 arka-norn migrate [--target <path>] [--dry-run|--apply]
@@ -36,6 +37,37 @@ arka-norn agent handoff-prompt --project product --feature secure-cockpit
 ```
 
 `agent advise` retourne la phase, la responsabilité Product et les rôles à lancer maintenant ou en préparation. `agent prompt` rend un prompt autonome avec session, profil de skills, périmètre et permissions ; un rôle ne peut pas exécuter une étape qui ne lui appartient pas. `agent handoff-prompt` prépare une nouvelle conversation Product en réutilisant la même identité. Voir [`agent-orchestration.md`](agent-orchestration.md).
+
+## Orchestration automatique
+
+```text
+arka-norn project add <root> --name <nom> --id <project-id> --orchestration-mode manual|automatic
+arka-norn project set-orchestration-mode <project-id> --orchestration-mode manual|automatic
+
+arka-norn orchestration start --project <project-id> [--feature <feature-id>]
+arka-norn orchestration status --project <project-id>
+arka-norn orchestration cancel <execution-id> --project <project-id>
+arka-norn orchestration approve <execution-id> --project <project-id>
+arka-norn orchestration retry <execution-id> --project <project-id>
+```
+
+Le mode `manual|automatic` appartient au marker Project v4 et ne doit pas être
+confondu avec `agent prompt --mode prepare|execute`. `start` arme
+explicitement le mode automatique et ne peut soumettre qu’un ordre calculé et
+validé par Arka Norn. Le plan de contrôle doit réévaluer les préconditions
+avant chaque suite de mission.
+
+`status` retourne la politique Project, les exécutions, le provider retenu et
+l’action attendue, jamais les secrets ni l’état de processus local. `cancel`
+arrête explicitement une mission. `approve` ne traite qu’une permission
+structurée et vérifiable ; une demande opaque est refusée avec
+`permission_not_preapproved` et demande une inspection, sans escalade
+automatique. `retry` crée une nouvelle tentative contrôlée avec le provider
+retenu par la mission d’origine. Il n’existe pas de fallback provider pendant
+une exécution ni de reprise générique d’une session Codex ACP interrompue.
+
+Voir [`automatic-orchestration.md`](automatic-orchestration.md) pour les
+formats persistés, les permissions et les limites d’isolation.
 
 Avant un scaffold géré, enregistrez ou sélectionnez l’identité de la session spécialisée :
 
@@ -88,7 +120,9 @@ Lorsque la prochaine étape est `concept`, la skill `arka-framework-concept` peu
 
 Le parseur est commun à toutes les commandes : une option inconnue, répétée,
 incompatible ou sans valeur retourne `64`. `ARKA_NORN_HOME` cible la même zone
-d’index pour les commandes de gestion et `doctor`. `ARKA_NORN_SESSION` définit la session Agent par défaut ; `--session` la remplace sur une commande.
+d’index pour les commandes de gestion et `doctor`, ainsi que l’état privé et
+reconstructible des workers d’orchestration. `ARKA_NORN_SESSION` définit la
+session Agent par défaut ; `--session` la remplace sur une commande.
 
 ## Codes de sortie
 

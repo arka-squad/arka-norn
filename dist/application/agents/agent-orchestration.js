@@ -292,7 +292,8 @@ function normalizePath(value) {
     const normalized = value.replaceAll("\\", "/").replace(/\/+$/, "");
     return normalized === "" ? "/" : normalized;
 }
-function roleForStep(stepId) {
+/** Stable routing used by the control plane before it prepares a bounded mission. */
+export function roleForStep(stepId) {
     return STEP_ROLES[stepId];
 }
 function roleCategory(role) {

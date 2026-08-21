@@ -9,6 +9,7 @@ import { runAgentCommand } from "./agent-cli.js";
 import { runDoctorCommand } from "./doctor-cli.js";
 import { runManagementCommand } from "./management-cli.js";
 import { runMigrateCommand } from "./migrate-cli.js";
+import { runOrchestrationCommand } from "./orchestration-cli.js";
 import { runPipelineCommand, runScaffoldCommand, runStatusCommand, runValidateCommand } from "./pipeline-cli.js";
 import { runSkillsCommand } from "./skills-cli.js";
 import { runWorkflowCommand } from "./workflow-cli.js";
@@ -23,8 +24,9 @@ Pour un parcours accompagné : arka-norn guide
 Depuis un agent provider : /arka-norn (Claude) ou $arka-norn (Codex)
 
 Gestion :
-  project <list|add|import|scan|show|use|forget|reconcile>
+  project <list|add|import|scan|show|use|forget|reconcile|set-orchestration-mode>
   feature <list|create|import|scan|show|use|forget|reconcile|set-workflow>
+  orchestration <start|status|cancel|approve|retry>
   agent <list|register|show|current|use|sessions|advise|prompt|handoff-prompt|deactivate|replace>
   pipeline <status|next|scaffold|validate> Statut : identité, relations et verdict métier.
   workflow <list|show>
@@ -131,6 +133,9 @@ export async function runCli(argv: readonly string[]): Promise<number> {
         break;
       case "agent":
         result = await runAgentCommand(rest, { homeDir, cwd: env.cwd, frameworkRoot: FRAMEWORK_ROOT, sessionId: env.agentSessionId });
+        break;
+      case "orchestration":
+        result = await runOrchestrationCommand(rest, { homeDir, cwd: env.cwd, frameworkRoot: FRAMEWORK_ROOT, environment: process.env });
         break;
       case "pipeline":
         result = await runPipelineCommand(rest, pipelineContext);

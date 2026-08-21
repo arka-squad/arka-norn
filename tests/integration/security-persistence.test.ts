@@ -32,7 +32,7 @@ test("une racine v2 forgée n'est jamais utilisée comme racine runtime", async 
   assert.notEqual(project.root, await realpath(forged));
   await store.save(project);
   const portable = JSON.parse(readFileSync(resolve(actual, ".arka-norn", "project.json"), "utf8")) as Record<string, unknown>;
-  assert.equal(portable.schemaVersion, 3);
+  assert.equal(portable.schemaVersion, 4);
   assert.equal("root" in portable, false);
 });
 

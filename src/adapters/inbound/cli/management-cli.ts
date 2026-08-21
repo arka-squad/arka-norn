@@ -5,7 +5,7 @@ import { DomainError } from "../../../domain/errors.js";
 import { FeatureId } from "../../../domain/feature/feature-id.js";
 import type { Feature } from "../../../domain/feature/feature.js";
 import { ProjectId } from "../../../domain/project/project-id.js";
-import type { Project } from "../../../domain/project/project.js";
+import { isProjectOrchestrationMode, type Project } from "../../../domain/project/project.js";
 import { createManagementRuntime } from "../../../composition/management-runtime.js";
 import { createPipelineRuntime } from "../../../composition/pipeline-runtime.js";
 import type { CliExecution } from "./cli-execution.js";
@@ -52,7 +52,8 @@ async function executeProject(action: string, args: ParsedArguments, runtime: Ru
       const root = resolve(context.cwd, args.positionals[0]!);
       const name = args.values.get("name") ?? basename(root);
       const id = ProjectId.of(args.values.get("id") ?? deriveId(name, root));
-      return serializeProject(await runtime.projects.create({ id, name, root }));
+      const orchestrationMode = optionalOrchestrationMode(args.values.get("orchestration-mode"));
+      return serializeProject(await runtime.projects.create({ id, name, root, ...(orchestrationMode === undefined ? {} : { orchestrationMode }) }));
     }
     case "import": {
       requirePositionals(args, 1);
@@ -65,6 +66,13 @@ async function executeProject(action: string, args: ParsedArguments, runtime: Ru
     case "use": {
       requirePositionals(args, 1);
       return serializeProject(await runtime.projects.switchTo(ProjectId.of(args.positionals[0]!)));
+    }
+    case "set-orchestration-mode": {
+      requirePositionals(args, 1);
+      return serializeProject(await runtime.projects.setOrchestrationMode({
+        id: ProjectId.of(args.positionals[0]!),
+        orchestrationMode: requiredOrchestrationMode(args),
+      }));
     }
     case "forget": {
       requirePositionals(args, 1);
@@ -156,10 +164,11 @@ function argumentSpec(resource: "project" | "feature", action: string): StrictAr
   const key = `${resource}.${action}`;
   const specs: Readonly<Record<string, StrictArgumentSpec>> = {
     "project.list": { options: json, minPositionals: 0, maxPositionals: 0 },
-    "project.add": { options: { ...json, name: "string", id: "string" }, minPositionals: 1, maxPositionals: 1 },
+    "project.add": { options: { ...json, name: "string", id: "string", "orchestration-mode": "string" }, minPositionals: 1, maxPositionals: 1 },
     "project.import": { options: json, minPositionals: 1, maxPositionals: 1 },
     "project.show": { options: json, minPositionals: 1, maxPositionals: 1 },
     "project.use": { options: json, minPositionals: 1, maxPositionals: 1 },
+    "project.set-orchestration-mode": { options: { ...json, "orchestration-mode": "string" }, minPositionals: 1, maxPositionals: 1 },
     "project.forget": { options: { ...json, yes: "boolean" }, minPositionals: 1, maxPositionals: 1 },
     "project.scan": { options: json, minPositionals: 0, maxPositionals: 1 },
     "project.reconcile": { options: json, minPositionals: 0, maxPositionals: 1 },
@@ -182,12 +191,25 @@ function requiredValue(args: ParsedArguments, name: string): string {
   return value;
 }
 
+function requiredOrchestrationMode(args: ParsedArguments) {
+  const value = requiredValue(args, "orchestration-mode");
+  return optionalOrchestrationMode(value)!;
+}
+
+function optionalOrchestrationMode(value: string | undefined) {
+  if (value === undefined) return undefined;
+  if (!isProjectOrchestrationMode(value)) {
+    throw new UsageError("--orchestration-mode must be manual or automatic");
+  }
+  return value;
+}
+
 function requirePositionals(args: ParsedArguments, count: number): void {
   if (args.positionals.length !== count) throw new UsageError(`expected ${count} positional argument(s), received ${args.positionals.length}`);
 }
 
 function serializeProject(project: Project) {
-  return { schemaVersion: project.schemaVersion, id: project.id.value, name: project.name, root: project.root, createdAt: project.createdAt.toISOString(), updatedAt: project.updatedAt.toISOString() };
+  return { schemaVersion: project.schemaVersion, id: project.id.value, name: project.name, root: project.root, orchestrationMode: project.orchestrationMode, createdAt: project.createdAt.toISOString(), updatedAt: project.updatedAt.toISOString() };
 }
 
 function serializeFeature(feature: Feature) {
@@ -215,7 +237,7 @@ function output(command: string, data: unknown, json: boolean, warnings: readonl
 function humanRow(value: unknown): string {
   if (typeof value !== "object" || value === null) return String(value);
   const row = value as Readonly<Record<string, unknown>>;
-  if (typeof row["id"] === "string") return `${row["id"]}\t${scalar(row["name"])}\t${scalar(row["root"])}`.trimEnd();
+  if (typeof row["id"] === "string") return `${row["id"]}\t${scalar(row["name"])}\t${scalar(row["root"])}\t${scalar(row["orchestrationMode"])}`.trimEnd();
   if (typeof row["root"] === "string") return `${row["healthy"] === true ? "OK" : "WARN"}\t${row["root"]}`;
   return JSON.stringify(value);
 }

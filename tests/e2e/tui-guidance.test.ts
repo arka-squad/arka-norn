@@ -21,6 +21,7 @@ test("l’accueil explique le parcours vide et la touche d’aide", () => {
     projects: {
       list: async () => [], create: async () => { throw new Error("unused"); }, importFrom: async () => { throw new Error("unused"); },
       show: async () => { throw new Error("unused"); }, forget: async () => {}, switchTo: async () => { throw new Error("unused"); },
+      setOrchestrationMode: async () => { throw new Error("unused"); },
     },
     scan: { scan: async () => [] }, cwd: "/workspace", contextRoot: "/workspace", redraw() {},
   });
@@ -42,6 +43,7 @@ test("l’accueil reflète un nouveau résumé de santé sans recréation", () =
     projects: {
       list: async () => [], create: async () => { throw new Error("unused"); }, importFrom: async () => { throw new Error("unused"); },
       show: async () => { throw new Error("unused"); }, forget: async () => {}, switchTo: async () => { throw new Error("unused"); },
+      setOrchestrationMode: async () => { throw new Error("unused"); },
     },
     scan: { scan: async () => [] },
     cwd: "/workspace",

@@ -5,7 +5,7 @@ import { PathSecurityError, ProjectAlreadyExistsError, ProjectMarkerNotFoundErro
 import { ProjectId } from "../../../domain/project/project-id.js";
 import { Project } from "../../../domain/project/project.js";
 import {
-  type ProjectMarkerV3,
+  type ProjectMarkerV4,
   planProjectMarkerMigration,
 } from "../../../domain/shared/marker-formats.js";
 import type { ProjectStore } from "../../../ports/outbound/project-store.js";
@@ -39,7 +39,7 @@ export class FsProjectStore implements ProjectStore {
   public async load(root: string): Promise<Project> {
     await rejectMarkerDirectorySymlink(root);
     const current = await readJson<unknown>(projectMarkerPath(root));
-    let marker: ProjectMarkerV3;
+    let marker: ProjectMarkerV4;
     if (current !== undefined) {
       marker = planProjectMarkerMigration(current).output;
     } else {
@@ -53,6 +53,7 @@ export class FsProjectStore implements ProjectStore {
       name: marker.name,
       root: canonicalRoot,
       schemaVersion: marker.schemaVersion,
+      orchestrationMode: marker.orchestrationMode,
       createdAt: new Date(marker.createdAt),
       updatedAt: new Date(marker.updatedAt),
     });
@@ -65,11 +66,12 @@ export class FsProjectStore implements ProjectStore {
   }
 }
 
-function serialize(project: Project): ProjectMarkerV3 {
+function serialize(project: Project): ProjectMarkerV4 {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     id: project.id.value,
     name: project.name,
+    orchestrationMode: project.orchestrationMode,
     createdAt: project.createdAt.toISOString(),
     updatedAt: project.updatedAt.toISOString(),
   };

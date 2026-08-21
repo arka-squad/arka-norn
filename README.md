@@ -19,7 +19,7 @@ Il fonctionne localement, depuis une interface terminal guidée, une CLI scripta
 | 🤖 | **[Guide de démarrage Agent](docs/agent-bootstrap.md)** | L’initialisation avec `/arka-norn` ou `$arka-norn`, l’identité, le périmètre et la prochaine action. |
 | ⌨️ | **[Référence CLI](docs/cli.md)** | Les commandes scriptables, options, sorties JSON et codes de retour. |
 
-Accès directs : [cockpit TUI](docs/tui.md) · [orchestration multi-Agent](docs/agent-orchestration.md) · [workflow FastDev](docs/fastdev.md) · [catalogue des skills](docs/skills.md) · [dépannage](docs/troubleshooting.md)
+Accès directs : [cockpit TUI](docs/tui.md) · [orchestration multi-Agent](docs/agent-orchestration.md) · [orchestration automatique](docs/automatic-orchestration.md) · [workflow FastDev](docs/fastdev.md) · [catalogue des skills](docs/skills.md) · [dépannage](docs/troubleshooting.md)
 
 ## Ce qu’Arka Norn apporte
 
@@ -27,6 +27,7 @@ Accès directs : [cockpit TUI](docs/tui.md) · [orchestration multi-Agent](docs/
 - **Deux workflows adaptés** : un parcours complet pour les Features structurantes et FastDev pour les reworks bornés.
 - **Un Product principal stable** : il reste dans la session `main`, organise le Project et prépare les autres Agents.
 - **Une session par Agent spécialisé** : architecture, audit, développement et QA travaillent sans écraser leur identité respective.
+- **Une automatisation bornée** : le Project choisit explicitement `manual` ou `automatic` ; Arka Norn garde le contrôle et Mastra exécute seulement des ordres de mission validés.
 - **Des livrables signés et vérifiables** : chaque nouveau document nomme son auteur, ses dépendances et ses preuves.
 - **Des audits au bon scope** : une Feature utilise son document v3 ; un audit de Project sans Feature utilise l’enveloppe v4 explicite.
 - **Des boucles de correction réelles** : une QA ou une validation obsolète ne peut pas terminer la Feature.
@@ -44,7 +45,7 @@ arka-norn selftest
 arka-norn doctor
 ```
 
-Prérequis : Node.js `20.11` ou plus récent. La [procédure de release](docs/release.md) explique la vérification du checksum et le rollback.
+Prérequis : Node.js `22.13` ou plus récent. La [procédure de release](docs/release.md) explique la vérification du checksum et le rollback.
 
 ### Ouvrir le cockpit
 
@@ -71,6 +72,23 @@ Le premier Agent devient le **Product principal**. Il vérifie le Project, reste
 - un prompt de reprise du Product avant saturation du contexte.
 
 Voir [l’orchestration Product et les sessions Agent](docs/agent-orchestration.md).
+
+### Automatiser sans perdre le contrôle
+
+L’automatisation est toujours opt-in et reste pilotée par le Project :
+
+```bash
+arka-norn orchestration start --project <project-id>
+arka-norn orchestration status --project <project-id>
+```
+
+Avant chaque mission, Arka Norn revalide la prochaine étape, le périmètre et les
+preuves attendues ; le provider retenu est enregistré avant le démarrage. Seuls
+les providers sains, autorisés et capables peuvent être choisis. En V1, Codex
+ACP est supporté comme adapter, mais il n’est pas candidat aux écritures d’une
+Feature tant que son harness ne fournit pas de permission structurée et
+vérifiable. Consultez [l’orchestration automatique contrôlée](docs/automatic-orchestration.md)
+pour les limites et actions de reprise.
 
 ## Un modèle volontairement simple
 
@@ -123,6 +141,7 @@ arka-norn doctor                  # santé globale
 arka-norn project list            # Projects connus
 arka-norn feature list --project <project-id>
 arka-norn agent advise --project <project-id> --feature <feature-id>
+arka-norn orchestration status --project <project-id>
 arka-norn pipeline status <feature-id>
 arka-norn pipeline next <feature-id>
 arka-norn workflow list
@@ -134,14 +153,17 @@ Toutes les commandes scriptables acceptent une sortie `--json` lorsqu’elle est
 ## Où vivent les données ?
 
 ```text
-<project>/.arka-norn/project.json       identité portable du Project
+<project>/.arka-norn/project.json       identité portable du Project (marker v4)
 <project>/.arka-norn/agents.json        registre partagé des Agents
-<feature>/.arka-norn/feature.json       identité et workflow de la Feature
+<project>/.arka-norn/orchestration.json politique d'exécution portable, sans secret
+<project>/.arka-norn/executions.json    registre des missions et de leurs preuves
+<feature>/.arka-norn/feature.json       identité et workflow de la Feature (marker v3)
 <feature>/*.json                         documents et preuves du workflow
 
 ~/.arka-norn/index/*.json                caches locaux reconstructibles
 ~/.arka-norn/context/agents.json         sélection privée par session Agent
 ~/.arka-norn/logs/audit.jsonl             journal local des mutations
+$ARKA_NORN_HOME/.arka-norn/workers/...    état privé et reconstructible du worker
 ```
 
 `doctor` contrôle les marqueurs, index, locks, registres, sessions, pipelines, journal d’audit et skills. Il ne répare rien sans `--repair --apply`.
@@ -154,6 +176,7 @@ Toutes les commandes scriptables acceptent une sortie `--json` lorsqu’elle est
 - [Cockpit TUI](docs/tui.md)
 - [Démarrer un Agent avec `/arka-norn`](docs/agent-bootstrap.md)
 - [Orchestration Product et sessions Agent](docs/agent-orchestration.md)
+- [Orchestration automatique contrôlée](docs/automatic-orchestration.md)
 - [Brainstorming Concept avec ChatGPT ou Claude.ai](docs/concept-brainstorming-web.md)
 - [Reworks FastDev](docs/fastdev.md)
 - [Dépannage](docs/troubleshooting.md)

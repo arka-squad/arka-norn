@@ -26,6 +26,7 @@ import { listProjectsUseCaseFactory } from "../use-cases/projects/list-projects.
 import { scanProjectsUseCaseFactory } from "../use-cases/projects/scan-projects.js";
 import { showProjectUseCaseFactory } from "../use-cases/projects/show-project.js";
 import { switchToProjectUseCaseFactory } from "../use-cases/projects/switch-to-project.js";
+import { setProjectOrchestrationModeUseCaseFactory } from "../use-cases/projects/set-project-orchestration-mode.js";
 import { manageAgentsUseCaseFactory } from "../use-cases/agents/manage-agents.js";
 export function createManagementRuntime(options) {
     const logger = options.logger ?? new ConsoleLogger({ threshold: options.logLevel ?? "warn" });
@@ -49,6 +50,7 @@ export function createManagementRuntime(options) {
         show: showProjectUseCaseFactory(projectsDeps),
         forget: forgetProjectUseCaseFactory(projectsDeps),
         switchTo: switchToProjectUseCaseFactory(projectsDeps),
+        setOrchestrationMode: setProjectOrchestrationModeUseCaseFactory(projectsDeps),
     };
     const rawFeatures = {
         list: listFeaturesUseCaseFactory(featuresDeps),
@@ -114,6 +116,16 @@ function auditProjects(base, audit, logger, clock) {
         create: (input) => auditedValue(audit, logger, clock, { action: "project.create", entityType: "project", entityId: input.id.value, root: input.root }, () => base.create(input)),
         importFrom: (input) => auditedValue(audit, logger, clock, { action: "project.import", entityType: "project", root: input.root }, () => base.importFrom(input)),
         async switchTo(id) { const current = await base.show(id); return auditedValue(audit, logger, clock, { action: "project.use", entityType: "project", entityId: id.value, root: current.root }, () => base.switchTo(id)); },
+        async setOrchestrationMode(input) {
+            const current = await base.show(input.id);
+            return auditedValue(audit, logger, clock, {
+                action: "project.set-orchestration-mode",
+                entityType: "project",
+                entityId: input.id.value,
+                root: current.root,
+                details: { previousMode: current.orchestrationMode, orchestrationMode: input.orchestrationMode },
+            }, () => base.setOrchestrationMode(input));
+        },
         async forget(id) { const current = await base.show(id); await auditedValue(audit, logger, clock, { action: "project.forget", entityType: "project", entityId: id.value, root: current.root }, async () => { await base.forget(id); }); },
     };
 }
