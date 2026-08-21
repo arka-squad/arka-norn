@@ -1,12 +1,12 @@
-# Arka Norn
+# arka.norn
 
 <p align="center">
-  <img src="docs/assets/arka-norn-cockpit.png" alt="Cockpit terminal Arka Norn : Project, santé et actions guidées" width="998">
+  <img src="docs/assets/arka-norn-cockpit.png" alt="Cockpit terminal arka.norn : Project, santé et actions guidées" width="998">
 </p>
 
 **Le cockpit local qui organise un projet, ses fonctionnalités et le travail de plusieurs agents — sans perdre les décisions, les preuves ni la prochaine étape.**
 
-Arka Norn transforme une intention en livraison vérifiable. Il garde une vue claire du Project, choisit le bon workflow pour chaque Feature, identifie les Agents qui interviennent et refuse de déclarer terminé un travail qui n’a pas passé ses contrôles.
+arka.norn transforme une intention en livraison vérifiable. Il garde une vue claire du Project, choisit le bon workflow pour chaque Feature, identifie les Agents qui interviennent et refuse de déclarer terminé un travail qui n’a pas passé ses contrôles.
 
 ```text
 Project → Product principal + Agents spécialisés → Feature → Workflow → Preuves → Validation
@@ -25,7 +25,7 @@ Il fonctionne localement, depuis une interface terminal guidée, une CLI scripta
 
 Accès directs : [cockpit TUI](docs/tui.md) · [orchestration multi-Agent](docs/agent-orchestration.md) · [orchestration automatique](docs/automatic-orchestration.md) · [workflow FastDev](docs/fastdev.md) · [catalogue des skills](docs/skills.md) · [dépannage](docs/troubleshooting.md)
 
-## Ce qu’Arka Norn apporte
+## Ce qu’arka.norn apporte
 
 - **Une prochaine action explicite** : la CLI, la TUI et les Agents consultent le même état réel.
 - **Deux workflows adaptés** : un parcours complet pour les Features structurantes et FastDev pour les reworks bornés.
@@ -41,7 +41,7 @@ Accès directs : [cockpit TUI](docs/tui.md) · [orchestration multi-Agent](docs/
 
 ### Installer un artefact interne
 
-Arka Norn est distribué en interne sous forme de tarball npm, pas sur le registre public.
+arka.norn est distribué en interne sous forme de tarball npm, pas sur le registre public.
 
 ```bash
 npm install -g ./arka-norn-X.Y.Z.tgz
@@ -80,7 +80,7 @@ Voir [l’orchestration Product et les sessions Agent](docs/agent-orchestration.
 ### Déléguer avec le Pilote assisté
 
 Le mode persistant `automatic` est présenté comme le **Pilote assisté** : vous
-gardez la décision de déléguer chaque mission. Avant tout lancement, Arka Norn
+gardez la décision de déléguer chaque mission. Avant tout lancement, arka.norn
 explique la Feature, l’étape, le rôle, le périmètre et les autorisations
 prévues. Vous choisissez ensuite l’assistant et sa version, puis confirmez cet
 aperçu précis.
@@ -110,7 +110,7 @@ les limites, les actions de reprise et les smoke tests réels opt-in.
 
 | Objet | Signification |
 |---|---|
-| **Project** | Le dossier de travail suivi par Arka Norn. |
+| **Project** | Le dossier de travail suivi par arka.norn. |
 | **Feature** | Un résultat à livrer dans ce Project. |
 | **Workflow** | La suite de contrôles que la Feature doit franchir. |
 | **Document** | Une preuve structurée et signée d’une étape. |
@@ -186,7 +186,7 @@ $ARKA_NORN_HOME/.arka-norn/workers/...    état privé et reconstructible du wor
 
 ## Documentation
 
-### Utiliser Arka Norn
+### Utiliser arka.norn
 
 - [Manuel utilisateur non technique](docs/manuel-utilisateur.md)
 - [Cockpit TUI](docs/tui.md)
@@ -234,6 +234,6 @@ Consultez le [guide développeur](docs/guide-developpeur.md) avant de modifier u
 
 ## Sécurité et statut du produit
 
-Arka Norn considère les chemins, marqueurs, JSON, symlinks, processus concurrents, skills existantes et réponses externes comme non fiables. Les règles détaillées sont documentées dans [Sécurité locale](docs/security.md).
+arka.norn considère les chemins, marqueurs, JSON, symlinks, processus concurrents, skills existantes et réponses externes comme non fiables. Les règles détaillées sont documentées dans [Sécurité locale](docs/security.md).
 
 Le package est privé et propriétaire (`UNLICENSED`). Sa distribution officielle passe par les artefacts internes produits depuis un tag versionné.
