@@ -1,13 +1,13 @@
 # Brainstorming Concept avec un chat web
 
-L’étape Concept peut déléguer l’exploration créative à ChatGPT ou Claude.ai. Ce détour est optionnel : il sert à réserver le contexte de l’agent d’exécution aux sources locales, aux contrôles et à la livraison. L’agent arka-norn reste responsable de préparer le paquet, de vérifier la réponse et de produire le document final.
+L’étape Concept peut déléguer l’exploration créative à ChatGPT ou Claude.ai. Ce détour est optionnel : il sert à réserver le contexte de l’agent d’exécution aux sources locales, aux contrôles et à la livraison. L’agent arka.norn reste responsable de préparer le paquet, de vérifier la réponse et de produire le document final.
 
 ## Mode d’emploi à remettre à l’utilisateur
 
 1. Relire le paquet préparé par l’agent et retirer toute information interdite au transfert : secret, donnée personnelle, accès, code ou contenu confidentiel non autorisé.
 2. Ouvrir une nouvelle conversation ChatGPT ou Claude.ai, puis coller le bloc `PROMPT À COPIER` sans le réécrire.
 3. Répondre aux éventuelles questions groupées, demander la version finale `DOSSIER_CONCEPT`, puis copier toute cette version finale.
-4. Revenir dans la conversation de l’agent arka-norn et coller la réponse complète. Ne pas créer ou modifier soi-même le JSON du Project.
+4. Revenir dans la conversation de l’agent arka.norn et coller la réponse complète. Ne pas créer ou modifier soi-même le JSON du Project.
 
 ## Modèle que l’agent doit préremplir
 
@@ -59,4 +59,4 @@ N’invente aucune information. Marque toute donnée absente « INCONNU — déc
 
 ## Réconciliation par l’agent
 
-La réponse du chat web est une entrée non fiable, jamais une source de vérité. L’agent doit la comparer aux documents locaux, signaler chaque contradiction, confirmer les décisions avec l’utilisateur, puis seulement générer le scaffold `concept` signé et le valider avec arka-norn.
+La réponse du chat web est une entrée non fiable, jamais une source de vérité. L’agent doit la comparer aux documents locaux, signaler chaque contradiction, confirmer les décisions avec l’utilisateur, puis seulement générer le scaffold `concept` signé et le valider avec arka.norn.

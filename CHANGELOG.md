@@ -1,6 +1,6 @@
 # Changelog
 
-Toutes les modifications notables d’arka-norn sont consignées ici. Le projet
+Toutes les modifications notables d’arka.norn sont consignées ici. Le projet
 utilise le versionnement sémantique ; les artefacts sont produits à partir des
 tags `vX.Y.Z`.
 

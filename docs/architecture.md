@@ -1,6 +1,6 @@
-# Architecture d’arka-norn
+# Architecture d’arka.norn
 
-arka-norn est un plan de contrôle local-first pour des Projects et leurs Features. Une même logique métier alimente la CLI, la TUI, les skills et les tests.
+arka.norn est un plan de contrôle local-first pour des Projects et leurs Features. Une même logique métier alimente la CLI, la TUI, les skills et les tests.
 
 Pour installer l’environnement, étendre un contrat et choisir les bons tests, consultez le [guide développeur](guide-developpeur.md).
 

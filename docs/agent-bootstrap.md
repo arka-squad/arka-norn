@@ -1,10 +1,10 @@
-# Démarrer un agent avec arka-norn
+# Démarrer un agent avec arka.norn
 
 La skill publique `arka-norn` est le point d'entrée humain du framework. Elle prépare un agent sur un nouveau Project sans lui laisser deviner la racine, l'identité, le périmètre ou la prochaine action.
 
 ## Installer le point d'entrée avant le premier Project
 
-Depuis une installation fonctionnelle d'arka-norn :
+Depuis une installation fonctionnelle d'arka.norn :
 
 ```text
 arka-norn skills doctor --target <racine-existante> --profile all --global --json

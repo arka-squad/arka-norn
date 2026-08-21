@@ -1,6 +1,6 @@
 # Distribution et release
 
-arka-norn est distribué sous licence Apache-2.0 (fichiers `LICENSE` et
+arka.norn est distribué sous licence Apache-2.0 (fichiers `LICENSE` et
 `NOTICE`) et publié sur le registre npm public. Le tarball npm attaché au
 workflow GitHub déclenché par un tag `vX.Y.Z` reste le canal officiel des
 artefacts internes.
