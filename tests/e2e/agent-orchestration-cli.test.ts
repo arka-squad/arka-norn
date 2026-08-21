@@ -95,7 +95,7 @@ test("la CLI isole les sessions et livre des prompts Product/spécialistes direc
   assert.match(handoff.stdout, new RegExp(`Agent Product à réutiliser: ${product.data.id}`));
   assert.match(handoff.stdout, /audit-navigation: .*_audit_/);
   assert.match(handoff.stdout, /Ne réalise pas l'audit, le développement ou la QA/);
-  assert.match(handoff.stdout, /cd '.*\/workspace\/product'/);
+  assert.match(handoff.stdout, /cd '.*[\\/]workspace[\\/]product'/);
   assert.doesNotMatch(handoff.stderr, /listFeatures: index entry has no readable marker|norn-test/);
 });
 

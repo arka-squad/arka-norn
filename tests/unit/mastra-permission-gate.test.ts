@@ -32,7 +32,7 @@ test("la barrière Claude autorise seulement les outils structurés et chemins F
   writeFileSync(join(workspace, "src", "inside.ts"), "export {};\n");
   writeFileSync(join(workspace, ".arka-norn", "feature.json"), "{}\n");
   writeFileSync(join(outside, "secret.ts"), "export {};\n");
-  symlinkSync(outside, join(workspace, "src", "external"));
+  symlinkSync(outside, join(workspace, "src", "external"), "dir");
   context.after(() => rmSync(sandbox, { recursive: true, force: true }));
 
   const gate = createWorkspacePermissionGate({
@@ -62,7 +62,7 @@ test("la barrière protège structurellement le plan de contrôle, même pour le
   mkdirSync(join(workspace, "src"), { recursive: true });
   mkdirSync(outside);
   writeFileSync(join(workspace, ".arka-norn", "feature.json"), "{}\n");
-  symlinkSync(outside, join(workspace, "src", "external"));
+  symlinkSync(outside, join(workspace, "src", "external"), "dir");
   context.after(() => rmSync(sandbox, { recursive: true, force: true }));
 
   const gate = createWorkspacePermissionGate({
