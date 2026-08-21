@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { closeSync, copyFileSync, existsSync, fsyncSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, unlinkSync, writeFileSync, } from "node:fs";
+import { closeSync, copyFileSync, existsSync, fsyncSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, renameSync, unlinkSync, writeFileSync, } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { createSkillCatalogRuntime } from "./skill-catalog.js";
 export function installSkills(frameworkRoot, request) {
@@ -71,6 +71,33 @@ export function inspectGlobalSkills(frameworkRoot, globalHome, profile = "all") 
             : files.some((file) => file.status === "divergent") ? "divergent" : "missing";
         return { name: definition.name, status, files };
     });
+}
+/**
+ * Détecte les entrées `arka-*` présentes dans un emplacement de skills mais
+ * absentes du catalogue. Ces copies non gérées ne peuvent pas être comparées à
+ * une référence : elles sont signalées, jamais modifiées ici.
+ */
+export function findOrphanSkills(frameworkRoot, target, profile = "all", globalHome) {
+    const catalog = createSkillCatalogRuntime(frameworkRoot, profile);
+    const managed = new Set(catalog.catalog.skills.map((entry) => entry.name));
+    const locations = [
+        join(resolve(target), ".claude", "skills"),
+        join(resolve(target), ".agents", "skills"),
+        ...(globalHome === undefined ? [] : [
+            join(resolve(globalHome), ".claude", "skills"),
+            join(resolve(globalHome), ".codex", "skills"),
+        ]),
+    ];
+    const orphans = [];
+    for (const location of locations) {
+        if (!existsSync(location))
+            continue;
+        for (const entry of readdirSync(location, { withFileTypes: true })) {
+            if (entry.name.startsWith("arka-") && !managed.has(entry.name))
+                orphans.push({ name: entry.name, location });
+        }
+    }
+    return orphans.sort((a, b) => a.name.localeCompare(b.name) || a.location.localeCompare(b.location));
 }
 function desiredGlobalFiles(definitions, globalHome, renderClaude, renderCodex, renderOpenai) {
     return definitions.flatMap((definition) => [

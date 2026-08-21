@@ -84,6 +84,19 @@ test("skills global installe et diagnostique les 18 rendus sans masquer une dive
   assert.equal(healthyChecks.length, 18);
   assert.ok(healthyChecks.every((check) => check.status === "ok"));
 
+  const orphanGlobal = resolve(home, ".claude", "skills", "arka-orphan-agentdev");
+  const orphanLocal = resolve(target, ".agents", "skills", "arka-local-orphan");
+  mkdirSync(orphanGlobal, { recursive: true });
+  mkdirSync(orphanLocal, { recursive: true });
+  writeFileSync(join(orphanGlobal, "SKILL.md"), "---\nname: arka-orphan-agentdev\n---\n");
+  const withOrphans = run(["skills", "doctor", "--target", target, "--profile", "all", "--global", "--json"], target, env);
+  assert.equal(withOrphans.status, 0, `${withOrphans.stdout}\n${withOrphans.stderr}`);
+  const orphanData = (JSON.parse(withOrphans.stdout) as { readonly data: { readonly orphans: readonly { readonly name: string }[] } }).data;
+  assert.deepEqual(orphanData.orphans.map((orphan) => orphan.name), ["arka-local-orphan", "arka-orphan-agentdev"]);
+  const withOrphansHuman = run(["skills", "doctor", "--target", target, "--profile", "all", "--global"], target, env);
+  assert.equal(withOrphansHuman.status, 0, `${withOrphansHuman.stdout}\n${withOrphansHuman.stderr}`);
+  assert.match(withOrphansHuman.stdout, /WARN\tarka-orphan-agentdev\tentrée arka non gérée/);
+
   const divergent = resolve(home, ".codex", "skills", "arka-framework-recette-qa", "SKILL.md");
   writeFileSync(divergent, "custom global content\n");
   const diagnosed = run(["skills", "doctor", "--target", target, "--profile", "all", "--global", "--json"], target, env);

@@ -8,6 +8,7 @@ import {
   mkdirSync,
   openSync,
   readFileSync,
+  readdirSync,
   realpathSync,
   renameSync,
   unlinkSync,
@@ -57,6 +58,11 @@ export interface SkillDefinitionHealth {
   readonly name: string;
   readonly status: "ok" | "missing" | "divergent";
   readonly files: readonly SkillFileHealth[];
+}
+
+export interface SkillOrphanEntry {
+  readonly name: string;
+  readonly location: string;
 }
 
 export function installSkills(frameworkRoot: string, request: SkillInstallRequest): SkillInstallOutcome {
@@ -131,6 +137,37 @@ export function inspectGlobalSkills(frameworkRoot: string, globalHome: string, p
       : files.some((file) => file.status === "divergent") ? "divergent" : "missing";
     return { name: definition.name, status, files };
   });
+}
+
+/**
+ * Détecte les entrées `arka-*` présentes dans un emplacement de skills mais
+ * absentes du catalogue. Ces copies non gérées ne peuvent pas être comparées à
+ * une référence : elles sont signalées, jamais modifiées ici.
+ */
+export function findOrphanSkills(
+  frameworkRoot: string,
+  target: string,
+  profile = "all",
+  globalHome?: string,
+): readonly SkillOrphanEntry[] {
+  const catalog = createSkillCatalogRuntime(frameworkRoot, profile);
+  const managed = new Set(catalog.catalog.skills.map((entry) => entry.name));
+  const locations = [
+    join(resolve(target), ".claude", "skills"),
+    join(resolve(target), ".agents", "skills"),
+    ...(globalHome === undefined ? [] : [
+      join(resolve(globalHome), ".claude", "skills"),
+      join(resolve(globalHome), ".codex", "skills"),
+    ]),
+  ];
+  const orphans: SkillOrphanEntry[] = [];
+  for (const location of locations) {
+    if (!existsSync(location)) continue;
+    for (const entry of readdirSync(location, { withFileTypes: true })) {
+      if (entry.name.startsWith("arka-") && !managed.has(entry.name)) orphans.push({ name: entry.name, location });
+    }
+  }
+  return orphans.sort((a, b) => a.name.localeCompare(b.name) || a.location.localeCompare(b.location));
 }
 
 function desiredGlobalFiles(

@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { createSkillCatalogRuntime } from "../../outbound/skills/skill-catalog.js";
-import { inspectSkills, installSkills } from "../../outbound/skills/skill-installer.js";
+import { findOrphanSkills, inspectSkills, installSkills } from "../../outbound/skills/skill-installer.js";
 import { CliUsageError, parseStrictArguments } from "./strict-arguments.js";
 export function runSkillsCommand(argv, context) {
     const action = argv[0];
@@ -34,9 +34,13 @@ export function runSkillsCommand(argv, context) {
         }
         if (action === "doctor") {
             const checks = inspectSkills(context.frameworkRoot, target, profile, globalHome);
+            const orphans = findOrphanSkills(context.frameworkRoot, target, profile, globalHome);
             const ok = checks.every((check) => check.status === "ok");
-            const data = { profile, target, global: globalHome !== undefined, checks };
-            const human = checks.map((check) => `${check.status.toUpperCase()}\t${check.name}`).join("\n");
+            const data = { profile, target, global: globalHome !== undefined, checks, orphans };
+            const human = [
+                ...checks.map((check) => `${check.status.toUpperCase()}\t${check.name}`),
+                ...orphans.map((orphan) => `WARN\t${orphan.name}\tentrée arka non gérée — ${orphan.location}`),
+            ].join("\n");
             return envelope("skills.doctor", ok, data, ok ? [] : ["Skills absents ou divergents."], json, ok ? 0 : 3, human);
         }
         throw new CliUsageError("skills action must be list, install or doctor");
