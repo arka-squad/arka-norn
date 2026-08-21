@@ -4,9 +4,9 @@ Toutes les modifications notables d’arka.norn sont consignées ici. Le projet
 utilise le versionnement sémantique ; les artefacts sont produits à partir des
 tags `vX.Y.Z`.
 
-## Unreleased
+## 1.2.0 — 2026-08-21
 
-- marker Project porté en v4 avec le mode persistant `manual|automatic`, tandis que les markers Feature restent en v3 ; les migrations Project v1/v2/v3 choisissent `manual` sans mutation lors d’une lecture ;
+- marker Project porté en v4 avec le mode persistant `manual|automatic`, tandis que les markers Feature restent en v3 ; les migrations Project v1/v2/v3 choisissent `manual` sans mutation lors d'une lecture ;
 - politique d’exécution et registre de missions séparés sous `.arka-norn/`, sans secret, token, PID ni état de processus portable ;
 - orchestration Mastra locale contrôlée par Arka Norn : ordres de mission immuables, assistants Claude, Codex, Kimi Platform et Z.AI Coding Plan évalués par politique, permissions deny-by-default, suspension vérifiable et absence de fallback après démarrage ;
 - mode `automatic` présenté comme un **Pilote assisté** : pour chaque mission, l’utilisateur choisit explicitement l’assistant et sa version, relit un aperçu borné puis le confirme ; aucune mission suivante n’est enchaînée silencieusement ;
@@ -28,8 +28,6 @@ tags `vX.Y.Z`.
   concept source et un critère de fin : le scaffold guide déjà ces tableaux
   par des sentinelles, et la validation rejette désormais un document vide sur
   ces champs ; `sections` reste volontairement vide-possible.
-
-## 1.2.0 — 2026-08-20
 
 - les inspections et commandes Pipeline d'une Feature marquée refusent désormais toute vérification d'auteur sans registre Agent valide ;
 - les markers et index Project/Feature sont réconciliés avant usage ; les racines forgées, les répertoires de markers symboliques et les chemins de migration symboliques sont refusés ;
