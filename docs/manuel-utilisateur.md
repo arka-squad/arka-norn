@@ -172,6 +172,14 @@ Selon le workflow, vous pouvez faire intervenir un Agent d’architecture, d’a
 
 Un Agent remplacé devient inactif, mais ses anciens documents restent valides et attribués à leur auteur historique.
 
+### Protéger le dossier partagé
+
+Quand plusieurs Agents travaillent dans le même dossier, Arka applique la règle du
+**Git Steward** : une photo du dossier est prise avant chaque phase de travail. Si un
+fichier change, Arka sait dire s'il vient de la phase en cours, d'un travail antérieur
+ou de vous. Rien n'est mélangé par accident : chaque livraison rassemble uniquement les
+fichiers prévus, et la publication n'a lieu qu'après une dernière vérification.
+
 ### Préparer ou exécuter
 
 Le Product peut proposer deux modes :

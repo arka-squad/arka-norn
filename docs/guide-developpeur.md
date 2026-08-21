@@ -57,6 +57,12 @@ npm test
 git diff --check
 ```
 
+Pour les runs multi-agents et les phases dev/QA partagées, la skill `arka-git-steward`
+formalise cette discipline : baseline Git persistée avant la phase, classification de
+chaque fichier modifié (`OWNED_BY_PHASE`, `PREEXISTING_DIRTY_WITH_PROOF`, `UNOWNED`…),
+staging explicite sans `git add .`, un commit par scope et push seulement après un
+handoff vérifié.
+
 Avant une release :
 
 ```bash
