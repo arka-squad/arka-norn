@@ -17,7 +17,7 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -125,11 +125,13 @@ export async function runSelftest() {
     check("TUI hors TTY : message explicite sur stderr", (result.stderr ?? "").includes("nécessite un terminal interactif"), result.stderr ?? "");
   }
 
-  console.log("\n=== 7. Catalogue partagé : exactement 18 skills, dont Product/FastDev/maîtrise/audit/dev/QA ===");
+  console.log("\n=== 7. Catalogue partagé : skills cohérents, dont Product/FastDev/maîtrise/audit/dev/QA ===");
   {
     const catalog = loadJson(path.join(FRAMEWORK_ROOT, "skills-src", "catalog", "skills.json"));
     const names = catalog.skills.map((skill) => skill.name);
-    check("catalogue contient exactement 18 skills", names.length === 18 && new Set(names).size === 18, names.join(", "));
+    const definitions = readdirSync(path.join(FRAMEWORK_ROOT, "skills-src")).filter((file) => file.endsWith(".json"));
+    check("catalogue sans doublon", new Set(names).size === names.length, names.join(", "));
+    check("catalogue couvre chaque définition de skill", names.length === definitions.length, `catalogue ${names.length} vs définitions ${definitions.length}`);
     check("catalogue contient le bootstrap arka-norn", names.includes("arka-norn"), names.join(", "));
     check("catalogue contient le pilotage Product", names.includes("arka-product"), names.join(", "));
     check("catalogue contient FastDev", names.includes("arka-fastdev"), names.join(", "));
@@ -139,7 +141,7 @@ export async function runSelftest() {
     check("catalogue contient recette QA", names.includes("arka-framework-recette-qa"), names.join(", "));
     const listed = spawnSync(process.execPath, [BIN, "skills", "list", "--json"], { cwd: FRAMEWORK_ROOT, encoding: "utf8" });
     const listedData = listed.status === 0 ? JSON.parse(listed.stdout).data : [];
-    check("CLI skills list consomme les mêmes 18 entrées", listed.status === 0 && listedData.length === 18, `${listed.stdout ?? ""}${listed.stderr ?? ""}`);
+    check("CLI skills list consomme le même catalogue", listed.status === 0 && listedData.length === names.length, `${listed.stdout ?? ""}${listed.stderr ?? ""}`);
   }
 
   console.log("\n=== 8. Intégrité de l'environnement ===");

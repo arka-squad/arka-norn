@@ -15,7 +15,7 @@
  */
 
 import assert from "node:assert/strict";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams, type SpawnSyncOptionsWithStringEncoding, type SpawnSyncReturns } from "node:child_process";
@@ -136,7 +136,8 @@ test("un consumer vierge installe le tarball sans node_modules du worktree", asy
   assert.match(help.stdout, /project <list\|add\|import/);
   const skills = spawnSync(process.execPath, [command, "skills", "list", "--json"], { cwd: consumer, encoding: "utf8" });
   assert.equal(skills.status, 0, `${skills.stdout}\n${skills.stderr}`);
-  assert.equal((JSON.parse(skills.stdout) as { readonly data: readonly unknown[] }).data.length, 18);
+  const packagedSkillCount = readdirSync(resolve(packageRoot, "skills-src")).filter((file) => file.endsWith(".json")).length;
+  assert.equal((JSON.parse(skills.stdout) as { readonly data: readonly unknown[] }).data.length, packagedSkillCount);
   const selftest = spawnSync(process.execPath, [command, "selftest"], { cwd: consumer, encoding: "utf8" });
   assert.equal(selftest.status, 0, `${selftest.stdout}\n${selftest.stderr}`);
   assert.match(selftest.stdout, /Toutes les vérifications réelles passent/);

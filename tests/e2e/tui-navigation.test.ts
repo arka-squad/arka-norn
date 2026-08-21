@@ -329,7 +329,7 @@ test("l’accueil TUI actualise Santé après l’installation des skills", asyn
   output = "";
   home.render(renderer, theme);
   assert.match(output, /Santé\s+: .*0 FAIL/);
-  assert.match(output, /Projet 18\/18 · Global 0\/18/);
+  assert.match(output, /Projet 19\/19 · Global 0\/19/);
 });
 
 test("la composition TUI pilote Home → Project → Feature → scaffold réel", async (context) => {

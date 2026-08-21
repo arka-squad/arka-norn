@@ -64,7 +64,7 @@ test("l’accueil reflète un nouveau résumé de santé sans recréation", () =
     scan: { scan: async () => [] },
     cwd: "/workspace",
     contextRoot: "/workspace",
-    skillHealth: "0/18 sains · 18 absents · 0 divergents",
+    skillHealth: "0/19 sains · 19 absents · 0 divergents",
     systemHealth: "9 PASS · 0 WARN · 1 FAIL",
     redraw() {},
   });
@@ -76,7 +76,7 @@ test("l’accueil reflète un nouveau résumé de santé sans recréation", () =
   view.render(renderer, theme);
 
   assert.match(output, /Santé\s+: 10 PASS · 0 WARN · 0 FAIL/);
-  assert.match(output, /18\/18 sains · 0 absents · 0 divergents/);
+  assert.match(output, /19\/19 sains · 0 absents · 0 divergents/);
 });
 
 test("le cockpit Feature expose l’auteur, la raison et l’aide opératoire", async () => {

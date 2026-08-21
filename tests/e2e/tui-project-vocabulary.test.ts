@@ -54,7 +54,7 @@ test("la vraie vue d'accueil expose uniquement le vocabulaire Project", () => {
   assert.doesNotMatch(output, /Dépôt|dépôt/);
   assert.match(output, /Santé du système/);
   assert.match(output, /Installer \/ réparer les skills/);
-  assert.match(output, /18\/18 sains/);
+  assert.match(output, /19\/19 sains/);
 });
 
 test("la composition TUI et le runtime CLI consomment le même PipelineReport", async () => {
