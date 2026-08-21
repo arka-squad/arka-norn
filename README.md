@@ -1,5 +1,9 @@
 # Arka Norn
 
+<p align="center">
+  <img src="docs/assets/arka-norn-cockpit.png" alt="Cockpit terminal Arka Norn : Project, santé et actions guidées" width="998">
+</p>
+
 **Le cockpit local qui organise un projet, ses fonctionnalités et le travail de plusieurs agents — sans perdre les décisions, les preuves ni la prochaine étape.**
 
 Arka Norn transforme une intention en livraison vérifiable. Il garde une vue claire du Project, choisit le bon workflow pour chaque Feature, identifie les Agents qui interviennent et refuse de déclarer terminé un travail qui n’a pas passé ses contrôles.
