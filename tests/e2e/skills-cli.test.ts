@@ -15,7 +15,7 @@ test("skills list/install/doctor partagent le catalogue et détectent une diverg
   const listed = run(["skills", "list", "--json"], target);
   assert.equal(listed.status, 0, listed.stderr);
   const listEnvelope = JSON.parse(listed.stdout) as { readonly data: readonly { readonly name: string }[] };
-  assert.equal(listEnvelope.data.length, 18);
+  assert.equal(listEnvelope.data.length, 19);
   assert.ok(listEnvelope.data.some((skill) => skill.name === "arka-norn"));
   assert.ok(listEnvelope.data.some((skill) => skill.name === "arka-product"));
   assert.ok(listEnvelope.data.some((skill) => skill.name === "arka-fastdev"));
@@ -23,6 +23,7 @@ test("skills list/install/doctor partagent le catalogue et détectent une diverg
   assert.ok(listEnvelope.data.some((skill) => skill.name === "arka-framework-audit"));
   assert.ok(listEnvelope.data.some((skill) => skill.name === "arka-framework-dev"));
   assert.ok(listEnvelope.data.some((skill) => skill.name === "arka-framework-recette-qa"));
+  assert.ok(listEnvelope.data.some((skill) => skill.name === "arka-git-steward"));
 
   const core = run(["skills", "install", "--target", target, "--profile", "core", "--json"], target);
   assert.equal(core.status, 0, core.stderr);
@@ -33,7 +34,7 @@ test("skills list/install/doctor partagent le catalogue et détectent une diverg
   assert.equal(all.status, 0, all.stderr);
   assert.equal(run(["skills", "doctor", "--target", target, "--json"], target).status, 0);
 
-  for (const [profile, count] of [["product", 11], ["architecture", 10], ["audit", 9], ["dev", 9], ["qa", 8]] as const) {
+  for (const [profile, count] of [["product", 11], ["architecture", 10], ["audit", 9], ["dev", 10], ["qa", 9]] as const) {
     const result = run(["skills", "install", "--target", target, "--profile", profile, "--json"], target);
     assert.equal(result.status, 0, `${profile}: ${result.stderr}`);
     assert.equal((JSON.parse(result.stdout) as { readonly data: { readonly skills: readonly string[] } }).data.skills.length, count, profile);
@@ -50,7 +51,7 @@ test("skills list/install/doctor partagent le catalogue et détectent une diverg
   assert.match(unhealthy.stdout, /divergent/);
 });
 
-test("skills global installe et diagnostique les 18 rendus sans masquer une divergence", (context) => {
+test("skills global installe et diagnostique les 19 rendus sans masquer une divergence", (context) => {
   const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-skills-global-cli-"));
   const target = join(sandbox, "project");
   const home = join(sandbox, "home");
@@ -61,8 +62,8 @@ test("skills global installe et diagnostique les 18 rendus sans masquer une dive
   const installed = run(["skills", "install", "--target", target, "--profile", "all", "--global", "--json"], target, env);
   assert.equal(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
   const plan = (JSON.parse(installed.stdout) as { readonly data: { readonly skills: readonly string[]; readonly plan: readonly unknown[] } }).data;
-  assert.equal(plan.skills.length, 18);
-  assert.equal(plan.plan.length, 18 * 6);
+  assert.equal(plan.skills.length, 19);
+  assert.equal(plan.plan.length, 19 * 6);
 
   const nornGlobal = readFileSync(resolve(home, ".claude", "skills", "arka-norn", "SKILL.md"), "utf8");
   assert.match(nornGlobal, /mode_orchestration/);
@@ -81,7 +82,7 @@ test("skills global installe et diagnostique les 18 rendus sans masquer une dive
   const healthy = run(["skills", "doctor", "--target", target, "--profile", "all", "--global", "--json"], target, env);
   assert.equal(healthy.status, 0, `${healthy.stdout}\n${healthy.stderr}`);
   const healthyChecks = (JSON.parse(healthy.stdout) as { readonly data: { readonly checks: readonly { readonly status: string }[] } }).data.checks;
-  assert.equal(healthyChecks.length, 18);
+  assert.equal(healthyChecks.length, 19);
   assert.ok(healthyChecks.every((check) => check.status === "ok"));
 
   const orphanGlobal = resolve(home, ".claude", "skills", "arka-orphan-agentdev");

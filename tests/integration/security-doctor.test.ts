@@ -100,7 +100,7 @@ test("doctor considère le socle core prêt même si les skills de rôles resten
   const report = await createDoctorRuntime(home, target).run();
   const skills = report.checks.find((check) => check.id === "skills.installation");
   assert.equal(skills?.status, "pass");
-  assert.match(skills?.message ?? "", /8\/8 core healthy; 10 optional missing; 0 divergent/);
+  assert.match(skills?.message ?? "", /8\/8 core healthy; 11 optional missing; 0 divergent/);
 });
 
 test("doctor échoue lorsque le socle core est incomplet", async (context) => {

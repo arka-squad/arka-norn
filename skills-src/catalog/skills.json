@@ -1,18 +1,18 @@
 {
   "schemaVersion": 1,
-  "catalogVersion": "1.7.1",
+  "catalogVersion": "1.8.0",
   "profiles": {
-    "all": "18 skills, catalogue complet",
+    "all": "19 skills, catalogue complet",
     "core": "8 skills de socle, démarrage et pilotage Product",
-    "delivery": "16 skills de préparation, développement et QA",
+    "delivery": "17 skills de préparation, développement et QA",
     "product": "11 skills pour le Product principal et l'organisation",
     "architecture": "10 skills pour préparer les contrats et invariants",
     "audit": "9 skills pour établir et vérifier l'état réel",
-    "dev": "9 skills pour préparer et livrer le code",
-    "qa": "8 skills pour la recette et la validation"
+    "dev": "10 skills pour préparer et livrer le code",
+    "qa": "9 skills pour la recette et la validation"
   },
   "skills": [
-    { "name": "arka-norn", "version": "1.3.1", "source": "arka-norn.json", "checksum": "324712b9aff5f0da454526b01527d3f20f628d9dcf7019dde8583a48740e680d", "step": "core.bootstrap", "profiles": ["all", "core", "delivery", "product", "architecture", "audit", "dev", "qa"] },
+    { "name": "arka-norn", "version": "1.3.2", "source": "arka-norn.json", "checksum": "5d49a704602d7897772df5ed255248f532aa86bf9d153664acb3c28ecd3da0cc", "step": "core.bootstrap", "profiles": ["all", "core", "delivery", "product", "architecture", "audit", "dev", "qa"] },
     { "name": "arka-product", "version": "1.3.0", "source": "arka-product.json", "checksum": "36324fba928604f36dc5972ff20be112e24e8737a7696867f8f4896205b75375", "step": "core.product", "profiles": ["all", "core", "delivery", "product"] },
     { "name": "arka-fastdev", "version": "1.1.0", "source": "arka-fastdev.json", "checksum": "d74fa61bee1881c0187be04286cdc8c01ef4049a4376d919c26b4142cba5c6d9", "step": "core.fastdev", "profiles": ["all", "core", "delivery", "audit", "dev", "qa"] },
     { "name": "arka-framework-maitrise", "version": "1.3.0", "source": "arka-framework-maitrise.json", "checksum": "d56b714476f1541b6d559923c8714cca87070a0c1091d0bf8b0ea4b66ec254f4", "step": "core.mastery", "profiles": ["all", "core", "delivery", "product", "architecture", "audit", "dev", "qa"] },
@@ -29,6 +29,7 @@
     { "name": "arka-framework-taches", "version": "1.0.0", "source": "arka-framework-taches.json", "checksum": "7a7f4abc7329e0595fe8238846047d5fce4132ab616d544f829f55d3f14be2fb", "step": "tache_agent", "profiles": ["all", "delivery", "product"] },
     { "name": "arka-framework-spec-integration", "version": "1.0.0", "source": "arka-framework-spec-integration.json", "checksum": "c43c5783f82151437d28733028004728985604276e0ff1591a8bba2dfb51ff3c", "step": "spec_integration_technique", "profiles": ["all", "delivery", "architecture", "dev"] },
     { "name": "arka-framework-dev", "version": "1.0.0", "source": "arka-framework-dev.json", "checksum": "5b717d28b0269529c557db1739571677d9c3c78800a8ac489c4ba086465e6362", "step": "cr_dev", "profiles": ["all", "delivery", "dev"] },
-    { "name": "arka-framework-recette-qa", "version": "1.0.0", "source": "arka-framework-recette-qa.json", "checksum": "ebca437c4a20a1d0cb8ffa8ea0ded2ca3c7045c9e4fc05441add45283be3b5b7", "step": "recette_qa", "profiles": ["all", "delivery", "qa"] }
+    { "name": "arka-framework-recette-qa", "version": "1.0.0", "source": "arka-framework-recette-qa.json", "checksum": "ebca437c4a20a1d0cb8ffa8ea0ded2ca3c7045c9e4fc05441add45283be3b5b7", "step": "recette_qa", "profiles": ["all", "delivery", "qa"] },
+    { "name": "arka-git-steward", "version": "1.0.0", "source": "arka-git-steward.json", "checksum": "8219599fbff2e65ba38e6b3042e8c3f00e6dcc135802a03abca7f93d0a38c6ad", "step": "git_steward", "profiles": ["all", "delivery", "dev", "qa"] }
   ]
 }

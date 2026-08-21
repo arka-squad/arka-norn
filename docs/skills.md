@@ -1,6 +1,6 @@
 # Catalogue de skills
 
-Le profil `all` installe exactement 18 skills. `arka-norn` initialise le Product principal, `arka-product` organise les rôles et la reprise, `arka-framework-maitrise` guide une session spécialisée et `arka-fastdev` exécute une phase de rework. Toutes interdisent de deviner Project, Feature, identité ou étape.
+Le profil `all` installe exactement 19 skills. `arka-norn` initialise le Product principal, `arka-product` organise les rôles et la reprise, `arka-framework-maitrise` guide une session spécialisée, `arka-fastdev` exécute une phase de rework et `arka-git-steward` garde l'hygiène Git des runs multi-agents. Toutes interdisent de deviner Project, Feature, identité ou étape.
 
 ```text
 arka-norn skills list --json
@@ -11,15 +11,15 @@ arka-norn skills install --target <repo> --profile all --global --dry-run
 arka-norn skills install --target <repo> --profile all --global
 ```
 
-Profils généraux : `core` (8), `delivery` (16), `all` (18, défaut). Profils Agent : `product` (11), `architecture` (10), `audit` (9), `dev` (9), `qa` (8). Un prompt produit par `agent prompt` nomme exactement le profil à installer.
+Profils généraux : `core` (8), `delivery` (17), `all` (19, défaut). Profils Agent : `product` (11), `architecture` (10), `audit` (9), `dev` (10), `qa` (9). Un prompt produit par `agent prompt` nomme exactement le profil à installer.
 
-Le catalogue versionne chaque source et son SHA-256. Le démarrage vérifie le profil `all` : les 18 rendus locaux et les 18 points d'entrée globaux doivent correspondre au checksum du catalogue, pas seulement afficher le même numéro de version. `doctor --profile all --global` liste chaque skill et chaque copie Claude/Codex concernée ; toute absence ou divergence retourne le code 3. L'installation retourne le code 5 et n'écrase rien sans `--force`; un remplacement forcé, décidé explicitement, crée un backup sous `.arka-norn/backups/skills/`.
+Le catalogue versionne chaque source et son SHA-256. Le démarrage vérifie le profil `all` : les 19 rendus locaux et les 19 points d'entrée globaux doivent correspondre au checksum du catalogue, pas seulement afficher le même numéro de version. `doctor --profile all --global` liste chaque skill et chaque copie Claude/Codex concernée ; toute absence ou divergence retourne le code 3. L'installation retourne le code 5 et n'écrase rien sans `--force`; un remplacement forcé, décidé explicitement, crée un backup sous `.arka-norn/backups/skills/`.
 
-`doctor` signale aussi, en avertissement (`orphans` en JSON, lignes `WARN` en sortie texte), toute entrée `arka-*` présente dans un emplacement de skills mais absente du catalogue. Ces copies non gérées ne peuvent pas être comparées à une référence de version : elles appartiennent peut-être à un autre produit Arka et ne sont jamais modifiées par l'installateur. Le diagnostic reste réussi (code 0) tant que les 18 skills gérées sont saines ; l'agent d'entrée doit nommer ces entrées et demander une décision utilisateur plutôt que les ignorer.
+`doctor` signale aussi, en avertissement (`orphans` en JSON, lignes `WARN` en sortie texte), toute entrée `arka-*` présente dans un emplacement de skills mais absente du catalogue. Ces copies non gérées ne peuvent pas être comparées à une référence de version : elles appartiennent peut-être à un autre produit Arka et ne sont jamais modifiées par l'installateur. Le diagnostic reste réussi (code 0) tant que les 19 skills gérées sont saines ; l'agent d'entrée doit nommer ces entrées et demander une décision utilisateur plutôt que les ignorer.
 
 L'utilisateur déclenche le point d'entrée avec `/arka-norn` dans Claude Code ou `$arka-norn` dans Codex. Un provider sans syntaxe de skill dédiée reçoit la consigne `Utilise la skill arka-norn pour initialiser ce nouveau Project.` Le parcours et le contrat de sortie sont décrits dans [`agent-bootstrap.md`](agent-bootstrap.md).
 
-Une installation locale écrit les rendus dans `.claude/skills/` et `.agents/skills/`. Avec `--global`, l'installateur ajoute les rendus utilisables avant l'ouverture d'un Project dans `~/.claude/skills/` et `~/.codex/skills/`. Le profil `all --global` synchronise donc les 18 skills dans les six rendus attendus par skill (trois locaux et trois globaux), sans jamais remplacer une copie personnalisée silencieusement.
+Une installation locale écrit les rendus dans `.claude/skills/` et `.agents/skills/`. Avec `--global`, l'installateur ajoute les rendus utilisables avant l'ouverture d'un Project dans `~/.claude/skills/` et `~/.codex/skills/`. Le profil `all --global` synchronise donc les 19 skills dans les six rendus attendus par skill (trois locaux et trois globaux), sans jamais remplacer une copie personnalisée silencieusement.
 
 Si `doctor` signale une divergence globale, commencez par le `--dry-run`, lisez la skill et le chemin signalés, puis choisissez soit de conserver cette personnalisation, soit d'autoriser explicitement le remplacement :
 

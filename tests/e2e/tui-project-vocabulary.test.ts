@@ -28,7 +28,7 @@ test("la vraie vue d'accueil expose uniquement le vocabulaire Project", () => {
     scan: { scan: async () => [] },
     cwd: "/workspace",
     contextRoot: "/workspace",
-    skillHealth: "18/18 sains · 0 absents · 0 divergents",
+    skillHealth: "19/19 sains · 0 absents · 0 divergents",
     redraw: () => {},
   });
 

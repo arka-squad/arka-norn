@@ -29,7 +29,7 @@ test("install déploie réellement chaque skill dans un target et un home tempor
   const definitions = readdirSync(resolve(ROOT, "skills-src"))
     .filter((name) => name.endsWith(".json"))
     .map((name) => JSON.parse(readFileSync(resolve(ROOT, "skills-src", name), "utf8")) as SkillDefinition);
-  assert.equal(definitions.length, 18);
+  assert.equal(definitions.length, 19);
 
   const generated: string[] = [];
   for (const definition of definitions) {
@@ -73,7 +73,7 @@ test("install déploie réellement chaque skill dans un target et un home tempor
     };
   }).data;
   assert.equal(healthyData.global, true);
-  assert.equal(healthyData.checks.length, 18);
+  assert.equal(healthyData.checks.length, 19);
   assert.ok(healthyData.checks.every((check) => check.status === "ok"));
 
   const divergentName = "arka-framework-recette-qa";

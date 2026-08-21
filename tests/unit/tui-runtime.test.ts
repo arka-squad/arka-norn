@@ -49,7 +49,7 @@ test("la Santé TUI délègue son verdict au rapport doctor", () => {
     schemaVersion: 1,
     ok: true,
     mode: "inspect",
-    checks: [{ id: "skills.installation", status: "warn", message: "8/8 core healthy; 10 optional missing; 0 divergent", repairable: true }],
+    checks: [{ id: "skills.installation", status: "warn", message: "8/8 core healthy; 11 optional missing; 0 divergent", repairable: true }],
     repairs: [],
     summary: { pass: 0, warn: 1, fail: 0 },
   };

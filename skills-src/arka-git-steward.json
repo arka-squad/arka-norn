@@ -1,0 +1,35 @@
+{
+  "name": "arka-git-steward",
+  "titre_h1_repo": "Arka — Git Steward",
+  "titre_h1_global": "Skill Git Steward — Arka Labs",
+  "description_courte": "Fige une baseline Git avant chaque phase, classe chaque fichier modifié avec preuve et bloque tout commit ou push hors manifeste approuvé.",
+  "description_do_use": "Use when un commit, un push, un staging, un worktree partagé ou une propriété de fichiers doit être contrôlé avant ou pendant une phase dev ou QA.",
+  "description_do_not_use": "Do NOT use pour écrire le code métier, produire un document Pipeline ou remplacer la recette QA.",
+  "declencheurs_globaux": "Déclencher pour gérer commits, push, staging, worktree sale, propriété hors scope, baseline de phase, handoff multi-agents ou sur arka-git-steward.",
+  "interface": {
+    "display_name": "Arka Git Steward",
+    "short_description": "Guard multi-agent Git hygiene with baselines.",
+    "default_prompt": "Utilise $arka-git-steward pour figer la baseline Git, classer les fichiers modifiés et préparer un commit atomique contrôlé."
+  },
+  "allowed_tools": ["Read", "Bash", "Grep", "Glob"],
+  "quand_utiliser": ["commit, staging ou push demandé", "worktree partagé entre agents ou équipes", "fichiers modifiés à attribuer avant une phase dev ou QA"],
+  "quand_ne_pas_utiliser": ["développement métier d'un lot", "recette QA fonctionnelle", "absence de dépôt Git ou de phase identifiée"],
+  "inputs": [
+    { "obligatoire": true, "nom": "phase", "description": "identifiant de la phase ou du run concerné" },
+    { "obligatoire": true, "nom": "action_git", "description": "action visée : baseline, classification, staging, commit ou push" },
+    { "obligatoire": false, "nom": "manifeste_scope", "description": "chemin du manifeste de périmètre s'il existe déjà" }
+  ],
+  "note_inputs": "Sans baseline persistée avant la phase, tout fichier modifié reste UNOWNED jusqu'à décision explicite du Lead.",
+  "referentiel_extra": ["`{{FRAMEWORK_DIR}}/docs/guide-developpeur.md`"],
+  "procedure": [
+    { "titre": "Figer la baseline avant tout travail", "contenu": "Avant l'ouverture d'une phase, exécuter et persister :\n```bash\ngit rev-parse HEAD\ngit branch --show-current\ngit status --short\ngit diff --name-only\ngit log --oneline -8\n```\nConserver ce rapport dans le registre du run, par exemple `.input/<run>/git-ledger/GIT-BASELINE-<phase>-<date>-01.md`. Sans cette capture, la règle est : pas de snapshot, pas de « hors scope » ; tout fichier modifié reste `UNOWNED`." },
+    { "titre": "Exiger un manifeste de périmètre", "contenu": "Chaque phase dev porte un manifeste explicite :\n```text\nPhase:\nAllowed paths:\nForbidden paths:\nExpected outputs:\nExpected tests:\nCommit policy:\n```\nTout fichier hors `Allowed paths` est interdit sauf décision Lead documentée." },
+    { "titre": "Classifier chaque fichier modifié", "contenu": "Utiliser uniquement ces labels : `OWNED_BY_PHASE` (dans le manifeste et modifié intentionnellement), `PREEXISTING_DIRTY_WITH_PROOF` (présent dans la baseline avant le début de phase), `USER_WORK` (identifié explicitement par l'utilisateur), `GENERATED_ARTIFACT` (sortie de build jetable et attendue) et `UNOWNED` (sale sans preuve ni propriétaire). Ne jamais qualifier un fichier de « hors scope » sans label ni preuve tirée de la baseline." },
+    { "titre": "Appliquer la gate QA de périmètre", "contenu": "La QA compare la baseline, les `Allowed paths`, le `git diff --name-only` courant et la liste de fichiers du CR de dev. Elle échoue ou bloque si un fichier modifié est `UNOWNED` ou sort du manifeste." },
+    { "titre": "Stager explicitement", "contenu": "Interdire `git add .` et `git add -A` dans les runs multi-agents. Autoriser uniquement `git add -- <fichier1> <fichier2>`. Avant commit, vérifier `git diff --cached --name-only` et `git diff --cached --check` : la liste stagée doit correspondre au manifeste de commit approuvé." },
+    { "titre": "Un commit, un scope", "contenu": "Par défaut, un commit porte un seul scope produit ou technique. Un commit mixte exige une décision Lead :\n```text\nMIXED_COMMIT_ACCEPTED:\n- Scope A:\n- Scope B:\n- Reason:\n- Risk:\n- Validation:\n```\nSans cette décision, ne pas committer de scopes mixtes." },
+    { "titre": "Pousser seulement après handoff", "contenu": "Avant push, produire commit, branche, fichiers stagés, gates, fichiers sales restants et cible de push. Après push, produire commit, branche, fichiers poussés, fichiers volontairement non commités et fichiers sales restants. Pousser uniquement après validation de ce handoff. Si plusieurs équipes travaillent en parallèle, recommander un worktree par équipe ; le Git Steward gère merge, staging et push, pas l'agent dev." },
+    { "titre": "Respecter les conditions d'arrêt immédiat", "contenu": "Arrêter avant commit ou push si : aucune baseline n'existe pour la phase ; un `UNOWNED` reste dans `git status --short` ; la liste stagée diffère du manifeste ; un commit mixte manque de `MIXED_COMMIT_ACCEPTED` ; la QA n'a pas comparé le périmètre à la baseline ; ou un agent a utilisé `git add .` ou `git add -A`. `.input/` reste local et gitignored : pour versionner un artefact, le copier dans un emplacement suivi ou utiliser `git add -f` uniquement après approbation Lead." }
+  ],
+  "format_sortie": "```markdown\nGit Steward verdict : PASS|BLOCKED\nHEAD : <sha>\nBranche : <branche>\nCommit : <sha|aucun>\nPush : <oui|non>\nFichiers commités : <liste>\nNon commités volontairement : <liste>\nRestants sales : <liste avec labels>\nGates : <liste>\nNotes : <décisions Lead>\n```"
+}

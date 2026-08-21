@@ -4,13 +4,13 @@ La commande `arka-norn` ouvre un cockpit interactif uniquement dans un TTY.
 
 Pour un parcours accompagné sans prérequis technique, commencez par le [manuel utilisateur](manuel-utilisateur.md).
 
-- Accueil : portfolio Projects, action recommandée, démarrage guidé, scan, création/import, écran de santé détaillé et installation/réparation des 18 skills.
+- Accueil : portfolio Projects, action recommandée, démarrage guidé, scan, création/import, écran de santé détaillé et installation/réparation des 19 skills.
 - Project : conseil du Product principal, choix de niveau de délégation manuel/Pilote assisté, entrées séparées pour rework FastDev, Feature standard et import, puis registre Agents et métriques.
 - Feature : identité et session auteur, badge de workflow, phase, progression, prochaine action expliquée, timeline et runs.
 - Actions : statut, scaffold confiné à la Feature, validation et confirmations de retrait.
 
 L’accueil distingue la santé des skills du **Project** de celle des points
-d’entrée **globaux Claude/Codex** : chaque compteur porte sur 18 skills. Si une
+d’entrée **globaux Claude/Codex** : chaque compteur porte sur 19 skills. Si une
 copie globale est absente ou divergente, l’écran Santé le signale séparément.
 L’action de réparation globale montre ce diagnostic, puis demande une seconde
 confirmation avant toute sauvegarde ou tout remplacement ; elle ne remplace

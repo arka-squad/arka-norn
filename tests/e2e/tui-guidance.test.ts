@@ -54,7 +54,7 @@ test("l’accueil reflète un nouveau résumé de santé sans recréation", () =
   });
 
   view.setHealth({
-    skillHealth: "18/18 sains · 0 absents · 0 divergents",
+    skillHealth: "19/19 sains · 0 absents · 0 divergents",
     systemHealth: "10 PASS · 0 WARN · 0 FAIL",
   });
   view.render(renderer, theme);

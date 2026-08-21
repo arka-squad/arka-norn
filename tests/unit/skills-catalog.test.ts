@@ -30,7 +30,7 @@ const ROOT = resolve(import.meta.dirname, "..", "..");
 const SOURCE = resolve(ROOT, "skills-src");
 const catalog = JSON.parse(readFileSync(resolve(SOURCE, "catalog", "skills.json"), "utf8")) as { readonly skills: readonly CatalogEntry[] };
 
-test("le catalogue contient exactement les 18 skills requis et des checksums exacts", () => {
+test("le catalogue contient exactement les 19 skills requis et des checksums exacts", () => {
   const required = [
     "arka-norn",
     "arka-product",
@@ -39,9 +39,10 @@ test("le catalogue contient exactement les 18 skills requis et des checksums exa
     "arka-framework-concept", "arka-framework-plan", "arka-framework-annexe-technique", "arka-framework-audit",
     "arka-framework-invariants", "arka-framework-dettes", "arka-framework-taches", "arka-framework-spec-integration",
     "arka-framework-dev", "arka-framework-recette-qa",
+    "arka-git-steward",
   ].sort();
   assert.deepEqual(catalog.skills.map((entry) => entry.name).sort(), required);
-  assert.equal(new Set(catalog.skills.map((entry) => entry.name)).size, 18);
+  assert.equal(new Set(catalog.skills.map((entry) => entry.name)).size, 19);
   for (const entry of catalog.skills) {
     const raw = readFileSync(resolve(SOURCE, entry.source), "utf8").replace(/\r\n?/g, "\n");
     assert.equal(createHash("sha256").update(raw, "utf8").digest("hex"), entry.checksum, entry.name);
@@ -49,18 +50,18 @@ test("le catalogue contient exactement les 18 skills requis et des checksums exa
     assert.ok(entry.step.length > 0);
   }
   assert.equal(catalog.skills.filter((entry) => entry.profiles.includes("core")).length, 8);
-  assert.equal(catalog.skills.filter((entry) => entry.profiles.includes("delivery")).length, 16);
+  assert.equal(catalog.skills.filter((entry) => entry.profiles.includes("delivery")).length, 17);
   assert.deepEqual(Object.fromEntries(["product", "architecture", "audit", "dev", "qa"].map((profile) => [profile, catalog.skills.filter((entry) => entry.profiles.includes(profile)).length])), {
-    product: 11, architecture: 10, audit: 9, dev: 9, qa: 8,
+    product: 11, architecture: 10, audit: 9, dev: 10, qa: 9,
   });
 });
 
 test("chaque définition est complète et les skills audit/dev/QA imposent leurs gates", () => {
   const files = readdirSync(SOURCE).filter((name) => name.endsWith(".json"));
-  assert.equal(files.length, 18);
+  assert.equal(files.length, 19);
   const definitions = files.map((file) => JSON.parse(readFileSync(resolve(SOURCE, file), "utf8")) as SkillDefinition);
   for (const definition of definitions) {
-    assert.match(definition.name, /^(?:arka-norn|arka-product|arka-fastdev|arka-framework-[a-z-]+)$/);
+    assert.match(definition.name, /^(?:arka-norn|arka-product|arka-fastdev|arka-git-steward|arka-framework-[a-z-]+)$/);
     assert.ok(definition.description_courte.length > 20);
     assert.ok(definition.quand_utiliser.length > 0);
     assert.ok(definition.quand_ne_pas_utiliser.length > 0);
@@ -103,7 +104,7 @@ test("le catalogue reste vérifiable après une conversion Git en CRLF", (contex
     const crlf = readFileSync(sourcePath, "utf8").replace(/\r\n?/g, "\n").replace(/\n/g, "\r\n");
     writeFileSync(sourcePath, crlf);
   }
-  assert.equal(createSkillCatalogRuntime(frameworkRoot).definitions.length, 18);
+  assert.equal(createSkillCatalogRuntime(frameworkRoot).definitions.length, 19);
 });
 
 test("les rendus Agents ont un frontmatter YAML sûr et une description UI bornée", () => {
@@ -126,7 +127,7 @@ test("les rendus Agents ont un frontmatter YAML sûr et une description UI born�
   assert.match(runtime.renderOpenaiYaml(runtime.definitions.find((definition) => definition.name === "arka-norn")!), /Arka Norn — Démarrer/);
 });
 
-test("le rendu global arka-norn porte la gate de mode et le contrôle des 18 skills", () => {
+test("le rendu global arka-norn porte la gate de mode et le contrôle des 19 skills", () => {
   const runtime = createSkillCatalogRuntime(ROOT);
   const definition = runtime.definitions.find((item) => item.name === "arka-norn");
   assert.ok(definition);
@@ -138,7 +139,7 @@ test("le rendu global arka-norn porte la gate de mode et le contrôle des 18 ski
   assert.match(rendered, /project add <racine> --name <nom> --orchestration-mode <manual\|automatic>/);
   assert.match(rendered, /skills doctor --target <racine> --profile all --global --json/);
   assert.match(rendered, /skills install --target <racine> --profile all --global/);
-  assert.match(rendered, /les 18 skills/);
+  assert.match(rendered, /les 19 skills/);
   assert.match(rendered, /--force.*décision explicite de l’utilisateur/);
 });
 

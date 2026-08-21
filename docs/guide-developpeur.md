@@ -127,7 +127,7 @@ flowchart LR
 | `src/composition/` | Câblage des adapters, runtimes et contrôleurs TUI. |
 | `schemas/` | Contrats JSON des marqueurs et documents. |
 | `pipelines/` et `pipeline.json` | Catalogue fermé et définitions des workflows. |
-| `skills-src/` | Sources canoniques des 18 skills. |
+| `skills-src/` | Sources canoniques des 19 skills. |
 | `tests/` | Tests unitaires, intégration et E2E. |
 | `dist/` | JavaScript compilé et source maps, régénérés par `npm run build`. |
 

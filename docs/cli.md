@@ -21,9 +21,9 @@ arka-norn doctor [--repair [--apply]]
 arka-norn migrate [--target <path>] [--dry-run|--apply]
 ```
 
-`arka-norn skills install --target <repo> --profile all --global` installe les 18 skills du catalogue dans `~/.claude/skills/` et `~/.codex/skills`, en plus des copies locales au Project. Une copie existante qui diffère du checksum attendu n’est jamais remplacée par cette commande : elle retourne le code 5.
+`arka-norn skills install --target <repo> --profile all --global` installe les 19 skills du catalogue dans `~/.claude/skills/` et `~/.codex/skills`, en plus des copies locales au Project. Une copie existante qui diffère du checksum attendu n’est jamais remplacée par cette commande : elle retourne le code 5.
 
-`arka-norn skills doctor --target <repo> --profile all --global --json` vérifie dans un même rapport les trois artefacts locaux et les trois artefacts globaux attendus pour chacune des 18 skills. Le résultat compare le contenu SHA-256 rendu, et non seulement un numéro de version. Sans `--global`, le contrôle reste strictement local. Utilisez d'abord `skills install ... --dry-run`; `--force` ne remplace une divergence qu'après décision explicite et crée un backup.
+`arka-norn skills doctor --target <repo> --profile all --global --json` vérifie dans un même rapport les trois artefacts locaux et les trois artefacts globaux attendus pour chacune des 19 skills. Le résultat compare le contenu SHA-256 rendu, et non seulement un numéro de version. Sans `--global`, le contrôle reste strictement local. Utilisez d'abord `skills install ... --dry-run`; `--force` ne remplace une divergence qu'après décision explicite et crée un backup.
 
 Le même rapport liste les entrées `arka-*` non gérées (`orphans`) trouvées dans les emplacements locaux et globaux scannés. Ces entrées, potentiellement héritées d'un autre produit Arka, sont signalées en `WARN` sans faire échouer le diagnostic et sans jamais être modifiées par l'installateur.
 

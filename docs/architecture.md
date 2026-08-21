@@ -28,7 +28,7 @@ Pour installer l’environnement, étendre un contrat et choisir les bons tests,
 - Documents : JSON de la Feature, validés par les schémas et le graphe Pipeline.
 - Index : `~/.arka-norn/index/*.json`, caches privés reconstructibles.
 - Catalogue pipelines : `pipelines/catalog.json`, résolu sans chemin fourni par l’utilisateur.
-- Catalogue skills : `skills-src/catalog/skills.json` et les 18 sources JSON référencées.
+- Catalogue skills : `skills-src/catalog/skills.json` et les 19 sources JSON référencées.
 
 Le marker Project v4 porte `orchestrationMode: manual | automatic`; le marker Feature reste v3. Aucun de ces markers ne stocke un chemin machine. Les adapters dérivent la racine runtime du dossier canonique qui contient le marker ; seuls les index locaux enregistrent des chemins absolus et restent des caches non fiables. Toute entrée indexée est rechargée puis comparée au marker avant lecture ou écriture. Un clone ou un déplacement conserve ainsi sa source de vérité, puis un scan reconstruit le cache de la machine courante. Si l'ancien emplacement indexé n'est plus lisible, le cache est relocalisé atomiquement ; si les deux emplacements portent encore la même identité, le doublon actif est refusé.
 
