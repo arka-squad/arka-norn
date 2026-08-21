@@ -17,17 +17,25 @@ test("la CLI isole les sessions et livre des prompts Product/spécialistes direc
   mkdirSync(projectRoot, { recursive: true });
   context.after(() => rmSync(sandbox, { recursive: true, force: true }));
 
-  assert.equal(run(["project", "add", projectRoot, "--id", "product", "--name", "Product", "--json"], home, workspace).status, 0);
+  assert.equal(run(["project", "add", projectRoot, "--id", "product", "--name", "Product", "--orchestration-mode", "manual", "--json"], home, workspace).status, 0);
   assert.equal(run(["feature", "create", "Navigation", "--project", "product", "--id", "navigation", "--path", featureRoot, "--json"], home, workspace).status, 0);
+  const otherProjectRoot = resolve(workspace, "other-product");
+  const orphanRoot = resolve(otherProjectRoot, "norn-test");
+  mkdirSync(otherProjectRoot, { recursive: true });
+  assert.equal(run(["project", "add", otherProjectRoot, "--id", "other-product", "--name", "Other Product", "--orchestration-mode", "manual", "--json"], home, workspace).status, 0);
+  assert.equal(run(["feature", "create", "norn-test", "--project", "other-product", "--id", "norn-test", "--path", orphanRoot, "--json"], home, workspace).status, 0);
+  rmSync(resolve(orphanRoot, ".arka-norn"), { recursive: true, force: true });
 
   const bootstrap = json<{ readonly id: string }>(run([
     "agent", "register", "--project", "product", "--provider", "Bootstrap", "--role", "product", "--session", "main", "--json",
   ], home, workspace));
   assert.equal(run(["agent", "deactivate", bootstrap.data.id, "--project", "product", "--yes", "--json"], home, workspace).status, 0);
 
-  const missing = json<{ readonly productPrincipal: { readonly status: string }; readonly productNextAction: string }>(run(["agent", "advise", "--project", "product", "--feature", "navigation", "--json"], home, workspace));
+  const missingResult = run(["agent", "advise", "--project", "product", "--feature", "navigation", "--json"], home, workspace);
+  const missing = json<{ readonly productPrincipal: { readonly status: string }; readonly productNextAction: string }>(missingResult);
   assert.equal(missing.data.productPrincipal.status, "missing");
   assert.match(missing.data.productNextAction, /--role product --session main/);
+  assert.doesNotMatch(missingResult.stderr, /listFeatures: index entry has no readable marker|norn-test/);
 
   const product = json<{ readonly id: string }>(run([
     "agent", "register", "--project", "product", "--provider", "Codex", "--role", "product",
@@ -56,6 +64,7 @@ test("la CLI isole les sessions et livre des prompts Product/spécialistes direc
   assert.match(auditPreparation.stdout, /Travail en lecture seule/);
   assert.match(auditPreparation.stdout, new RegExp(`agent use ${audit.data.id}.*--session audit-navigation`));
   assert.doesNotMatch(auditPreparation.stdout, /Utilise \$arka-norn puis \$arka-fastdev/);
+  assert.doesNotMatch(auditPreparation.stdout, /'"'"'/);
 
   const missingProvider = run(["agent", "prompt", "dev", "--project", "product", "--feature", "navigation", "--mode", "prepare", "--json"], home, workspace);
   assert.equal(missingProvider.status, 3);
@@ -71,6 +80,7 @@ test("la CLI isole les sessions et livre des prompts Product/spécialistes direc
   assert.match(handoff.stdout, /audit-navigation: .*_audit_/);
   assert.match(handoff.stdout, /Ne réalise pas l'audit, le développement ou la QA/);
   assert.match(handoff.stdout, /cd '.*\/workspace\/product'/);
+  assert.doesNotMatch(handoff.stderr, /listFeatures: index entry has no readable marker|norn-test/);
 });
 
 function run(args: readonly string[], home: string, cwd: string) {

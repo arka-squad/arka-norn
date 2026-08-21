@@ -75,6 +75,9 @@ test("chaque définition est complète et les skills audit/dev/QA imposent leurs
   assert.match(byName.get("arka-norn") ?? "", /Product principal.*session `main`/i);
   assert.match(byName.get("arka-product") ?? "", /agent advise.*agent prompt.*agent handoff-prompt/);
   assert.match(byName.get("arka-product") ?? "", /ne produit pas lui-même.*architecture.*audit.*développement.*QA/i);
+  assert.match(byName.get("arka-product") ?? "", /demander explicitement.*assistant.*version.*aperçu.*confirmation/i);
+  assert.match(byName.get("arka-product") ?? "", /orchestration configure.*--provider.*--model.*orchestration preview.*orchestration start.*--preview/i);
+  assert.doesNotMatch(byName.get("arka-product") ?? "", /sélecteur Project le choisit de façon déterministe|ne demander ni provider libre/i);
   assert.match(byName.get("arka-fastdev") ?? "", /fastdev next.*une seule action|exactement une action calculée/i);
   assert.match(byName.get("arka-fastdev") ?? "", /corrections_apportees.*audit_rework.*validation_fastdev/);
   assert.match(byName.get("arka-fastdev") ?? "", /agent current.*--session.*fastdev next.*--session.*suggestedCommand.*--session/);
@@ -121,4 +124,34 @@ test("les rendus Agents ont un frontmatter YAML sûr et une description UI born�
     assert.match(runtime.renderGlobalSkillMd(definition), new RegExp(`version: ${definition.catalog.version.replaceAll(".", "\\.")}`));
   }
   assert.match(runtime.renderOpenaiYaml(runtime.definitions.find((definition) => definition.name === "arka-norn")!), /Arka Norn — Démarrer/);
+});
+
+test("le rendu global arka-norn porte la gate de mode et le contrôle des 18 skills", () => {
+  const runtime = createSkillCatalogRuntime(ROOT);
+  const definition = runtime.definitions.find((item) => item.name === "arka-norn");
+  assert.ok(definition);
+  const rendered = runtime.renderGlobalSkillMd(definition);
+
+  assert.match(rendered, /mode_orchestration/);
+  assert.match(rendered, /`manual` ou `automatic`/);
+  assert.match(rendered, /Ne jamais créer, choisir un autre dossier ou déduire le mode silencieusement/);
+  assert.match(rendered, /project add <racine> --name <nom> --orchestration-mode <manual\|automatic>/);
+  assert.match(rendered, /skills doctor --target <racine> --profile all --global --json/);
+  assert.match(rendered, /skills install --target <racine> --profile all --global/);
+  assert.match(rendered, /les 18 skills/);
+  assert.match(rendered, /--force.*décision explicite de l’utilisateur/);
+});
+
+test("le rendu global arka-product demande assistant, modèle, aperçu et confirmation", () => {
+  const runtime = createSkillCatalogRuntime(ROOT);
+  const definition = runtime.definitions.find((item) => item.name === "arka-product");
+  assert.ok(definition);
+  const rendered = runtime.renderGlobalSkillMd(definition);
+
+  assert.match(rendered, /demander explicitement.*assistant.*version/i);
+  assert.match(rendered, /orchestration configure --project <project-id> --provider <claude\|codex\|kimi\|zai> --model <version>/);
+  assert.match(rendered, /orchestration preview --project <project-id> --feature <feature-id>/);
+  assert.match(rendered, /attendre la confirmation explicite de l'utilisateur/i);
+  assert.match(rendered, /orchestration start --project <project-id> --feature <feature-id> --provider <claude\|codex\|kimi\|zai> --model <version> --preview <empreinte>/);
+  assert.doesNotMatch(rendered, /sélecteur Project le choisit de façon déterministe|ne demander ni provider libre/i);
 });

@@ -181,38 +181,54 @@ Le Product peut proposer deux modes :
 
 Ce découpage permet de mobiliser une autre conversation à l’avance sans contourner l’ordre du workflow.
 
-### Choisir l’orchestration manuelle ou automatique
+### Choisir votre niveau de délégation
 
 Le Project possède aussi un mode d’organisation, distinct de `prepare` et
 `execute` :
 
 - **manuel** : vous transmettez vous-même les prompts aux Agents ;
-- **automatique** : Arka Norn conserve la décision de la prochaine étape et
-  confie seulement les missions validées à son worker local Mastra.
+- **Pilote assisté** : la valeur technique persistée est `automatic`, mais
+  Arka Norn reste à vos côtés et ne lance jamais une mission sans vous.
 
-Le mode automatique n’autorise pas un Agent à avancer seul dans le workflow.
-Avant chaque mission, Arka Norn vérifie le Project, la Feature, le périmètre et
-l’étape attendue. Il choisit uniquement un provider autorisé, disponible et
-capable à partir de la politique du Project, jamais sur une préférence libre du
-worker. Claude et Codex sont reconnus comme providers ; en V1, Codex ACP reste
-exclu des écritures dans une Feature tant que son environnement ne décrit pas
-les permissions de manière vérifiable.
+Le Pilote assisté vous accompagne toujours dans le même ordre :
 
-Dans le cockpit Project, l’écran d’orchestration affiche le mode, la mission
-active, le provider, les événements et l’action à faire. Démarrez
-l’automatisation avec `orchestration start` ou l’action équivalente de la
-TUI. Si une permission non prévue ou opaque, une erreur ou une preuve manquante
-apparaît, le flux s’arrête : inspectez l’état, corrigez le contrat ou le
-provider, puis annulez ou relancez explicitement la mission. La commande
-`approve` n’est utilisable que lorsqu’une demande détaille précisément l’action
-et le périmètre concernés ; elle ne transforme jamais une demande opaque en
-autorisation. Repasser en manuel empêche seulement les missions suivantes ; une
+1. vous choisissez la **Feature** à faire avancer ;
+2. vous choisissez l’**assistant** et sa **version** ;
+3. Arka explique clairement ce qui va être fait, pourquoi maintenant, les
+   fichiers concernés et ce qui peut être modifié ;
+4. vous confirmez cet aperçu exact ;
+5. Arka vérifie le résultat avant de proposer, sans lancer, une mission
+   suivante.
+
+Les assistants apparaissent sous des noms simples : **Claude**, **Codex**,
+**Kimi Platform** et **Z.AI Coding Plan**. Arka peut en recommander un, mais le
+choix vous appartient. Si le choix n’est pas sûr ou pas prêt sur votre machine,
+il l’explique et ne lance rien. Après chaque mission, il vous montre un nouvel
+aperçu : il n’existe pas de succession silencieuse d’actions.
+
+Dans le cockpit Project, ouvrez **Pilote assisté**. Vous y voyez le mode, la
+dernière mission, l’assistant et sa version, les événements et surtout
+l’action attendue de votre part. Vous pouvez annuler une mission ou demander
+une relance. Repasser en manuel empêche seulement les missions suivantes ; une
 mission déjà lancée n’est jamais annulée sans vous le dire.
 
-Une interruption Codex ACP se relance comme une nouvelle tentative : ne partez
-pas du principe qu’une conversation interrompue peut reprendre exactement au
-même endroit. Le guide complet est
-[Orchestration automatique contrôlée](automatic-orchestration.md).
+Arka s’arrête en sécurité si une permission imprévue, une erreur, une preuve
+manquante ou un changement de périmètre apparaît. Une approbation ne peut être
+donnée que pour une action précisément décrite ; une demande vague n’est jamais
+autorisée automatiquement.
+
+Un **audit** lancé par le Pilote assisté ne modifie pas vos fichiers. Il vous
+indique seulement une conclusion courte et sûre, puis vous demande de produire
+ou valider le document d’audit officiel avant de préparer la suite. Le texte
+libre retourné par l’assistant n’est pas conservé dans Arka : cela évite qu’un
+secret ou une donnée sensible soit copié dans le suivi.
+
+À ce stade, Codex et Kimi ne peuvent pas écrire automatiquement dans une
+Feature car leur mécanisme de permission ne fournit pas encore les détails
+nécessaires. Le choix Kimi Platform utilise actuellement Kimi Code, pas une
+connexion directe à la plateforme. Z.AI Coding Plan demande une activation et
+un identifiant configurés localement par votre équipe. Le guide complet est
+[Pilote assisté et orchestration contrôlée](automatic-orchestration.md).
 
 ### Changer de conversation sans perdre le contexte
 
@@ -314,7 +330,7 @@ Générez un handoff Product. Ne vous contentez pas d’un résumé libre : la p
 
 - `doctor` observe ; il ne modifie rien.
 - `doctor --repair` prépare un plan de réparation ; seul `--repair --apply` l’applique.
-- `project forget` ou `feature forget` retire un élément de l’index local, sans supprimer votre dossier métier.
+- `project forget` ou `feature forget` retire un élément de l’index local, sans supprimer votre dossier métier. Si son marker a disparu, ajoutez `--yes --force` pour une récupération index-only explicitement confirmée.
 - N’utilisez `--force` que si vous comprenez précisément le conflit signalé.
 - Ne copiez pas de secrets, données personnelles ou code confidentiel dans un chat web public.
 - Vérifiez toujours le Project et la Feature affichés avant de lancer une mutation.

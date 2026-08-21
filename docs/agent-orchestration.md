@@ -1,6 +1,6 @@
 # Orchestration Product et sessions Agent
 
-Le premier Agent d’un Project est toujours le **Product principal**. Il organise la priorité, explique la prochaine étape, prépare les autres rôles et conserve les décisions utilisateur. Il ne réalise pas lui-même l’architecture, l’audit, le développement ou la QA.
+Le premier Agent d’un Project est toujours le **Product principal**. Il organise la priorité, explique la prochaine étape, prépare les autres rôles et conserve les décisions utilisateur. Il produit dans `main` les documents de cadrage et de gouvernance qui lui sont attribués par le Pipeline (`concept`, `plan`, `registre_dettes`, `tache_agent`) ; il ne réalise pas l’architecture, l’audit, le développement ou la QA.
 
 ## Une session provider, une sélection Agent
 
@@ -70,42 +70,51 @@ Product main
 
 Une préparation parallèle peut anticiper les risques et questions, mais n’acquiert jamais implicitement le droit d’écrire. Le registre partagé conserve les identités et périmètres ; le fichier de sessions reste privé à la machine.
 
-## Mode automatique contrôlé
+## Pilote assisté du Project
 
 Le mode d’orchestration du **Project** est indépendant du mode de prompt :
 `manual|automatic` règle la planification des missions, alors que
-`prepare|execute` règle le droit d’action d’un Agent spécialisé.
+`prepare|execute` règle le droit d’action d’un Agent spécialisé. Dans les
+interfaces, le mode `automatic` est nommé **Pilote assisté** : il ne représente
+jamais un droit pour le Product ou Mastra d’enchaîner le travail sans vous.
 
-En `manual`, le Product prépare les prompts comme décrit ci-dessus. En
-`automatic`, il garde la même responsabilité de lecture du Pipeline et de
-décision utilisateur, mais Arka Norn peut déléguer au worker Mastra une mission
-déjà validée :
+En `manual`, le Product prépare les prompts comme décrit ci-dessus. Dans le
+Pilote assisté, il lit d’abord le Pipeline puis vous fait parcourir la même
+séquence à chaque mission :
 
 ```text
-Arka Norn (Pipeline et preuves)
-  → MissionOrder immuable
-  → sélection déterministe Claude/Codex par politique Project
-  → worker Mastra local
-  → preuves vérifiées par Arka Norn
+Feature → assistant et version → aperçu expliqué → confirmation → worker local
 ```
 
-Le Product ne choisit pas librement le provider dans ce parcours : seuls les
-providers autorisés, sains et capables sont candidats, puis la priorité
-Project et un départage stable décident. Une fois l’exécution commencée, aucun
-fallback provider n’est permis.
+L’aperçu explique la prochaine étape, le rôle, les chemins concernés, les
+preuves et les autorisations prévues. Le Product doit demander explicitement
+quel assistant et quelle version lancer. Les options lisibles sont **Claude**,
+**Codex**, **Kimi Platform** et **Z.AI Coding Plan**. Arka peut recommander une
+option éligible d’après la politique du Project, mais l’utilisateur confirme la
+cible exacte ; il n’existe ni choix libre par Mastra ni fallback après le
+démarrage.
 
-Pour armer le mode et lancer une mission validée :
+Le même contrat est disponible en CLI :
 
 ```text
-arka-norn orchestration start --project <project-id> [--feature <feature-id>]
+arka-norn orchestration configure --project <project-id> --provider <assistant> --model <version>
+arka-norn orchestration preview --project <project-id> --feature <feature-id>
+arka-norn orchestration start --project <project-id> --feature <feature-id> --provider <assistant> --model <version> --preview <empreinte>
 arka-norn orchestration status --project <project-id>
 ```
 
 Une permission non préautorisée, une preuve absente, un scope modifié ou une
-erreur suspend le flux. Le Product présente alors la raison et la commande
-appropriée (`approve`, `cancel` ou `retry`) ; il ne contourne ni la
-suspension ni le broker deny-by-default. Pour Codex ACP, une interruption est
-une nouvelle tentative, pas une reprise générique de session.
+erreur suspend le flux. Le Product présente alors la raison et l’action
+appropriée (`approve`, `cancel` ou `retry`) ; il ne contourne ni la suspension
+ni le broker deny-by-default. Après une mission réussie, le Product demande un
+nouvel aperçu et une nouvelle confirmation au lieu d’en lancer une autre.
+
+Codex et Kimi utilisent ACP et restent non éligibles aux écritures automatiques
+tant que leurs permissions sont opaques. Kimi Platform est actuellement porté
+par Kimi Code ACP, non par une intégration directe à l’API Platform. Z.AI Coding
+Plan utilise un endpoint fixé dans l’adapter et ne devient disponible qu’avec
+son activation et son identifiant local explicites. Pour Codex ou Kimi ACP, une
+interruption est une nouvelle tentative, pas une reprise générique de session.
 
 Le détail des données persistées, des permissions et de la TUI se trouve dans
-[l’orchestration automatique contrôlée](automatic-orchestration.md).
+[le Pilote assisté et l’orchestration contrôlée](automatic-orchestration.md).

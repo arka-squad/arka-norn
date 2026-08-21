@@ -30,6 +30,21 @@ export function createWorkspacePermissionGate(request) {
   };
 }
 
+/**
+ * Keep the provider's exposed tool surface aligned with the immutable
+ * MissionOrder permission policy. The gate below remains the second line of
+ * defence for every individual call, but a read-only mission must not even
+ * advertise Edit or Write to the SDK.
+ */
+export function claudeToolsForPermissionPolicy(permissionPolicy) {
+  if (permissionPolicy === "deny-all") return [];
+  const tools = ["Read", "Glob", "Grep"];
+  if (permissionPolicy.permissions.includes("write_workspace")) {
+    tools.push("Edit", "Write");
+  }
+  return tools;
+}
+
 /** Exported for deterministic tests; never returns a raw filesystem path. */
 export function isAllowedWorkspacePath(workspace, scopePaths, target, glob = false) {
   const root = realpathSync(workspace);

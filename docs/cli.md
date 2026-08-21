@@ -15,15 +15,15 @@ arka-norn agent list|register|show|current|use|sessions|advise|prompt|handoff-pr
 arka-norn pipeline status|next|scaffold|validate
 arka-norn workflow list|show
 arka-norn fastdev start|status|next
-arka-norn orchestration start|status|cancel|approve|retry
+arka-norn orchestration configure|preview|start|status|cancel|approve|retry
 arka-norn skills list|install|doctor [--global]
 arka-norn doctor [--repair [--apply]]
 arka-norn migrate [--target <path>] [--dry-run|--apply]
 ```
 
-`arka-norn skills install --target <repo> --profile core --global` installe le point d'entrée et le socle dans `~/.claude/skills/` et `~/.codex/skills/`, en plus des copies locales au Project.
+`arka-norn skills install --target <repo> --profile all --global` installe les 18 skills du catalogue dans `~/.claude/skills/` et `~/.codex/skills`, en plus des copies locales au Project. Une copie existante qui diffère du checksum attendu n’est jamais remplacée par cette commande : elle retourne le code 5.
 
-`arka-norn skills doctor --target <repo> --global --json` vérifie dans un même rapport les trois artefacts locaux et les trois artefacts globaux attendus pour chaque skill. Sans `--global`, le contrôle reste strictement local.
+`arka-norn skills doctor --target <repo> --profile all --global --json` vérifie dans un même rapport les trois artefacts locaux et les trois artefacts globaux attendus pour chacune des 18 skills. Le résultat compare le contenu SHA-256 rendu, et non seulement un numéro de version. Sans `--global`, le contrôle reste strictement local. Utilisez d’abord `skills install ... --dry-run`; `--force` ne remplace une divergence qu’après décision explicite et crée un backup.
 
 `project scan <racine>` et `feature scan --path <racine>` reconnaissent directement un marqueur porté par la cible ; si la cible n'en porte pas, ils inspectent uniquement ses enfants immédiats. Un déplacement remplace atomiquement l'ancien chemin devenu illisible dans l'index. Une copie qui laisserait deux marqueurs actifs avec le même identifiant est refusée comme conflit d'identité.
 
@@ -38,13 +38,15 @@ arka-norn agent handoff-prompt --project product --feature secure-cockpit
 
 `agent advise` retourne la phase, la responsabilité Product et les rôles à lancer maintenant ou en préparation. `agent prompt` rend un prompt autonome avec session, profil de skills, périmètre et permissions ; un rôle ne peut pas exécuter une étape qui ne lui appartient pas. `agent handoff-prompt` prépare une nouvelle conversation Product en réutilisant la même identité. Voir [`agent-orchestration.md`](agent-orchestration.md).
 
-## Orchestration automatique
+## Pilote assisté
 
 ```text
 arka-norn project add <root> --name <nom> --id <project-id> --orchestration-mode manual|automatic
 arka-norn project set-orchestration-mode <project-id> --orchestration-mode manual|automatic
 
-arka-norn orchestration start --project <project-id> [--feature <feature-id>]
+arka-norn orchestration configure --project <project-id> --provider <claude|codex|kimi|zai> --model <version>
+arka-norn orchestration preview --project <project-id> --feature <feature-id>
+arka-norn orchestration start --project <project-id> --feature <feature-id> --provider <claude|codex|kimi|zai> --model <version> --preview <empreinte>
 arka-norn orchestration status --project <project-id>
 arka-norn orchestration cancel <execution-id> --project <project-id>
 arka-norn orchestration approve <execution-id> --project <project-id>
@@ -52,22 +54,41 @@ arka-norn orchestration retry <execution-id> --project <project-id>
 ```
 
 Le mode `manual|automatic` appartient au marker Project v4 et ne doit pas être
-confondu avec `agent prompt --mode prepare|execute`. `start` arme
-explicitement le mode automatique et ne peut soumettre qu’un ordre calculé et
-validé par Arka Norn. Le plan de contrôle doit réévaluer les préconditions
-avant chaque suite de mission.
+confondu avec `agent prompt --mode prepare|execute`. Dans les sorties et le
+cockpit, `automatic` est présenté comme le **Pilote assisté**. Il demande un
+choix explicite d’assistant et de version pour chaque mission ; il ne sélectionne
+jamais un modèle à votre place ni n’enchaîne une nouvelle mission sans un nouvel
+aperçu et une nouvelle confirmation.
 
-`status` retourne la politique Project, les exécutions, le provider retenu et
-l’action attendue, jamais les secrets ni l’état de processus local. `cancel`
-arrête explicitement une mission. `approve` ne traite qu’une permission
-structurée et vérifiable ; une demande opaque est refusée avec
-`permission_not_preapproved` et demande une inspection, sans escalade
-automatique. `retry` crée une nouvelle tentative contrôlée avec le provider
-retenu par la mission d’origine. Il n’existe pas de fallback provider pendant
-une exécution ni de reprise générique d’une session Codex ACP interrompue.
+`configure` mémorise le choix Project sans secret. `preview` est une lecture
+non mutante : il expose ce qui sera fait, le rôle, le scope, les permissions,
+les candidats et une empreinte. `start` exige cette empreinte ainsi que le même
+assistant et la même version ; il arme alors le Pilote assisté (mode
+`automatic`) et ne soumet
+qu’un ordre recalculé et validé par Arka Norn. Toute modification entre aperçu
+et lancement oblige à refaire `preview`.
+
+Les identifiants de CLI correspondent à ces libellés : `claude` = **Claude**,
+`codex` = **Codex**, `kimi` = **Kimi Platform** et `zai` = **Z.AI Coding Plan**.
+Un candidat doit rester autorisé, sain et capable pour apparaître comme prêt.
+Codex et Kimi ACP ne sont pas prêts pour des écritures automatiques dans une
+Feature tant que leurs permissions sont opaques. Z.AI demande une activation et
+un identifiant local explicites ; son endpoint compatible Claude est fixé par
+l’adapter. Le libellé Kimi Platform repose actuellement sur Kimi Code ACP et
+ne promet pas une intégration directe à l’API Platform.
+
+`status` retourne la politique Project, les exécutions, la cible
+assistant/version et l’action attendue, jamais les secrets ni l’état de
+processus local. `cancel` arrête explicitement une mission. `approve` ne traite
+qu’une permission structurée et vérifiable ; une demande opaque est refusée
+avec `permission_not_preapproved`, sans escalade automatique. `retry` crée une
+nouvelle tentative avec la cible immuable de la mission d’origine. Il n’existe
+pas de fallback pendant une exécution ni de reprise générique d’une session
+Codex ou Kimi ACP interrompue.
 
 Voir [`automatic-orchestration.md`](automatic-orchestration.md) pour les
-formats persistés, les permissions et les limites d’isolation.
+formats persistés v2, les permissions, les smoke tests réels opt-in et les
+limites d’isolation.
 
 Avant un scaffold géré, enregistrez ou sélectionnez l’identité de la session spécialisée :
 
@@ -116,7 +137,7 @@ arka-norn fastdev next <feature> [--session <session-id>] [--json]
 
 Lorsque la prochaine étape est `concept`, la skill `arka-framework-concept` peut proposer un brainstorming dans ChatGPT ou Claude.ai. L’agent fournit alors le mode d’emploi et un prompt autonome prérempli ; l’utilisateur rapporte la réponse complète, qui est vérifiée avant la génération du document signé.
 
-`forget` exige `--yes` et ne supprime jamais le dossier métier. `scaffold` et `skills install` refusent les écrasements ; `--force` est explicite et l’installateur sauvegarde les fichiers divergents.
+`forget` exige `--yes` et ne supprime jamais le dossier métier. Si le marker d’un Project ou d’une Feature a disparu, `project forget <id> --yes --force` ou `feature forget <id> --yes --force` retire uniquement l’entrée d’index orpheline, sans relire le marker. `scaffold` et `skills install` refusent les écrasements ; `--force` est explicite et l’installateur sauvegarde les fichiers divergents.
 
 Le parseur est commun à toutes les commandes : une option inconnue, répétée,
 incompatible ou sans valeur retourne `64`. `ARKA_NORN_HOME` cible la même zone

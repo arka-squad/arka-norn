@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
 
-import { createWorkspacePermissionGate, isAllowedWorkspacePath } from "../../scripts/mastra-permission-gate.mjs";
+import { claudeToolsForPermissionPolicy, createWorkspacePermissionGate, isAllowedWorkspacePath } from "../../scripts/mastra-permission-gate.mjs";
 
 test("la barrière Claude autorise seulement les outils structurés et chemins Feature préautorisés", (context) => {
   const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-permission-gate-"));
@@ -73,4 +73,16 @@ test("la barrière refuse toute opération lorsque la politique est deny-all", (
   const gate = createWorkspacePermissionGate({ workspace, permissionPolicy: "deny-all" });
 
   assert.equal(gate("Read", { file_path: "file.txt" }).behavior, "deny");
+});
+
+test("une mission lecture seule ne propose ni Edit ni Write au worker Claude", () => {
+  assert.deepEqual(
+    claudeToolsForPermissionPolicy({
+      mode: "preauthorized-workspace",
+      scopePaths: ["."],
+      permissions: ["read_workspace"],
+    }),
+    ["Read", "Glob", "Grep"],
+  );
+  assert.deepEqual(claudeToolsForPermissionPolicy("deny-all"), []);
 });

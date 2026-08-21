@@ -23,7 +23,7 @@ test("workflow et FastDev offrent un parcours CLI humain et JSON sans décision 
   assert.deepEqual(shown.json.data.steps.map((step) => step.id), ["cadrage_rework", "cr_dev", "audit_rework", "validation_fastdev"]);
   assert.equal(run(["workflow", "show", "../../evil", "--json"], home, projectRoot).status, 3);
 
-  assert.equal(run(["project", "add", projectRoot, "--id", "project", "--name", "Project", "--json"], home, projectRoot).status, 0);
+  assert.equal(run(["project", "add", projectRoot, "--id", "project", "--name", "Project", "--orchestration-mode", "manual", "--json"], home, projectRoot).status, 0);
   const started = run<{ readonly id: string; readonly pipelineId: string; readonly root: string }>([
     "fastdev", "start", "Réparer la navigation", "--project", "project", "--json",
   ], home, projectRoot);
@@ -68,7 +68,7 @@ test("set-workflow est autorisé uniquement avant le premier document reconnu", 
   const featureRoot = resolve(projectRoot, "feature");
   mkdirSync(projectRoot, { recursive: true });
   context.after(() => rmSync(sandbox, { recursive: true, force: true }));
-  assert.equal(run(["project", "add", projectRoot, "--id", "project", "--json"], home, projectRoot).status, 0);
+  assert.equal(run(["project", "add", projectRoot, "--id", "project", "--orchestration-mode", "manual", "--json"], home, projectRoot).status, 0);
   assert.equal(run(["feature", "create", "Feature", "--project", "project", "--id", "feature", "--path", featureRoot, "--json"], home, projectRoot).status, 0);
   const changed = run<{ readonly pipelineId: string }>(["feature", "set-workflow", "feature", "--workflow", "fastdev", "--json"], home, projectRoot);
   assert.equal(changed.status, 0, changed.stderr);

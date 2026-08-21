@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["schemaVersion", "projectId", "updatedAt", "executions"],
   "properties": {
-    "schemaVersion": { "const": 1 },
+    "schemaVersion": { "const": 2 },
     "projectId": { "$ref": "#/$defs/projectId" },
     "updatedAt": { "type": "string", "format": "date-time" },
     "executions": {
@@ -37,13 +37,13 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "id", "order", "provider", "status", "attempts", "events",
+        "id", "order", "target", "status", "attempts", "events",
         "truncatedEventCount", "proofReferences", "createdAt", "updatedAt"
       ],
       "properties": {
         "id": { "$ref": "#/$defs/executionId" },
         "order": { "$ref": "#/$defs/missionOrder" },
-        "provider": { "enum": ["claude", "codex"] },
+        "target": { "$ref": "#/$defs/target" },
         "status": { "enum": ["planned", "running", "awaiting_approval", "succeeded", "failed", "cancelled", "interrupted", "rejected"] },
         "attempts": {
           "type": "array",
@@ -79,6 +79,40 @@
         {
           "if": { "properties": { "status": { "enum": ["failed", "cancelled", "interrupted", "rejected"] } }, "required": ["status"] },
           "then": { "properties": { "suspensionReason": { "$ref": "#/$defs/suspensionReason" } }, "required": ["suspensionReason"] }
+        }
+      ]
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "adapter", "source"],
+      "properties": {
+        "provider": { "enum": ["claude", "codex", "kimi", "zai"] },
+        "adapter": { "enum": ["claude-sdk", "acp"] },
+        "model": { "type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[^\\u0000-\\u001f\\u007f]+$" },
+        "source": { "enum": ["user", "legacy"] }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "provider": { "enum": ["claude", "zai"] } }, "required": ["provider"] },
+          "then": { "properties": { "adapter": { "const": "claude-sdk" } }, "required": ["adapter"] }
+        },
+        {
+          "if": { "properties": { "provider": { "enum": ["codex", "kimi"] } }, "required": ["provider"] },
+          "then": { "properties": { "adapter": { "const": "acp" } }, "required": ["adapter"] }
+        },
+        {
+          "if": { "properties": { "source": { "const": "user" } }, "required": ["source"] },
+          "then": {
+            "properties": {
+              "model": { "type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[^\\u0000-\\u001f\\u007f]+$" }
+            },
+            "required": ["model"]
+          }
+        },
+        {
+          "if": { "properties": { "source": { "const": "legacy" } }, "required": ["source"] },
+          "then": { "properties": { "model": false } }
         }
       ]
     },

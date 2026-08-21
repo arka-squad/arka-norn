@@ -5,7 +5,7 @@ import { EXECUTION_REGISTRY_SCHEMA_VERSION, ExecutionRegistry, } from "../../../
 import { ExecutionRecord, isExecutionSuspensionCode, } from "../../../domain/orchestration/execution-record.js";
 import { InvalidExecutionRegistryError } from "../../../domain/orchestration/errors.js";
 import { MissionOrder, } from "../../../domain/orchestration/mission-order.js";
-import { isExecutionAttemptStatus, isExecutionCapability, isExecutionPermission, isExecutionProvider, isExecutionRecordStatus, } from "../../../domain/orchestration/types.js";
+import { canonicalExecutionAdapter, isExecutionAdapter, isExecutionAttemptStatus, isExecutionCapability, isExecutionModelId, isExecutionPermission, isExecutionProvider, isExecutionRecordStatus, isExecutionTargetSource, legacyExecutionTarget, } from "../../../domain/orchestration/types.js";
 import { FeatureId } from "../../../domain/feature/feature-id.js";
 import { ProjectId } from "../../../domain/project/project-id.js";
 import { readJson, writeJsonAtomic } from "./_shared/atomic-json.js";
@@ -16,10 +16,12 @@ export class FsExecutionRegistryStore {
     constructor(paths = new FsPathPolicy()) {
         this.paths = paths;
     }
+    /** Loading v1 is a pure migration in memory; it never rewrites the marker. */
     async load(project) {
         await this.assertProjectRoot(project);
         return this.loadUnlocked(project);
     }
+    /** Every explicit update persists the current v2 representation under a lock. */
     async update(project, transform) {
         await this.assertProjectRoot(project);
         const path = executionRegistryPath(project.root);
@@ -82,7 +84,7 @@ function serializeRecord(record) {
     return {
         id: props.id,
         order: serializeOrder(props.order),
-        provider: props.provider,
+        target: serializeTarget(props.target),
         status: props.status,
         attempts: props.attempts.map((attempt) => ({
             number: attempt.number,
@@ -98,6 +100,14 @@ function serializeRecord(record) {
         ...(props.providerSessionId === undefined ? {} : { providerSessionId: props.providerSessionId }),
         createdAt: props.createdAt.toISOString(),
         updatedAt: props.updatedAt.toISOString(),
+    };
+}
+function serializeTarget(target) {
+    return {
+        provider: target.provider,
+        adapter: target.adapter,
+        ...(target.model === undefined ? {} : { model: target.model }),
+        source: target.source,
     };
 }
 function serializeOrder(order) {
@@ -120,18 +130,26 @@ function deserialize(value) {
     if (!isRegistryFile(value))
         throw new InvalidExecutionRegistryError("schema is invalid or contains forbidden fields");
     const props = {
-        schemaVersion: value.schemaVersion,
+        schemaVersion: EXECUTION_REGISTRY_SCHEMA_VERSION,
         projectId: ProjectId.of(value.projectId),
-        executions: value.executions.map(deserializeRecord),
+        executions: value.schemaVersion === 1
+            ? value.executions.map(deserializeLegacyRecord)
+            : value.executions.map(deserializeRecord),
         updatedAt: parseDate(value.updatedAt, "updatedAt"),
     };
     return ExecutionRegistry.create(props);
 }
+function deserializeLegacyRecord(value) {
+    return createRecord(value, legacyExecutionTarget(value.provider));
+}
 function deserializeRecord(value) {
+    return createRecord(value, deserializeTarget(value.target));
+}
+function createRecord(value, target) {
     const props = {
         id: value.id,
         order: deserializeOrder(value.order),
-        provider: value.provider,
+        target,
         status: value.status,
         attempts: value.attempts.map(deserializeAttempt),
         events: value.events.map(deserializeEvent),
@@ -143,6 +161,14 @@ function deserializeRecord(value) {
         updatedAt: parseDate(value.updatedAt, "updatedAt"),
     };
     return ExecutionRecord.create(props);
+}
+function deserializeTarget(value) {
+    return {
+        provider: value.provider,
+        adapter: value.adapter,
+        ...(value.model === undefined ? {} : { model: value.model }),
+        source: value.source,
+    };
 }
 function deserializeOrder(value) {
     const scope = {
@@ -180,6 +206,19 @@ function deserializeReason(value) {
     return { code: value.code, detail: value.detail };
 }
 function isRegistryFile(value) {
+    return isRegistryFileV1(value) || isRegistryFileV2(value);
+}
+function isRegistryFileV1(value) {
+    if (!isRecord(value) || !hasExactKeys(value, ["schemaVersion", "projectId", "updatedAt", "executions"]))
+        return false;
+    return value["schemaVersion"] === 1
+        && typeof value["projectId"] === "string"
+        && typeof value["updatedAt"] === "string"
+        && isIsoDate(value["updatedAt"])
+        && Array.isArray(value["executions"])
+        && value["executions"].every(isExecutionRecordRawV1);
+}
+function isRegistryFileV2(value) {
     if (!isRecord(value) || !hasExactKeys(value, ["schemaVersion", "projectId", "updatedAt", "executions"]))
         return false;
     return value["schemaVersion"] === EXECUTION_REGISTRY_SCHEMA_VERSION
@@ -187,16 +226,23 @@ function isRegistryFile(value) {
         && typeof value["updatedAt"] === "string"
         && isIsoDate(value["updatedAt"])
         && Array.isArray(value["executions"])
-        && value["executions"].every(isExecutionRecordRaw);
+        && value["executions"].every(isExecutionRecordRawV2);
 }
-function isExecutionRecordRaw(value) {
+function isExecutionRecordRawV1(value) {
     const required = ["id", "order", "provider", "status", "attempts", "events", "truncatedEventCount", "proofReferences", "createdAt", "updatedAt"];
+    return isExecutionRecordRawBase(value, required)
+        && (value["provider"] === "claude" || value["provider"] === "codex");
+}
+function isExecutionRecordRawV2(value) {
+    const required = ["id", "order", "target", "status", "attempts", "events", "truncatedEventCount", "proofReferences", "createdAt", "updatedAt"];
+    return isExecutionRecordRawBase(value, required) && isExecutionTargetRaw(value["target"]);
+}
+function isExecutionRecordRawBase(value, required) {
     const optional = ["suspensionReason", "providerSessionId"];
     if (!isRecord(value) || !hasKeys(value, required, optional))
         return false;
     return typeof value["id"] === "string"
         && isMissionOrderRaw(value["order"])
-        && isExecutionProvider(value["provider"])
         && isExecutionRecordStatus(value["status"])
         && Array.isArray(value["attempts"])
         && value["attempts"].every(isExecutionAttemptRaw)
@@ -210,6 +256,19 @@ function isExecutionRecordRaw(value) {
         && isIsoDate(value["createdAt"])
         && typeof value["updatedAt"] === "string"
         && isIsoDate(value["updatedAt"]);
+}
+function isExecutionTargetRaw(value) {
+    if (!isRecord(value) || !hasKeys(value, ["provider", "adapter", "source"], ["model"]))
+        return false;
+    if (!isExecutionProvider(value["provider"])
+        || !isExecutionAdapter(value["adapter"])
+        || value["adapter"] !== canonicalExecutionAdapter(value["provider"])
+        || !isExecutionTargetSource(value["source"])) {
+        return false;
+    }
+    return value["source"] === "user"
+        ? isExecutionModelId(value["model"])
+        : value["model"] === undefined;
 }
 function isMissionOrderRaw(value) {
     if (!isRecord(value) || !hasExactKeys(value, ["id", "scope", "preconditions", "requiredCapabilities", "requiredPermissions", "summary", "issuedAt"]))

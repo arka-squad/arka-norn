@@ -56,6 +56,22 @@ export function inspectSkills(frameworkRoot, target, profile = "all", globalHome
         return { name: definition.name, status, files };
     });
 }
+/**
+ * Inspecte uniquement les artefacts d'entrée utilisateur Claude/Codex.
+ * Cette vue séparée évite qu'une copie locale saine masque un point d'entrée
+ * global obsolète dans la TUI.
+ */
+export function inspectGlobalSkills(frameworkRoot, globalHome, profile = "all") {
+    const runtime = createSkillCatalogRuntime(frameworkRoot, profile);
+    return runtime.definitions.map((definition) => {
+        const expected = desiredGlobalFiles([definition], resolve(globalHome), (item) => runtime.renderGlobalSkillMd(item), (item) => runtime.renderRepoSkillMd(item), (item) => runtime.renderOpenaiYaml(item));
+        const files = expected.map((item) => fileStatus(item.file, item.content));
+        const status = files.every((file) => file.status === "ok")
+            ? "ok"
+            : files.some((file) => file.status === "divergent") ? "divergent" : "missing";
+        return { name: definition.name, status, files };
+    });
+}
 function desiredGlobalFiles(definitions, globalHome, renderClaude, renderCodex, renderOpenai) {
     return definitions.flatMap((definition) => [
         { root: globalHome, file: join(globalHome, ".claude", "skills", definition.name, "SKILL.md"), content: renderClaude(definition) },

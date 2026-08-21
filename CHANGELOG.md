@@ -8,7 +8,8 @@ tags `vX.Y.Z`.
 
 - marker Project porté en v4 avec le mode persistant `manual|automatic`, tandis que les markers Feature restent en v3 ; les migrations Project v1/v2/v3 choisissent `manual` sans mutation lors d’une lecture ;
 - politique d’exécution et registre de missions séparés sous `.arka-norn/`, sans secret, token, PID ni état de processus portable ;
-- orchestration Mastra locale contrôlée par Arka Norn : ordres de mission immuables, sélection déterministe Claude/Codex, permissions deny-by-default, suspension vérifiable et absence de fallback après démarrage ;
+- orchestration Mastra locale contrôlée par Arka Norn : ordres de mission immuables, assistants Claude, Codex, Kimi Platform et Z.AI Coding Plan évalués par politique, permissions deny-by-default, suspension vérifiable et absence de fallback après démarrage ;
+- mode `automatic` présenté comme un **Pilote assisté** : pour chaque mission, l’utilisateur choisit explicitement l’assistant et sa version, relit un aperçu borné puis le confirme ; aucune mission suivante n’est enchaînée silencieusement ;
 - commandes et cockpit d’orchestration pour armer, consulter, annuler, approuver et relancer une mission sans exposer le worker interne ;
 - Codex ACP documenté en annulation/relance contrôlée, sans promesse de reprise générique d’une exécution interrompue ;
 - prérequis et CI portés à Node.js 22.13+ (matrices 22/24) ; tests CI avec providers fake et smoke réels opt-in avec identifiants explicitement fournis.
@@ -19,6 +20,9 @@ tags `vX.Y.Z`.
 - l’échec avant dispatch devient terminal et audité, le smoke ACP réutilise la
   configuration runtime et l’annulation POSIX termine aussi les descendants du
   worker.
+- `skills doctor --profile all --global` contrôle désormais les 18 skills
+  locales et globales Claude/Codex avant un point d’entrée ; les divergences
+  sont visibles et une réparation globale est sauvegardée avant remplacement.
 
 ## 1.2.0 — 2026-08-20
 

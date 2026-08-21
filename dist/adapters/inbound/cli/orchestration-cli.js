@@ -4,17 +4,24 @@ import { ProjectId } from "../../../domain/project/project-id.js";
 import { createManagementRuntime } from "../../../composition/management-runtime.js";
 import { createOrchestrationRuntime } from "../../../composition/orchestration-runtime.js";
 import { createPipelineRuntime } from "../../../composition/pipeline-runtime.js";
+import { isExecutionProvider } from "../../../domain/orchestration/types.js";
 import { CliUsageError, parseStrictArguments } from "./strict-arguments.js";
-export const ORCHESTRATION_HELP = `Orchestration automatique locale (Arka contrôle, Mastra exécute)
+export const ORCHESTRATION_HELP = `Pilote assisté local (Arka contrôle, un assistant exécute)
 
-  orchestration start --project <id> [--feature <id>] [--json]
+  orchestration configure --project <id> --provider <claude|codex|kimi|zai> --model <version> [--json]
+  orchestration preview --project <id> --feature <id> [--json]
+  orchestration start --project <id> --feature <id> --provider <claude|codex|kimi|zai> --model <version> --preview <empreinte> [--json]
   orchestration status --project <id> [--json]
   orchestration cancel <execution-id> --project <id> [--json]
   orchestration approve <execution-id> --project <id> [--json]
   orchestration retry <execution-id> --project <id> [--json]
 
-start arme explicitement le mode automatique du Project. Chaque ordre est
-revalidé avant son exécution ; une permission fournisseur suspend le flux.
+1. Enregistrer l'assistant et sa version dans le Project avec configure.
+2. Lire l'aperçu de la prochaine mission avec preview.
+3. Confirmer exactement cet aperçu avec start et son empreinte.
+
+start arme le Pilote assisté du Project. Chaque ordre est revalidé avant son
+exécution ; une permission non prévue arrête la mission en sécurité.
 `;
 /** Public CLI surface. `_worker` is intentionally accepted but undocumented. */
 export async function runOrchestrationCommand(argv, context) {
@@ -44,10 +51,24 @@ export async function runOrchestrationCommand(argv, context) {
         const projectId = ProjectId.of(required(args.values, "project"));
         let data;
         switch (action) {
+            case "configure":
+                data = serializePolicy(await runtime.configure({
+                    projectId,
+                    selection: selectionFrom(args.values),
+                }));
+                break;
+            case "preview":
+                data = serializePreview(await runtime.preview({
+                    projectId,
+                    featureId: FeatureId.of(required(args.values, "feature")),
+                }));
+                break;
             case "start":
                 data = serializeExecution(await runtime.start({
                     projectId,
-                    ...(args.values.get("feature") === undefined ? {} : { featureId: FeatureId.of(args.values.get("feature")) }),
+                    featureId: FeatureId.of(required(args.values, "feature")),
+                    selection: selectionFrom(args.values),
+                    previewFingerprint: required(args.values, "preview"),
                 }));
                 break;
             case "status":
@@ -74,7 +95,9 @@ export async function runOrchestrationCommand(argv, context) {
 function argumentSpec(action) {
     const project = { project: "string", json: "boolean" };
     const specs = {
-        start: { options: { ...project, feature: "string" }, minPositionals: 0, maxPositionals: 0 },
+        configure: { options: { ...project, provider: "string", model: "string" }, minPositionals: 0, maxPositionals: 0 },
+        preview: { options: { ...project, feature: "string" }, minPositionals: 0, maxPositionals: 0 },
+        start: { options: { ...project, feature: "string", provider: "string", model: "string", preview: "string" }, minPositionals: 0, maxPositionals: 0 },
         status: { options: project, minPositionals: 0, maxPositionals: 0 },
         cancel: { options: project, minPositionals: 1, maxPositionals: 1 },
         approve: { options: project, minPositionals: 1, maxPositionals: 1 },
@@ -89,13 +112,24 @@ function required(values, name) {
         throw new CliUsageError(`--${name} is required`);
     return value;
 }
+function selectionFrom(values) {
+    const provider = required(values, "provider");
+    if (!isExecutionProvider(provider)) {
+        throw new CliUsageError("--provider must be one of: claude, codex, kimi, zai");
+    }
+    return { provider, model: required(values, "model") };
+}
 function output(command, data, json, action) {
     if (json)
         return { code: 0, stdout: `${JSON.stringify({ schemaVersion: 1, command, ok: true, data, errors: [], warnings: [] })}\n`, stderr: "" };
     if (action === "status")
         return { code: 0, stdout: `${humanStatus(data)}\n`, stderr: "" };
+    if (action === "configure")
+        return { code: 0, stdout: `${humanPolicy(data)}\n`, stderr: "" };
+    if (action === "preview")
+        return { code: 0, stdout: `${humanPreview(data)}\n`, stderr: "" };
     const execution = data;
-    return { code: 0, stdout: `Mission ${execution.id} · ${execution.status} · provider ${execution.provider}\n`, stderr: "" };
+    return { code: 0, stdout: `Mission ${execution.id} · ${execution.status} · ${assistantLabel(execution.target.provider)} / ${execution.target.model ?? "ancienne configuration"}\n`, stderr: "" };
 }
 function failure(command, error, json) {
     const message = error instanceof Error ? error.message : String(error);
@@ -126,6 +160,7 @@ function serializeStatus(status) {
         policy: status.policy === undefined ? null : serializePolicy(status.policy),
         executions: status.executions.map(serializeExecution),
         activeExecution: status.activeExecution === undefined ? null : serializeExecution(status.activeExecution),
+        latestExecution: status.latestExecution === undefined ? null : serializeExecution(status.latestExecution),
         actionRequired: status.actionRequired === undefined ? null : { ...status.actionRequired },
     };
 }
@@ -133,12 +168,15 @@ function serializePolicy(policy) {
     return {
         schemaVersion: policy.schemaVersion,
         projectId: policy.projectId.value,
+        selectionMode: policy.selectionMode,
         providers: policy.providers.map((provider) => ({
             provider: provider.provider,
+            adapter: provider.adapter,
             enabled: provider.enabled,
             priority: provider.priority,
             capabilities: [...provider.capabilities],
             permissions: [...provider.permissions],
+            models: provider.models.map((model) => ({ ...model })),
         })),
         createdAt: policy.createdAt.toISOString(),
         updatedAt: policy.updatedAt.toISOString(),
@@ -147,6 +185,12 @@ function serializePolicy(policy) {
 function serializeExecution(record) {
     return {
         id: record.id,
+        target: {
+            provider: record.target.provider,
+            adapter: record.target.adapter,
+            ...(record.target.model === undefined ? {} : { model: record.target.model }),
+            source: record.target.source,
+        },
         provider: record.provider,
         status: record.status,
         order: {
@@ -178,13 +222,66 @@ function serializeExecution(record) {
         updatedAt: record.updatedAt.toISOString(),
     };
 }
+function serializePreview(preview) {
+    return {
+        schemaVersion: preview.schemaVersion,
+        projectId: preview.projectId,
+        featureId: preview.featureId,
+        featureName: preview.featureName,
+        stepId: preview.stepId,
+        role: preview.role,
+        summary: preview.summary,
+        scopePaths: [...preview.scopePaths],
+        requiredCapabilities: [...preview.requiredCapabilities],
+        requiredPermissions: [...preview.requiredPermissions],
+        candidates: preview.candidates.map((candidate) => ({
+            target: {
+                provider: candidate.target.provider,
+                adapter: candidate.target.adapter,
+                ...(candidate.target.model === undefined ? {} : { model: candidate.target.model }),
+                source: candidate.target.source,
+            },
+            eligible: candidate.eligible,
+            reasons: [...candidate.reasons],
+            recommended: candidate.recommended,
+        })),
+        fingerprint: preview.fingerprint,
+    };
+}
 function humanStatus(status) {
-    const active = status.activeExecution;
+    const active = status.activeExecution ?? status.latestExecution;
     return [
-        `Project ${status.projectId} · mode ${status.orchestrationMode}`,
-        `Politique : ${status.policy === null ? "non initialisée" : status.policy.providers.map((provider) => `${provider.provider}:${provider.enabled ? "autorisé" : "désactivé"}`).join(", ")}`,
-        `Mission : ${active === null ? "aucune" : `${active.id} · ${active.status} · ${active.provider}`}`,
+        `Project ${status.projectId} · Pilote assisté ${status.orchestrationMode === "automatic" ? "activé" : "en pause"}`,
+        `Assistants : ${status.policy === null ? "aucun modèle encore choisi" : status.policy.providers.flatMap((provider) => provider.models.filter((model) => model.enabled).map((model) => `${assistantLabel(provider.provider)} ${model.id}`)).join(", ") || "aucun modèle encore choisi"}`,
+        `Mission : ${active === null ? "aucune" : `${active.id} · ${active.status} · ${assistantLabel(active.target.provider)} / ${active.target.model ?? "ancienne configuration"}`}`,
         `Action attendue : ${status.actionRequired === null ? "aucune" : `${status.actionRequired.kind} (${status.actionRequired.reason})`}`,
     ].join("\n");
+}
+function humanPolicy(policy) {
+    const models = policy.providers.flatMap((provider) => provider.models
+        .filter((model) => model.enabled)
+        .map((model) => `${assistantLabel(provider.provider)} / ${model.id}`));
+    return `Assistant mémorisé : ${models.join(", ") || "aucun"}`;
+}
+function humanPreview(preview) {
+    const assistants = preview.candidates.map((candidate) => {
+        const availability = candidate.eligible ? "prêt" : candidate.reasons.join(", ");
+        return `${assistantLabel(candidate.target.provider)} / ${candidate.target.model ?? "ancienne configuration"} : ${availability}`;
+    });
+    return [
+        `Feature : ${preview.featureName}`,
+        `Ce qui va être fait : ${preview.summary}`,
+        `Assistant disponible : ${assistants.join(" · ") || "aucun"}`,
+        `Empreinte à confirmer : ${preview.fingerprint}`,
+    ].join("\n");
+}
+function assistantLabel(provider) {
+    if (provider === "claude")
+        return "Claude";
+    if (provider === "codex")
+        return "Codex";
+    if (provider === "kimi")
+        return "Kimi Platform";
+    return "Z.AI Coding Plan";
 }
 //# sourceMappingURL=orchestration-cli.js.map

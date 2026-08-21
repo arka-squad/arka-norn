@@ -16,7 +16,7 @@ Les markers v1 utilisent `version`, n’enregistrent pas les relations et n’of
 - La version courante des documents de Feature est `3`; le validateur conserve la lecture v2.
 - `audit_etat_reel` accepte une enveloppe Project `4` dédiée, avec `project_id` et sans `feature_id`; elle ne s’applique à aucun autre type de document.
 - La version du registre Agents est `1`, indépendante des markers.
-- La politique d’orchestration et le registre d’exécutions sont chacun en version `1`, séparés du marker Project ; ils n’emportent ni secret ni état de processus.
+- La politique d’orchestration et le registre d’exécutions sont chacun en version `2`, séparés du marker Project ; la politique porte les assistants/modèles explicitement choisis et le registre la cible immuable assistant/adapter/modèle. Ils n’emportent ni secret ni état de processus.
 - Une migration est une suite ordonnée, déterministe et idempotente.
 - `dry-run` est la valeur par défaut et ne modifie aucun octet.
 - L’application crée une sauvegarde adjacente avant remplacement atomique.
@@ -31,5 +31,7 @@ Les fixtures couvrent v1, v2, v3, Project v4, l’audit Project v4 et version
 future. La CLI expose le plan de migration en dry-run et ne l'applique qu'avec
 `--apply`, après sauvegarde adjacente de la version source. Le marker Project
 v4 est une extension ciblée : les lecteurs de Pipeline Feature continuent à
-consommer v2/v3. Les migrations ne confondent pas les données portables du
-Project avec les PID, sessions ou autres détails privés du worker.
+consommer v2/v3. Les formats d’orchestration v1 restent lisibles pour la
+migration, mais une nouvelle mission v2 exige une cible assistant/modèle
+confirmée. Les migrations ne confondent pas les données portables du Project
+avec les PID, sessions ou autres détails privés du worker.

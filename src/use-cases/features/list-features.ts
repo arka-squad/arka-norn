@@ -9,17 +9,18 @@
  * marker si la propagation a été interrompue).
  */
 import type { Feature } from "../../domain/feature/feature.js";
+import type { ProjectId } from "../../domain/project/project-id.js";
 import { mapConcurrent } from "../../application/shared/map-concurrent.js";
 import type { FeaturesDeps } from "./_shared/features-deps.js";
 import { loadIndexedFeatureWithinProject } from "./_shared/verified-feature.js";
 
-export type ListFeaturesUseCase = () => Promise<readonly Feature[]>;
+export type ListFeaturesUseCase = (projectId?: ProjectId) => Promise<readonly Feature[]>;
 
 export function listFeaturesUseCaseFactory(deps: FeaturesDeps): ListFeaturesUseCase {
   const { indexStore, logger } = deps;
 
-  return async (): Promise<readonly Feature[]> => {
-    const entries = await indexStore.load();
+  return async (projectId): Promise<readonly Feature[]> => {
+    const entries = (await indexStore.load()).filter((entry) => projectId === undefined || entry.projectId === projectId.value);
     const features = await mapConcurrent(entries, 8, async (entry): Promise<Feature | undefined> => {
       try {
         const feature = await loadIndexedFeatureWithinProject(deps, entry);

@@ -9,11 +9,13 @@ import { serializeOrchestrationPolicy } from "../../src/adapters/outbound/filesy
 import {
   ExecutionPolicy,
   selectBestEligibleProvider,
+  selectBestEligibleTarget,
 } from "../../src/domain/orchestration/execution-policy.ts";
 import { configuredProviderHealth } from "../../src/composition/orchestration-runtime.ts";
 import { ExecutionRecord, executionSuspensionReason } from "../../src/domain/orchestration/execution-record.ts";
 import { ExecutionRegistry } from "../../src/domain/orchestration/execution-registry.ts";
 import { MissionOrder } from "../../src/domain/orchestration/mission-order.ts";
+import { userExecutionTarget } from "../../src/domain/orchestration/types.ts";
 import { FeatureId } from "../../src/domain/feature/feature-id.ts";
 import { ProjectId } from "../../src/domain/project/project-id.ts";
 
@@ -22,22 +24,30 @@ const ROOT = resolve(import.meta.dirname, "..", "..");
 
 test("le sélecteur choisit seulement un provider autorisé, sain et capable avec départage stable", () => {
   const policy = ExecutionPolicy.create({
-    schemaVersion: 1,
+    schemaVersion: 2,
     projectId: ProjectId.of("project"),
+    selectionMode: "assisted",
     providers: [
       {
         provider: "codex",
+        adapter: "acp",
         enabled: true,
         priority: 20,
         capabilities: ["inspect_workspace", "read_pipeline"],
         permissions: ["read_workspace"],
+        models: [
+          { id: "codex-mini", enabled: true, priority: 10 },
+          { id: "codex-max", enabled: true, priority: 20 },
+        ],
       },
       {
         provider: "claude",
+        adapter: "claude-sdk",
         enabled: true,
         priority: 20,
         capabilities: ["inspect_workspace", "read_pipeline"],
         permissions: ["read_workspace"],
+        models: [{ id: "claude-sonnet", enabled: true, priority: 10 }],
       },
     ],
     createdAt: at,
@@ -67,6 +77,18 @@ test("le sélecteur choisit seulement un provider autorisé, sain et capable ave
   assert.equal(unhealthy.selected, undefined);
   assert.deepEqual(unhealthy.candidates[0]?.reasons, ["missing_capability"]);
   assert.deepEqual(unhealthy.candidates[1]?.reasons, ["unhealthy"]);
+
+  const targetSelection = selectBestEligibleTarget(
+    policy,
+    { capabilities: ["inspect_workspace"], permissions: ["read_workspace"] },
+    [
+      { target: userExecutionTarget("codex", "codex-mini"), healthy: true, capabilities: ["inspect_workspace", "read_pipeline"] },
+      { target: userExecutionTarget("codex", "codex-max"), healthy: true, capabilities: ["inspect_workspace", "read_pipeline"] },
+      { target: userExecutionTarget("claude", "claude-sonnet"), healthy: true, capabilities: ["inspect_workspace", "read_pipeline"] },
+    ],
+  );
+  assert.deepEqual(targetSelection.selected, userExecutionTarget("codex", "codex-max"));
+  assert.deepEqual(targetSelection.candidates.map((candidate) => candidate.target.model), ["codex-max", "claude-sonnet", "codex-mini"]);
 });
 
 test("la santé provider lit les variables runtime ARKA_NORN sans accepter les anciens noms smoke", () => {
@@ -110,9 +132,9 @@ test("MissionOrder fige le scope et refuse une précondition Pipeline obsolète"
   }));
 });
 
-test("ExecutionRecord borne les événements, exige des preuves et garde le provider initial pendant retry", () => {
+test("ExecutionRecord borne les événements, exige des preuves et garde la cible initiale pendant retry", () => {
   const order = createOrder();
-  let record = ExecutionRecord.planned("execution-one", order, "codex", at)
+  let record = ExecutionRecord.planned("execution-one", order, userExecutionTarget("codex", "codex-max"), at)
     .begin({ at, providerSessionId: "session-1" })
     .recordProviderSession("session-1-live", at)
     .awaitApproval(executionSuspensionReason("permission_requested", "Network access needs explicit approval."), at)
@@ -129,28 +151,34 @@ test("ExecutionRecord borne les événements, exige des preuves et garde le prov
     record = record.appendEvent("worker_event", `event ${index}`, at);
   }
   assert.equal(record.events.length, 100);
-  assert.equal(record.truncatedEventCount, 6);
+  assert.equal(record.truncatedEventCount, 7);
   assert.throws(() => record.succeed([], at));
 
   const succeeded = record.succeed(["docs/concept.json"], at);
   assert.equal(succeeded.status, "succeeded");
   assert.equal(succeeded.provider, "codex");
+  assert.equal(succeeded.target.model, "codex-max");
   assert.throws(() => succeeded.retry(at));
+
+  const legacy = ExecutionRecord.planned("execution-legacy", order, "codex", at)
+    .begin({ at })
+    .interrupt(executionSuspensionReason("interrupted", "The old worker stopped."), at);
+  assert.throws(() => legacy.retry(at), /legacy execution target/);
 });
 
-test("le registre refuse toute modification du provider ou de l'ordre d'une exécution existante", () => {
+test("le registre refuse toute modification de la cible ou de l'ordre d'une exécution existante", () => {
   const order = createOrder();
-  const record = ExecutionRecord.planned("execution-fixed", order, "claude", at);
+  const record = ExecutionRecord.planned("execution-fixed", order, userExecutionTarget("claude", "claude-sonnet"), at);
   const registry = ExecutionRegistry.empty(ProjectId.of("project"), at).add(record, at);
 
-  assert.throws(() => registry.replace(ExecutionRecord.planned("execution-fixed", order, "codex", at), at));
-  assert.throws(() => registry.replace(ExecutionRecord.planned("execution-fixed", createOrder({ id: "other-order" }), "claude", at), at));
+  assert.throws(() => registry.replace(ExecutionRecord.planned("execution-fixed", order, userExecutionTarget("claude", "claude-opus"), at), at));
+  assert.throws(() => registry.replace(ExecutionRecord.planned("execution-fixed", createOrder({ id: "other-order" }), userExecutionTarget("claude", "claude-sonnet"), at), at));
 });
 
 test("les schémas de politique et de registre refusent les champs secrets et respectent les bornes", () => {
   const policy = ExecutionPolicy.defaultFor(ProjectId.of("project"), at);
   const registry = ExecutionRegistry.empty(ProjectId.of("project"), at)
-    .add(ExecutionRecord.planned("execution-schema", createOrder(), "claude", at), at);
+    .add(ExecutionRecord.planned("execution-schema", createOrder(), userExecutionTarget("claude", "claude-sonnet"), at), at);
   const ajv = new Ajv2020({ strict: true });
   ajv.addFormat("date-time", { type: "string", validate: (value: string) => !Number.isNaN(Date.parse(value)) });
   const validatePolicy = ajv.compile(json("schemas/orchestration-policy.schema.json"));

@@ -1,8 +1,8 @@
 import * as fs from "node:fs/promises";
 import { join } from "node:path";
-import { EXECUTION_POLICY_SCHEMA_VERSION, ExecutionPolicy, } from "../../../domain/orchestration/execution-policy.js";
+import { EXECUTION_POLICY_SCHEMA_VERSION, ExecutionPolicy, isExecutionSelectionMode, } from "../../../domain/orchestration/execution-policy.js";
 import { InvalidExecutionPolicyError } from "../../../domain/orchestration/errors.js";
-import { isExecutionCapability, isExecutionPermission, isExecutionProvider, } from "../../../domain/orchestration/types.js";
+import { canonicalExecutionAdapter, isExecutionAdapter, isExecutionCapability, isExecutionModelId, isExecutionPermission, isExecutionProvider, } from "../../../domain/orchestration/types.js";
 import { ProjectId } from "../../../domain/project/project-id.js";
 import { PathSecurityError } from "../../../domain/errors.js";
 import { readJson, writeJsonAtomic } from "./_shared/atomic-json.js";
@@ -13,6 +13,7 @@ export class FsOrchestrationPolicyStore {
     constructor(paths = new FsPathPolicy()) {
         this.paths = paths;
     }
+    /** Loading v1 is a pure migration in memory; it never rewrites the marker. */
     async load(project) {
         await this.assertProjectRoot(project);
         const path = orchestrationPolicyPath(project.root);
@@ -35,6 +36,7 @@ export class FsOrchestrationPolicyStore {
             throw invalidFile(path, error);
         }
     }
+    /** Every explicit save writes the current v2 representation. */
     async save(project, policy) {
         await this.assertProjectRoot(project);
         if (!policy.projectId.equals(project.id))
@@ -63,12 +65,15 @@ function serialize(policy) {
     return {
         schemaVersion: props.schemaVersion,
         projectId: props.projectId.value,
+        selectionMode: props.selectionMode,
         providers: props.providers.map((provider) => ({
             provider: provider.provider,
+            adapter: provider.adapter,
             enabled: provider.enabled,
             priority: provider.priority,
             capabilities: [...provider.capabilities],
             permissions: [...provider.permissions],
+            models: provider.models.map((model) => ({ ...model })),
         })),
         createdAt: props.createdAt.toISOString(),
         updatedAt: props.updatedAt.toISOString(),
@@ -77,41 +82,98 @@ function serialize(policy) {
 function deserialize(value) {
     if (!isPolicyFile(value))
         throw new InvalidExecutionPolicyError("schema is invalid or contains forbidden fields");
-    const props = {
-        schemaVersion: value.schemaVersion,
-        projectId: ProjectId.of(value.projectId),
-        providers: value.providers.map((provider) => ({
-            provider: provider.provider,
-            enabled: provider.enabled,
-            priority: provider.priority,
-            capabilities: [...provider.capabilities],
-            permissions: [...provider.permissions],
-        })),
-        createdAt: parseDate(value.createdAt, "createdAt"),
-        updatedAt: parseDate(value.updatedAt, "updatedAt"),
-    };
+    const props = value.schemaVersion === 1
+        ? {
+            schemaVersion: EXECUTION_POLICY_SCHEMA_VERSION,
+            projectId: ProjectId.of(value.projectId),
+            selectionMode: "assisted",
+            providers: value.providers.map((provider) => ({
+                provider: provider.provider,
+                adapter: canonicalExecutionAdapter(provider.provider),
+                enabled: provider.enabled,
+                priority: provider.priority,
+                capabilities: [...provider.capabilities],
+                permissions: [...provider.permissions],
+                models: [],
+            })),
+            createdAt: parseDate(value.createdAt, "createdAt"),
+            updatedAt: parseDate(value.updatedAt, "updatedAt"),
+        }
+        : {
+            schemaVersion: value.schemaVersion,
+            projectId: ProjectId.of(value.projectId),
+            selectionMode: value.selectionMode,
+            providers: value.providers.map((provider) => ({
+                provider: provider.provider,
+                adapter: provider.adapter,
+                enabled: provider.enabled,
+                priority: provider.priority,
+                capabilities: [...provider.capabilities],
+                permissions: [...provider.permissions],
+                models: provider.models.map((model) => ({ ...model })),
+            })),
+            createdAt: parseDate(value.createdAt, "createdAt"),
+            updatedAt: parseDate(value.updatedAt, "updatedAt"),
+        };
     return ExecutionPolicy.create(props);
 }
 function isPolicyFile(value) {
+    return isPolicyFileV1(value) || isPolicyFileV2(value);
+}
+function isPolicyFileV1(value) {
     if (!isRecord(value) || !hasExactKeys(value, ["schemaVersion", "projectId", "providers", "createdAt", "updatedAt"]))
         return false;
-    return value["schemaVersion"] === EXECUTION_POLICY_SCHEMA_VERSION
+    return value["schemaVersion"] === 1
         && typeof value["projectId"] === "string"
         && Array.isArray(value["providers"])
-        && value["providers"].every(isProviderPolicyRaw)
+        && value["providers"].length >= 1
+        && value["providers"].length <= 2
+        && value["providers"].every(isProviderPolicyRawV1)
         && typeof value["createdAt"] === "string"
         && isIsoDate(value["createdAt"])
         && typeof value["updatedAt"] === "string"
         && isIsoDate(value["updatedAt"]);
 }
-function isProviderPolicyRaw(value) {
+function isPolicyFileV2(value) {
+    if (!isRecord(value) || !hasExactKeys(value, ["schemaVersion", "projectId", "selectionMode", "providers", "createdAt", "updatedAt"]))
+        return false;
+    return value["schemaVersion"] === EXECUTION_POLICY_SCHEMA_VERSION
+        && typeof value["projectId"] === "string"
+        && isExecutionSelectionMode(value["selectionMode"])
+        && Array.isArray(value["providers"])
+        && value["providers"].every(isProviderPolicyRawV2)
+        && typeof value["createdAt"] === "string"
+        && isIsoDate(value["createdAt"])
+        && typeof value["updatedAt"] === "string"
+        && isIsoDate(value["updatedAt"]);
+}
+function isProviderPolicyRawV1(value) {
     if (!isRecord(value) || !hasExactKeys(value, ["provider", "enabled", "priority", "capabilities", "permissions"]))
         return false;
-    return isExecutionProvider(value["provider"])
+    return (value["provider"] === "claude" || value["provider"] === "codex")
         && typeof value["enabled"] === "boolean"
         && Number.isInteger(value["priority"])
         && isUniqueArray(value["capabilities"], isExecutionCapability)
         && isUniqueArray(value["permissions"], isExecutionPermission);
+}
+function isProviderPolicyRawV2(value) {
+    if (!isRecord(value) || !hasExactKeys(value, ["provider", "adapter", "enabled", "priority", "capabilities", "permissions", "models"]))
+        return false;
+    return isExecutionProvider(value["provider"])
+        && isExecutionAdapter(value["adapter"])
+        && typeof value["enabled"] === "boolean"
+        && Number.isInteger(value["priority"])
+        && isUniqueArray(value["capabilities"], isExecutionCapability)
+        && isUniqueArray(value["permissions"], isExecutionPermission)
+        && Array.isArray(value["models"])
+        && value["models"].every(isModelPolicyRaw);
+}
+function isModelPolicyRaw(value) {
+    return isRecord(value)
+        && hasExactKeys(value, ["id", "enabled", "priority"])
+        && isExecutionModelId(value["id"])
+        && typeof value["enabled"] === "boolean"
+        && Number.isInteger(value["priority"]);
 }
 function isUniqueArray(value, predicate) {
     return Array.isArray(value) && value.every(predicate) && new Set(value).size === value.length;

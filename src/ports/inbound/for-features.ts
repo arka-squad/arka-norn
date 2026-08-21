@@ -26,12 +26,17 @@ export interface SetFeatureWorkflowInput {
   readonly recognizedDocumentTypes: readonly string[];
 }
 
+export interface ForgetFeatureOptions {
+  /** Recovery path for an indexed Feature whose local marker has disappeared. */
+  readonly indexOnly?: boolean;
+}
+
 export interface ForFeatures {
-  list(): Promise<readonly Feature[]>;
+  list(projectId?: ProjectId): Promise<readonly Feature[]>;
   create(input: CreateFeatureInput): Promise<Feature>;
   importFrom(input: ImportFeatureInput): Promise<Feature>;
   show(id: FeatureId): Promise<Feature>;
-  forget(id: FeatureId): Promise<void>;
+  forget(id: FeatureId, options?: ForgetFeatureOptions): Promise<void>;
   switchTo(id: FeatureId): Promise<Feature>;
   setWorkflow(input: SetFeatureWorkflowInput): Promise<Feature>;
 }

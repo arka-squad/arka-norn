@@ -4,7 +4,7 @@
  * callers own durable execution records and only pass a bounded mission.
  */
 
-export type AgentExecutionProvider = "codex-acp" | "claude";
+export type AgentExecutionProvider = "codex-acp" | "kimi-acp" | "claude";
 
 export type AgentExecutionStatus = "running" | "awaiting_approval" | "completed" | "failed" | "cancelled" | "interrupted";
 
@@ -63,12 +63,30 @@ export interface CodexAcpExecutionMission extends AgentExecutionBaseMission {
   readonly model?: string;
 }
 
-export interface ClaudeExecutionMission extends AgentExecutionBaseMission {
-  readonly provider: "claude";
+/**
+ * Kimi Code exposes the same ACP transport shape as Codex. The command is
+ * still explicit and absolute; the adapter never inherits an interactive
+ * user home or relies on a package-manager launcher.
+ */
+export interface KimiAcpExecutionMission extends AgentExecutionBaseMission {
+  readonly provider: "kimi-acp";
+  readonly command: string;
+  readonly args?: readonly string[];
+  readonly authMethodId?: string;
   readonly model?: string;
 }
 
-export type AgentExecutionMission = CodexAcpExecutionMission | ClaudeExecutionMission;
+export interface ClaudeExecutionMission extends AgentExecutionBaseMission {
+  readonly provider: "claude";
+  /**
+   * `zai` is a fixed, code-owned Anthropic-compatible endpoint used only with
+   * a Coding Plan credential. It is not an arbitrary user-supplied URL.
+   */
+  readonly providerProfile?: "anthropic" | "zai";
+  readonly model?: string;
+}
+
+export type AgentExecutionMission = CodexAcpExecutionMission | KimiAcpExecutionMission | ClaudeExecutionMission;
 
 export interface AgentExecutionFailure {
   readonly code: string;

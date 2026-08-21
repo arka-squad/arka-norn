@@ -2,8 +2,9 @@ import { ProjectId } from "../project/project-id.js";
 
 import { InvalidExecutionRegistryError } from "./errors.js";
 import { ExecutionRecord } from "./execution-record.js";
+import { sameExecutionTarget } from "./types.js";
 
-export const EXECUTION_REGISTRY_SCHEMA_VERSION = 1 as const;
+export const EXECUTION_REGISTRY_SCHEMA_VERSION = 2 as const;
 
 export interface ExecutionRegistryProps {
   readonly schemaVersion: typeof EXECUTION_REGISTRY_SCHEMA_VERSION;
@@ -58,7 +59,9 @@ export class ExecutionRegistry {
     this.assertProject(record);
     const current = this.find(record.id);
     if (current === undefined) throw new InvalidExecutionRegistryError(`execution ${record.id} does not exist`);
-    if (current.provider !== record.provider) throw new InvalidExecutionRegistryError(`execution ${record.id} provider is immutable`);
+    if (!sameExecutionTarget(current.target, record.target)) {
+      throw new InvalidExecutionRegistryError(`execution ${record.id} target is immutable`);
+    }
     if (!sameOrder(current.order, record.order)) throw new InvalidExecutionRegistryError(`execution ${record.id} mission order is immutable`);
     return this.withExecutions(this.executions.map((candidate) => candidate.id === record.id ? record : candidate), updatedAt);
   }
@@ -94,7 +97,7 @@ export class ExecutionRegistry {
 
 function validateRegistryProps(props: ExecutionRegistryProps): void {
   if (props.schemaVersion !== EXECUTION_REGISTRY_SCHEMA_VERSION) {
-    throw new InvalidExecutionRegistryError("schemaVersion must be 1");
+    throw new InvalidExecutionRegistryError("schemaVersion must be 2");
   }
   if (!(props.projectId instanceof ProjectId)) throw new InvalidExecutionRegistryError("projectId must be a ProjectId");
   const executions: unknown = props.executions;

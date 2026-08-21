@@ -61,12 +61,18 @@ test("la Santé TUI délègue son verdict au rapport doctor", () => {
     theme,
   });
 
-  showHealthReport(app, warningReport, { total: 18, healthy: 8, missing: 10, divergent: 0 });
+  showHealthReport(
+    app,
+    warningReport,
+    { total: 18, healthy: 8, missing: 10, divergent: 0 },
+    { total: 18, healthy: 18, missing: 0, divergent: 0 },
+  );
   app.topScene()?.render(renderer, theme);
 
   assert.match(output, /Statut : OK/);
   assert.doesNotMatch(output, /ÉCHEC/);
   assert.match(output, /10 absents/);
+  assert.match(output, /Global Claude\/Codex 18\/18 sains/);
 
   output = "";
   showHealthReport(app, {
@@ -74,10 +80,23 @@ test("la Santé TUI délègue son verdict au rapport doctor", () => {
     ok: false,
     checks: [{ id: "audit.trail", status: "fail", message: "audit unavailable", repairable: false }],
     summary: { pass: 0, warn: 0, fail: 1 },
-  }, { total: 18, healthy: 18, missing: 0, divergent: 0 });
+  }, { total: 18, healthy: 18, missing: 0, divergent: 0 }, { total: 18, healthy: 18, missing: 0, divergent: 0 });
   app.topScene()?.render(renderer, theme);
 
   assert.match(output, /Statut : ÉCHEC \(code 3\)/);
+
+  output = "";
+  showHealthReport(
+    app,
+    warningReport,
+    { total: 18, healthy: 18, missing: 0, divergent: 0 },
+    { total: 18, healthy: 17, missing: 0, divergent: 1 },
+  );
+  app.topScene()?.render(renderer, theme);
+
+  assert.match(output, /Statut : ÉCHEC \(code 3\)/);
+  assert.match(output, /Global Claude\/Codex 17\/18 sains/);
+  assert.match(output, /diagnostic global sera affiché/);
 });
 
 test("le renderer borne une frame à la hauteur du terminal", () => {

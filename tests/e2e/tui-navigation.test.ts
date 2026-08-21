@@ -11,6 +11,7 @@ import { createHomeView } from "../../src/adapters/inbound/tui/views/home-view.t
 import { createOrchestrationView } from "../../src/adapters/inbound/tui/views/orchestration-view.ts";
 import { createProjectDetailView } from "../../src/adapters/inbound/tui/views/project-detail-view.ts";
 import { FeatureId } from "../../src/domain/feature/feature-id.ts";
+import { Feature } from "../../src/domain/feature/feature.ts";
 import { AgentSessionId } from "../../src/domain/agent/agent-session-id.ts";
 import { ExecutionRecord } from "../../src/domain/orchestration/execution-record.ts";
 import { MissionOrder } from "../../src/domain/orchestration/mission-order.ts";
@@ -105,7 +106,7 @@ test("le détail TUI permet de basculer explicitement le mode Project", async (c
   assert.equal(updated.orchestrationMode, "automatic");
 });
 
-test("le cockpit actualise le détail Project après start et ne réécrit pas un mode automatique obsolète", async (context) => {
+test("le Pilote assisté confirme une prévisualisation puis actualise le détail Project", async (context) => {
   const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-tui-orchestration-refresh-"));
   const projectRoot = resolve(sandbox, "product");
   mkdirSync(projectRoot, { recursive: true });
@@ -114,35 +115,67 @@ test("le cockpit actualise le détail Project après start et ne réécrit pas u
   const management = createManagementRuntime({ homeDir: sandbox });
   const project = await management.projects.create({ id: ProjectId.of("project"), name: "Project", root: projectRoot, orchestrationMode: "manual" });
   const at = new Date("2026-08-21T10:00:00.000Z");
+  const feature = Feature.create({
+    id: FeatureId.of("feature"),
+    projectId: project.id,
+    name: "Feature préparée",
+    root: resolve(projectRoot, "feature"),
+    pipelineId: "arka-norn-default",
+    schemaVersion: 3,
+    createdAt: at,
+    updatedAt: at,
+  });
+  const target = { provider: "claude", adapter: "claude-sdk", model: "claude-test", source: "user" } as const;
   const order = MissionOrder.create({
     id: "mission",
-    scope: { projectId: project.id, paths: ["."] },
+    scope: { projectId: project.id, featureId: feature.id, paths: ["feature"] },
     preconditions: { pipelineId: "arka-norn-default", nextStepId: "concept" },
     requiredCapabilities: ["inspect_workspace"],
     requiredPermissions: ["read_workspace"],
     summary: "Mission de test TUI.",
     issuedAt: at,
   });
-  const execution = ExecutionRecord.planned("execution", order, "codex", at);
+  const execution = ExecutionRecord.planned("execution", order, target, at);
   let status: OrchestrationStatus = {
     schemaVersion: 1,
     projectId: project.id.value,
-    orchestrationMode: "manual",
+    orchestrationMode: "automatic",
     policy: undefined,
     executions: [],
     activeExecution: undefined,
+    latestExecution: undefined,
     actionRequired: undefined,
   };
+  let started: Parameters<ForOrchestration["start"]>[0] | undefined;
   const orchestration: ForOrchestration = {
     async start(input) {
+      started = input;
       const armed = await management.projects.setOrchestrationMode({ id: input.projectId, orchestrationMode: "automatic" });
       status = {
         ...status,
         orchestrationMode: armed.orchestrationMode,
         executions: [execution],
         activeExecution: execution,
+        latestExecution: execution,
       };
       return execution;
+    },
+    async configure() { throw new Error("not used"); },
+    async preview() {
+      return {
+        schemaVersion: 1,
+        projectId: project.id.value,
+        featureId: feature.id.value,
+        featureName: feature.name,
+        stepId: "concept",
+        role: "product",
+        summary: "Préparer le cadrage de cette Feature.",
+        scopePaths: ["feature"],
+        requiredCapabilities: ["inspect_workspace"],
+        requiredPermissions: ["read_workspace"],
+        candidates: [{ target, eligible: true, reasons: [], recommended: true }],
+        fingerprint: "preview-test",
+      };
     },
     status: async () => status,
     cancel: async () => execution,
@@ -154,7 +187,7 @@ test("le cockpit actualise le détail Project après start et ne réécrit pas u
   let synchronizedMode: "manual" | "automatic" | undefined;
   const detail = createProjectDetailView({
     project,
-    initialFeatures: [],
+    initialFeatures: [feature],
     projects: management.projects,
     features: management.features,
     scan: management.scanFeatures,
@@ -164,6 +197,7 @@ test("le cockpit actualise le détail Project après start et ne réécrit pas u
       dashboard = createOrchestrationView({
         project: selected,
         initialStatus: await orchestration.status({ projectId: selected.id }),
+        initialFeatures: [feature],
         orchestration,
         refreshProject: async () => {
           refreshes += 1;
@@ -178,18 +212,33 @@ test("le cockpit actualise le détail Project après start et ne réécrit pas u
     },
   });
 
-  for (let index = 0; index < 6; index += 1) detail.onKey({ kind: "down" });
+  for (let index = 0; index < 7; index += 1) detail.onKey({ kind: "down" });
   detail.onKey({ kind: "enter" });
   await waitUntil(() => dashboard !== undefined, "ouverture du cockpit d’orchestration");
+  dashboard?.onKey({ kind: "enter" });
+  await waitUntil(() => {
+    let output = "";
+    dashboard?.render(createRenderer({ write: (chunk) => { output += chunk; }, isTTY: false, columns: 120 }), createTheme({ NO_COLOR: "1" }, false));
+    return output.includes("Choisissez l’assistant et le modèle à confirmer") && !output.includes("Préparation en cours");
+  }, "choix explicite de l’assistant");
+  dashboard?.onKey({ kind: "enter" });
+  await waitUntil(() => {
+    let output = "";
+    dashboard?.render(createRenderer({ write: (chunk) => { output += chunk; }, isTTY: false, columns: 120 }), createTheme({ NO_COLOR: "1" }, false));
+    return output.includes("Préparation terminée");
+  }, "prévisualisation de la mission");
   dashboard?.onKey({ kind: "enter" });
   await waitUntil(async () => (await management.projects.show(project.id)).orchestrationMode === "automatic", "armement du Project par le cockpit");
   await waitUntil(() => synchronizedMode === "automatic", "synchronisation du Project après start");
   assert.equal(refreshes, 1);
+  assert.deepEqual(started?.selection, { provider: "claude", model: "claude-test" });
+  assert.equal(started?.featureId.value, feature.id.value);
+  assert.equal(started?.previewFingerprint, "preview-test");
 
   let output = "";
   const renderer = createRenderer({ write: (chunk) => { output += chunk; }, isTTY: false, columns: 120 });
   detail.render(renderer, createTheme({ NO_COLOR: "1" }, false));
-  assert.match(output, /Orchestration : automatique/);
+  assert.match(output, /Pilote assisté : activé/);
 });
 
 test("le détail Project refuse de confirmer une sélection manuelle devenue obsolète", async (context) => {
@@ -222,7 +271,7 @@ test("le détail Project refuse de confirmer une sélection manuelle devenue obs
   await waitUntil(() => {
     output = "";
     detail.render(renderer, theme);
-    return output.includes("Mode d’orchestration actualisé : automatique.");
+    return output.includes("Pilote assisté actualisé : activé.");
   }, "actualisation de la sélection obsolète");
   assert.equal((await management.projects.show(project.id)).orchestrationMode, "automatic");
 });
@@ -258,13 +307,13 @@ test("l’accueil TUI actualise Santé après l’installation des skills", asyn
   }, "résultat d’installation des skills");
 
   container.app.topScene()?.render(renderer, theme);
-  assert.match(output, /résumé Santé de l’accueil a été actualisé/);
+  assert.match(output, /Project installé : les entrées globales restent à diagnostiquer puis confirmer séparément/);
 
   container.app.pop();
   output = "";
   home.render(renderer, theme);
   assert.match(output, /Santé\s+: .*0 FAIL/);
-  assert.match(output, /18\/18 sains · 0 absents · 0 divergents/);
+  assert.match(output, /Projet 18\/18 · Global 0\/18/);
 });
 
 test("la composition TUI pilote Home → Project → Feature → scaffold réel", async (context) => {
@@ -454,6 +503,6 @@ async function waitForOrchestrationMode(home: ReturnType<typeof createHomeView>)
   await waitUntil(() => {
     output = "";
     home.render(renderer, theme);
-    return output.includes("Mode d’orchestration du Project");
+    return output.includes("Niveau de délégation");
   }, "choix du mode d’orchestration");
 }

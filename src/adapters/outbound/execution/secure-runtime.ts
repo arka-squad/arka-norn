@@ -25,8 +25,14 @@ export interface IsolatedExecutionRuntime {
  * durable execution record.
  */
 export interface EphemeralProviderCredential {
-  readonly name: "ANTHROPIC_API_KEY" | "OPENAI_API_KEY";
+  readonly name: "ANTHROPIC_API_KEY" | "OPENAI_API_KEY" | "KIMI_MODEL_API_KEY";
   readonly value: string;
+}
+
+/** Fixed profiles only; URLs never enter Project policy or a MissionOrder. */
+export interface IsolatedProviderProfile {
+  readonly kind: "zai" | "kimi";
+  readonly model?: string;
 }
 
 export function validateAgentExecutionMission(mission: AgentExecutionMission): void {
@@ -43,12 +49,15 @@ export function validateAgentExecutionMission(mission: AgentExecutionMission): v
   resolveExecutionWorkspace(mission.workspace);
   validateSafeEnvironment(mission.safeEnvironment);
   normalizeTimeout(mission.timeoutMs);
-  if (mission.provider === "codex-acp") {
+  if (mission.provider === "codex-acp" || mission.provider === "kimi-acp") {
     resolveAcpExecutable(mission.command);
     validateArguments(mission.args);
     validateOptionalValue(mission.authMethodId, "ACP authentication method");
     validateOptionalValue(mission.model, "ACP model");
     return;
+  }
+  if (mission.providerProfile !== undefined && mission.providerProfile !== "anthropic" && mission.providerProfile !== "zai") {
+    throw new Error("Claude provider profile is unsupported.");
   }
   validateOptionalValue(mission.model, "Claude model");
 }
@@ -89,6 +98,7 @@ export function normalizeTimeout(timeoutMs: number | undefined): number {
 export function createIsolatedExecutionRuntime(
   safeEnvironment: Readonly<Record<string, string>> | undefined,
   credential?: EphemeralProviderCredential,
+  profile?: IsolatedProviderProfile,
 ): IsolatedExecutionRuntime {
   const root = mkdtempSync(join(tmpdir(), "arka-norn-mastra-"));
   try {
@@ -117,6 +127,19 @@ export function createIsolatedExecutionRuntime(
     if (credential !== undefined) {
       validateEphemeralCredential(credential);
       environment[credential.name] = credential.value;
+    }
+    if (profile?.kind === "zai") {
+      // Z.AI's Coding Plan documents this Anthropic-compatible endpoint. The
+      // value is deliberately code-owned rather than configurable per Project.
+      environment["ANTHROPIC_BASE_URL"] = "https://api.z.ai/api/anthropic";
+    }
+    if (profile?.kind === "kimi") {
+      // Kimi Code consumes its own model variables from its isolated home.
+      // OAuth/home reuse is intentionally outside V1.
+      environment["KIMI_MODEL_BASE_URL"] = "https://api.kimi.com/coding/v1";
+      if (profile.model !== undefined) environment["KIMI_MODEL_NAME"] = profile.model;
+      environment["KIMI_CODE_HOME"] = home;
+      environment["KIMI_DISABLE_TELEMETRY"] = "1";
     }
     return {
       environment,
@@ -193,7 +216,7 @@ function validateOptionalValue(value: string | undefined, label: string): void {
 }
 
 function validateEphemeralCredential(value: EphemeralProviderCredential): void {
-  if ((value.name !== "ANTHROPIC_API_KEY" && value.name !== "OPENAI_API_KEY")
+  if ((value.name !== "ANTHROPIC_API_KEY" && value.name !== "OPENAI_API_KEY" && value.name !== "KIMI_MODEL_API_KEY")
     || typeof value.value !== "string"
     || value.value.length === 0
     || value.value.length > 16 * 1024

@@ -19,6 +19,8 @@ function scaffoldValue(schema, fieldName) {
         throw new Error(`Cannot scaffold unresolved $ref at ${fieldName}.`);
     if ("const" in schema)
         return schema["const"];
+    if ("default" in schema)
+        return schema["default"];
     const choices = schema["enum"];
     if (Array.isArray(choices) && choices.length > 0)
         return `À_CHOISIR::${choices.map(String).join("|")}`;
@@ -26,7 +28,7 @@ function scaffoldValue(schema, fieldName) {
     if (type === "string")
         return "À_REMPLIR";
     if (type === "integer" || type === "number")
-        return 0;
+        return typeof schema["minimum"] === "number" ? schema["minimum"] : 0;
     if (type === "boolean")
         return false;
     if (type === "array") {

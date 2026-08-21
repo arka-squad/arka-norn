@@ -29,7 +29,7 @@ test("install déploie réellement chaque skill dans un target et un home tempor
   const definitions = readdirSync(resolve(ROOT, "skills-src"))
     .filter((name) => name.endsWith(".json"))
     .map((name) => JSON.parse(readFileSync(resolve(ROOT, "skills-src", name), "utf8")) as SkillDefinition);
-  assert.ok(definitions.length > 0);
+  assert.equal(definitions.length, 18);
 
   const generated: string[] = [];
   for (const definition of definitions) {
@@ -49,23 +49,71 @@ test("install déploie réellement chaque skill dans un target et un home tempor
     assert.doesNotMatch(content, /\{\{[^}]+\}\}|\bundefined\b/, file);
   }
 
-  const healthy = spawnSync(process.execPath, [BIN, "skills", "doctor", "--target", target, "--global", "--json"], {
+  for (const globalNorn of [
+    resolve(home, ".claude", "skills", "arka-norn", "SKILL.md"),
+    resolve(home, ".codex", "skills", "arka-norn", "SKILL.md"),
+  ]) {
+    const content = readFileSync(globalNorn, "utf8");
+    assert.match(content, /mode_orchestration/, globalNorn);
+    assert.match(content, /`manual` ou `automatic`/, globalNorn);
+    assert.match(content, /project add <racine> --name <nom> --orchestration-mode <manual\|automatic>/, globalNorn);
+    assert.match(content, /skills doctor --target <racine> --profile all --global --json/, globalNorn);
+  }
+
+  const healthy = spawnSync(process.execPath, [BIN, "skills", "doctor", "--target", target, "--profile", "all", "--global", "--json"], {
     cwd: ROOT,
     encoding: "utf8",
     env: isolatedEnv,
   });
   assert.equal(healthy.status, 0, `${healthy.stdout}\n${healthy.stderr}`);
-  assert.equal((JSON.parse(healthy.stdout) as { readonly data: { readonly global: boolean } }).data.global, true);
+  const healthyData = (JSON.parse(healthy.stdout) as {
+    readonly data: {
+      readonly global: boolean;
+      readonly checks: readonly { readonly name: string; readonly status: string }[];
+    };
+  }).data;
+  assert.equal(healthyData.global, true);
+  assert.equal(healthyData.checks.length, 18);
+  assert.ok(healthyData.checks.every((check) => check.status === "ok"));
 
-  const divergentSkill = resolve(home, ".codex", "skills", definitions[0]!.name, "SKILL.md");
+  const divergentName = "arka-framework-recette-qa";
+  const divergentSkill = resolve(home, ".codex", "skills", divergentName, "SKILL.md");
   writeFileSync(divergentSkill, "divergent\n");
-  const divergent = spawnSync(process.execPath, [BIN, "skills", "doctor", "--target", target, "--global", "--json"], {
+  const divergent = spawnSync(process.execPath, [BIN, "skills", "doctor", "--target", target, "--profile", "all", "--global", "--json"], {
     cwd: ROOT,
     encoding: "utf8",
     env: isolatedEnv,
   });
   assert.equal(divergent.status, 3, `${divergent.stdout}\n${divergent.stderr}`);
-  assert.match(divergent.stdout, /divergent/);
+  const divergentData = (JSON.parse(divergent.stdout) as {
+    readonly data: {
+      readonly checks: readonly {
+        readonly name: string;
+        readonly status: string;
+        readonly files: readonly { readonly file: string; readonly status: string }[];
+      }[];
+    };
+  }).data;
+  const divergentCheck = divergentData.checks.find((check) => check.name === divergentName);
+  assert.equal(divergentCheck?.status, "divergent");
+  assert.ok(divergentCheck?.files.some((file) => file.file === divergentSkill && file.status === "divergent"));
+
+  const refused = spawnSync(process.execPath, [BIN, "skills", "install", "--target", target, "--profile", "all", "--global", "--json"], {
+    cwd: ROOT,
+    encoding: "utf8",
+    env: isolatedEnv,
+  });
+  assert.equal(refused.status, 5, `${refused.stdout}\n${refused.stderr}`);
+  assert.equal(readFileSync(divergentSkill, "utf8"), "divergent\n");
+
+  const forced = spawnSync(process.execPath, [BIN, "skills", "install", "--target", target, "--profile", "all", "--global", "--force", "--json"], {
+    cwd: ROOT,
+    encoding: "utf8",
+    env: isolatedEnv,
+  });
+  assert.equal(forced.status, 0, `${forced.stdout}\n${forced.stderr}`);
+  assert.notEqual(readFileSync(divergentSkill, "utf8"), "divergent\n");
+  assert.match(findBackupContent(resolve(home, ".arka-norn", "backups", "skills"), "divergent"), /divergent/);
 });
 
 test("install dry-run ne crée rien et un conflit exige --force avec backup", (context) => {
@@ -96,15 +144,15 @@ test("install dry-run ne crée rien et un conflit exige --force avec backup", (c
   assert.match(findBackupContent(backupsRoot), /custom local content/);
 });
 
-function findBackupContent(directory: string): string {
+function findBackupContent(directory: string, expected = "custom local content"): string {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
     const candidate = resolve(directory, entry.name);
     if (entry.isDirectory()) {
-      const nested = findBackupContent(candidate);
+      const nested = findBackupContent(candidate, expected);
       if (nested.length > 0) return nested;
     } else if (entry.isFile()) {
       const content = readFileSync(candidate, "utf8");
-      if (content.includes("custom local content")) return content;
+      if (content.includes(expected)) return content;
     }
   }
   return "";

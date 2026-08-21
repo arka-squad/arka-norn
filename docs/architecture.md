@@ -21,8 +21,8 @@ Pour installer l’environnement, étendre un contrat et choisir les bons tests,
 - Project : `<project>/.arka-norn/project.json`.
 - Feature : `<feature>/.arka-norn/feature.json`.
 - Registre Agents : `<project>/.arka-norn/agents.json`.
-- Politique d’orchestration : `<project>/.arka-norn/orchestration.json`, sans secret ni état de processus.
-- Registre d’exécutions : `<project>/.arka-norn/executions.json`, séparé du marker et des états privés du worker.
+- Politique d’orchestration v2 : `<project>/.arka-norn/orchestration.json`, sans secret ni état de processus ; elle porte les assistants et modèles choisis par le Project.
+- Registre d’exécutions v2 : `<project>/.arka-norn/executions.json`, séparé du marker et des états privés du worker ; il porte la cible immuable assistant/adapter/modèle de chaque mission.
 - Agents courants par session : `~/.arka-norn/context/agents.json`, contexte privé reconstructible au format v2.
 - État jetable du worker : `$ARKA_NORN_HOME/.arka-norn/workers/<project>/<execution>.json`, privé et reconstructible.
 - Documents : JSON de la Feature, validés par les schémas et le graphe Pipeline.
@@ -48,29 +48,40 @@ Le domaine Agent est séparé des marqueurs pour ne pas coupler leur version. So
 
 La politique pure `application/agents/agent-orchestration` mappe la prochaine étape au rôle autorisé, distingue exécution et préparation, choisit la skill/profil et construit les prompts sans mutation. Le runtime compose Projects, Features, registre, sessions et `PipelineReport`; la CLI et le contrôleur TUI ne réimplémentent aucune règle.
 
-## Orchestration automatique
+## Pilote assisté
 
 Arka Norn reste le plan de contrôle. Il transforme une évaluation fraîche du
-Pipeline en `MissionOrder` immuable, puis vérifie à nouveau Project, Feature,
-chemins, Pipeline et prochaine étape avant le dispatch. Mastra est un worker
-local derrière un port d’exécution : il n’a pas le droit de choisir une étape,
-un provider ou un périmètre.
+Pipeline en aperçu non mutante puis en `MissionOrder` immuable, et vérifie à
+nouveau Project, Feature, chemins, Pipeline et prochaine étape avant le
+dispatch. Mastra est un worker local derrière un port d’exécution : il n’a pas
+le droit de choisir une étape, un assistant, un modèle ou un périmètre.
 
-La politique Project sélectionne un provider une seule fois parmi ceux qui sont
+Le marker Project v4 porte `manual|automatic`; dans l’expérience utilisateur,
+`automatic` est le **Pilote assisté**. Pour chaque mission, le port entrant
+exige une Feature, une cible assistant/modèle et l’empreinte de l’aperçu que
+l’utilisateur vient de confirmer. La politique Project v2 évalue les candidats
 autorisés, activés, sains et capables, selon la priorité puis un départage
-stable. Le provider est figé dans l’`ExecutionRecord`; aucun fallback ne
-survient après le début d’une mission. Le registre d’exécutions conserve les
-tentatives, événements bornés, preuves et suspensions, tandis que les PID et
-autres détails de processus restent privés sous `ARKA_NORN_HOME`.
+stable, afin de recommander un candidat éligible. Elle ne remplace jamais le
+choix explicite. La cible est figée dans l’`ExecutionRecord`; aucun fallback ni
+enchaînement silencieux ne survient après le début d’une mission. Le registre
+d’exécutions conserve les tentatives, événements bornés, preuves et
+suspensions, tandis que les PID et autres détails de processus restent privés
+sous `ARKA_NORN_HOME`.
 
 Le broker de permissions est deny-by-default. Seules les actions à chemin
 structuré prouvables dans la racine Feature peuvent être préautorisées ; shell,
-sous-processus, réseau et demandes ACP opaques sont refusés. Avant le dispatch,
-le `MissionOrder` est revalidé deux fois et une réussite demande un marqueur
-lié à l’exécution, une transition Pipeline et un document valide nouveau. Le
-workspace Mastra n’est pas une sandbox ; l’isolation effective dépend du
-runtime local. Le contrat complet est documenté dans
-[l’orchestration automatique contrôlée](automatic-orchestration.md).
+sous-processus, réseau et demandes ACP opaques sont refusés. Claude et Z.AI
+passent par le worker à permissions structurées ; Codex ACP et Kimi Code ACP
+restent non éligibles aux écritures Feature tant que leur transport ne prouve
+pas ce scope. Z.AI n’accepte qu’un endpoint fixé dans l’adapter et requiert une
+activation/identifiant locaux explicites. Avant le dispatch, le `MissionOrder`
+est revalidé deux fois. Une mission qui écrit demande un marqueur lié à
+l’exécution, une transition Pipeline et un document valide nouveau ; une
+mission d’audit est dérivée en lecture seule, conserve seulement une conclusion
+fermée et attend une validation humaine du livrable officiel. Le workspace
+Mastra n’est pas une sandbox ; l’isolation effective dépend du runtime local.
+Le contrat complet est documenté dans
+[le Pilote assisté et l’orchestration contrôlée](automatic-orchestration.md).
 
 ## Transactions locales
 

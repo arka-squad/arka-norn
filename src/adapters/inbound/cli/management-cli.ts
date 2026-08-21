@@ -52,8 +52,11 @@ async function executeProject(action: string, args: ParsedArguments, runtime: Ru
       const root = resolve(context.cwd, args.positionals[0]!);
       const name = args.values.get("name") ?? basename(root);
       const id = ProjectId.of(args.values.get("id") ?? deriveId(name, root));
-      const orchestrationMode = optionalOrchestrationMode(args.values.get("orchestration-mode"));
-      return serializeProject(await runtime.projects.create({ id, name, root, ...(orchestrationMode === undefined ? {} : { orchestrationMode }) }));
+      // A new Project must never acquire its delegation level from a hidden
+      // default. Imports retain their marker; creation always records the
+      // user's explicit manual/automatic choice.
+      const orchestrationMode = requiredOrchestrationMode(args);
+      return serializeProject(await runtime.projects.create({ id, name, root, orchestrationMode }));
     }
     case "import": {
       requirePositionals(args, 1);
@@ -78,8 +81,9 @@ async function executeProject(action: string, args: ParsedArguments, runtime: Ru
       requirePositionals(args, 1);
       if (!args.booleans.has("yes")) throw new UsageError("project forget requires --yes confirmation");
       const id = ProjectId.of(args.positionals[0]!);
-      await runtime.projects.forget(id);
-      return { id: id.value, forgotten: true, dataDeleted: false };
+      const indexOnly = args.booleans.has("force");
+      await runtime.projects.forget(id, { indexOnly });
+      return { id: id.value, forgotten: true, dataDeleted: false, ...(indexOnly ? { indexOnly: true } : {}) };
     }
     case "scan":
     case "reconcile": {
@@ -98,8 +102,7 @@ async function executeFeature(action: string, args: ParsedArguments, runtime: Ru
     case "list": {
       requirePositionals(args, 0);
       const projectId = args.values.get("project");
-      const features = await runtime.features.list();
-      return features.filter((feature) => projectId === undefined || feature.projectId.value === projectId).map(serializeFeature);
+      return (await runtime.features.list(projectId === undefined ? undefined : ProjectId.of(projectId))).map(serializeFeature);
     }
     case "create": {
       requirePositionals(args, 1);
@@ -140,8 +143,9 @@ async function executeFeature(action: string, args: ParsedArguments, runtime: Ru
       requirePositionals(args, 1);
       if (!args.booleans.has("yes")) throw new UsageError("feature forget requires --yes confirmation");
       const id = FeatureId.of(args.positionals[0]!);
-      await runtime.features.forget(id);
-      return { id: id.value, forgotten: true, dataDeleted: false };
+      const indexOnly = args.booleans.has("force");
+      await runtime.features.forget(id, { indexOnly });
+      return { id: id.value, forgotten: true, dataDeleted: false, ...(indexOnly ? { indexOnly: true } : {}) };
     }
     case "scan":
     case "reconcile": {
@@ -169,7 +173,7 @@ function argumentSpec(resource: "project" | "feature", action: string): StrictAr
     "project.show": { options: json, minPositionals: 1, maxPositionals: 1 },
     "project.use": { options: json, minPositionals: 1, maxPositionals: 1 },
     "project.set-orchestration-mode": { options: { ...json, "orchestration-mode": "string" }, minPositionals: 1, maxPositionals: 1 },
-    "project.forget": { options: { ...json, yes: "boolean" }, minPositionals: 1, maxPositionals: 1 },
+    "project.forget": { options: { ...json, yes: "boolean", force: "boolean" }, minPositionals: 1, maxPositionals: 1 },
     "project.scan": { options: json, minPositionals: 0, maxPositionals: 1 },
     "project.reconcile": { options: json, minPositionals: 0, maxPositionals: 1 },
     "feature.list": { options: { ...json, project: "string" }, minPositionals: 0, maxPositionals: 0 },
@@ -178,7 +182,7 @@ function argumentSpec(resource: "project" | "feature", action: string): StrictAr
     "feature.show": { options: json, minPositionals: 1, maxPositionals: 1 },
     "feature.use": { options: json, minPositionals: 1, maxPositionals: 1 },
     "feature.set-workflow": { options: { ...json, workflow: "string" }, minPositionals: 1, maxPositionals: 1 },
-    "feature.forget": { options: { ...json, yes: "boolean" }, minPositionals: 1, maxPositionals: 1 },
+    "feature.forget": { options: { ...json, yes: "boolean", force: "boolean" }, minPositionals: 1, maxPositionals: 1 },
     "feature.scan": { options: { ...json, project: "string", path: "string" }, minPositionals: 0, maxPositionals: 0 },
     "feature.reconcile": { options: { ...json, project: "string", path: "string" }, minPositionals: 0, maxPositionals: 0 },
   };

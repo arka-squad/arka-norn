@@ -27,7 +27,7 @@ Accès directs : [cockpit TUI](docs/tui.md) · [orchestration multi-Agent](docs/
 - **Deux workflows adaptés** : un parcours complet pour les Features structurantes et FastDev pour les reworks bornés.
 - **Un Product principal stable** : il reste dans la session `main`, organise le Project et prépare les autres Agents.
 - **Une session par Agent spécialisé** : architecture, audit, développement et QA travaillent sans écraser leur identité respective.
-- **Une automatisation bornée** : le Project choisit explicitement `manual` ou `automatic` ; Arka Norn garde le contrôle et Mastra exécute seulement des ordres de mission validés.
+- **Un pilote assisté, jamais une boîte noire** : le Project choisit explicitement `manual` ou `automatic` ; dans ce dernier mode, Arka explique chaque mission, vous laisse choisir l’assistant et sa version, puis attend votre confirmation.
 - **Des livrables signés et vérifiables** : chaque nouveau document nomme son auteur, ses dépendances et ses preuves.
 - **Des audits au bon scope** : une Feature utilise son document v3 ; un audit de Project sans Feature utilise l’enveloppe v4 explicite.
 - **Des boucles de correction réelles** : une QA ou une validation obsolète ne peut pas terminer la Feature.
@@ -73,22 +73,34 @@ Le premier Agent devient le **Product principal**. Il vérifie le Project, reste
 
 Voir [l’orchestration Product et les sessions Agent](docs/agent-orchestration.md).
 
-### Automatiser sans perdre le contrôle
+### Déléguer avec le Pilote assisté
 
-L’automatisation est toujours opt-in et reste pilotée par le Project :
+Le mode persistant `automatic` est présenté comme le **Pilote assisté** : vous
+gardez la décision de déléguer chaque mission. Avant tout lancement, Arka Norn
+explique la Feature, l’étape, le rôle, le périmètre et les autorisations
+prévues. Vous choisissez ensuite l’assistant et sa version, puis confirmez cet
+aperçu précis.
 
 ```bash
-arka-norn orchestration start --project <project-id>
-arka-norn orchestration status --project <project-id>
+arka-norn orchestration configure --project <project-id> --provider claude --model <version>
+arka-norn orchestration preview --project <project-id> --feature <feature-id>
+arka-norn orchestration start --project <project-id> --feature <feature-id> \
+  --provider claude --model <version> --preview <empreinte-affichée>
 ```
 
-Avant chaque mission, Arka Norn revalide la prochaine étape, le périmètre et les
-preuves attendues ; le provider retenu est enregistré avant le démarrage. Seuls
-les providers sains, autorisés et capables peuvent être choisis. En V1, Codex
-ACP est supporté comme adapter, mais il n’est pas candidat aux écritures d’une
-Feature tant que son harness ne fournit pas de permission structurée et
-vérifiable. Consultez [l’orchestration automatique contrôlée](docs/automatic-orchestration.md)
-pour les limites et actions de reprise.
+Les choix affichés sont **Claude**, **Codex**, **Kimi Platform** et **Z.AI
+Coding Plan**. Arka peut signaler une recommandation, mais ne remplace jamais
+votre choix ; il refuse seulement un assistant ou une version qui ne peut pas
+exécuter la mission de manière sûre. Après une mission réussie, il prépare un
+nouvel aperçu au lieu d’enchaîner silencieusement.
+
+Codex et Kimi restent visibles, mais leurs adapters ACP ne peuvent pas encore
+recevoir des écritures automatiques dans une Feature : leurs permissions sont
+opaques. Z.AI Coding Plan nécessite une activation et un identifiant local
+explicites ; Kimi Platform est aujourd’hui exécuté au travers de Kimi Code ACP,
+pas d’une intégration directe à l’API Platform. Consultez
+[le Pilote assisté et l’orchestration contrôlée](docs/automatic-orchestration.md) pour
+les limites, les actions de reprise et les smoke tests réels opt-in.
 
 ## Un modèle volontairement simple
 

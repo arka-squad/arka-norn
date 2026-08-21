@@ -23,6 +23,12 @@ const ALLOWED_WORKER_ENVIRONMENT = new Set([
   // They never arrive in the JSON request and are never written to stdout.
   "ANTHROPIC_API_KEY",
   "OPENAI_API_KEY",
+  "ANTHROPIC_BASE_URL",
+  "KIMI_MODEL_API_KEY",
+  "KIMI_MODEL_BASE_URL",
+  "KIMI_MODEL_NAME",
+  "KIMI_CODE_HOME",
+  "KIMI_DISABLE_TELEMETRY",
 ]);
 
 export async function readWorkerRequest(expectedProvider) {
@@ -52,7 +58,7 @@ export async function readWorkerRequest(expectedProvider) {
   if (!isAbsolute(workspace)) throw new Error("Worker workspace must be absolute.");
   const permissionPolicy = parsePermissionPolicy(value.permissionPolicy);
   const model = optionalString(value.model);
-  if (expectedProvider === "codex-acp") {
+  if (expectedProvider === "codex-acp" || expectedProvider === "kimi-acp") {
     const command = requiredString(value.command);
     if (!isAbsolute(command) || PROHIBITED_LAUNCHERS.has(basename(command).toLowerCase())) {
       throw new Error("Worker ACP command is invalid.");
@@ -61,7 +67,7 @@ export async function readWorkerRequest(expectedProvider) {
     const authMethodId = optionalString(value.authMethodId);
     return {
       executionId,
-      provider: "codex-acp",
+      provider: expectedProvider,
       mission,
       workspace,
       permissionPolicy,
@@ -91,6 +97,12 @@ export function enforceIsolatedEnvironment() {
   }
   for (const name of Object.keys(process.env)) {
     if (!ALLOWED_WORKER_ENVIRONMENT.has(name)) delete process.env[name];
+  }
+  if (process.env.ANTHROPIC_BASE_URL !== undefined && process.env.ANTHROPIC_BASE_URL !== "https://api.z.ai/api/anthropic") {
+    throw new Error("Mastra worker refuses an untrusted Anthropic endpoint.");
+  }
+  if (process.env.KIMI_MODEL_BASE_URL !== undefined && process.env.KIMI_MODEL_BASE_URL !== "https://api.kimi.com/coding/v1") {
+    throw new Error("Mastra worker refuses an untrusted Kimi endpoint.");
   }
 }
 

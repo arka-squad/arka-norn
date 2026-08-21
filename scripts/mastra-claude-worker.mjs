@@ -2,7 +2,7 @@
 import { join } from "node:path";
 
 import { readWorkerRequest, writeWorkerResult } from "./mastra-worker-protocol.mjs";
-import { createWorkspacePermissionGate } from "./mastra-permission-gate.mjs";
+import { claudeToolsForPermissionPolicy, createWorkspacePermissionGate } from "./mastra-permission-gate.mjs";
 
 const request = await readWorkerRequest("claude");
 const abortController = new AbortController();
@@ -36,7 +36,7 @@ try {
       // Only structured filesystem tools are exposed. In particular, Bash,
       // network and sub-agent tools cannot turn the Feature workspace into an
       // implicit sandbox escape.
-      tools: ["Read", "Glob", "Grep", "Edit", "Write"],
+      tools: claudeToolsForPermissionPolicy(request.permissionPolicy),
       allowedTools: [],
       disallowedTools: ["Bash", "Task", "Agent", "WebFetch", "WebSearch", "NotebookEdit", "ExitPlanMode", "AskUserQuestion"],
       permissionMode: "default",

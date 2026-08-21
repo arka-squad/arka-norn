@@ -26,11 +26,15 @@ Depuis un agent provider : /arka-norn (Claude) ou $arka-norn (Codex)
 Gestion :
   project <list|add|import|scan|show|use|forget|reconcile|set-orchestration-mode>
   feature <list|create|import|scan|show|use|forget|reconcile|set-workflow>
-  orchestration <start|status|cancel|approve|retry>
+  orchestration <configure|preview|start|status|cancel|approve|retry>
   agent <list|register|show|current|use|sessions|advise|prompt|handoff-prompt|deactivate|replace>
   pipeline <status|next|scaffold|validate> Statut : identité, relations et verdict métier.
   workflow <list|show>
   fastdev <start|status|next>
+
+Récupération d’un marker disparu :
+  project forget <id> --yes --force
+  feature forget <id> --yes --force     Retire uniquement l’entrée d’index orpheline.
 
 Rework FastDev :
   workflow list                         Liste les workflows autorisés.

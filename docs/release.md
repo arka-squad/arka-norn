@@ -16,11 +16,13 @@ est un tarball npm attaché au workflow GitHub déclenché par un tag `vX.Y.Z`.
 5. Créer et pousser le tag signé ou protégé `vX.Y.Z` depuis un commit vert.
 
 La CI reconstruit le package, produit un SBOM CycloneDX, un fichier de checksums
-SHA-256 et une attestation GitHub de provenance. Les tests d’orchestration y
-utilisent des providers fake ; un smoke Claude/Codex réel reste opt-in, avec
-identifiants et configuration fournis explicitement, et ne doit pas être une
-gate de release ordinaire. L’artefact ne contient ni
-sources TypeScript, ni tests, ni dossiers `.input/` ou `input/`.
+SHA-256 et une attestation GitHub de provenance. Les tests du Pilote assisté y
+utilisent des providers fake ; un smoke réel Claude, Codex, Kimi ou Z.AI reste
+opt-in, avec identifiants et configuration fournis explicitement dans
+l’environnement local, et ne doit pas être une gate de release ordinaire. Les
+smokes ne lisent jamais un secret depuis un Project, une politique ou un
+registre. L’artefact ne contient ni sources TypeScript, ni tests, ni dossiers
+`.input/` ou `input/`.
 
 ## Installer et revenir en arrière
 

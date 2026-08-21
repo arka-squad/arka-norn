@@ -140,7 +140,7 @@ test("un index Project falsifié ne peut pas redéfinir la frontière Pipeline",
   const foreignFeatureRoot = resolve(foreignRoot, "forged-feature");
   mkdirSync(foreignRoot, { recursive: true });
   assert.equal(run([
-    "project", "add", foreignRoot, "--id", "foreign", "--name", "Foreign", "--json",
+    "project", "add", foreignRoot, "--id", "foreign", "--name", "Foreign", "--orchestration-mode", "manual", "--json",
   ], fixture.home, fixture.workspace).status, 0);
   mkdirSync(resolve(foreignFeatureRoot, ".arka-norn"), { recursive: true });
   writeFileSync(resolve(foreignFeatureRoot, ".arka-norn", "feature.json"), `${JSON.stringify({
@@ -194,7 +194,7 @@ function createManagedFeature(context: { after(callback: () => void): void }): M
   mkdirSync(projectRoot, { recursive: true });
   context.after(() => rmSync(sandbox, { recursive: true, force: true }));
 
-  assert.equal(run(["project", "add", projectRoot, "--id", "product", "--name", "Product", "--json"], home, workspace).status, 0);
+  assert.equal(run(["project", "add", projectRoot, "--id", "product", "--name", "Product", "--orchestration-mode", "manual", "--json"], home, workspace).status, 0);
   assert.equal(run([
     "feature", "create", "Feature", "--project", "product", "--id", "feature", "--path", featureRoot, "--json",
   ], home, workspace).status, 0);

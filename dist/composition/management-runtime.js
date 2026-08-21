@@ -126,18 +126,38 @@ function auditProjects(base, audit, logger, clock) {
                 details: { previousMode: current.orchestrationMode, orchestrationMode: input.orchestrationMode },
             }, () => base.setOrchestrationMode(input));
         },
-        async forget(id) { const current = await base.show(id); await auditedValue(audit, logger, clock, { action: "project.forget", entityType: "project", entityId: id.value, root: current.root }, async () => { await base.forget(id); }); },
+        async forget(id, options) {
+            if (options?.indexOnly === true) {
+                await auditedValue(audit, logger, clock, {
+                    action: "project.forget", entityType: "project", entityId: id.value,
+                    details: { recovery: "index_only" },
+                }, async () => { await base.forget(id); });
+                return;
+            }
+            const current = await base.show(id);
+            await auditedValue(audit, logger, clock, { action: "project.forget", entityType: "project", entityId: id.value, root: current.root }, async () => { await base.forget(id); });
+        },
     };
 }
 function auditFeatures(base, audit, logger, clock) {
     return {
-        list: () => base.list(),
+        list: (projectId) => base.list(projectId),
         show: (id) => base.show(id),
         create: (input) => auditedValue(audit, logger, clock, { action: "feature.create", entityType: "feature", entityId: input.id.value, root: input.root }, () => base.create(input)),
         importFrom: (input) => auditedValue(audit, logger, clock, { action: "feature.import", entityType: "feature", root: input.root }, () => base.importFrom(input)),
         async switchTo(id) { const current = await base.show(id); return auditedValue(audit, logger, clock, { action: "feature.use", entityType: "feature", entityId: id.value, root: current.root }, () => base.switchTo(id)); },
         async setWorkflow(input) { const current = await base.show(input.id); return auditedValue(audit, logger, clock, { action: "feature.set-workflow", entityType: "feature", entityId: input.id.value, root: current.root, details: { pipelineId: input.pipelineId } }, () => base.setWorkflow(input)); },
-        async forget(id) { const current = await base.show(id); await auditedValue(audit, logger, clock, { action: "feature.forget", entityType: "feature", entityId: id.value, root: current.root }, async () => { await base.forget(id); }); },
+        async forget(id, options) {
+            if (options?.indexOnly === true) {
+                await auditedValue(audit, logger, clock, {
+                    action: "feature.forget", entityType: "feature", entityId: id.value,
+                    details: { recovery: "index_only" },
+                }, async () => { await base.forget(id); });
+                return;
+            }
+            const current = await base.show(id);
+            await auditedValue(audit, logger, clock, { action: "feature.forget", entityType: "feature", entityId: id.value, root: current.root }, async () => { await base.forget(id); });
+        },
     };
 }
 async function auditedValue(audit, logger, clock, event, operation) {

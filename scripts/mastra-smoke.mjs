@@ -9,7 +9,8 @@ if (process.env.ARKA_MASTRA_SMOKE !== "1") {
 }
 
 async function runSmoke() {
-  const provider = process.env.ARKA_MASTRA_SMOKE_PROVIDER === "claude" ? "claude" : "codex-acp";
+  const requestedProvider = process.env.ARKA_MASTRA_SMOKE_PROVIDER ?? "codex";
+  const provider = normalizeProvider(requestedProvider);
   const workspace = resolve(process.env.ARKA_MASTRA_SMOKE_WORKSPACE ?? process.cwd());
   const executionId = "mastra-smoke-" + Date.now().toString(36);
   let createMastraExecutionPort;
@@ -18,9 +19,7 @@ async function runSmoke() {
   } catch {
     throw new Error("Build requis avant le smoke Mastra.");
   }
-  const credentials = provider === "claude"
-    ? { claudeApiKey: requiredSecretEnvironment("ARKA_NORN_MASTRA_CLAUDE_API_KEY") }
-    : { codexApiKey: requiredSecretEnvironment("ARKA_NORN_MASTRA_CODEX_API_KEY") };
+  const credentials = credentialsFor(provider);
   const port = createMastraExecutionPort({ providerCredentials: credentials });
   const base = {
     executionId,
@@ -28,19 +27,7 @@ async function runSmoke() {
     workspace,
     timeoutMs: 60_000,
   };
-  const mission = provider === "claude"
-    ? {
-      ...base,
-      provider: "claude",
-      ...(process.env.ARKA_MASTRA_SMOKE_MODEL === undefined ? {} : { model: process.env.ARKA_MASTRA_SMOKE_MODEL }),
-    }
-    : {
-      ...base,
-      provider: "codex-acp",
-      command: requiredAbsoluteEnvironment("ARKA_NORN_CODEX_ACP_COMMAND"),
-      args: parseJsonArguments(process.env.ARKA_NORN_CODEX_ACP_ARGS),
-      ...(process.env.ARKA_MASTRA_SMOKE_MODEL === undefined ? {} : { model: process.env.ARKA_MASTRA_SMOKE_MODEL }),
-    };
+  const mission = missionFor(provider, base);
   let outcome = await port.dispatch(mission);
   const deadline = Date.now() + 65_000;
   while (outcome.status === "running" && Date.now() < deadline) {
@@ -51,12 +38,58 @@ async function runSmoke() {
   if (outcome.status === "running") outcome = await port.cancel({ executionId });
   console.log(JSON.stringify({
     executionId: outcome.executionId,
-    provider: outcome.provider,
+    provider,
+    adapter: outcome.provider,
     status: outcome.status,
     outputLength: outcome.output?.length ?? 0,
     failureCode: outcome.failure?.code,
   }));
   if (outcome.status !== "completed") process.exitCode = 1;
+}
+
+function normalizeProvider(value) {
+  if (value === "claude" || value === "codex" || value === "codex-acp" || value === "kimi" || value === "zai") {
+    return value === "codex-acp" ? "codex" : value;
+  }
+  throw new Error("ARKA_MASTRA_SMOKE_PROVIDER must be one of: claude, codex, kimi, zai.");
+}
+
+function credentialsFor(provider) {
+  if (provider === "claude") return { claudeApiKey: requiredSecretEnvironment("ARKA_NORN_MASTRA_CLAUDE_API_KEY") };
+  if (provider === "codex") return { codexApiKey: requiredSecretEnvironment("ARKA_NORN_MASTRA_CODEX_API_KEY") };
+  if (provider === "kimi") return { kimiApiKey: requiredSecretEnvironment("ARKA_NORN_MASTRA_KIMI_API_KEY") };
+  return { zaiApiKey: requiredSecretEnvironment("ARKA_NORN_MASTRA_ZAI_API_KEY") };
+}
+
+function missionFor(provider, base) {
+  const model = process.env.ARKA_MASTRA_SMOKE_MODEL;
+  if (provider === "claude") {
+    return { ...base, provider: "claude", ...(model === undefined ? {} : { model }) };
+  }
+  if (provider === "codex") {
+    return {
+      ...base,
+      provider: "codex-acp",
+      command: requiredAbsoluteEnvironment("ARKA_NORN_CODEX_ACP_COMMAND"),
+      args: parseJsonArguments(process.env.ARKA_NORN_CODEX_ACP_ARGS),
+      ...(model === undefined ? {} : { model }),
+    };
+  }
+  if (provider === "kimi") {
+    return {
+      ...base,
+      provider: "kimi-acp",
+      command: requiredAbsoluteEnvironment("ARKA_NORN_KIMI_ACP_COMMAND"),
+      args: ["acp"],
+      ...(model === undefined ? {} : { model }),
+    };
+  }
+  return {
+    ...base,
+    provider: "claude",
+    providerProfile: "zai",
+    ...(model === undefined ? {} : { model }),
+  };
 }
 
 function requiredAbsoluteEnvironment(name) {

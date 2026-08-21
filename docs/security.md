@@ -29,24 +29,28 @@ Sont non fiables : roots fournis, markers, symlinks, noms, JSON, environnement, 
   spéciaux et liens matériels, tourne à 2 Mio et conserve au plus cinq archives.
 - Aucun shell n’est utilisé pour piloter la TUI ou les cas d’usage.
 
-## Orchestration automatique et workers
+## Pilote assisté et workers
 
-- `<project>/.arka-norn/orchestration.json` ne conserve que la politique
-  Project : providers, capacités, permissions et priorité. Il ne contient
-  jamais de secret, token, PID, budget, état Mastra ni session de processus.
-- `<project>/.arka-norn/executions.json` conserve la trace métier des ordres,
-  provider choisi, tentatives, événements bornés, preuves et suspensions. Les
-  résumés, raisons et événements sont refusés s’ils ressemblent à des
-  identifiants ou à du matériel d’autorisation.
+- `<project>/.arka-norn/orchestration.json` v2 ne conserve que la politique
+  Project : assistants, modèles explicitement choisis, capacités, permissions
+  et priorités. Il ne contient jamais de secret, token, PID, budget, état
+  Mastra ni session de processus.
+- `<project>/.arka-norn/executions.json` v2 conserve la trace métier des
+  ordres, de la cible immuable assistant/adapter/modèle, des tentatives,
+  événements bornés, preuves et suspensions. Les résumés, raisons et événements
+  sont refusés s’ils ressemblent à des identifiants ou à du matériel
+  d’autorisation.
 - Les métadonnées de processus sont privées, jetables et reconstructibles sous
   `$ARKA_NORN_HOME/.arka-norn/workers/`. Elles ne sont pas source de vérité
   portable et un PID stale ou réutilisé ne permet jamais d’envoyer un signal à
   un autre processus.
-- Le broker de permissions est deny-by-default. Seules les actions dont le
-  provider expose un chemin structuré et vérifiable dans la racine Feature
+- Le broker de permissions est deny-by-default. Seules les actions dont
+  l’assistant expose un chemin structuré et vérifiable dans la racine Feature
   peuvent être préautorisées ; shell, sous-processus et réseau restent
   interdits. Une demande opaque est refusée avec
   `permission_not_preapproved`, jamais convertie en grant par `approve`.
+  Codex ACP et Kimi Code ACP n’exposent pas encore ce contrat pour une écriture
+  Feature : ils ne sont donc pas éligibles à une écriture automatique.
 - Même lorsqu’une mission couvre toute la Feature, `.arka-norn/**` et
   `.git/**` restent hors de portée du worker. `Glob` et `Grep` exigent un
   chemin relatif explicite et refusent les motifs seuls, traversals, chemins
@@ -61,19 +65,32 @@ Sont non fiables : roots fournis, markers, symlinks, noms, JSON, environnement, 
   il n’est jamais « corrigé » par un élargissement de périmètre.
 - Le workspace Mastra n’est pas une sandbox. L’adapter démarre un environnement
   temporaire minimal et n’hérite ni les variables arbitraires ni les
-  identifiants ambiants. Un identifiant provider explicitement fourni est
-  transmis seulement au processus provider correspondant, en mémoire ; il est
-  absent du `MissionOrder`, du JSON worker, des logs et des registres. Cela ne
-  remplace pas une isolation système ou conteneur.
-- Le provider est choisi avant le dispatch par la politique Project. Aucun
-  fallback n’est autorisé après le début d’une exécution ; Codex ACP relance
-  une nouvelle exécution après interruption et ne promet pas une reprise
-  générique de session.
+  identifiants ambiants. Un identifiant d’assistant explicitement fourni est
+  transmis seulement au processus concerné, en mémoire ; il est absent du
+  `MissionOrder`, du JSON worker, des logs et des registres. Cela ne remplace
+  pas une isolation système ou conteneur. L’adapter Z.AI fixe son endpoint ; le
+  Project ne peut pas lui en injecter un autre. Le libellé Kimi Platform
+  s’appuie sur Kimi Code ACP, sans promettre une connexion directe à l’API
+  Platform.
+- Avant le dispatch, l’utilisateur confirme une cible assistant/modèle et une
+  empreinte d’aperçu calculée par Arka. La politique peut recommander un
+  candidat, mais ne se substitue pas à cette confirmation. Aucun fallback n’est
+  autorisé après le début d’une exécution et aucune suite ne se lance sans un
+  nouvel aperçu. Codex ACP et Kimi Code ACP relancent une nouvelle exécution
+  après interruption ; ils ne promettent pas une reprise générique de session.
+- Les missions d’audit sont dérivées en lecture seule : le worker Claude ne
+  reçoit ni `Edit` ni `Write`, et le broker refuse ces opérations. Leur sortie
+  libre n’est jamais ajoutée au registre, au journal ou au statut JSON ; seule
+  une conclusion fermée sans secret est conservée, suivie d’une validation
+  humaine obligatoire du document Pipeline.
 - La récupération d’un worker abandonné utilise seulement son heartbeat privé,
   au prochain acte explicite. Elle le marque `interrupted` ou `rejected` après
   expiration et ne signale jamais le PID mémorisé.
 - L’annulation lance les workers dans un groupe de processus dédié sous POSIX
   et termine ce groupe ; sous Windows, le repli Node ne garantit que le worker
   direct. Aucun PID privé persistant n’est utilisé pour cette terminaison.
+- Les smoke tests d’assistants réels sont opt-in et exigent un identifiant local
+  explicitement fourni. La CI utilise des doubles sans identifiant réel ; aucun
+  test de release ne lit un secret depuis le Project ou les registres.
 
 `arka-norn doctor --repair` ne modifie rien. Ajouter `--apply` pour isoler l’index corrompu dans un backup puis le réinitialiser. Le diagnostic couvre aussi markers, locks, audit trail, toutes les sessions Agents, contexte Project courant et installation locale des skills. Une skill `core` absente ou divergente est un échec ; seules les skills de profils spécialisés encore absentes restent des avertissements. `arka-norn skills doctor --global` ajoute le contrôle des installations Claude/Codex du profil utilisateur.

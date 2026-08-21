@@ -354,7 +354,7 @@ function responsibilities(role: OrchestratedAgentRole): string {
   const values: Readonly<Record<OrchestratedAgentRole, string>> = {
     product: "organisation du Project;décisions produit;priorisation;coordination et passations",
     architecte: "architecture;contrats techniques;invariants;spécification d'intégration",
-    audit: "audit de l'état réel;preuves reproductibles;constats sans correction",
+    audit: "audit état réel;preuves reproductibles;constats sans correction",
     dev: "implémentation bornée;tests;CR de développement",
     qa: "recette indépendante;preuves fonctionnelles;verdict",
   };

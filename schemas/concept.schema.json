@@ -52,6 +52,12 @@
     "hypotheses": {
       "type": "array",
       "description": "Liste des hypothèses tranchées pour ce concept, chacune avec le sujet traité et la position retenue.",
+      "default": [
+        {
+          "sujet": "À_REMPLIR",
+          "position_retenue": "À_REMPLIR"
+        }
+      ],
       "items": {
         "type": "object",
         "additionalProperties": false,

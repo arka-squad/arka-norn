@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -50,6 +50,51 @@ test("skills list/install/doctor partagent le catalogue et détectent une diverg
   assert.match(unhealthy.stdout, /divergent/);
 });
 
-function run(args: readonly string[], cwd: string) {
-  return spawnSync(process.execPath, [BIN, ...args], { cwd, encoding: "utf8" });
+test("skills global installe et diagnostique les 18 rendus sans masquer une divergence", (context) => {
+  const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-skills-global-cli-"));
+  const target = join(sandbox, "project");
+  const home = join(sandbox, "home");
+  const env = { ...process.env, ARKA_NORN_HOME: home, HOME: home, USERPROFILE: home };
+  context.after(() => rmSync(sandbox, { recursive: true, force: true }));
+  mkdirSync(target, { recursive: true });
+
+  const installed = run(["skills", "install", "--target", target, "--profile", "all", "--global", "--json"], target, env);
+  assert.equal(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
+  const plan = (JSON.parse(installed.stdout) as { readonly data: { readonly skills: readonly string[]; readonly plan: readonly unknown[] } }).data;
+  assert.equal(plan.skills.length, 18);
+  assert.equal(plan.plan.length, 18 * 6);
+
+  const nornGlobal = readFileSync(resolve(home, ".claude", "skills", "arka-norn", "SKILL.md"), "utf8");
+  assert.match(nornGlobal, /mode_orchestration/);
+  assert.match(nornGlobal, /Ne jamais créer, choisir un autre dossier ou déduire le mode silencieusement/);
+  assert.match(nornGlobal, /project add <racine> --name <nom> --orchestration-mode <manual\|automatic>/);
+  assert.match(nornGlobal, /skills doctor --target <racine> --profile all --global --json/);
+
+  const productGlobal = readFileSync(resolve(home, ".claude", "skills", "arka-product", "SKILL.md"), "utf8");
+  assert.match(productGlobal, /demander explicitement.*assistant.*version/i);
+  assert.match(productGlobal, /orchestration configure --project <project-id> --provider <claude\|codex\|kimi\|zai> --model <version>/);
+  assert.match(productGlobal, /orchestration preview --project <project-id> --feature <feature-id>/);
+  assert.match(productGlobal, /attendre la confirmation explicite de l'utilisateur/i);
+  assert.match(productGlobal, /orchestration start --project <project-id> --feature <feature-id> --provider <claude\|codex\|kimi\|zai> --model <version> --preview <empreinte>/);
+  assert.doesNotMatch(productGlobal, /sélecteur Project le choisit de façon déterministe|ne demander ni provider libre/i);
+
+  const healthy = run(["skills", "doctor", "--target", target, "--profile", "all", "--global", "--json"], target, env);
+  assert.equal(healthy.status, 0, `${healthy.stdout}\n${healthy.stderr}`);
+  const healthyChecks = (JSON.parse(healthy.stdout) as { readonly data: { readonly checks: readonly { readonly status: string }[] } }).data.checks;
+  assert.equal(healthyChecks.length, 18);
+  assert.ok(healthyChecks.every((check) => check.status === "ok"));
+
+  const divergent = resolve(home, ".codex", "skills", "arka-framework-recette-qa", "SKILL.md");
+  writeFileSync(divergent, "custom global content\n");
+  const diagnosed = run(["skills", "doctor", "--target", target, "--profile", "all", "--global", "--json"], target, env);
+  assert.equal(diagnosed.status, 3, `${diagnosed.stdout}\n${diagnosed.stderr}`);
+  const check = (JSON.parse(diagnosed.stdout) as {
+    readonly data: { readonly checks: readonly { readonly name: string; readonly status: string }[] };
+  }).data.checks.find((item) => item.name === "arka-framework-recette-qa");
+  assert.equal(check?.status, "divergent");
+  assert.equal(readFileSync(divergent, "utf8"), "custom global content\n");
+});
+
+function run(args: readonly string[], cwd: string, env = process.env) {
+  return spawnSync(process.execPath, [BIN, ...args], { cwd, encoding: "utf8", env });
 }

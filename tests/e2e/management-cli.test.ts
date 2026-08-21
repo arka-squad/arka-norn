@@ -63,11 +63,33 @@ test("la CLI couvre le cycle Project/Feature et reconstruit les index", (context
   assert.equal(next.json.data.nextAction.stepId, "concept");
   assert.equal(run(["pipeline", "scaffold", "concept", "--feature", "secure-cockpit", "--session", "dev-secure-cockpit", "--json"], home, workspace).status, 0);
   assert.equal(run(["pipeline", "scaffold", "concept", "--feature", "secure-cockpit", "--session", "dev-secure-cockpit", "--json"], home, workspace).status, 5);
-  assert.equal(run(["pipeline", "validate", "secure-cockpit", "--document", "concept.json", "--json"], home, workspace).status, 3);
-  const scaffold = JSON.parse(readFileSync(resolve(featureRoot, "concept.json"), "utf8")) as { readonly schema_version: number; readonly author_agent_id: string; readonly feature_id: string };
+  const unfilledConcept = run(["pipeline", "validate", "secure-cockpit", "--document", "concept.json", "--json"], home, workspace);
+  assert.equal(unfilledConcept.status, 3);
+  assert.ok(unfilledConcept.json.errors.some((error) => /unresolved scaffold sentinel/.test(error)));
+  assert.ok(unfilledConcept.json.errors.every((error) => !/must be >= 1|must be >=1/.test(error)));
+  const scaffold = JSON.parse(readFileSync(resolve(featureRoot, "concept.json"), "utf8")) as {
+    readonly schema_version: number;
+    readonly author_agent_id: string;
+    readonly feature_id: string;
+    readonly sequence: number;
+    readonly hypotheses: readonly { readonly sujet: string; readonly position_retenue: string }[];
+  };
   assert.equal(scaffold.schema_version, 3);
   assert.equal(scaffold.author_agent_id, agent.json.data.id);
   assert.equal(scaffold.feature_id, "secure-cockpit");
+  assert.equal(scaffold.sequence, 1);
+  assert.deepEqual(scaffold.hypotheses, [{ sujet: "À_REMPLIR", position_retenue: "À_REMPLIR" }]);
+  assert.equal(run(["pipeline", "scaffold", "plan", "--feature", "secure-cockpit", "--output", resolve(featureRoot, "plan.json"), "--session", "dev-secure-cockpit", "--json"], home, workspace).status, 0);
+  const plan = JSON.parse(readFileSync(resolve(featureRoot, "plan.json"), "utf8")) as {
+    readonly sequence: number;
+    readonly concepts_sources: readonly string[];
+    readonly criteres_de_fini: readonly string[];
+    readonly statut_des_affirmations: { readonly verrouille: readonly string[]; readonly objectif_a_prouver: readonly string[] };
+  };
+  assert.equal(plan.sequence, 1);
+  assert.deepEqual(plan.concepts_sources, ["À_REMPLIR"]);
+  assert.deepEqual(plan.criteres_de_fini, ["À_REMPLIR"]);
+  assert.deepEqual(plan.statut_des_affirmations, { verrouille: ["À_REMPLIR"], objectif_a_prouver: ["À_REMPLIR"] });
 
   const replacement = run<{ readonly id: string; readonly replacesAgentId: string }>([
     "agent", "replace", agent.json.data.id, "--project", "product", "--provider", "Claude Code", "--role", "dev", "--session", "dev-secure-cockpit", "--json",
@@ -112,6 +134,69 @@ test("la CLI couvre le cycle Project/Feature et reconstruit les index", (context
   assert.ok(audit.some((event) => event.action === "agent.replace"));
 });
 
+test("forget --yes --force retire un cache orphelin sans supprimer le dossier métier", (context) => {
+  const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-orphan-recovery-cli-"));
+  const home = resolve(sandbox, "home");
+  const workspace = resolve(sandbox, "workspace");
+  const projectRoot = resolve(workspace, "product");
+  const featureRoot = resolve(projectRoot, "orphan-feature");
+  mkdirSync(projectRoot, { recursive: true });
+  context.after(() => rmSync(sandbox, { recursive: true, force: true }));
+
+  const missingDelegationChoice = run(["project", "add", projectRoot, "--id", "product", "--name", "Product", "--json"], home, workspace);
+  assert.equal(missingDelegationChoice.status, 64);
+  assert.match(missingDelegationChoice.json.errors[0] ?? "", /--orchestration-mode is required/);
+  assert.equal(run(["project", "add", projectRoot, "--id", "product", "--name", "Product", "--orchestration-mode", "manual", "--json"], home, workspace).status, 0);
+  assert.equal(run(["feature", "create", "Orphan feature", "--project", "product", "--id", "orphan-feature", "--path", featureRoot, "--json"], home, workspace).status, 0);
+
+  rmSync(resolve(featureRoot, ".arka-norn"), { recursive: true, force: true });
+  assert.equal(run(["feature", "forget", "orphan-feature", "--yes", "--json"], home, workspace).status, 4);
+  assert.equal(run(["feature", "forget", "orphan-feature", "--force", "--json"], home, workspace).status, 64);
+  const repairedFeature = run<{ readonly indexOnly?: boolean }>(["feature", "forget", "orphan-feature", "--yes", "--force", "--json"], home, workspace);
+  assert.equal(repairedFeature.status, 0, repairedFeature.stderr);
+  assert.equal(repairedFeature.json.data.indexOnly, true);
+  assert.equal(existsSync(featureRoot), true);
+  assert.equal(run<readonly unknown[]>(["feature", "list", "--project", "product", "--json"], home, workspace).json.data.length, 0);
+
+  rmSync(resolve(projectRoot, ".arka-norn"), { recursive: true, force: true });
+  assert.equal(run(["project", "forget", "product", "--yes", "--json"], home, workspace).status, 4);
+  const repairedProject = run<{ readonly indexOnly?: boolean }>(["project", "forget", "product", "--yes", "--force", "--json"], home, workspace);
+  assert.equal(repairedProject.status, 0, repairedProject.stderr);
+  assert.equal(repairedProject.json.data.indexOnly, true);
+  assert.equal(existsSync(projectRoot), true);
+  assert.equal(run<readonly unknown[]>(["project", "list", "--json"], home, workspace).json.data.length, 0);
+
+  const audit = readFileSync(resolve(home, ".arka-norn", "logs", "audit.jsonl"), "utf8").trim().split("\n")
+    .map((line) => JSON.parse(line) as { readonly action: string; readonly details?: { readonly recovery?: string } });
+  assert.ok(audit.some((event) => event.action === "feature.forget" && event.details?.recovery === "index_only"));
+  assert.ok(audit.some((event) => event.action === "project.forget" && event.details?.recovery === "index_only"));
+});
+
+test("feature list --project n'hydrate pas les markers d'un autre Project", (context) => {
+  const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-project-filter-cli-"));
+  const home = resolve(sandbox, "home");
+  const workspace = resolve(sandbox, "workspace");
+  const alphaRoot = resolve(workspace, "alpha");
+  const betaRoot = resolve(workspace, "beta");
+  const alphaFeatureRoot = resolve(alphaRoot, "alpha-feature");
+  const betaFeatureRoot = resolve(betaRoot, "norn-test");
+  mkdirSync(alphaRoot, { recursive: true });
+  mkdirSync(betaRoot, { recursive: true });
+  context.after(() => rmSync(sandbox, { recursive: true, force: true }));
+
+  assert.equal(run(["project", "add", alphaRoot, "--id", "alpha", "--name", "Alpha", "--orchestration-mode", "manual", "--json"], home, workspace).status, 0);
+  assert.equal(run(["project", "add", betaRoot, "--id", "beta", "--name", "Beta", "--orchestration-mode", "manual", "--json"], home, workspace).status, 0);
+  assert.equal(run(["feature", "create", "Alpha feature", "--project", "alpha", "--id", "alpha-feature", "--path", alphaFeatureRoot, "--json"], home, workspace).status, 0);
+  assert.equal(run(["feature", "create", "norn-test", "--project", "beta", "--id", "norn-test", "--path", betaFeatureRoot, "--json"], home, workspace).status, 0);
+  rmSync(resolve(betaFeatureRoot, ".arka-norn"), { recursive: true, force: true });
+
+  const listed = run<readonly { readonly id: string }[]>(["feature", "list", "--project", "alpha", "--json"], home, workspace);
+  assert.equal(listed.status, 0, listed.stderr);
+  assert.deepEqual(listed.json.data.map((feature) => feature.id), ["alpha-feature"]);
+  assert.deepEqual(listed.json.warnings, []);
+  assert.doesNotMatch(listed.stderr, /listFeatures: index entry has no readable marker|norn-test/);
+});
+
 test("le scaffold d'audit Project v4 est signé, confiné et distinct d'une Feature", (context) => {
   const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-project-audit-cli-"));
   const home = resolve(sandbox, "home");
@@ -120,7 +205,7 @@ test("le scaffold d'audit Project v4 est signé, confiné et distinct d'une Feat
   mkdirSync(auditDirectory, { recursive: true });
   context.after(() => rmSync(sandbox, { recursive: true, force: true }));
 
-  assert.equal(run(["project", "add", projectRoot, "--id", "product", "--name", "Product", "--json"], home, projectRoot).status, 0);
+  assert.equal(run(["project", "add", projectRoot, "--id", "product", "--name", "Product", "--orchestration-mode", "manual", "--json"], home, projectRoot).status, 0);
   const author = run<{ readonly id: string }>([
     "agent", "register", "--project", "product", "--provider", "Codex", "--role", "audit", "--session", "audit-product", "--json",
   ], home, projectRoot);
@@ -143,7 +228,7 @@ test("le scaffold d'audit Project v4 est signé, confiné et distinct d'une Feat
   const nestedProjectRoot = resolve(projectRoot, "nested-project");
   mkdirSync(nestedProjectRoot);
   assert.equal(run([
-    "project", "add", nestedProjectRoot, "--id", "nested", "--name", "Nested", "--json",
+    "project", "add", nestedProjectRoot, "--id", "nested", "--name", "Nested", "--orchestration-mode", "manual", "--json",
   ], home, projectRoot).status, 0);
   const insideNestedProject = run([
     "scaffold", "audit_etat_reel", "nested-project/project-audit.json", "--project", "product", "--agent", author.json.data.id, "--json",

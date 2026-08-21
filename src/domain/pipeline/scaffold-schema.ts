@@ -16,11 +16,12 @@ export function findScaffoldSentinels(value: unknown, path = ""): readonly strin
 function scaffoldValue(schema: Readonly<Record<string, unknown>>, fieldName: string): unknown {
   if ("$ref" in schema) throw new Error(`Cannot scaffold unresolved $ref at ${fieldName}.`);
   if ("const" in schema) return schema["const"];
+  if ("default" in schema) return schema["default"];
   const choices = schema["enum"];
   if (Array.isArray(choices) && choices.length > 0) return `À_CHOISIR::${choices.map(String).join("|")}`;
   const type = schema["type"];
   if (type === "string") return "À_REMPLIR";
-  if (type === "integer" || type === "number") return 0;
+  if (type === "integer" || type === "number") return typeof schema["minimum"] === "number" ? schema["minimum"] : 0;
   if (type === "boolean") return false;
   if (type === "array") {
     const minItems = typeof schema["minItems"] === "number" ? schema["minItems"] : 0;

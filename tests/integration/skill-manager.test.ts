@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
 
 import type { Scene, TuiApp } from "../../src/adapters/inbound/tui/runtime/tui-app.ts";
+import { createRenderer } from "../../src/adapters/inbound/tui/runtime/render.ts";
+import { createTheme } from "../../src/adapters/inbound/tui/runtime/theme.ts";
 import { DirectSkillManager } from "../../src/adapters/outbound/skills/direct-skill-manager.ts";
 import { showSkillInstallation } from "../../src/composition/tui/skill-scene-controller.ts";
 import type { SkillManager } from "../../src/ports/outbound/skill-manager.ts";
@@ -21,6 +23,23 @@ test("le manager TUI installe directement les 18 skills sans sous-processus", as
   assert.equal(installed.code, 0, installed.output);
   assert.deepEqual(await manager.inspect(target), { total: 18, healthy: 18, missing: 0, divergent: 0 });
   assert.deepEqual(await manager.inspect(target, "product"), { total: 11, healthy: 11, missing: 0, divergent: 0 });
+});
+
+test("le manager TUI distingue les 18 skills globales Claude/Codex du Project", async (context) => {
+  const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-direct-global-skills-"));
+  const target = join(sandbox, "project");
+  const globalHome = join(sandbox, "home");
+  context.after(() => rmSync(sandbox, { recursive: true, force: true }));
+  const manager = new DirectSkillManager(ROOT, globalHome);
+
+  assert.deepEqual(await manager.inspectGlobal(), { total: 18, healthy: 0, missing: 18, divergent: 0 });
+  assert.equal((await manager.install({ target, global: true })).code, 0);
+  assert.deepEqual(await manager.inspect(target), { total: 18, healthy: 18, missing: 0, divergent: 0 });
+  assert.deepEqual(await manager.inspectGlobal(), { total: 18, healthy: 18, missing: 0, divergent: 0 });
+
+  writeFileSync(resolve(globalHome, ".codex", "skills", "arka-framework-audit", "SKILL.md"), "global divergence\n");
+  assert.deepEqual(await manager.inspect(target), { total: 18, healthy: 18, missing: 0, divergent: 0 });
+  assert.deepEqual(await manager.inspectGlobal(), { total: 18, healthy: 17, missing: 0, divergent: 1 });
 });
 
 test("les skills audit, dev et QA générés portent un workflow exécutable sans réponse métier préremplie", async (context) => {
@@ -61,6 +80,7 @@ test("le parcours TUI de réparation force le remplacement après sauvegarde", a
   const calls: { readonly target: string; readonly global?: boolean; readonly force?: boolean }[] = [];
   const manager: SkillManager = {
     inspect: async () => ({ total: 18, healthy: 16, missing: 0, divergent: 2 }),
+    inspectGlobal: async () => ({ total: 18, healthy: 18, missing: 0, divergent: 0 }),
     async install(input) {
       calls.push(input);
       return { code: 0, output: "18/18 skills healthy" };
@@ -88,6 +108,48 @@ test("le parcours TUI de réparation force le remplacement après sauvegarde", a
   assert.deepEqual(calls, [{ target: "/workspace/project", global: false, force: true }]);
   assert.equal(healthRefreshes, 1);
   assert.ok(app.topScene());
+});
+
+test("la réparation globale affiche le diagnostic puis exige une seconde confirmation avant --force", async () => {
+  const calls: { readonly target: string; readonly global?: boolean; readonly force?: boolean }[] = [];
+  const manager: SkillManager = {
+    inspect: async () => ({ total: 18, healthy: 16, missing: 0, divergent: 2 }),
+    inspectGlobal: async () => ({ total: 18, healthy: 15, missing: 1, divergent: 2 }),
+    async install(input) {
+      calls.push(input);
+      return { code: 0, output: "36 scopes contrôlés" };
+    },
+  };
+  const stack: Scene[] = [];
+  const app: TuiApp = {
+    push(scene) { stack.push(scene); },
+    pop() { stack.pop(); },
+    topScene: () => stack.at(-1),
+    redraw() {},
+    run: async () => {},
+  };
+
+  await showSkillInstallation(app, manager, "/workspace/project");
+  const initial = app.topScene();
+  assert.ok(initial);
+  initial.onKey({ kind: "down" });
+  initial.onKey({ kind: "down" });
+  initial.onKey({ kind: "enter" });
+
+  assert.deepEqual(calls, []);
+  let output = "";
+  const confirmation = app.topScene();
+  assert.ok(confirmation);
+  confirmation.render(createRenderer({ write: (chunk) => { output += chunk; }, isTTY: false }), createTheme({ NO_COLOR: "1" }, false));
+  assert.match(output, /Confirmer la réparation globale \(2\/2\)/);
+  assert.match(output, /Projet 16\/18 sains/);
+  assert.match(output, /Global 15\/18 sains/);
+  assert.match(output, /sauvegarder puis réparer Project et global/);
+
+  confirmation.onKey({ kind: "enter" });
+  await new Promise((resolvePromise) => setImmediate(resolvePromise));
+
+  assert.deepEqual(calls, [{ target: "/workspace/project", global: true, force: true }]);
 });
 
 function skill(target: string, name: string): string {

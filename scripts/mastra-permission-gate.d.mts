@@ -15,4 +15,5 @@ export interface WorkspacePermissionDecision {
 }
 
 export function createWorkspacePermissionGate(request: WorkspacePermissionGateRequest): (toolName: string, input: Readonly<Record<string, unknown>>) => WorkspacePermissionDecision;
+export function claudeToolsForPermissionPolicy(permissionPolicy: WorkspacePermissionPolicy | "deny-all"): readonly string[];
 export function isAllowedWorkspacePath(workspace: string, scopePaths: readonly string[], target: string, glob?: boolean): boolean;

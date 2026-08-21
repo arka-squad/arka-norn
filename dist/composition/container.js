@@ -53,7 +53,7 @@ export function createContainer(env, ui = {}) {
     const features = management.features;
     const scan = management.scanFeatures;
     const pipeline = createPipelineRuntime(FRAMEWORK_ROOT, { homeDir });
-    const skillManager = new DirectSkillManager(FRAMEWORK_ROOT);
+    const skillManager = new DirectSkillManager(FRAMEWORK_ROOT, homeDir);
     const uiState = {
         contextRoot: env.cwd,
         currentProject: undefined,
@@ -141,7 +141,7 @@ export function createContainer(env, ui = {}) {
     async function openProjectDetail(project) {
         uiState.currentProject = project;
         const [initialAgents, currentAgent] = await Promise.all([management.agents.list(project), management.agents.current(project)]);
-        const initialFeatures = (await features.list()).filter((feature) => feature.belongsTo(project.id));
+        const initialFeatures = await features.list(project.id);
         const initialMetrics = await loadProjectMetrics(initialFeatures, pipeline, authorRegistryForFeature);
         const initialStatuses = new Map([...initialMetrics].map(([id, metrics]) => [id, metrics.status]));
         uiState.currentAgent = currentAgent;
@@ -175,10 +175,14 @@ export function createContainer(env, ui = {}) {
             }),
             onShowProductAdvice: (selected) => orchestrationScenes.showProjectAdvice(selected),
             onOpenOrchestration: async (selected) => {
-                const status = await automaticOrchestration.status({ projectId: selected.id });
+                const [status, currentFeatures] = await Promise.all([
+                    automaticOrchestration.status({ projectId: selected.id }),
+                    features.list(selected.id),
+                ]);
                 app.push(createOrchestrationView({
                     project: selected,
                     initialStatus: status,
+                    initialFeatures: currentFeatures,
                     orchestration: automaticOrchestration,
                     refreshProject: async () => {
                         const refreshed = await projects.show(selected.id);
@@ -214,20 +218,21 @@ export function createContainer(env, ui = {}) {
             const initialProjects = await projects.list();
             const doctor = createDoctorRuntime(homeDir, env.cwd);
             const inspectHealth = async () => {
-                const [skills, report] = await Promise.all([
+                const [projectSkills, globalSkills, report] = await Promise.all([
                     skillManager.inspect(env.cwd),
+                    skillManager.inspectGlobal(),
                     doctor.run(),
                 ]);
-                return { skills, report };
+                return { projectSkills, globalSkills, report };
             };
-            const formatSkills = (skills) => `${skills.healthy}/${skills.total} sains · ${skills.missing} absents · ${skills.divergent} divergents`;
+            const formatSkills = (projectSkills, globalSkills) => `Projet ${projectSkills.healthy}/${projectSkills.total} · Global ${globalSkills.healthy}/${globalSkills.total}`;
             const formatSystem = (report) => `${report.summary.pass} PASS · ${report.summary.warn} WARN · ${report.summary.fail} FAIL`;
             const initialHealth = await inspectHealth();
             const homeRef = { current: undefined };
             const refreshHomeHealth = async () => {
                 const health = await inspectHealth();
                 homeRef.current?.setHealth({
-                    skillHealth: formatSkills(health.skills),
+                    skillHealth: formatSkills(health.projectSkills, health.globalSkills),
                     systemHealth: formatSystem(health.report),
                 });
                 return health;
@@ -238,7 +243,7 @@ export function createContainer(env, ui = {}) {
                 scan: scanProjects,
                 cwd: env.cwd,
                 contextRoot: uiState.contextRoot,
-                skillHealth: formatSkills(initialHealth.skills),
+                skillHealth: formatSkills(initialHealth.projectSkills, initialHealth.globalSkills),
                 systemHealth: formatSystem(initialHealth.report),
                 redraw: () => app.redraw(),
                 onProjectFocused: (project) => {
@@ -247,7 +252,7 @@ export function createContainer(env, ui = {}) {
                 onOpenProject: (project) => openProjectDetail(project),
                 onShowHealth: async () => {
                     const health = await refreshHomeHealth();
-                    showHealthReport(app, health.report, health.skills);
+                    showHealthReport(app, health.report, health.projectSkills, health.globalSkills);
                 },
                 onInstallSkills: () => showSkillInstallation(app, skillManager, env.cwd, async () => {
                     await refreshHomeHealth();

@@ -116,6 +116,53 @@ test("un identifiant explicitement fourni reste éphémère et absent du payload
   await waitForTerminalOutcome(port, "claude-credential");
 });
 
+test("Kimi Platform et Z.AI utilisent seulement leurs profils fixes et ne sérialisent aucun secret", async (context) => {
+  const workspace = createWorkspace(context);
+  const runner = new ControlledWorkerRunner();
+  const port = createMastraExecutionPort({
+    runner,
+    providerCredentials: {
+      kimiApiKey: "kimi-ephemeral-credential",
+      zaiApiKey: "zai-ephemeral-credential",
+    },
+  });
+
+  await port.dispatch({
+    provider: "kimi-acp",
+    executionId: "kimi-profile",
+    mission: "Inspect the workspace.",
+    workspace,
+    command: process.execPath,
+    args: ["--version"],
+    model: "kimi-coding",
+  });
+  const kimi = runner.launches[0];
+  if (kimi === undefined) throw new Error("Expected Kimi worker launch.");
+  assert.equal(kimi.environment["KIMI_MODEL_API_KEY"], "kimi-ephemeral-credential");
+  assert.equal(kimi.environment["KIMI_MODEL_BASE_URL"], "https://api.kimi.com/coding/v1");
+  assert.equal(kimi.environment["KIMI_MODEL_NAME"], "kimi-coding");
+  assert.equal(JSON.stringify(kimi.payload).includes("kimi-ephemeral-credential"), false);
+  runner.complete(0, { status: "cancelled", failure: { code: "CANCELLED" } });
+  await waitForTerminalOutcome(port, "kimi-profile");
+
+  await port.dispatch({
+    provider: "claude",
+    providerProfile: "zai",
+    executionId: "zai-profile",
+    mission: "Inspect the workspace.",
+    workspace,
+    model: "glm-coding-plan",
+  });
+  const zai = runner.launches[1];
+  if (zai === undefined) throw new Error("Expected Z.AI worker launch.");
+  assert.equal(zai.environment["ANTHROPIC_API_KEY"], "zai-ephemeral-credential");
+  assert.equal(zai.environment["ANTHROPIC_BASE_URL"], "https://api.z.ai/api/anthropic");
+  assert.equal(JSON.stringify(zai.payload).includes("zai-ephemeral-credential"), false);
+  assert.equal("providerProfile" in zai.payload, false);
+  runner.complete(1, { status: "cancelled", failure: { code: "CANCELLED" } });
+  await waitForTerminalOutcome(port, "zai-profile");
+});
+
 test("une permission provider devient awaiting_approval sans choix ACP automatique et le retry crée un nouveau run", async (context) => {
   const workspace = createWorkspace(context);
   const runner = new ControlledWorkerRunner();

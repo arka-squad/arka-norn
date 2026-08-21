@@ -91,7 +91,7 @@ Les termes canoniques sont définis dans le [vocabulaire du domaine](domain/voca
 6. Les marqueurs portables sont les sources de vérité ; les index locaux restent reconstructibles.
 7. Une lecture ou une commande de diagnostic ne répare jamais silencieusement l’état.
 8. Le marker Project v4 porte `manual|automatic`; le marker Feature reste v3.
-9. Une mission automatique ne peut partir que d’une évaluation fraîche du Pipeline et conserve un provider immuable.
+9. Une mission du Pilote assisté ne peut partir que d’une évaluation fraîche du Pipeline, d’un aperçu confirmé et d’une cible assistant/modèle immuable.
 
 ## 4. Architecture du code
 
@@ -145,6 +145,8 @@ Si une classe du domaine commence à importer `node:fs`, `process`, un renderer 
 | Feature | `<feature>/.arka-norn/feature.json` | portable, contient `projectId` et `pipelineId` |
 | Agents | `<project>/.arka-norn/agents.json` | partagé, historique des identités |
 | Session courante | `~/.arka-norn/context/agents.json` | privée à la machine |
+| Politique du Pilote assisté | `<project>/.arka-norn/orchestration.json` | v2, assistants/modèles/capacités/permissions, sans secret |
+| Registre d’exécutions | `<project>/.arka-norn/executions.json` | v2, ordres, cibles immuables, tentatives et preuves |
 | Documents | JSON présents sous la Feature | preuves métier |
 | Index | `~/.arka-norn/index/*.json` | cache reconstructible |
 | Audit | `~/.arka-norn/logs/audit.jsonl` | journal privé et rotatif |
@@ -228,24 +230,55 @@ L’orchestrateur pur dans `src/application/agents/agent-orchestration.ts` :
 
 Le runtime charge Project, Feature, registre, sessions et rapport Pipeline. Les interfaces ne doivent pas refaire ce calcul.
 
-### Worker Mastra et mode automatique
+### Worker Mastra et Pilote assisté
 
 Le worker Mastra est un adapter derrière un port d’exécution. Il n’est pas un
-second orchestrateur : Arka Norn crée un `MissionOrder` immuable, vérifie ses
-préconditions, sélectionne le provider et conserve les preuves dans le registre
-d’exécutions séparé. Le Project v4 porte seulement le mode
-`manual|automatic`; la politique et les exécutions vivent dans leurs propres
-fichiers `.arka-norn/`.
+second orchestrateur : Arka Norn crée un aperçu non mutante, exige sa
+confirmation, transforme l’évaluation fraîche en `MissionOrder` immuable et
+conserve les preuves dans le registre séparé. Le marker Project v4 porte
+seulement `manual|automatic`; `automatic` est présenté comme le **Pilote
+assisté**. La politique et les exécutions passent toutes deux en v2 dans leurs
+propres fichiers `.arka-norn/`.
 
-Le sélecteur ne retient que les providers autorisés, activés, sains et capables,
-puis applique priorité Project et départage stable. Le provider est inscrit
-avant le dispatch et il n’existe aucun fallback après le début de l’exécution.
-Un `retry` conserve le provider d’origine. Codex ACP reprend par une nouvelle
-exécution après interruption : aucune reprise exacte générique ne doit être
-promise par l’adapter. En V1, l’adapter Codex ACP est volontairement exclu des
-missions d’écriture Feature : son protocole ne fournit pas encore les détails
-de permission nécessaires au broker. Ne contournez jamais cette capacité par
-une permission large ou un fallback non audité.
+Le port `ForOrchestration` sépare explicitement :
+
+1. `configure` — mémoriser un assistant et un modèle choisis par l’utilisateur,
+   sans secret ;
+2. `preview` — calculer sans mutation Feature, étape, scope, permissions,
+   candidats et empreinte ;
+3. `start` — exiger la même Feature, la même cible assistant/modèle et la même
+   empreinte avant d’armer/lancer ;
+4. `status`, `cancel`, `approve`, `retry` — lire ou agir sur une exécution déjà
+   identifiée.
+
+Le sélecteur évalue les candidats autorisés, activés, sains et capables puis
+utilise priorité Project et départage stable pour une **recommandation**. Il ne
+remplace pas le choix utilisateur. La cible `ExecutionTarget`
+assistant/adapter/modèle est inscrite avant le dispatch et reste immuable. Il
+n’existe ni fallback après le début, ni enchaînement d’une mission réussie : la
+suite exige un nouveau `preview` et une nouvelle confirmation. Une exécution
+historique migrée, sans modèle explicite, ne peut pas être relancée comme si sa
+cible était connue.
+
+Les intégrations diffèrent volontairement :
+
+- Claude utilise le worker à permissions structurées ;
+- Z.AI Coding Plan utilise ce même contrat avec un endpoint compatible Claude
+  fixé dans l’adapter, uniquement après activation et identifiant local
+  explicites ; ne rendez jamais cet endpoint configurable par le Project ;
+- Codex ACP et Kimi Code ACP restent des choix visibles, mais ne sont pas
+  éligibles aux écritures automatiques dans une Feature tant que leurs demandes
+  de permission restent opaques ;
+- « Kimi Platform » est le libellé utilisateur de l’intégration Kimi Code ACP.
+  N’impliquez pas qu’une API Kimi Platform directe est supportée sans un nouveau
+  contrat de broker et un spike dédié.
+
+Les étapes mappées au rôle `audit` sont des missions lecture seule. Le runtime
+fige `read_workspace` dans l’ordre, retire `Edit` et `Write` de la surface
+Claude et ne persiste jamais `outcome.output`. Une réponse valide doit fournir
+un verdict fermé ; elle ne fait pas avancer le Pipeline. Ne contournez pas ce
+contrat en ajoutant du texte libre du provider dans `events`, `proofReferences`
+ou le registre : ces données sont exposées par `orchestration status --json`.
 
 Le broker est deny-by-default. Le workspace Mastra n’est pas une sandbox :
 validez le scope, réduisez l’environnement, ne persistez ni secret ni PID dans
@@ -253,7 +286,9 @@ le Project, et suspendez dès qu’une permission, une précondition, une preuve
 un scope sort du contrat. Une demande ACP opaque est refusée ; `approve` ne
 peut accepter qu’une demande structurée, liée à un chemin et à une opération.
 Les métadonnées de processus sont privées et reconstructibles sous
-`ARKA_NORN_HOME`.
+`ARKA_NORN_HOME`. Les tests CI utilisent des providers fake ; les smokes réels
+restent opt-in et exigent des identifiants fournis explicitement dans
+l’environnement local.
 
 ### Ajouter un rôle orchestré
 
@@ -328,6 +363,13 @@ arka-norn skills install --target . --profile all --dry-run
 arka-norn skills doctor --target . --profile all --global --json
 ```
 
+Le port `SkillManager` sépare l’inspection du Project de `inspectGlobal()` : une
+copie locale saine ne doit jamais masquer une entrée `/arka-norn` ou
+`$arka-norn` obsolète. La TUI rend les deux diagnostics et, pour le scope
+global, affiche le plan puis réclame une seconde confirmation avant une
+installation forcée. Couvrez ce parcours par un test temporaire qui contient
+une divergence globale réelle.
+
 Une skill doit dire quand l’utiliser, quand ne pas l’utiliser, quels inputs sont obligatoires, comment s’arrêter et quel format rendre. Elle ne doit jamais demander à l’Agent de deviner un Project, une Feature, une session ou une étape.
 
 ## 11. Tests et qualité
@@ -354,9 +396,11 @@ Une skill doit dire quand l’utiliser, quand ne pas l’utiliser, quels inputs 
 - Orchestration : providers fake en CI pour sélection, refus, annulation,
   interruption, retry, verrou et audit trail.
 
-Les smoke tests Claude/Codex réels sont opt-in. Ils exigent des identifiants et
-une configuration provider fournis explicitement par l’environnement ; ne les
-branchez jamais aux gates CI ordinaires ni aux fixtures.
+Les smoke tests réels Claude, Codex, Kimi et Z.AI sont opt-in. Ils exigent des
+identifiants et une configuration d’assistant fournis explicitement par
+l’environnement local ; ne les branchez jamais aux gates CI ordinaires ni aux
+fixtures. Kimi implique le harness Kimi Code ACP, non une API Platform directe,
+et Z.AI implique son activation locale explicite.
 
 Un test ne doit pas dépendre du vrai `~/.arka-norn`. Utilisez un home temporaire et nettoyez-le dans le teardown.
 

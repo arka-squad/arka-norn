@@ -64,7 +64,7 @@ export function createHomeView(deps: HomeViewDeps): HomeView {
     return [
       { label: "Créer ou importer un Project", value: "action:create", description: "déclare la racine qui contiendra Features et registre Agents" },
       ...projects.map((project) => ({
-        label: `${CIRCLE} ${project.name} · ${project.orchestrationMode === "automatic" ? "AUTO" : "MANUEL"}`,
+        label: `${CIRCLE} ${project.name} · ${project.orchestrationMode === "automatic" ? "Pilote assisté" : "Lancement manuel"}`,
         value: `project:${project.id.value}` as const,
         description: `${project.root}  ${formatActivity(project.updatedAt, now())}`,
       })),
@@ -147,7 +147,7 @@ export function createHomeView(deps: HomeViewDeps): HomeView {
       const project = await deps.projects.create({ ...input, orchestrationMode });
       pendingProject = undefined;
       mode = "menu";
-      message = `Projet créé : ${project.name} (${orchestrationMode === "automatic" ? "orchestration automatique" : "orchestration manuelle"}).`;
+      message = `Projet créé : ${project.name} (${orchestrationMode === "automatic" ? "Pilote assisté activé" : "lancement manuel"}).`;
       await refresh();
     });
   }
@@ -263,11 +263,11 @@ export function createHomeView(deps: HomeViewDeps): HomeView {
           return;
         }
         if (mode === "orchestration-mode") {
-          const selected = orchestrationMode === "manual" ? "Manuelle" : "Automatique";
-          for (const value of titledBox("Mode d’orchestration du Project", [
-            "Choisissez comment le framework exécute les missions autorisées.",
-            "Manuelle : vous lancez et suivez chaque agent.",
-            "Automatique : Arka garde le contrôle, Mastra exécute les ordres validés.",
+          const selected = orchestrationMode === "manual" ? "Je lance moi-même les assistants" : "Pilote assisté";
+          for (const value of titledBox("Niveau de délégation", [
+            "Choisissez comment vous souhaitez avancer. Vous pourrez modifier ce choix dans le Project.",
+            "Je lance moi-même les assistants : vous choisissez chaque mission et son lancement.",
+            "Pilote assisté : Arka prépare les missions autorisées, explique leur effet et attend votre accord avant chaque lancement.",
             "",
             `Choix : ${selected}`,
             "↑/↓ ou ←/→ change · Entrée confirme · Échap revient au chemin sans créer",

@@ -18,12 +18,17 @@ export interface SetProjectOrchestrationModeInput {
   readonly orchestrationMode: ProjectOrchestrationMode;
 }
 
+export interface ForgetProjectOptions {
+  /** Recovery path for an indexed Project whose local marker has disappeared. */
+  readonly indexOnly?: boolean;
+}
+
 export interface ForProjects {
   list(): Promise<readonly Project[]>;
   create(input: CreateProjectInput): Promise<Project>;
   importFrom(input: ImportProjectInput): Promise<Project>;
   show(id: ProjectId): Promise<Project>;
-  forget(id: ProjectId): Promise<void>;
+  forget(id: ProjectId, options?: ForgetProjectOptions): Promise<void>;
   switchTo(id: ProjectId): Promise<Project>;
   setOrchestrationMode(input: SetProjectOrchestrationModeInput): Promise<Project>;
 }

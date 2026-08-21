@@ -205,7 +205,7 @@ export function createFeatureDetailView(deps) {
     function buildMenuItems() {
         return [
             { label: deps.feature.pipelineId === "arka-norn-fastdev" ? "Continuer le rework" : "Continuer la Feature", value: "action:continue", description: "ouvre l'action guidée, sa raison, ses preuves et sa commande" },
-            { label: "Organiser les agents / préparer une reprise", value: "action:orchestrate", description: "conseil Product, prompts parallèles et nouveau contexte principal" },
+            { label: "Préparer une session manuelle", value: "action:orchestrate", description: "conseil Product, prompts parallèles et contexte principal ; aucun lancement automatique" },
             { label: "Voir le diagnostic complet", value: "action:status", description: "présence, schéma, métier, dépendances et raison de blocage" },
             { label: "Scaffold manuel", value: "action:scaffold", description: deps.currentAgentId === undefined ? "bloqué : sélectionnez d’abord un agent dans le Project" : `action secondaire · document v3 signé par ${deps.currentAgentId}` },
             { label: "Valider un document rempli", value: "action:validate", description: "détecte champs manquants, sentinelles et contrat invalide" },

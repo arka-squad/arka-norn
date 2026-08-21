@@ -91,7 +91,7 @@ test("les adaptateurs CLI Project, Feature, Agent, Pipeline et FastDev couvrent 
   const agent = { ...management, frameworkRoot: ROOT, sessionId: AgentSessionId.MAIN };
 
   assert.equal((await runManagementCommand(["project", "list", "--json"], management)).code, 0);
-  assert.equal((await runManagementCommand(["project", "add", fixture.projectRoot, "--id", "quality-project", "--name", "Quality", "--json"], management)).code, 0);
+  assert.equal((await runManagementCommand(["project", "add", fixture.projectRoot, "--id", "quality-project", "--name", "Quality", "--orchestration-mode", "manual", "--json"], management)).code, 0);
   assert.equal((await runManagementCommand(["project", "show", "quality-project", "--json"], management)).code, 0);
   assert.equal((await runManagementCommand(["project", "use", "quality-project", "--json"], management)).code, 0);
   assert.equal((await runManagementCommand(["project", "set-orchestration-mode", "quality-project", "--orchestration-mode", "automatic", "--json"], management)).code, 0);

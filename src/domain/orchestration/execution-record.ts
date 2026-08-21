@@ -3,9 +3,12 @@ import { containsSecretLikeText, MissionOrder } from "./mission-order.js";
 import {
   isExecutionAttemptStatus,
   isExecutionRecordStatus,
+  isExecutionTarget,
+  legacyExecutionTarget,
   type ExecutionAttemptStatus,
   type ExecutionProvider,
   type ExecutionRecordStatus,
+  type ExecutionTarget,
 } from "./types.js";
 
 const EXECUTION_ID_PATTERN = /^[a-z][a-z0-9-]{0,95}$/;
@@ -52,7 +55,8 @@ export interface ExecutionAttempt {
 export interface ExecutionRecordProps {
   readonly id: string;
   readonly order: MissionOrder;
-  readonly provider: ExecutionProvider;
+  /** Immutable provider, adapter and model chosen before this mission starts. */
+  readonly target: ExecutionTarget;
   readonly status: ExecutionRecordStatus;
   readonly attempts: readonly ExecutionAttempt[];
   readonly events: readonly ExecutionEvent[];
@@ -70,12 +74,14 @@ export interface BeginExecutionInput {
 }
 
 /**
- * A history-bearing execution. Its selected provider and MissionOrder are
- * immutable: retries reuse the same provider instead of silently falling back.
+ * A history-bearing execution. Its target and MissionOrder are immutable:
+ * retries reuse the same provider, adapter and model instead of falling back.
  */
 export class ExecutionRecord {
   public readonly id: string;
   public readonly order: MissionOrder;
+  public readonly target: ExecutionTarget;
+  /** Compatibility accessor for older renderers; new code must use `target`. */
   public readonly provider: ExecutionProvider;
   public readonly status: ExecutionRecordStatus;
   public readonly attempts: readonly ExecutionAttempt[];
@@ -90,7 +96,8 @@ export class ExecutionRecord {
   private constructor(props: ExecutionRecordProps) {
     this.id = props.id;
     this.order = MissionOrder.create(props.order.toProps());
-    this.provider = props.provider;
+    this.target = freezeExecutionTarget(props.target);
+    this.provider = this.target.provider;
     this.status = props.status;
     this.attempts = freezeAttempts(props.attempts);
     this.events = freezeEvents(props.events);
@@ -107,14 +114,34 @@ export class ExecutionRecord {
     return new ExecutionRecord(props);
   }
 
-  public static planned(id: string, order: MissionOrder, provider: ExecutionProvider, at: Date): ExecutionRecord {
+  public static planned(id: string, order: MissionOrder, target: ExecutionTarget, at: Date): ExecutionRecord;
+  /**
+   * Compatibility overload. A provider-only order is treated as legacy and
+   * cannot be retried because no model can be safely reconstructed.
+   */
+  public static planned(id: string, order: MissionOrder, provider: ExecutionProvider, at: Date): ExecutionRecord;
+  public static planned(
+    id: string,
+    order: MissionOrder,
+    targetOrProvider: ExecutionTarget | ExecutionProvider,
+    at: Date,
+  ): ExecutionRecord {
+    const target = typeof targetOrProvider === "string"
+      ? legacyExecutionTarget(targetOrProvider)
+      : targetOrProvider;
+    const targetEvent = target.source === "legacy"
+      ? { at, type: "target_selected", detail: "Legacy execution target retained without a model." }
+      : { at, type: "target_selected", detail: `Provider ${target.provider} and model ${target.model} selected by the user.` };
     return ExecutionRecord.create({
       id,
       order,
-      provider,
+      target,
       status: "planned",
       attempts: [],
-      events: [{ at, type: "planned", detail: "Mission order accepted by the control plane." }],
+      events: [
+        targetEvent,
+        { at, type: "planned", detail: "Mission order accepted by the control plane." },
+      ],
       truncatedEventCount: 0,
       proofReferences: [],
       createdAt: at,
@@ -260,6 +287,9 @@ export class ExecutionRecord {
   }
 
   public retry(at: Date): ExecutionRecord {
+    if (this.target.source === "legacy") {
+      throw new InvalidExecutionRecordError("legacy execution target cannot be retried without an explicitly selected model");
+    }
     if (this.status !== "failed" && this.status !== "cancelled" && this.status !== "interrupted") {
       throw new InvalidExecutionRecordError(`cannot retry an execution in ${this.status}`);
     }
@@ -269,7 +299,7 @@ export class ExecutionRecord {
     return this.transition({
       status: "planned",
       at,
-      event: { type: "retry_planned", detail: "Retry planned with the provider selected for the original execution." },
+      event: { type: "retry_planned", detail: "Retry planned with the original provider, adapter and model." },
     });
   }
 
@@ -282,7 +312,7 @@ export class ExecutionRecord {
     return {
       id: this.id,
       order: MissionOrder.create(this.order.toProps()),
-      provider: this.provider,
+      target: cloneExecutionTarget(this.target),
       status: this.status,
       attempts: cloneAttempts(this.attempts),
       events: cloneEvents(this.events),
@@ -320,7 +350,7 @@ export class ExecutionRecord {
     return ExecutionRecord.create({
       id: this.id,
       order: this.order,
-      provider: this.provider,
+      target: this.target,
       status: input.status,
       attempts: input.attempts ?? this.attempts,
       events: bounded.events,
@@ -349,7 +379,7 @@ function validateRecordProps(props: ExecutionRecordProps): void {
     throw new InvalidExecutionRecordError("id must match [a-z][a-z0-9-]{0,95}");
   }
   if (!(props.order instanceof MissionOrder)) throw new InvalidExecutionRecordError("order must be a MissionOrder");
-  if (props.provider !== "claude" && props.provider !== "codex") throw new InvalidExecutionRecordError("provider is unsupported");
+  if (!isExecutionTarget(props.target)) throw new InvalidExecutionRecordError("target is invalid");
   if (!isExecutionRecordStatus(props.status)) throw new InvalidExecutionRecordError("status is unsupported");
   validateAttempts(props.attempts);
   validateEvents(props.events);
@@ -517,4 +547,22 @@ function cloneAttempts(attempts: readonly ExecutionAttempt[]): readonly Executio
 
 function cloneEvents(events: readonly ExecutionEvent[]): readonly ExecutionEvent[] {
   return events.map((event) => ({ ...event, at: new Date(event.at.getTime()) }));
+}
+
+function freezeExecutionTarget(target: ExecutionTarget): ExecutionTarget {
+  return Object.freeze({
+    provider: target.provider,
+    adapter: target.adapter,
+    ...(target.model === undefined ? {} : { model: target.model }),
+    source: target.source,
+  });
+}
+
+function cloneExecutionTarget(target: ExecutionTarget): ExecutionTarget {
+  return {
+    provider: target.provider,
+    adapter: target.adapter,
+    ...(target.model === undefined ? {} : { model: target.model }),
+    source: target.source,
+  };
 }

@@ -40,15 +40,15 @@ export function createProjectDetailView(deps) {
             }),
             { label: "Gérer les agents du projet", value: "action:agents", description: "identités, périmètres, agent courant et remplacements" },
             ...(deps.projects === undefined ? [] : [{
-                    label: `Mode d’orchestration — ${project.orchestrationMode === "automatic" ? "AUTOMATIQUE" : "MANUEL"}`,
+                    label: `Pilote assisté — ${project.orchestrationMode === "automatic" ? "activé" : "désactivé"}`,
                     value: "action:orchestration",
                     description: project.orchestrationMode === "automatic"
-                        ? "les prochaines missions validées peuvent être confiées au worker local"
-                        : "aucune nouvelle mission automatique ne sera planifiée",
+                        ? "Arka prépare les missions autorisées et attend votre accord avant chaque lancement"
+                        : "vous choisissez et lancez vous-même les assistants",
                 }]),
             ...(deps.onOpenOrchestration === undefined ? [] : [{
-                    label: "Suivre l’orchestration", value: "action:orchestration-dashboard",
-                    description: "mission active, provider, événements et action utilisateur attendue",
+                    label: "Ouvrir le Pilote assisté", value: "action:orchestration-dashboard",
+                    description: "préparer une mission, choisir l’assistant et suivre ce qui nécessite votre accord",
                 }]),
             { label: "Rescanner le projet", value: "action:scan" },
             { label: "Retirer ce projet de l’index", value: "action:forget" },
@@ -160,7 +160,7 @@ export function createProjectDetailView(deps) {
                 selectedOrchestrationMode = persistedMode;
                 mode = "menu";
                 menu = buildMenu();
-                message = `Mode d’orchestration actualisé : ${persistedMode === "automatic" ? "automatique" : "manuel"}.`;
+                message = `Pilote assisté actualisé : ${persistedMode === "automatic" ? "activé" : "désactivé"}.`;
                 return;
             }
             if (selectedOrchestrationMode === persistedMode) {
@@ -168,20 +168,20 @@ export function createProjectDetailView(deps) {
                 mode = "menu";
                 menu = buildMenu();
                 message = persistedMode === "automatic"
-                    ? "Mode automatique déjà armé."
-                    : "Mode manuel déjà actif.";
+                    ? "Le Pilote assisté est déjà activé."
+                    : "Le Pilote assisté est déjà désactivé.";
                 return;
             }
             project = await deps.projects.setOrchestrationMode({ id: project.id, orchestrationMode: selectedOrchestrationMode });
             mode = "menu";
             menu = buildMenu();
             message = selectedOrchestrationMode === "automatic"
-                ? "Mode automatique armé : seules les prochaines missions validées pourront être planifiées."
-                : "Mode manuel activé : l’exécution active n’est pas annulée ; aucune nouvelle mission automatique ne sera planifiée.";
+                ? "Pilote assisté activé : Arka préparera les missions autorisées et attendra votre accord avant chaque lancement."
+                : "Pilote assisté désactivé : la mission en cours continue, mais aucune nouvelle mission ne sera préparée automatiquement.";
         });
     }
     async function refresh() {
-        features = (await deps.features.list()).filter((feature) => feature.belongsTo(project.id));
+        features = [...await deps.features.list(project.id)];
         if (deps.metricsForFeature !== undefined) {
             metrics = new Map(await mapConcurrent(features, 4, async (feature) => [feature.id.value, await deps.metricsForFeature(feature)]));
             statuses = new Map([...metrics].map(([id, value]) => [id, value.status]));
@@ -303,14 +303,14 @@ export function createProjectDetailView(deps) {
                     return;
                 }
                 if (mode === "orchestration-mode") {
-                    const selected = selectedOrchestrationMode === "automatic" ? "Automatique" : "Manuel";
-                    for (const value of titledBox("Mode d’orchestration", [
-                        `Mode actuel : ${project.orchestrationMode === "automatic" ? "Automatique" : "Manuel"}.`,
+                    const selected = selectedOrchestrationMode === "automatic" ? "activé" : "désactivé";
+                    for (const value of titledBox("Pilote assisté", [
+                        `État actuel : ${project.orchestrationMode === "automatic" ? "activé" : "désactivé"}.`,
                         "",
-                        `Nouveau mode : ${selected}`,
+                        `Nouvel état : ${selected}`,
                         selectedOrchestrationMode === "automatic"
-                            ? "Arka valide chaque mission ; le worker local n’exécute que ces ordres."
-                            : "Le passage au manuel arrête la planification suivante sans annuler silencieusement l’exécution active.",
+                            ? "Arka prépare chaque mission autorisée, vous explique son effet, puis attend votre accord avant de lancer l’assistant."
+                            : "Vous gardez la main sur les prochains lancements. Une mission déjà en cours n’est jamais arrêtée silencieusement.",
                         "↑/↓ ou ←/→ change · Entrée enregistre · Échap annule",
                     ], theme, { border: selectedOrchestrationMode === "automatic" ? theme.arkaAccent : theme.arkaRed }).split("\n"))
                         line(value);
@@ -326,7 +326,7 @@ export function createProjectDetailView(deps) {
                 }), { debts: 0, qa: 0, handoffs: 0, invalid: 0 });
                 for (const value of titledBox(project.name, [
                     `Racine : ${project.root}`,
-                    `Orchestration : ${project.orchestrationMode === "automatic" ? "automatique (Arka contrôle les missions)" : "manuelle"}`,
+                    `Pilote assisté : ${project.orchestrationMode === "automatic" ? "activé — Arka prépare, vous confirmez" : "désactivé — vous lancez vos assistants"}`,
                     `Features : ${features.length}`,
                     `États : ${groups}`,
                     `Dettes : ${totals.debts} · anomalies QA : ${totals.qa} · handoffs : ${totals.handoffs} · documents invalides : ${totals.invalid}`,

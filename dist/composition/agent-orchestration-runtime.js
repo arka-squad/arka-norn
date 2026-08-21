@@ -14,7 +14,7 @@ export function createAgentOrchestrationRuntime(deps) {
     };
     async function loadState(input) {
         const project = await deps.projects.show(input.projectId);
-        const projectFeatures = (await deps.features.list()).filter((feature) => feature.belongsTo(project.id));
+        const projectFeatures = await deps.features.list(project.id);
         const feature = input.featureId === undefined ? uniqueFeature(projectFeatures) : await deps.features.show(input.featureId);
         if (feature !== undefined && !feature.belongsTo(project.id))
             throw new Error(`Feature ${feature.id.value} does not belong to Project ${project.id.value}.`);
