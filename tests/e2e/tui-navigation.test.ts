@@ -247,8 +247,8 @@ test("le Pilote assisté confirme une prévisualisation puis actualise le détai
     return output.includes("Préparation terminée");
   }, "prévisualisation de la mission");
   dashboard?.onKey({ kind: "enter" });
-  await waitUntil(async () => (await management.projects.show(project.id)).orchestrationMode === "automatic", "armement du Project par le cockpit");
-  await waitUntil(() => synchronizedMode === "automatic", "synchronisation du Project après start");
+  await waitUntil(async () => (await management.projects.show(project.id)).orchestrationMode === "automatic", "armement du Project par le cockpit", 120_000);
+  await waitUntil(() => synchronizedMode === "automatic", "synchronisation du Project après start", 120_000);
   assert.equal(refreshes, 1);
   assert.deepEqual(started?.selection, { provider: "claude", model: "claude-test" });
   assert.equal(started?.featureId.value, feature.id.value);

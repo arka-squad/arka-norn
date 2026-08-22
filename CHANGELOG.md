@@ -4,6 +4,10 @@ Toutes les modifications notables d’arka.norn sont consignées ici. Le projet
 utilise le versionnement sémantique ; les artefacts sont produits à partir des
 tags `vX.Y.Z`.
 
+## 1.2.4 — 2026-08-22
+
+- tests : stabilise le scénario TUI d’armement du Pilote assisté sous Windows/Node 22 en donnant plus de budget aux attentes asynchrones de démarrage et de synchronisation Project.
+
 ## 1.2.3 — 2026-08-22
 
 - packaging npm : normalise le chemin du binaire `arka-norn` au format attendu par `npm pkg fix` (`bin/arka-norn.mjs`) afin que le tarball publié corresponde au manifeste Git sans auto-correction locale.
