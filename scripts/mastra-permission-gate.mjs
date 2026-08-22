@@ -134,7 +134,7 @@ function globBase(target) {
 }
 
 function inside(root, target) {
-  const relation = relative(root, target);
+  const relation = relative(root, target).replaceAll("\\", "/");
   return relation === "" || (!relation.startsWith(`..${String.fromCharCode(47)}`) && relation !== ".." && !isAbsolute(relation));
 }
 
