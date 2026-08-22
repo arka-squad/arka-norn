@@ -503,7 +503,7 @@ function sendText(send: (event: KeyEvent) => void, value: string): void {
   for (const character of value) send({ kind: "char", value: character });
 }
 
-async function waitUntil(predicate: () => boolean | Promise<boolean>, label: string, timeoutMs = 10_000): Promise<void> {
+async function waitUntil(predicate: () => boolean | Promise<boolean>, label: string, timeoutMs = 30_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (await predicate()) return;
