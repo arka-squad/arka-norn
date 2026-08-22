@@ -112,9 +112,12 @@ test("le détail TUI permet de basculer explicitement le mode Project", async (c
     onBack() {},
   });
 
-  for (let index = 0; index < 5; index += 1) view.onKey({ kind: "down" });
+  view.onKey({ kind: "filter" });
+  for (const character of "pilote") view.onKey({ kind: "char", value: character });
   view.onKey({ kind: "enter" });
+  await waitUntil(() => renderScene(view).includes("Nouvel état : désactivé"), "ouverture du choix de mode Project");
   view.onKey({ kind: "down" });
+  await waitUntil(() => renderScene(view).includes("Nouvel état : activé"), "sélection du mode Project automatique");
   view.onKey({ kind: "enter" });
 
   await waitUntil(async () => (await management.projects.show(ProjectId.of("project"))).orchestrationMode === "automatic", "bascule du mode Project");
@@ -501,6 +504,12 @@ function controlledInput(): { readonly source: InputSource; readonly send: (even
 
 function sendText(send: (event: KeyEvent) => void, value: string): void {
   for (const character of value) send({ kind: "char", value: character });
+}
+
+function renderScene(scene: { render(renderer: ReturnType<typeof createRenderer>, theme: ReturnType<typeof createTheme>): void }): string {
+  let output = "";
+  scene.render(createRenderer({ write: (chunk) => { output += chunk; }, isTTY: false, columns: 120 }), createTheme({ NO_COLOR: "1" }, false));
+  return output;
 }
 
 async function waitUntil(predicate: () => boolean | Promise<boolean>, label: string, timeoutMs = 30_000): Promise<void> {
