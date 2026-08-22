@@ -4,6 +4,11 @@ Toutes les modifications notables d’arka.norn sont consignées ici. Le projet
 utilise le versionnement sémantique ; les artefacts sont produits à partir des
 tags `vX.Y.Z`.
 
+## 1.2.2 — 2026-08-22
+
+- tests : stabilise le test TUI de bascule du mode Project en sélectionnant explicitement l’entrée `Pilote assisté` par filtre au lieu de dépendre de sa position numérique dans le menu ;
+- release : remplace le tag `v1.2.1` dont la CI Windows/Node 24 pouvait échouer sur un timeout TUI malgré le correctif déjà publié.
+
 ## 1.2.1 — 2026-08-22
 
 - correctif sécurité : la barrière de permissions normalise désormais les séparateurs de chemins sous Windows ; `inside()` comparait `relative()` avec des barres obliques alors que Windows renvoie des antislashs, laissant passer des chemins hors du périmètre autorisé ;
