@@ -4,6 +4,13 @@ Toutes les modifications notables d’arka.norn sont consignées ici. Le projet
 utilise le versionnement sémantique ; les artefacts sont produits à partir des
 tags `vX.Y.Z`.
 
+## 1.2.1 — 2026-08-22
+
+- correctif sécurité : la barrière de permissions normalise désormais les séparateurs de chemins sous Windows ; `inside()` comparait `relative()` avec des barres obliques alors que Windows renvoie des antislashs, laissant passer des chemins hors du périmètre autorisé ;
+- tests : création des symlinks de répertoire avec un `type` explicite et assertions de chemins indépendantes du séparateur, afin que la suite tourne à l'identique sous Windows ;
+- CI : gate d'audit avec exemptions documentées (advisory GHSA-866g-f22w-33x8 sans correctif publié, chemin vulnérable inatteignable dans notre exécution) ; toute autre vulnérabilité échoue ;
+- CI : budget d'attente TUI porté à 30 s pour absorber la lenteur du combo Windows + Node 24.
+
 ## 1.2.0 — 2026-08-21
 
 - marker Project porté en v4 avec le mode persistant `manual|automatic`, tandis que les markers Feature restent en v3 ; les migrations Project v1/v2/v3 choisissent `manual` sans mutation lors d'une lecture ;
