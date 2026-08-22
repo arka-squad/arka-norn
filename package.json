@@ -1,6 +1,6 @@
 {
   "name": "arka-norn",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -33,7 +33,7 @@
   "type": "module",
   "description": "Framework agent-agnostique et multiprovider : schémas JSON + CLI Node pour piloter le cycle concept -> plan -> audit -> invariants -> dettes -> tâches -> spec -> CR-dev -> recette QA, et déployer les skills locaux ou globaux pour Claude et Codex.",
   "bin": {
-    "arka-norn": "./bin/arka-norn.mjs"
+    "arka-norn": "bin/arka-norn.mjs"
   },
   "scripts": {
     "build": "node scripts/clean-dist.mjs && tsc",
