@@ -64,7 +64,7 @@ test("la migration Feature applique le projectId explicite et sauvegarde v1", as
   const applied = await migrateMarkerFile({ kind: "feature", sourcePath: markerPath, projectId: "arka-norn", apply: true });
   assert.equal(applied.plan.changed, true);
   const migrated = JSON.parse(readFileSync(markerPath, "utf8")) as { readonly schemaVersion: number; readonly projectId: string };
-  assert.deepEqual(migrated, { ...migrated, schemaVersion: 3, projectId: "arka-norn" });
+  assert.deepEqual(migrated, { ...migrated, schemaVersion: 4, projectId: "arka-norn" });
   assert.equal("root" in migrated, false);
   assert.equal(JSON.parse(readFileSync(`${markerPath}.v1.bak`, "utf8")).version, 1);
 });

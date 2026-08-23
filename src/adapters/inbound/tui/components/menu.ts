@@ -14,26 +14,10 @@
  * limitations under the License.
  */
 
-/**
- * Menu -- Scene de navigation clavier (flèches, filtre `/`, sélection).
- * Port TS de arka-cc-management (adapters/inbound/tui/components/menu.ts).
- *
- * DÉVIATION DÉLIBÉRÉE vs la source : `enter` retourne toujours `'consumed'`,
- * jamais `'pop'`. La source retourne `'pop'` après `onSelect(value)` ; si
- * `onSelect` pousse lui-même une nouvelle Scene de façon synchrone (cas
- * quasi systématique pour toute navigation drill-down), `dispatchKey`
- * (tui-app.ts) exécute le `top.onKey()` -> push AVANT de lire le retour,
- * puis pop la scène qui vient d'être poussée (devenue le nouveau top) au
- * lieu du menu lui-même : la nouvelle vue disparaît instantanément et la
- * pile se retrouve corrompue. Bug reproduit et corrigé pendant le
- * portage initial d'arka-norn (phase JS) ; la correction consiste à ne
- * plus jamais laisser le menu se pop tout seul sur sélection -- c'est à
- * l'appelant de gérer push()/pop() explicitement dans son `onSelect`.
- * `escape`/`quit` restent `'pop'` : `onCancel` ne pousse rien, pas de race.
- */
 import type { KeyEvent } from "../runtime/input.js";
 import type { Renderer } from "../runtime/render.js";
 import type { Theme } from "../runtime/theme.js";
+import { translate } from "../../../../application/localization/locale.js";
 
 const ANGLE_RIGHT = String.fromCharCode(0x276f);
 const TRIANGLE_UP = String.fromCharCode(0x25b2);
@@ -53,11 +37,8 @@ interface IndexedMenuItem<V> extends MenuItem<V> {
 export interface MenuOptions<V> {
   readonly title?: string;
   readonly hint?: string;
-  /** 0 = illimité (défaut). >0 = viewport scrollable. */
   readonly maxVisible?: number;
-  /** Appelé sur Enter. Reçoit la valeur choisie. Ne PAS supposer que le menu se ferme -- gérer soi-même push()/pop(). */
   readonly onSelect: (value: V) => void;
-  /** Handler d'annulation -- déclenché sur Escape/q (hors mode filtre). */
   readonly onCancel?: () => void;
 }
 
@@ -70,8 +51,6 @@ export interface MenuScene {
   readonly filterText: string;
   readonly visibleCount: number;
 }
-
-const DEFAULT_HINT = "Flèches naviguer, Enter sélectionner, / filtrer, q quitter";
 
 export function filterItems<V>(
   items: readonly MenuItem<V>[],
@@ -230,10 +209,10 @@ export function createMenuScene<V = string>(items: readonly MenuItem<V>[], optio
     const vis = visible();
     const eMax = effectiveMax();
     const scroll = needsScroll();
-    if (scroll) lines.push(viewOffset > 0 ? `    ${theme.dim(`${TRIANGLE_UP} ${viewOffset} de plus`)}` : "");
+    if (scroll) lines.push(viewOffset > 0 ? `    ${theme.dim(`${TRIANGLE_UP} ${translate("tui.menu.moreAbove", { count: viewOffset })}`)}` : "");
 
     if (vis.length === 0) {
-      for (let index = 0; index < Math.max(eMax, 1); index++) lines.push(index === 0 ? `    ${theme.dim("(aucun résultat)")}` : "");
+      for (let index = 0; index < Math.max(eMax, 1); index++) lines.push(index === 0 ? `    ${theme.dim(translate("tui.menu.noResults"))}` : "");
     } else {
       for (let index = 0; index < eMax; index++) {
         const realIndex = viewOffset + index;
@@ -249,9 +228,9 @@ export function createMenuScene<V = string>(items: readonly MenuItem<V>[], optio
 
     if (scroll) {
       const remaining = vis.length - viewOffset - eMax;
-      lines.push(remaining > 0 ? `    ${theme.dim(`${TRIANGLE_DOWN} ${remaining} de plus`)}` : "");
+      lines.push(remaining > 0 ? `    ${theme.dim(`${TRIANGLE_DOWN} ${translate("tui.menu.moreBelow", { count: remaining })}`)}` : "");
     }
-    lines.push("", `  ${theme.dim(options.hint ?? DEFAULT_HINT)}`);
+    lines.push("", `  ${theme.dim(options.hint ?? translate("tui.menu.defaultHint"))}`);
     if (filterMode) lines.push(`  ${theme.arkaAccent("/")} ${filterText}${theme.dim("_")}`);
     return lines;
   }

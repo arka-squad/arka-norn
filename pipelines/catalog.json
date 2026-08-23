@@ -1,27 +1,37 @@
 {
-  "schemaVersion": 1,
-  "defaultPipelineId": "arka-norn-essentiel",
+  "schemaVersion": 2,
+  "defaultPipelineId": "arka-norn-essential",
   "pipelines": [
     {
-      "id": "arka-norn-default",
-      "aliases": ["standard"],
-      "name": "Pipeline standard",
-      "description": "Cycle complet à dix étapes pour une Feature structurante ou incertaine.",
+      "id": "arka-norn-complete",
+      "aliases": [
+        "complete",
+        "standard",
+        "arka-norn-default"
+      ],
+      "name": "Complete",
+      "description": "Full ten-step workflow for structural, uncertain or migration-heavy Features.",
       "definition": "pipeline.json"
     },
     {
-      "id": "arka-norn-fastdev",
-      "aliases": ["fastdev"],
-      "name": "FastDev rework",
-      "description": "Cycle court et contrôlé pour une correction, un refactor ou une amélioration UX bornée.",
-      "definition": "pipelines/arka-norn-fastdev.json"
+      "id": "arka-norn-essential",
+      "aliases": [
+        "essential",
+        "essentiel",
+        "arka-norn-essentiel"
+      ],
+      "name": "Essential",
+      "description": "Five-step default workflow for delivering a well-understood Feature.",
+      "definition": "pipelines/arka-norn-essential.json"
     },
     {
-      "id": "arka-norn-essentiel",
-      "aliases": ["essentiel"],
-      "name": "Pipeline essentiel",
-      "description": "Cycle orienté Feature à cinq étapes pour un périmètre connu : cadrage fusionné, livraison, audit et validation.",
-      "definition": "pipelines/arka-norn-essentiel.json"
+      "id": "arka-norn-fastdev",
+      "aliases": [
+        "fastdev"
+      ],
+      "name": "FastDev",
+      "description": "Short controlled workflow for bounded fixes, refactors and UX improvements.",
+      "definition": "pipelines/arka-norn-fastdev.json"
     }
   ]
 }

@@ -79,13 +79,13 @@ test("un consumer vierge installe le tarball sans node_modules du worktree", asy
   assert.ok(packagedPaths.includes("skills-src/catalog/skills.json"));
   assert.ok(packagedPaths.includes("skills-src/arka-norn.json"));
   assert.ok(packagedPaths.includes("skills-src/arka-fastdev.json"));
-  assert.ok(packagedPaths.includes("skills-src/arka-essentiel.json"));
+  assert.ok(packagedPaths.includes("skills-src/arka-essential.json"));
   assert.ok(packagedPaths.includes("pipelines/arka-norn-fastdev.json"));
-  assert.ok(packagedPaths.includes("pipelines/arka-norn-essentiel.json"));
-  assert.ok(packagedPaths.includes("schemas/cadrage-essentiel.schema.json"));
-  assert.ok(packagedPaths.includes("docs/essentiel.md"));
-  assert.ok(packagedPaths.includes("docs/guide-developpeur.md"));
-  assert.ok(packagedPaths.includes("docs/manuel-utilisateur.md"));
+  assert.ok(packagedPaths.includes("pipelines/arka-norn-essential.json"));
+  assert.ok(packagedPaths.includes("schemas/feature-brief.schema.json"));
+  assert.ok(packagedPaths.includes("docs/essential.md"));
+  assert.ok(packagedPaths.includes("docs/developer-guide.md"));
+  assert.ok(packagedPaths.includes("docs/user-guide.md"));
   assert.equal(packagedPaths.some((file) => file.startsWith("tests/") || file.startsWith(".input/") || file.startsWith("src/")), false);
 
   const productionTree = runNpm(["ls", "--omit=dev", "--all", "--parseable"], { cwd: ROOT, encoding: "utf8" });
@@ -129,10 +129,10 @@ test("un consumer vierge installe le tarball sans node_modules du worktree", asy
 
   const packageRoot = resolve(consumer, "node_modules", "arka-norn");
   assert.equal(existsSync(resolve(packageRoot, "dist", "composition", "pipeline-runtime.js")), true);
-  assert.equal(existsSync(resolve(packageRoot, "docs", "guide-developpeur.md")), true);
-  assert.equal(existsSync(resolve(packageRoot, "docs", "manuel-utilisateur.md")), true);
+  assert.equal(existsSync(resolve(packageRoot, "docs", "developer-guide.md")), true);
+  assert.equal(existsSync(resolve(packageRoot, "docs", "user-guide.md")), true);
   assert.equal(existsSync(resolve(packageRoot, "src")), false);
-  assert.doesNotMatch(readFileSync(resolve(packageRoot, "skills-src", "arka-framework-dev.json"), "utf8"), /\/Users\//);
+  assert.doesNotMatch(readFileSync(resolve(packageRoot, "skills-src", "arka-framework-development.json"), "utf8"), /\/Users\//);
 
   const command = resolve(packageRoot, "bin", "arka-norn.mjs");
   const help = spawnSync(process.execPath, [command, "help"], { cwd: consumer, encoding: "utf8" });
@@ -144,7 +144,7 @@ test("un consumer vierge installe le tarball sans node_modules du worktree", asy
   assert.equal((JSON.parse(skills.stdout) as { readonly data: readonly unknown[] }).data.length, packagedSkillCount);
   const selftest = spawnSync(process.execPath, [command, "selftest"], { cwd: consumer, encoding: "utf8" });
   assert.equal(selftest.status, 0, `${selftest.stdout}\n${selftest.stderr}`);
-  assert.match(selftest.stdout, /Toutes les vérifications réelles passent/);
+  assert.match(selftest.stdout, /All real checks pass/);
 });
 
 async function startLocalNpmRegistry(sandbox: string, dependencies: readonly LocalNpmPackage[]): Promise<LocalNpmRegistry> {

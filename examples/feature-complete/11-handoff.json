@@ -1,0 +1,43 @@
+{
+  "schema_version": 5,
+  "author_agent_id": "Codex_dev_20260819",
+  "id": "handoff-cr-dev-lot5-vers-t23",
+  "feature_id": "connecteurs-notion-linear",
+  "type": "handoff",
+  "sequence": 1,
+  "created_at": "2026-07-01T17:00:00.000Z",
+  "depends_on_document_ids": [
+    "cr-dev-cortex-lot5-connecteurs-20260701-01"
+  ],
+  "ref": "Documented ref for the canonical English example.",
+  "date": "2026-07-01",
+  "sender_agent": {
+    "name": "Documented name for the canonical English example.",
+    "provider": "Documented provider for the canonical English example."
+  },
+  "recipient_agent": {
+    "name": "Documented name for the canonical English example.",
+    "provider": "Documented provider for the canonical English example."
+  },
+  "message_type": "handoff",
+  "subject": "Documented subject for the canonical English example.",
+  "pipeline_step": "development_report",
+  "current_state": "Documented current state for the canonical English example.",
+  "completed_work": [
+    "Documented completed work for the canonical English example.",
+    "Documented completed work for the canonical English example.",
+    "Documented completed work for the canonical English example.",
+    "Documented completed work for the canonical English example."
+  ],
+  "remaining_work": [
+    "Documented remaining work for the canonical English example.",
+    "Documented remaining work for the canonical English example.",
+    "Documented remaining work for the canonical English example."
+  ],
+  "blockers": [],
+  "reference_files": [
+    "cr-dev-cortex-lot5-connecteurs-20260701-01.json",
+    "spec-lot4-5-connecteurs-extraction.json"
+  ],
+  "content_locale": "en"
+}

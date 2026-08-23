@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "debt-register.schema.json",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "document-envelope.schema.json"
+    }
+  ],
+  "unevaluatedProperties": false,
+  "required": [
+    "id",
+    "type",
+    "task_id",
+    "plan_sources",
+    "depends_on",
+    "date",
+    "golden_rule",
+    "debts"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "type": {
+      "const": "debt_register"
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "plan_sources": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "depends_on": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "date": {
+      "type": "string"
+    },
+    "golden_rule": {
+      "type": "string"
+    },
+    "debts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "description",
+          "classification",
+          "required_decision"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "classification": {
+            "type": "string",
+            "enum": [
+              "blocker",
+              "qa",
+              "extension"
+            ]
+          },
+          "required_decision": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "title": "Debt Register"
+}

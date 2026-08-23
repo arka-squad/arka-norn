@@ -7,6 +7,7 @@ import { expandAuditModuleDependencies } from "../../domain/audit/module-catalog
 import { auditToolDefinition } from "../../domain/audit/tool-catalog.js";
 import { buildCanonicalAudit, compareAudits, kbRecordsFromAudit, renderAuditReport } from "./audit-report.js";
 import { parseAuditRequest, parseModuleResult } from "./audit-validation.js";
+import { translate } from "../localization/locale.js";
 export class AuditService {
     store;
     collector;
@@ -160,8 +161,8 @@ export class AuditService {
         return run;
     }
     async findReusableModule(run, moduleId) {
-        const selection = moduleId === "M00" ? { intent: "discover", depth: "inventaire" } : run.request.modules.find((candidate) => candidate.moduleId === moduleId);
-        if (selection === undefined || selection.depth !== "inventaire")
+        const selection = moduleId === "M00" ? { intent: "discover", depth: "inventory" } : run.request.modules.find((candidate) => candidate.moduleId === moduleId);
+        if (selection === undefined || selection.depth !== "inventory")
             return undefined;
         for (const entry of await this.store.listRuns()) {
             if (entry.id === run.id || entry.projectId !== run.projectId || (entry.status !== "completed" && entry.status !== "partial"))
@@ -171,13 +172,13 @@ export class AuditService {
                 continue;
             if (JSON.stringify(previous.request.paths) !== JSON.stringify(run.request.paths))
                 continue;
-            const previousSelection = moduleId === "M00" ? { intent: "discover", depth: "inventaire" } : previous.request.modules.find((candidate) => candidate.moduleId === moduleId);
+            const previousSelection = moduleId === "M00" ? { intent: "discover", depth: "inventory" } : previous.request.modules.find((candidate) => candidate.moduleId === moduleId);
             if (previousSelection?.intent !== selection.intent || previousSelection.depth !== selection.depth)
                 continue;
             const result = await this.store.loadModuleResult(entry.id, moduleId);
             if (result === undefined || result.execution.status !== "complete" || result.evidence.some((evidence) => evidence.kind === "external" || evidence.producer.startsWith("arka-norn/container/")))
                 continue;
-            return { ...result, auditId: run.id, strengths: [...result.strengths, `Collecte locale compatible réutilisée depuis ${entry.id}.`] };
+            return { ...result, auditId: run.id, strengths: [...result.strengths, translate("audit.service.reused", { audit: entry.id })] };
         }
         return undefined;
     }
@@ -196,11 +197,11 @@ function buildExecutionPlan(inspection, request, selected, toolStatuses) {
         return { reference, installed: status?.installed ?? null, sizeBytes: status?.sizeBytes ?? null };
     });
     const logicalCommands = [
-        "inventaire-local-lecture-seule",
-        ...selected.filter((moduleId) => moduleId !== "M00").map((moduleId) => `collecte-${moduleId.toLowerCase()}`),
+        "read-only-local-inventory",
+        ...selected.filter((moduleId) => moduleId !== "M00").map((moduleId) => `collect-${moduleId.toLowerCase()}`),
     ];
     const sensitive = images.length > 0 || request.capabilities.allowedHosts.length > 0 || request.capabilities.credentialRefs.length > 0
-        || request.capabilities.dynamicTargets.length > 0 || request.modules.some((module) => module.depth === "dynamique");
+        || request.capabilities.dynamicTargets.length > 0 || request.modules.some((module) => module.depth === "dynamic");
     return {
         scopePaths: request.paths,
         commitExact: inspection.commitExact,
@@ -209,8 +210,8 @@ function buildExecutionPlan(inspection, request, selected, toolStatuses) {
         credentialRefs: request.capabilities.credentialRefs,
         dynamicTargets: request.capabilities.dynamicTargets,
         logicalCommands,
-        timeoutMs: request.modules.some((module) => module.depth === "dynamique") ? 900_000 : 300_000,
-        estimatedDuration: request.modules.some((module) => module.depth === "dynamique") ? "10–30 min" : "1–10 min",
+        timeoutMs: request.modules.some((module) => module.depth === "dynamic") ? 900_000 : 300_000,
+        estimatedDuration: request.modules.some((module) => module.depth === "dynamic") ? "10–30 min" : "1–10 min",
         requiresAdditionalConfirmation: sensitive,
     };
 }
@@ -219,21 +220,21 @@ function plannedToolIds(request, selected, inspection) {
     const toolIds = new Set();
     for (const moduleId of selected) {
         const depth = depths.get(moduleId);
-        if (depth === undefined || depth === "inventaire")
+        if (depth === undefined || depth === "inventory")
             continue;
-        if (moduleId === "M02" && depth === "dynamique")
+        if (moduleId === "M02" && depth === "dynamic")
             for (const toolId of runnerToolIds(inspection))
                 toolIds.add(toolId);
         if (moduleId === "M04" || moduleId === "M08")
             toolIds.add("syft");
         if (moduleId === "M05") {
             toolIds.add("gitleaks");
-            if (depth === "connecte" || depth === "dynamique") {
+            if (depth === "connected" || depth === "dynamic") {
                 toolIds.add("trivy");
                 toolIds.add("grype");
             }
         }
-        if (moduleId === "M10" && depth === "dynamique")
+        if (moduleId === "M10" && depth === "dynamic")
             toolIds.add("terraform");
     }
     return toolIds;
@@ -258,15 +259,15 @@ function runnerToolIds(inspection) {
 function addDependencySelections(request, selected) {
     const byId = new Map(request.modules.map((module) => [module.moduleId, module]));
     const dependencyIntent = request.mode === "audit" ? "audit" : "discover";
-    const modules = selected.filter((id) => id !== "M00").map((moduleId) => byId.get(moduleId) ?? { moduleId, intent: dependencyIntent, depth: "statique", criteria: [] });
+    const modules = selected.filter((id) => id !== "M00").map((moduleId) => byId.get(moduleId) ?? { moduleId, intent: dependencyIntent, depth: "static", criteria: [] });
     return { ...request, modules };
 }
 function preparationWarnings(inspection, request) {
     const warnings = [];
     if (inspection.workspaceClean === false)
-        warnings.push("Le workspace est modifié et sera identifié comme non commité.");
-    if (request.modules.some((module) => module.depth === "dynamique") && !inspection.sandbox.available)
-        warnings.push("Docker ou Podman est requis pour les modules dynamiques.");
+        warnings.push(translate("audit.service.workspaceModified"));
+    if (request.modules.some((module) => module.depth === "dynamic") && !inspection.sandbox.available)
+        warnings.push(translate("audit.service.dynamicUnavailable"));
     return warnings;
 }
 function withModuleStatus(run, moduleId, status, now) {

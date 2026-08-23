@@ -1,120 +1,142 @@
 {
   "$id": "pipeline.json",
-  "schemaVersion": 2,
-  "pipelineId": "arka-norn-default",
+  "schemaVersion": 3,
+  "pipelineId": "arka-norn-complete",
   "version": "2.0.0",
-  "description": "Définition machine-lisible du cycle de vie d'une feature. N'importe quel agent (Claude Code, Codex CLI, Antigravity, autre) doit produire les mêmes types de documents JSON, validables mécaniquement, quel que soit celui qui exécute une étape.",
+  "name": "Complete",
+  "description": "Full ten-step workflow for structural, uncertain or migration-heavy Features.",
   "steps": [
     {
       "id": "concept",
-      "ordre": 1,
+      "order": 1,
       "schema": "schemas/concept.schema.json",
-      "obligatoire": true,
+      "required": true,
       "multiple": false,
-      "depend_de": []
+      "dependsOn": []
     },
     {
       "id": "plan",
-      "ordre": 2,
+      "order": 2,
       "schema": "schemas/plan.schema.json",
-      "obligatoire": true,
+      "required": true,
       "multiple": false,
-      "depend_de": ["concept"]
+      "dependsOn": [
+        "concept"
+      ]
     },
     {
-      "id": "annexe_contrat_technique",
-      "ordre": 3,
-      "schema": "schemas/annexe-contrat-technique.schema.json",
-      "obligatoire": false,
+      "id": "technical_contract_appendix",
+      "order": 3,
+      "schema": "schemas/technical-contract-appendix.schema.json",
+      "required": false,
       "multiple": false,
-      "depend_de": ["plan"]
+      "dependsOn": [
+        "plan"
+      ]
     },
     {
-      "id": "audit_etat_reel",
-      "ordre": 4,
-      "schema": "schemas/audit-etat-reel.schema.json",
-      "obligatoire": true,
+      "id": "current_state_audit",
+      "order": 4,
+      "schema": "schemas/current-state-audit.schema.json",
+      "required": true,
       "multiple": false,
-      "depend_de": ["plan"]
+      "dependsOn": [
+        "plan"
+      ]
     },
     {
-      "id": "invariants_figes",
-      "ordre": 5,
-      "schema": "schemas/invariants-figes.schema.json",
-      "obligatoire": true,
+      "id": "frozen_invariants",
+      "order": 5,
+      "schema": "schemas/frozen-invariants.schema.json",
+      "required": true,
       "multiple": false,
-      "depend_de": ["audit_etat_reel"]
+      "dependsOn": [
+        "current_state_audit"
+      ]
     },
     {
-      "id": "registre_dettes",
-      "ordre": 6,
-      "schema": "schemas/registre-dettes.schema.json",
-      "obligatoire": true,
+      "id": "debt_register",
+      "order": 6,
+      "schema": "schemas/debt-register.schema.json",
+      "required": true,
       "multiple": false,
-      "depend_de": ["invariants_figes"]
+      "dependsOn": [
+        "frozen_invariants"
+      ]
     },
     {
-      "id": "tache_agent",
-      "ordre": 7,
-      "schema": "schemas/tache-agent.schema.json",
-      "obligatoire": true,
+      "id": "agent_task",
+      "order": 7,
+      "schema": "schemas/agent-task.schema.json",
+      "required": true,
       "multiple": true,
-      "depend_de": ["registre_dettes"]
+      "dependsOn": [
+        "debt_register"
+      ]
     },
     {
-      "id": "spec_integration_technique",
-      "ordre": 8,
-      "schema": "schemas/spec-integration-technique.schema.json",
-      "obligatoire": true,
+      "id": "technical_integration_specification",
+      "order": 8,
+      "schema": "schemas/technical-integration-specification.schema.json",
+      "required": true,
       "multiple": false,
-      "depend_de": ["tache_agent"]
+      "dependsOn": [
+        "agent_task"
+      ]
     },
     {
-      "id": "cr_dev",
-      "ordre": 9,
-      "schema": "schemas/cr-dev.schema.json",
-      "obligatoire": true,
+      "id": "development_report",
+      "order": 9,
+      "schema": "schemas/development-report.schema.json",
+      "required": true,
       "multiple": true,
-      "depend_de": ["spec_integration_technique"],
-      "business_policy": {
+      "dependsOn": [
+        "technical_integration_specification"
+      ],
+      "businessPolicy": {
         "type": "delivery",
-        "verdict_field": "statut",
-        "pass_values": ["livre"],
-        "in_progress_values": ["partiel"]
+        "verdictField": "status",
+        "passValues": [
+          "delivered"
+        ],
+        "inProgressValues": [
+          "partial"
+        ]
       }
     },
     {
-      "id": "recette_qa",
-      "ordre": 10,
-      "schema": "schemas/recette-qa.schema.json",
-      "obligatoire": true,
+      "id": "qa_review",
+      "order": 10,
+      "schema": "schemas/qa-review.schema.json",
+      "required": true,
       "multiple": true,
-      "depend_de": ["cr_dev"],
-      "peut_boucler_vers": "cr_dev",
-      "business_policy": {
+      "dependsOn": [
+        "development_report"
+      ],
+      "loopTo": "development_report",
+      "businessPolicy": {
         "type": "review_latest",
-        "target_step": "cr_dev",
-        "target_document_field": "cr_dev_id",
-        "verdict_field": "statut_global",
-        "pass_values": ["pass"],
-        "fail_values": ["fail"],
-        "in_progress_values": ["partial"],
-        "retry_step": "cr_dev"
+        "targetStep": "development_report",
+        "targetDocumentField": "development_report_id",
+        "verdictField": "overall_status",
+        "passValues": [
+          "pass"
+        ],
+        "failValues": [
+          "fail"
+        ],
+        "inProgressValues": [
+          "partial"
+        ],
+        "retryStep": "development_report"
       }
     }
   ],
   "transversal": {
     "handoff": {
       "schema": "schemas/handoff.schema.json",
-      "description": "Utilisable à toute étape pour transmettre un état de travail d'un agent/provider à un autre, sans dépendre de leur présence simultanée."
+      "description": "Optional handoff between agents or providers."
     }
   },
-  "definition_of_done": {
-    "regle": "Une étape n'est 'fini' que si le fichier JSON correspondant valide son schema ET que ses dépendances (depend_de) sont elles-mêmes valides. 'recette_qa' n'est fini que si statut_global vaut 'pass' pour au moins une exécution rattachée au dernier cr_dev valide.",
-    "interdits": [
-      "marquer une étape faite si son fichier JSON ne valide pas son schema",
-      "sauter une étape obligatoire (obligatoire: true) même si l'agent estime que c'est trivial",
-      "modifier un fichier JSON déjà produit par un autre agent sans passer par un handoff qui documente pourquoi"
-    ]
-  }
+  "definitionOfDone": "Every required document validates, every dependency resolves and the latest delivery review passes."
 }

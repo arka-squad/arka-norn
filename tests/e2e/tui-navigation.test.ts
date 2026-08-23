@@ -26,16 +26,20 @@ import { createTheme } from "../../src/adapters/inbound/tui/runtime/theme.ts";
 import { createHomeView } from "../../src/adapters/inbound/tui/views/home-view.ts";
 import { createOrchestrationView } from "../../src/adapters/inbound/tui/views/orchestration-view.ts";
 import { createProjectDetailView } from "../../src/adapters/inbound/tui/views/project-detail-view.ts";
+import { setActiveLocale } from "../../src/application/localization/locale.ts";
 import { FeatureId } from "../../src/domain/feature/feature-id.ts";
 import { Feature } from "../../src/domain/feature/feature.ts";
 import { AgentSessionId } from "../../src/domain/agent/agent-session-id.ts";
 import { ExecutionRecord } from "../../src/domain/orchestration/execution-record.ts";
 import { MissionOrder } from "../../src/domain/orchestration/mission-order.ts";
 import { ProjectId } from "../../src/domain/project/project-id.ts";
+
 import { createContainer } from "../../src/composition/container.ts";
 import { createManagementRuntime } from "../../src/composition/management-runtime.ts";
 import { readEnv } from "../../src/composition/env.ts";
 import type { ForOrchestration, OrchestrationStatus } from "../../src/ports/inbound/for-orchestration.ts";
+
+setActiveLocale("fr");
 
 test("l’accueil crée un Project lorsque la racine ne contient aucun marker", async (context) => {
   const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-tui-create-project-"));
@@ -257,7 +261,7 @@ test("le Pilote assisté confirme une prévisualisation puis actualise le détai
   let output = "";
   const renderer = createRenderer({ write: (chunk) => { output += chunk; }, isTTY: false, columns: 120 });
   detail.render(renderer, createTheme({ NO_COLOR: "1" }, false));
-  assert.match(output, /Pilote assisté : activé/);
+  assert.match(output, /Pilote assisté - activé/);
 });
 
 test("le détail Project refuse de confirmer une sélection manuelle devenue obsolète", async (context) => {
@@ -331,8 +335,8 @@ test("l’accueil TUI actualise Santé après l’installation des skills", asyn
   container.app.pop();
   output = "";
   home.render(renderer, theme);
-  assert.match(output, /Santé\s+: .*0 FAIL/);
-  assert.match(output, /Projet 21\/21 · Global 0\/21/);
+  assert.match(output, /Santé du système: .*0 FAIL/);
+  assert.match(output, /Project 21\/21 - Global 0\/21/);
 });
 
 test("la composition TUI pilote Home → Project → Feature → scaffold réel", async (context) => {
@@ -481,7 +485,7 @@ test("la TUI enregistre et sélectionne une identité Agent sans connaissance im
   assert.equal(agents.length, 1);
   assert.match(agents[0]!.id.value, /^Codex-CLI_product_\d{8}$/);
   assert.equal(current?.id.value, agents[0]!.id.value);
-  assert.deepEqual(agents[0]!.scope.responsibilities, ["organisation produit", "priorisation", "coordination des Agents", "validation des décisions utilisateur"]);
+  assert.deepEqual(agents[0]!.scope.responsibilities, ["product organization", "prioritization", "Agent coordination", "user decision validation"]);
 
   input.send({ kind: "interrupt" });
   await running;

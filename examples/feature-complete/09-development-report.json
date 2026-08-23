@@ -1,0 +1,124 @@
+{
+  "schema_version": 5,
+  "author_agent_id": "Codex_dev_20260819",
+  "id": "cr-dev-cortex-lot5-connecteurs-20260701-01",
+  "feature_id": "connecteurs-notion-linear",
+  "type": "development_report",
+  "sequence": 1,
+  "created_at": "2026-07-01T12:00:00.000Z",
+  "depends_on_document_ids": [
+    "spec-lot4-5-connecteurs-extraction"
+  ],
+  "ref": "Documented ref for the canonical English example.",
+  "date": "2026-07-01",
+  "agent": {
+    "name": "Documented name for the canonical English example.",
+    "provider": "Documented provider for the canonical English example."
+  },
+  "spec_sources": [
+    "Documented spec sources for the canonical English example.",
+    "Documented spec sources for the canonical English example."
+  ],
+  "status": "delivered",
+  "delivered_files": [
+    {
+      "path": "src-tauri/Cargo.toml",
+      "action": "modified",
+      "lines": 1,
+      "role": "Documented role for the canonical English example."
+    },
+    {
+      "path": "src-tauri/src/lib.rs",
+      "action": "modified",
+      "lines": 1,
+      "role": "Documented role for the canonical English example."
+    },
+    {
+      "path": "src-tauri/src/connect/mod.rs",
+      "action": "created",
+      "lines": 67,
+      "role": "Documented role for the canonical English example."
+    },
+    {
+      "path": "src-tauri/src/connect/notion/mod.rs",
+      "action": "created",
+      "lines": 451,
+      "role": "Documented role for the canonical English example."
+    },
+    {
+      "path": "src-tauri/src/connect/notion/normalize.rs",
+      "action": "created",
+      "lines": 267,
+      "role": "Documented role for the canonical English example."
+    },
+    {
+      "path": "src-tauri/src/connect/linear/mod.rs",
+      "action": "created",
+      "lines": 615,
+      "role": "Documented role for the canonical English example."
+    },
+    {
+      "path": "src-tauri/src/connect/linear/normalize.rs",
+      "action": "created",
+      "lines": 335,
+      "role": "Documented role for the canonical English example."
+    }
+  ],
+  "covered_requirements": [
+    {
+      "id": "T21-1",
+      "requirement": "Documented requirement for the canonical English example.",
+      "covered": true,
+      "evidence": "Documented evidence for the canonical English example."
+    },
+    {
+      "id": "T21-4",
+      "requirement": "Documented requirement for the canonical English example.",
+      "covered": true,
+      "evidence": "Documented evidence for the canonical English example."
+    },
+    {
+      "id": "T21-8",
+      "requirement": "Documented requirement for the canonical English example.",
+      "covered": true,
+      "evidence": "Documented evidence for the canonical English example."
+    },
+    {
+      "id": "T22-1",
+      "requirement": "Documented requirement for the canonical English example.",
+      "covered": true,
+      "evidence": "Documented evidence for the canonical English example."
+    },
+    {
+      "id": "T22-3",
+      "requirement": "Documented requirement for the canonical English example.",
+      "covered": true,
+      "evidence": "Documented evidence for the canonical English example."
+    },
+    {
+      "id": "A.6.1",
+      "requirement": "Documented requirement for the canonical English example.",
+      "covered": true,
+      "evidence": "Documented evidence for the canonical English example."
+    },
+    {
+      "id": "A.6.4",
+      "requirement": "Documented requirement for the canonical English example.",
+      "covered": true,
+      "evidence": "Documented evidence for the canonical English example."
+    },
+    {
+      "id": "A.4",
+      "requirement": "Documented requirement for the canonical English example.",
+      "covered": true,
+      "evidence": "Documented evidence for the canonical English example."
+    },
+    {
+      "id": "A.9",
+      "requirement": "Documented requirement for the canonical English example.",
+      "covered": true,
+      "evidence": "Documented evidence for the canonical English example."
+    }
+  ],
+  "content_locale": "en"
+}

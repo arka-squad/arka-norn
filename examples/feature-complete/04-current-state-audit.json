@@ -1,0 +1,60 @@
+{
+  "schema_version": 5,
+  "author_agent_id": "Codex_dev_20260819",
+  "id": "audit-t01-etat-reel-cortex-lite",
+  "feature_id": "connecteurs-notion-linear",
+  "type": "current_state_audit",
+  "sequence": 1,
+  "created_at": "2026-06-30T10:00:00.000Z",
+  "depends_on_document_ids": [
+    "plan-memoire-evenementielle-notion-linear-v2.2"
+  ],
+  "task_id": "Documented task id for the canonical English example.",
+  "plan_sources": [
+    "Documented plan sources for the canonical English example.",
+    "Documented plan sources for the canonical English example."
+  ],
+  "audited_repository": "Documented audited repository for the canonical English example.",
+  "audited_reference": "Documented audited reference for the canonical English example.",
+  "audit_date": "Documented audit date for the canonical English example.",
+  "method": "Documented method for the canonical English example.",
+  "overall_verdict": "Documented overall verdict for the canonical English example.",
+  "findings": [
+    {
+      "id": "component-1-structured-extraction",
+      "description": "Documented description for the canonical English example.",
+      "status": "confirmed"
+    },
+    {
+      "id": "component-4-provider-secrets",
+      "description": "Documented description for the canonical English example.",
+      "status": "confirmed"
+    },
+    {
+      "id": "gap-1-no-connector",
+      "description": "Documented description for the canonical English example.",
+      "status": "confirmed"
+    },
+    {
+      "id": "gap-2-read-only-store",
+      "description": "Documented description for the canonical English example.",
+      "status": "confirmed"
+    },
+    {
+      "id": "gap-5-ingestion-idempotency",
+      "description": "Documented description for the canonical English example.",
+      "status": "confirmed"
+    },
+    {
+      "id": "gap-7-resonance-embeddings",
+      "description": "Documented description for the canonical English example.",
+      "status": "confirmed"
+    },
+    {
+      "id": "positive-drift-ingestion-run",
+      "description": "Documented description for the canonical English example.",
+      "status": "discovered"
+    }
+  ],
+  "content_locale": "en"
+}

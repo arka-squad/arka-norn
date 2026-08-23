@@ -30,11 +30,6 @@ export interface VerifiedFeatureContext {
   readonly authorRegistry: readonly PipelineAuthorAuthorization[];
 }
 
-/**
- * Charge le contexte minimum nécessaire à toute inspection d'une Feature gérée.
- * Les markers et index sont non fiables : la racine Feature et le registre sont
- * donc vérifiés avant de construire un rapport Pipeline.
- */
 export async function loadVerifiedFeatureContext(
   feature: Feature,
   deps: { readonly projects: ForProjects; readonly agents: ForAgents },

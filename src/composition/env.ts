@@ -14,11 +14,6 @@
  * limitations under the License.
  */
 
-/**
- * Env -- lecture de la config runtime depuis process.env. Port TS
- * simplifié de arka-cc-management (composition/env.ts) : pas d'API
- * distante (pas d'apiUrl/apiKey -- arka-norn n'a pas de backend).
- */
 import { dirname, isAbsolute, resolve } from "node:path";
 
 import type { LogLevel } from "../ports/outbound/logger.js";

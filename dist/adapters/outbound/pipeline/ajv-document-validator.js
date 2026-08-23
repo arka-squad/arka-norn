@@ -17,15 +17,15 @@ import * as fs from "node:fs/promises";
 import { resolve } from "node:path";
 import { Ajv2020 } from "ajv/dist/2020.js";
 export class AjvDocumentValidator {
-    ajv;
+    canonicalAjv;
+    legacyAjv;
     cache = new Map();
     frameworkRoot;
-    envelopesLoaded = false;
+    envelopesLoaded = new Set();
     constructor(frameworkRoot) {
         this.frameworkRoot = frameworkRoot;
-        this.ajv = new Ajv2020({ allErrors: true, strict: true });
-        this.ajv.addFormat("date", { type: "string", validate: isDate });
-        this.ajv.addFormat("date-time", { type: "string", validate: isDateTime });
+        this.canonicalAjv = createAjv();
+        this.legacyAjv = createAjv();
     }
     async validate(schemaPath, content) {
         const validate = await this.validator(schemaPath);
@@ -39,24 +39,33 @@ export class AjvDocumentValidator {
         const cached = this.cache.get(schemaPath);
         if (cached !== undefined)
             return cached;
-        await this.loadEnvelopes();
+        const contract = schemaPath.includes("/legacy/fr/") ? "legacy" : "canonical";
+        const ajv = contract === "legacy" ? this.legacyAjv : this.canonicalAjv;
+        await this.loadEnvelopes(contract, ajv);
         const raw = await fs.readFile(resolve(this.frameworkRoot, schemaPath), "utf8");
         const schema = JSON.parse(raw);
-        const validate = this.ajv.compile(schema);
+        const validate = ajv.compile(schema);
         this.cache.set(schemaPath, validate);
         return validate;
     }
-    async loadEnvelopes() {
-        if (this.envelopesLoaded)
+    async loadEnvelopes(contract, ajv) {
+        if (this.envelopesLoaded.has(contract))
             return;
+        const base = contract === "legacy" ? resolve(this.frameworkRoot, "schemas", "legacy", "fr") : resolve(this.frameworkRoot, "schemas");
         const schemas = await Promise.all([
-            fs.readFile(resolve(this.frameworkRoot, "schemas", "document-envelope.schema.json"), "utf8"),
-            fs.readFile(resolve(this.frameworkRoot, "schemas", "project-audit-envelope.schema.json"), "utf8"),
+            fs.readFile(resolve(base, "document-envelope.schema.json"), "utf8"),
+            fs.readFile(resolve(base, "project-audit-envelope.schema.json"), "utf8"),
         ]);
         for (const raw of schemas)
-            this.ajv.addSchema(JSON.parse(raw));
-        this.envelopesLoaded = true;
+            ajv.addSchema(JSON.parse(raw));
+        this.envelopesLoaded.add(contract);
     }
+}
+function createAjv() {
+    const ajv = new Ajv2020({ allErrors: true, strict: true });
+    ajv.addFormat("date", { type: "string", validate: isDate });
+    ajv.addFormat("date-time", { type: "string", validate: isDateTime });
+    return ajv;
 }
 function isDate(value) {
     const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);

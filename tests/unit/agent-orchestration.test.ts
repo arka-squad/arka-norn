@@ -32,15 +32,15 @@ const PROJECT_ID = ProjectId.of("arka-norn");
 const FEATURE_ID = FeatureId.of("navigation-tui");
 const PROJECT = Project.create({ id: PROJECT_ID, name: "Arka Norn", root: "/workspace/arka-norn", schemaVersion: 3, createdAt: AT, updatedAt: AT });
 const FASTDEV = Feature.create({ id: FEATURE_ID, projectId: PROJECT_ID, name: "Navigation TUI", root: "/workspace/arka-norn/features/navigation-tui", pipelineId: "arka-norn-fastdev", schemaVersion: 3, createdAt: AT, updatedAt: AT });
-const ESSENTIEL = Feature.create({ id: FEATURE_ID, projectId: PROJECT_ID, name: "Navigation TUI", root: "/workspace/arka-norn/features/navigation-tui", pipelineId: "arka-norn-essentiel", schemaVersion: 3, createdAt: AT, updatedAt: AT });
+const ESSENTIAL = Feature.create({ id: FEATURE_ID, projectId: PROJECT_ID, name: "Navigation TUI", root: "/workspace/arka-norn/features/navigation-tui", pipelineId: "arka-norn-essential", schemaVersion: 4, documentContractVersion: 5, createdAt: AT, updatedAt: AT });
 const PRODUCT = agent("Codex_product_20260820", "product");
 
 test("le conseil FastDev lance l'audit et autorise seulement une préparation Dev parallèle", () => {
-  const state = stateFor(report("audit_rework", "Audit · 3/4"));
+  const state = stateFor(report("delivery_audit", "Audit - 3/4"));
   const advice = createAgentAdvice(state);
 
   assert.equal(advice.productPrincipal.status, "ready");
-  assert.equal(advice.nextStepId, "audit_rework");
+  assert.equal(advice.nextStepId, "delivery_audit");
   assert.deepEqual(advice.recommendations.map(({ role, mode, skillProfile, skill }) => ({ role, mode, skillProfile, skill })), [
     { role: "audit", mode: "execute", skillProfile: "audit", skill: "arka-fastdev" },
     { role: "dev", mode: "prepare", skillProfile: "dev", skill: "arka-fastdev" },
@@ -48,33 +48,33 @@ test("le conseil FastDev lance l'audit et autorise seulement une préparation De
 });
 
 test("le conseil Essentiel dérive le rôle de l'action et route vers la skill guidée", () => {
-  const essentialReport = { ...report("audit_livraison", "Audit · 4/5"), pipelineId: ESSENTIEL.pipelineId };
-  const advice = createAgentAdvice({ ...stateFor(essentialReport), feature: ESSENTIEL });
+  const essentialReport = { ...report("delivery_audit", "Audit - 4/5"), pipelineId: ESSENTIAL.pipelineId };
+  const advice = createAgentAdvice({ ...stateFor(essentialReport), feature: ESSENTIAL });
   assert.deepEqual(advice.recommendations.map(({ role, skill }) => ({ role, skill })), [
-    { role: "audit", skill: "arka-essentiel" },
-    { role: "dev", skill: "arka-essentiel" },
+    { role: "audit", skill: "arka-essential" },
+    { role: "dev", skill: "arka-essential" },
   ]);
 });
 
 test("un prompt spécialisé interdit d'exécuter une phase qui ne lui appartient pas", () => {
-  const state = stateFor(report("audit_rework", "Audit · 3/4"));
-  assert.throws(() => createInitializationPrompt(state, { role: "dev", mode: "execute" }), /ne peut pas exécuter/);
+  const state = stateFor(report("delivery_audit", "Audit - 3/4"));
+  assert.throws(() => createInitializationPrompt(state, { role: "dev", mode: "execute" }), /cannot execute/);
 
   const prompt = createInitializationPrompt(state, { role: "dev", provider: "Codex", mode: "prepare" });
   assert.equal(prompt.canWrite, false);
   assert.equal(prompt.sessionId, "dev-navigation-tui");
   assert.equal(prompt.skill, "arka-fastdev");
   assert.match(prompt.preflightCommand, /skills install.*--profile dev/);
-  assert.doesNotMatch(prompt.prompt, /Utilise \$arka-norn puis \$arka-fastdev/);
-  assert.match(prompt.prompt, /\$arka-framework-maitrise puis \$arka-fastdev/);
+  assert.doesNotMatch(prompt.prompt, /Use \$arka-norn, then \$arka-fastdev/);
+  assert.match(prompt.prompt, /\$arka-framework-mastery, then \$arka-fastdev/);
   assert.match(prompt.prompt, /--paths 'features\/navigation-tui'/);
-  assert.match(prompt.prompt, /ne sélectionne et ne remplace jamais.*session main/i);
-  assert.match(prompt.prompt, /Travail en lecture seule/);
+  assert.match(prompt.prompt, /never select or replace.*main session/i);
+  assert.match(prompt.prompt, /Read-only work/);
 });
 
 test("un prompt réutilise exactement l'Agent déjà lié et refuse un provider implicite pour une nouvelle session", () => {
   const audit = agent("Claude_audit_20260820", "audit");
-  const state = stateFor(report("audit_rework", "Audit · 3/4"), [
+  const state = stateFor(report("delivery_audit", "Audit - 3/4"), [
     { sessionId: AgentSessionId.MAIN, agent: PRODUCT },
     { sessionId: AgentSessionId.of("audit-navigation-tui"), agent: audit },
   ]);
@@ -82,11 +82,11 @@ test("un prompt réutilise exactement l'Agent déjà lié et refuse un provider 
   assert.match(reused.prompt, new RegExp(`agent use ${audit.id.value}.*--session audit-navigation-tui`));
   assert.doesNotMatch(reused.prompt, /agent register/);
 
-  assert.throws(() => createInitializationPrompt(stateFor(report("cr_dev", "Dev")), { role: "dev", mode: "execute" }), /--provider est requis/);
+  assert.throws(() => createInitializationPrompt(stateFor(report("development_report", "Development")), { role: "dev", mode: "execute" }), /--provider is required/);
 });
 
 test("le Product principal est stable dans main et son prompt de reprise conserve son identité", () => {
-  const state = stateFor(report("cr_dev", "Développement · itération 2"), [
+  const state = stateFor(report("development_report", "Development - iteration 2"), [
     { sessionId: AgentSessionId.MAIN, agent: PRODUCT },
     { sessionId: AgentSessionId.of("audit-navigation-tui"), agent: agent("Claude_audit_20260820", "audit") },
   ]);
@@ -98,14 +98,14 @@ test("le Product principal est stable dans main et son prompt de reprise conserv
   assert.match(handoff.prompt, /audit-navigation-tui: Claude_audit_20260820/);
   assert.match(handoff.prompt, /cd '\/workspace\/arka-norn'/);
   assert.match(handoff.prompt, /agent sessions --project arka-norn/);
-  assert.match(handoff.prompt, /Ne réalise pas l'audit, le développement ou la QA/);
+  assert.match(handoff.prompt, /Do not perform audit, development or QA/);
 });
 
 test("une liaison main non Product est signalée comme conflit", () => {
   const developer = agent("Codex_dev_20260820", "dev");
-  const advice = createAgentAdvice(stateFor(report("cr_dev", "Développement"), [{ sessionId: AgentSessionId.MAIN, agent: developer }], [PRODUCT, developer]));
+  const advice = createAgentAdvice(stateFor(report("development_report", "Development"), [{ sessionId: AgentSessionId.MAIN, agent: developer }], [PRODUCT, developer]));
   assert.equal(advice.productPrincipal.status, "conflict");
-  assert.match(advice.productPrincipal.reason, /au lieu d'un Product actif/);
+  assert.match(advice.productPrincipal.reason, /instead of an active Product Agent/);
 });
 
 function stateFor(
@@ -118,7 +118,7 @@ function stateFor(
 
 function report(stepId: string, phase: string): PipelineReport {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     pipelineId: "arka-norn-fastdev",
     featureRoot: FASTDEV.root,
     featureId: FASTDEV.id.value,
@@ -126,7 +126,7 @@ function report(stepId: string, phase: string): PipelineReport {
     overallStatus: "incomplete",
     steps: [],
     transversalDocuments: [],
-    nextActions: [{ kind: stepId === "cr_dev" ? "continue_development" : "run_audit", stepId, phase, reason: "Étape calculée", instructions: ["Produire les preuves"], suggestedCommand: `arka-norn pipeline scaffold ${stepId}` }],
+    nextActions: [{ kind: stepId === "development_report" ? "continue_development" : "run_audit", stepId, phase, reason: "Calculated step", instructions: ["Produce evidence"], suggestedCommand: `arka-norn pipeline scaffold ${stepId}` }],
     errors: [],
     warnings: [],
     unknownFiles: [],

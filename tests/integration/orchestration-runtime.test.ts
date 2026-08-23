@@ -491,7 +491,7 @@ class FakeExecutionPort implements AgentExecutionPort {
       ? []
       : mission.permissionPolicy.permissions;
     const readOnly = !permissions.includes("write_workspace");
-    const expectedStep = mission.mission.match(/Étape Pipeline immuable: ([a-z0-9_]+)/u)?.[1] ?? "concept";
+    const expectedStep = mission.mission.match(/Immutable Pipeline step: ([a-z0-9_]+)/u)?.[1] ?? "concept";
     if (!readOnly && (this.result === "completed" || this.result === "completed_without_proof" || this.result === "completed_invalid_read_only")) this.pipelineState.step = "plan";
     const outcome: AgentExecutionOutcome = {
       executionId: mission.executionId,
@@ -545,7 +545,7 @@ function fakePipeline(state: PipelineState): ForPipeline {
   return {
     async inspect(input) {
       return {
-        schemaVersion: 1,
+        schemaVersion: 2,
         pipelineId: input.pipelineId ?? "arka-norn-default",
         featureRoot: input.featureRoot,
         ...(input.featureId === undefined ? {} : { featureId: input.featureId }),

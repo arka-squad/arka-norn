@@ -1,0 +1,126 @@
+{
+  "schema_version": 5,
+  "author_agent_id": "Codex_dev_20260819",
+  "id": "rec-cortex-ingestion-t23-20260701-01",
+  "feature_id": "connecteurs-notion-linear",
+  "type": "qa_review",
+  "sequence": 1,
+  "created_at": "2026-07-01T16:00:00.000Z",
+  "depends_on_document_ids": [
+    "cr-dev-cortex-lot5-connecteurs-20260701-01"
+  ],
+  "development_report_id": "cr-dev-cortex-lot5-connecteurs-20260701-01",
+  "ref": "Documented ref for the canonical English example.",
+  "date": "2026-07-01",
+  "tester": {
+    "name": "Documented name for the canonical English example.",
+    "provider": "Documented provider for the canonical English example."
+  },
+  "environment": "Documented environment for the canonical English example.",
+  "version": "Documented version for the canonical English example.",
+  "overall_status": "pass",
+  "scope": "Documented scope for the canonical English example.",
+  "prerequisites": [
+    "Documented prerequisites for the canonical English example.",
+    "Documented prerequisites for the canonical English example.",
+    "Documented prerequisites for the canonical English example."
+  ],
+  "test_cases": [
+    {
+      "id": "CT-01",
+      "name": "Documented name for the canonical English example.",
+      "steps": [
+        "Documented steps for the canonical English example.",
+        "Documented steps for the canonical English example.",
+        "Documented steps for the canonical English example.",
+        "Documented steps for the canonical English example."
+      ],
+      "expected_outcome": "Documented expected outcome for the canonical English example.",
+      "actual_result": "Documented actual result for the canonical English example.",
+      "status": "pass"
+    },
+    {
+      "id": "CT-02",
+      "name": "Documented name for the canonical English example.",
+      "steps": [
+        "Documented steps for the canonical English example."
+      ],
+      "expected_outcome": "Documented expected outcome for the canonical English example.",
+      "actual_result": "Documented actual result for the canonical English example.",
+      "status": "pass"
+    },
+    {
+      "id": "CT-03",
+      "name": "Documented name for the canonical English example.",
+      "steps": [
+        "Documented steps for the canonical English example.",
+        "Documented steps for the canonical English example."
+      ],
+      "expected_outcome": "Documented expected outcome for the canonical English example.",
+      "actual_result": "Documented actual result for the canonical English example.",
+      "status": "pass"
+    },
+    {
+      "id": "CT-04",
+      "name": "Documented name for the canonical English example.",
+      "steps": [
+        "Documented steps for the canonical English example."
+      ],
+      "expected_outcome": "Documented expected outcome for the canonical English example.",
+      "actual_result": "Documented actual result for the canonical English example.",
+      "status": "pass"
+    },
+    {
+      "id": "CT-05",
+      "name": "Documented name for the canonical English example.",
+      "steps": [
+        "Documented steps for the canonical English example."
+      ],
+      "expected_outcome": "Documented expected outcome for the canonical English example.",
+      "actual_result": "Documented actual result for the canonical English example.",
+      "status": "pass"
+    },
+    {
+      "id": "CT-06",
+      "name": "Documented name for the canonical English example.",
+      "steps": [
+        "Documented steps for the canonical English example."
+      ],
+      "expected_outcome": "Documented expected outcome for the canonical English example.",
+      "actual_result": "Documented actual result for the canonical English example.",
+      "status": "fail"
+    },
+    {
+      "id": "CT-07",
+      "name": "Documented name for the canonical English example.",
+      "steps": [
+        "Documented steps for the canonical English example.",
+        "Documented steps for the canonical English example."
+      ],
+      "expected_outcome": "Documented expected outcome for the canonical English example.",
+      "actual_result": "Documented actual result for the canonical English example.",
+      "status": "partial"
+    },
+    {
+      "id": "CT-08",
+      "name": "Documented name for the canonical English example.",
+      "steps": [
+        "Documented steps for the canonical English example."
+      ],
+      "expected_outcome": "Documented expected outcome for the canonical English example.",
+      "actual_result": "Documented actual result for the canonical English example.",
+      "status": "fail"
+    },
+    {
+      "id": "CT-09",
+      "name": "Documented name for the canonical English example.",
+      "steps": [
+        "Documented steps for the canonical English example."
+      ],
+      "expected_outcome": "Documented expected outcome for the canonical English example.",
+      "actual_result": "Documented actual result for the canonical English example.",
+      "status": "pass"
+    }
+  ],
+  "content_locale": "en"
+}

@@ -14,14 +14,6 @@
  * limitations under the License.
  */
 
-/**
- * Box -- cadres unicode emoji-aware. Port TS verbatim de
- * arka-cc-management (adapters/inbound/tui/components/box.ts) : aucune
- * logique métier, pur rendu, aucune adaptation nécessaire.
- *
- * `box(lines, theme, opts)` encadre `lines`. `titledBox(title, ...)`
- * incruste un titre dans la bordure haute.
- */
 import type { Theme } from "../runtime/theme.js";
 
 const TOP_LEFT = String.fromCharCode(0x250c);
@@ -34,11 +26,8 @@ const VERTICAL = String.fromCharCode(0x2502);
 const IDENTITY: (s: string) => string = (s) => s;
 
 export interface BoxOptions {
-  /** Padding horizontal interne (défaut 2). */
   readonly paddingX?: number;
-  /** Padding vertical -- lignes vides haut+bas (défaut 0). */
   readonly paddingY?: number;
-  /** Couleur/style appliqué à chaque glyphe de bordure. Défaut : identité. */
   readonly border?: (s: string) => string;
 }
 

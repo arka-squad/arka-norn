@@ -1,0 +1,208 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "executions-registry.schema.json",
+  "title": "Registre séparé des exécutions d'orchestration arka-norn",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "projectId", "updatedAt", "executions"],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "projectId": { "$ref": "#/$defs/projectId" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "executions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/execution" }
+    }
+  },
+  "$defs": {
+    "projectId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+    },
+    "featureId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+    },
+    "executionId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,95}$"
+    },
+    "capability": {
+      "enum": ["inspect_workspace", "modify_workspace", "run_commands", "read_pipeline"]
+    },
+    "permission": {
+      "enum": ["read_workspace", "write_workspace", "shell", "network"]
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id", "order", "target", "status", "attempts", "events",
+        "truncatedEventCount", "proofReferences", "createdAt", "updatedAt"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/executionId" },
+        "order": { "$ref": "#/$defs/missionOrder" },
+        "target": { "$ref": "#/$defs/target" },
+        "status": { "enum": ["planned", "running", "awaiting_approval", "succeeded", "failed", "cancelled", "interrupted", "rejected"] },
+        "attempts": {
+          "type": "array",
+          "maxItems": 20,
+          "items": { "$ref": "#/$defs/attempt" }
+        },
+        "events": {
+          "type": "array",
+          "maxItems": 100,
+          "items": { "$ref": "#/$defs/event" }
+        },
+        "truncatedEventCount": { "type": "integer", "minimum": 0 },
+        "proofReferences": {
+          "type": "array",
+          "maxItems": 50,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 512 }
+        },
+        "suspensionReason": { "$ref": "#/$defs/suspensionReason" },
+        "providerSessionId": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "succeeded" } }, "required": ["status"] },
+          "then": { "properties": { "proofReferences": { "type": "array", "minItems": 1 } } }
+        },
+        {
+          "if": { "properties": { "status": { "const": "awaiting_approval" } }, "required": ["status"] },
+          "then": { "properties": { "suspensionReason": { "$ref": "#/$defs/suspensionReason" } }, "required": ["suspensionReason"] }
+        },
+        {
+          "if": { "properties": { "status": { "enum": ["failed", "cancelled", "interrupted", "rejected"] } }, "required": ["status"] },
+          "then": { "properties": { "suspensionReason": { "$ref": "#/$defs/suspensionReason" } }, "required": ["suspensionReason"] }
+        }
+      ]
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "adapter", "source"],
+      "properties": {
+        "provider": { "enum": ["claude", "codex", "kimi", "zai"] },
+        "adapter": { "enum": ["claude-sdk", "acp"] },
+        "model": { "type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[^\\u0000-\\u001f\\u007f]+$" },
+        "source": { "enum": ["user", "legacy"] }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "provider": { "enum": ["claude", "zai"] } }, "required": ["provider"] },
+          "then": { "properties": { "adapter": { "const": "claude-sdk" } }, "required": ["adapter"] }
+        },
+        {
+          "if": { "properties": { "provider": { "enum": ["codex", "kimi"] } }, "required": ["provider"] },
+          "then": { "properties": { "adapter": { "const": "acp" } }, "required": ["adapter"] }
+        },
+        {
+          "if": { "properties": { "source": { "const": "user" } }, "required": ["source"] },
+          "then": {
+            "properties": {
+              "model": { "type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[^\\u0000-\\u001f\\u007f]+$" }
+            },
+            "required": ["model"]
+          }
+        },
+        {
+          "if": { "properties": { "source": { "const": "legacy" } }, "required": ["source"] },
+          "then": { "properties": { "model": false } }
+        }
+      ]
+    },
+    "missionOrder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "scope", "preconditions", "requiredCapabilities", "requiredPermissions", "summary", "issuedAt"],
+      "properties": {
+        "id": { "$ref": "#/$defs/executionId" },
+        "scope": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["projectId", "paths"],
+          "properties": {
+            "projectId": { "$ref": "#/$defs/projectId" },
+            "featureId": { "$ref": "#/$defs/featureId" },
+            "paths": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "type": "string", "minLength": 1, "maxLength": 512 }
+            }
+          }
+        },
+        "preconditions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pipelineId", "nextStepId"],
+          "properties": {
+            "pipelineId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$" },
+            "nextStepId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_]{0,127}$" }
+          }
+        },
+        "requiredCapabilities": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/capability" }
+        },
+        "requiredPermissions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/permission" }
+        },
+        "summary": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "issuedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "attempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["number", "status", "startedAt"],
+      "properties": {
+        "number": { "type": "integer", "minimum": 1 },
+        "status": { "enum": ["running", "succeeded", "failed", "cancelled", "interrupted", "rejected"] },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "endedAt": { "type": "string", "format": "date-time" },
+        "providerSessionId": { "type": "string", "minLength": 1, "maxLength": 256 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "running" } }, "required": ["status"] },
+          "then": { "not": { "properties": { "endedAt": { "type": "string", "format": "date-time" } }, "required": ["endedAt"] } },
+          "else": { "properties": { "endedAt": { "type": "string", "format": "date-time" } }, "required": ["endedAt"] }
+        }
+      ]
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["at", "type", "detail"],
+      "properties": {
+        "at": { "type": "string", "format": "date-time" },
+        "type": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
+        "detail": { "type": "string", "minLength": 1, "maxLength": 500 }
+      }
+    },
+    "suspensionReason": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "detail"],
+      "properties": {
+        "code": {
+          "enum": [
+            "permission_not_preapproved", "permission_requested", "automatic_disabled", "scope_changed",
+            "precondition_changed", "missing_proof", "provider_error", "worker_unavailable",
+            "cancelled_by_user", "interrupted", "policy_rejected"
+          ]
+        },
+        "detail": { "type": "string", "minLength": 1, "maxLength": 500 }
+      }
+    }
+  }
+}

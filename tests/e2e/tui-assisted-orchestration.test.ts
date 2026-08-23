@@ -20,6 +20,7 @@ import { test } from "node:test";
 import { createRenderer } from "../../src/adapters/inbound/tui/runtime/render.ts";
 import { createTheme } from "../../src/adapters/inbound/tui/runtime/theme.ts";
 import { createOrchestrationView } from "../../src/adapters/inbound/tui/views/orchestration-view.ts";
+import { setActiveLocale } from "../../src/application/localization/locale.ts";
 import { FeatureId } from "../../src/domain/feature/feature-id.ts";
 import { Feature } from "../../src/domain/feature/feature.ts";
 import { ExecutionPolicy } from "../../src/domain/orchestration/execution-policy.ts";
@@ -28,12 +29,15 @@ import { MissionOrder } from "../../src/domain/orchestration/mission-order.ts";
 import { userExecutionTarget } from "../../src/domain/orchestration/types.ts";
 import { ProjectId } from "../../src/domain/project/project-id.ts";
 import { Project } from "../../src/domain/project/project.ts";
+
 import type {
   ForOrchestration,
   OrchestrationPreview,
   OrchestrationPreviewCandidate,
   OrchestrationStatus,
 } from "../../src/ports/inbound/for-orchestration.ts";
+
+setActiveLocale("fr");
 
 const at = new Date("2026-08-21T12:00:00.000Z");
 const theme = createTheme({ NO_COLOR: "1" }, false);
@@ -90,7 +94,7 @@ test("le Pilote assisté demande une Feature, montre une préparation lisible et
 
   const prepared = render(view);
   assert.match(prepared, /Feature : Paiement en ligne/);
-  assert.match(prepared, /Étape : Cadrer le besoin/);
+  assert.match(prepared, /Étape : Cadrer la Feature/);
   assert.match(prepared, /Responsabilité : Pilotage produit/);
   assert.match(prepared, /Autorisations : Lire les fichiers du périmètre/);
   assert.match(prepared, /Assistant à confirmer : Codex · gpt-5-codex/);
@@ -224,7 +228,7 @@ test("le Pilote assisté résume une mission active, ses derniers jalons et la d
 
   const output = render(view);
   assert.match(output, /Mission active : execution-assistee/);
-  assert.match(output, /Étape : Cadrer le besoin/);
+  assert.match(output, /Étape : Cadrer la Feature/);
   assert.match(output, /Assistant : Z\.AI Coding Plan · glm-coding-plan/);
   assert.match(output, /Situation : Votre décision est requise/);
   assert.match(output, /Derniers événements :/);

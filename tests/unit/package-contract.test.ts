@@ -37,7 +37,8 @@ test("package.json expose tous les quality gates L0", () => {
   assert.match(scripts["release:verify"] ?? "", /test:coverage:cli/);
 });
 
-test("la Definition of Done exige explicitement une recette QA pass", () => {
+test("the Complete definition of done requires a passing QA review", () => {
   const pipeline = readFileSync(resolve(ROOT, "pipeline.json"), "utf8");
-  assert.match(pipeline, /statut_global vaut 'pass'/);
+  assert.match(pipeline, /"id": "qa_review"/);
+  assert.match(pipeline, /"passValues": \[\s*"pass"/);
 });

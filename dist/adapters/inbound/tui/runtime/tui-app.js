@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import { renderContextBanner } from "../components/banner.js";
+import { formatNumber, translate } from "../../../../application/localization/locale.js";
 export function createTuiApp(deps) {
     const { input, renderer, theme, banners } = deps;
     const stack = [];
@@ -21,12 +22,6 @@ export function createTuiApp(deps) {
     let cleanupRegistered = false;
     let cleanupHandlers = [];
     let resizeHandler;
-    // `push()` peut être appelé avant `run()` (pattern `push(homeView); await run();`
-    // de bootstrap.ts). Sans ce garde, ce premier push rendrait sur stdout AVANT que
-    // `run()` n'ait activé le raw mode (`input.start()`) -- fenêtre pendant laquelle
-    // le terminal est encore en mode cooked (ICRNL actif : un `\r` tapé/envoyé très
-    // vite après l'affichage peut être livré comme `\n` non reconnu). `running`
-    // retarde le tout premier rendu jusqu'à ce que `run()` ait démarré la boucle.
     let running = false;
     function topScene() {
         return stack[stack.length - 1];
@@ -38,9 +33,9 @@ export function createTuiApp(deps) {
         const columns = deps.viewport?.().columns;
         if (columns !== undefined && columns < 60) {
             renderer.redraw((line) => {
-                line("Terminal trop étroit pour le cockpit arka-norn.");
-                line(`Largeur actuelle : ${columns} colonnes · minimum : 60.`);
-                line("Agrandis la fenêtre ; l'écran se redessinera automatiquement.");
+                line(translate("tui.terminal.narrow"));
+                line(translate("tui.terminal.width", { columns: formatNumber(columns), minimum: formatNumber(60) }));
+                line(translate("tui.terminal.resize"));
             });
             return;
         }

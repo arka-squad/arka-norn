@@ -13,23 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * Composition root -- câble domaine/ports/use-cases/adapters/TUI. Port TS
- * très simplifié de arka-cc-management (composition/container.ts) : pas de
- * bundles/catalogue/préférences/agent/gouvernance/mémoire/chat (aucun de
- * ces sous-systèmes n'existent dans arka-norn). Pipeline, gestion et skills
- * sont appelés directement par leurs ports : aucun sous-processus CLI dans
- * la boucle de rendu.
- *
- * Navigation à 3 niveaux : Home (Projects) -> ProjectDetail (Features du
- * Project) -> FeatureDetail (actions pipeline). La relation est portée par
- * `Feature.projectId` et non déduite d'un préfixe de chemin.
- *
- * Toute la navigation multi-écrans (home -> detail, detail -> saisie ->
- * résultat) est orchestrée ICI, jamais dans les vues elles-mêmes : les
- * vues n'ont qu'des callbacks (`onOpenFeature`, `onShowStatus`, ...), le
- * container seul détient `app` et sait pousser/dépiler des Scenes.
- */
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { renderArkaHeader } from "../adapters/inbound/tui/components/banner.js";
@@ -56,6 +39,8 @@ import { createAgentSceneController } from "./tui/agent-scene-controller.js";
 import { createAgentOrchestrationRuntime } from "./agent-orchestration-runtime.js";
 import { createOrchestrationRuntime } from "./orchestration-runtime.js";
 import { createAgentOrchestrationSceneController } from "./tui/agent-orchestration-scene-controller.js";
+import { FsLocalePreferenceStore } from "../adapters/outbound/filesystem/fs-locale-preference-store.js";
+import { formatNumber, resolveLocale, setActiveLocale, translate } from "../application/localization/locale.js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // dist/composition/container.js -> remonte de 2 niveaux vers la racine du framework.
 const FRAMEWORK_ROOT = resolve(__dirname, "..", "..");
@@ -69,6 +54,7 @@ export function createContainer(env, ui = {}) {
     const scan = management.scanFeatures;
     const pipeline = createPipelineRuntime(FRAMEWORK_ROOT, { homeDir });
     const skillManager = new DirectSkillManager(FRAMEWORK_ROOT, homeDir);
+    const localePreferences = new FsLocalePreferenceStore(homeDir);
     const uiState = {
         contextRoot: env.cwd,
         currentProject: undefined,
@@ -123,6 +109,7 @@ export function createContainer(env, ui = {}) {
             featureRoot: feature.root,
             featureId: feature.id.value,
             pipelineId: feature.pipelineId,
+            documentContractVersion: feature.documentContractVersion,
             authorRegistry,
         });
         app.push(createFeatureDetailView({
@@ -140,9 +127,9 @@ export function createContainer(env, ui = {}) {
                 const agent = await management.agents.current(project);
                 if (agent === undefined) {
                     app.push(createResultView({
-                        title: "Identité agent requise",
+                        title: translate("tui.container.agentRequired.title"),
                         code: 64,
-                        output: "Aucun agent actif sélectionné pour ce projet. Revenez au Project, ouvrez le registre Agents, puis enregistrez ou sélectionnez votre identité avant de générer un document.\n",
+                        output: translate("tui.container.agentRequired.output"),
                         onBack: () => { },
                     }));
                     return;
@@ -190,6 +177,7 @@ export function createContainer(env, ui = {}) {
                 featureRoot: feature.root,
                 featureId: feature.id.value,
                 pipelineId: feature.pipelineId,
+                documentContractVersion: feature.documentContractVersion,
                 authorRegistry: await authorRegistryForFeature(feature),
             }), feature.pipelineId),
             onForget: (selected) => confirmations.forgetProject(selected),
@@ -240,6 +228,7 @@ export function createContainer(env, ui = {}) {
         },
         async createHomeView() {
             const initialProjects = await projects.list();
+            const localePreference = await localePreferences.load();
             const doctor = createDoctorRuntime(homeDir, env.cwd);
             const inspectHealth = async () => {
                 const [projectSkills, globalSkills, report] = await Promise.all([
@@ -249,8 +238,17 @@ export function createContainer(env, ui = {}) {
                 ]);
                 return { projectSkills, globalSkills, report };
             };
-            const formatSkills = (projectSkills, globalSkills) => `Projet ${projectSkills.healthy}/${projectSkills.total} · Global ${globalSkills.healthy}/${globalSkills.total}`;
-            const formatSystem = (report) => `${report.summary.pass} PASS · ${report.summary.warn} WARN · ${report.summary.fail} FAIL`;
+            const formatSkills = (projectSkills, globalSkills) => translate("tui.container.skillsSummary", {
+                projectHealthy: formatNumber(projectSkills.healthy),
+                projectTotal: formatNumber(projectSkills.total),
+                globalHealthy: formatNumber(globalSkills.healthy),
+                globalTotal: formatNumber(globalSkills.total),
+            });
+            const formatSystem = (report) => translate("tui.skills.health.summary", {
+                pass: formatNumber(report.summary.pass),
+                warn: formatNumber(report.summary.warn),
+                fail: formatNumber(report.summary.fail),
+            });
             const initialHealth = await inspectHealth();
             const homeRef = { current: undefined };
             const refreshHomeHealth = async () => {
@@ -269,6 +267,11 @@ export function createContainer(env, ui = {}) {
                 contextRoot: uiState.contextRoot,
                 skillHealth: formatSkills(initialHealth.projectSkills, initialHealth.globalSkills),
                 systemHealth: formatSystem(initialHealth.report),
+                localePreference,
+                onLocaleChange: async (preference) => {
+                    await localePreferences.save(preference);
+                    setActiveLocale(resolveLocale({ preference, environment: process.env }));
+                },
                 redraw: () => app.redraw(),
                 onProjectFocused: (project) => {
                     uiState.currentProject = project;

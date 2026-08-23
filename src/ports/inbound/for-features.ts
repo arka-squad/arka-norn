@@ -14,11 +14,6 @@
  * limitations under the License.
  */
 
-/**
- * ForFeatures — driving port : cycle de vie CRUD d'une feature indexée.
- * Port fidèle de ForProjects (arka-cc-management,
- * core/ports/inbound/for-projects.ts), réduit aux opérations utiles ici.
- */
 import type { Feature } from "../../domain/feature/feature.js";
 import type { FeatureId } from "../../domain/feature/feature-id.js";
 import type { ProjectId } from "../../domain/project/project-id.js";

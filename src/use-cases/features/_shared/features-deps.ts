@@ -14,12 +14,6 @@
  * limitations under the License.
  */
 
-/**
- * Features use-cases — dépendances partagées. Port fidèle de ProjectsDeps
- * (arka-cc-management, core/use-cases/projects/_shared/projects-deps.ts) :
- * chaque factory de use-case accepte cette même struct, la composition
- * root les câble uniformément.
- */
 import type { Clock } from "../../../ports/outbound/clock.js";
 import type { Filesystem } from "../../../ports/outbound/filesystem.js";
 import type { Logger } from "../../../ports/outbound/logger.js";

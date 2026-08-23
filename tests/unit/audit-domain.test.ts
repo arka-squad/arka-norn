@@ -39,18 +39,18 @@ test("les cinq schémas d'audit compilent ensemble en JSON Schema 2020-12", () =
 test("audit-request distingue mode, profondeur, allowlist et références de credentials", () => {
   const request = parseAuditRequest({
     objective: "Découvrir le produit et auditer la CI",
-    mode: "mixte",
+    mode: "mixed",
     paths: ["."],
     modules: [
-      { moduleId: "M06", intent: "audit", depth: "connecte", criteria: ["permissions minimales"] },
-      { moduleId: "M09", intent: "discover", depth: "statique", criteria: [] },
+      { moduleId: "M06", intent: "audit", depth: "connected", criteria: ["permissions minimales"] },
+      { moduleId: "M09", intent: "discover", depth: "static", criteria: [] },
     ],
     sources: { paths: [], urls: ["https://api.github.com/repos/arka-squad/arka-norn"] },
     capabilities: { allowImagePulls: false, allowedHosts: ["api.github.com"], credentialRefs: ["GITHUB_TOKEN"], dynamicTargets: [] },
   });
-  assert.equal(request.mode, "mixte");
+  assert.equal(request.mode, "mixed");
   assert.deepEqual(request.capabilities.credentialRefs, ["GITHUB_TOKEN"]);
-  assert.throws(() => parseAuditRequest({ ...request, mode: "decouverte" }), /only accepts discover/);
+  assert.throws(() => parseAuditRequest({ ...request, mode: "discovery" }), /only accepts discover/);
   assert.throws(() => parseAuditRequest({ ...request, sources: { paths: [], urls: ["http:\/\/127.0.0.1/metadata"] }, capabilities: { ...request.capabilities, allowedHosts: ["127.0.0.1"] } }), /localhost, private or metadata/);
 });
 
@@ -87,7 +87,7 @@ function moduleResult(finding: AuditFinding): AuditModuleResult {
     auditId: "audit-20260823t120000z-1234abcd",
     moduleId: "M05",
     intent: "audit",
-    depth: "statique",
+    depth: "static",
     execution: { status: "partial", startedAt: observedAt, endedAt: observedAt, tools: [] },
     assessment: { status: "warn", confidence: "medium" },
     coverage: { requested: ["secrets", "dependencies"], completed: ["secrets"], missing: ["dependencies"] },

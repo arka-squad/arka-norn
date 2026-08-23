@@ -22,11 +22,12 @@ import { createTheme } from "../../src/adapters/inbound/tui/runtime/theme.ts";
 import { createTuiApp } from "../../src/adapters/inbound/tui/runtime/tui-app.ts";
 import { createResultView } from "../../src/adapters/inbound/tui/views/result-view.ts";
 import { showHealthReport } from "../../src/composition/tui/skill-scene-controller.ts";
+import { runWithLocale } from "../../src/application/localization/locale.ts";
 import type { DoctorReport } from "../../src/ports/inbound/for-doctor.ts";
 
 const theme = createTheme({ NO_COLOR: "1" }, false);
 
-test("la TUI affiche un état explicite sous la largeur minimale", async () => {
+test("the TUI renders an explicit state below the minimum width in both locales", async () => {
   let output = "";
   let listener: ((event: { kind: "interrupt" }) => void) | undefined;
   const app = createTuiApp({
@@ -41,11 +42,28 @@ test("la TUI affiche un état explicite sous la largeur minimale", async () => {
   });
   app.push({ onKey: () => "consumed", render: (renderer) => renderer.redraw((line) => line("ne doit pas apparaître")) });
   await app.run({ registerProcessHandlers: false });
-  assert.match(output, /Terminal trop étroit/);
+  assert.match(output, /terminal is too narrow/i);
   assert.doesNotMatch(output, /ne doit pas apparaître/);
+
+  output = "";
+  await runWithLocale("fr", async () => {
+    const frenchApp = createTuiApp({
+      input: {
+        start() { queueMicrotask(() => listener?.({ kind: "interrupt" })); },
+        stop() {},
+        on(next) { listener = next as typeof listener; return () => { listener = undefined; }; },
+      },
+      renderer: createRenderer({ write: (chunk) => { output += chunk; }, isTTY: false }),
+      theme,
+      viewport: () => ({ columns: 40, rows: 20 }),
+    });
+    frenchApp.push({ onKey: () => "consumed", render: (renderer) => renderer.redraw((line) => line("hidden")) });
+    await frenchApp.run({ registerProcessHandlers: false });
+  });
+  assert.match(output, /Terminal est trop étroit/i);
 });
 
-test("les résultats longs défilent avec les flèches", () => {
+test("long result output scrolls with arrow keys", () => {
   let output = "";
   const renderer = createRenderer({ write: (chunk) => { output += chunk; }, isTTY: false });
   const view = createResultView({ title: "Rapport", code: 0, output: "L1\nL2\nL3\nL4\nL5", maxVisibleLines: 3, onBack() {} });
@@ -57,10 +75,10 @@ test("les résultats longs défilent avec les flèches", () => {
   view.onKey({ kind: "down" });
   view.render(renderer, theme);
   assert.match(output, /L5/);
-  assert.match(output, /2 ligne\(s\) au-dessus/);
+  assert.match(output, /2 line\(s\) above/);
 });
 
-test("la Santé TUI délègue son verdict au rapport doctor", () => {
+test("TUI health delegates its verdict to the doctor report", () => {
   const warningReport: DoctorReport = {
     schemaVersion: 1,
     ok: true,
@@ -85,10 +103,10 @@ test("la Santé TUI délègue son verdict au rapport doctor", () => {
   );
   app.topScene()?.render(renderer, theme);
 
-  assert.match(output, /Statut : OK/);
-  assert.doesNotMatch(output, /ÉCHEC/);
-  assert.match(output, /11 absents/);
-  assert.match(output, /Global Claude\/Codex 21\/21 sains/);
+  assert.match(output, /Status: OK/);
+  assert.doesNotMatch(output, /FAILURE/);
+  assert.match(output, /11 missing/);
+  assert.match(output, /Global Claude\/Codex 21\/21 healthy/);
 
   output = "";
   showHealthReport(app, {
@@ -99,7 +117,7 @@ test("la Santé TUI délègue son verdict au rapport doctor", () => {
   }, { total: 21, healthy: 21, missing: 0, divergent: 0 }, { total: 21, healthy: 21, missing: 0, divergent: 0 });
   app.topScene()?.render(renderer, theme);
 
-  assert.match(output, /Statut : ÉCHEC \(code 3\)/);
+  assert.match(output, /Status: FAILURE \(code 3\)/);
 
   output = "";
   showHealthReport(
@@ -110,22 +128,22 @@ test("la Santé TUI délègue son verdict au rapport doctor", () => {
   );
   app.topScene()?.render(renderer, theme);
 
-  assert.match(output, /Statut : ÉCHEC \(code 3\)/);
-  assert.match(output, /Global Claude\/Codex 20\/21 sains/);
-  assert.match(output, /diagnostic global sera affiché/);
+  assert.match(output, /Status: FAILURE \(code 3\)/);
+  assert.match(output, /Global Claude\/Codex 20\/21 healthy/);
+  assert.match(output, /global diagnostics will be shown/);
 });
 
-test("le renderer borne une frame à la hauteur du terminal", () => {
+test("the renderer bounds a frame to the terminal height", () => {
   let output = "";
   const renderer = createRenderer({ write: (chunk) => { output += chunk; }, isTTY: true, rows: 5 });
   renderer.redraw((line) => {
     for (let index = 1; index <= 10; index++) line(`L${index}`);
   });
   assert.equal(renderer.lastFrameLines, 4);
-  assert.match(output, /ligne\(s\) masquée\(s\)/);
+  assert.match(output, /hidden line\(s\)/);
 });
 
-test("le renderer remonte le nombre réel de lignes après wrapping terminal", () => {
+test("the renderer reports physical lines after terminal wrapping", () => {
   let output = "";
   const renderer = createRenderer({ write: (chunk) => { output += chunk; }, isTTY: true, rows: 10, columns: 10 });
   renderer.redraw((line) => line("1234567890123456789012345"));

@@ -14,15 +14,19 @@
  * limitations under the License.
  */
 import { findScaffoldSentinels } from "../../domain/pipeline/scaffold-schema.js";
+import { canonicalDocumentType, normalizeLegacyDocument } from "../compatibility/legacy-french-contract.js";
 export function validatePipelineDocumentUseCaseFactory(deps) {
     return async (input) => {
         const candidate = await deps.source.read(input.filePath);
         if (candidate.content === undefined)
             return { valid: false, errors: candidate.readErrors };
-        const type = candidate.content["type"];
-        if (typeof type !== "string")
+        const sourceType = candidate.content["type"];
+        if (typeof sourceType !== "string")
             return { valid: false, errors: ['missing string field "type"'] };
-        const definition = await deps.source.loadDefinition(input.pipelineId);
+        const contractVersion = input.documentContractVersion ?? 5;
+        const type = contractVersion === 3 ? sourceType : canonicalDocumentType(sourceType);
+        const content = contractVersion === 3 || candidate.content["schema_version"] === 5 ? candidate.content : normalizeLegacyDocument(candidate.content);
+        const definition = await deps.source.loadDefinition(input.pipelineId, contractVersion);
         let schemaPath = schemaFor(definition, type);
         if (schemaPath === undefined && input.pipelineId === undefined) {
             const catalog = await deps.source.loadCatalog();
@@ -35,8 +39,8 @@ export function validatePipelineDocumentUseCaseFactory(deps) {
         }
         if (schemaPath === undefined)
             return { valid: false, type, errors: [`unknown pipeline document type: ${type}`] };
-        const schemaResult = await deps.validator.validate(schemaPath, candidate.content);
-        const sentinels = findScaffoldSentinels(candidate.content);
+        const schemaResult = await deps.validator.validate(schemaPath, content);
+        const sentinels = findScaffoldSentinels(content);
         const errors = [...schemaResult.errors, ...sentinels.map((path) => `${path} contains an unresolved scaffold sentinel`)];
         return { valid: errors.length === 0, type, schemaPath, errors };
     };

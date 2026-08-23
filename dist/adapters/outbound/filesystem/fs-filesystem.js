@@ -13,17 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * FsFilesystem — adapter `node:fs/promises` du port Filesystem. Port
- * fidèle de arka-cc-management (adapters/outbound/filesystem/fs-filesystem.ts) :
- * - ENOENT -> FileNotFoundError, EACCES/EPERM -> PermissionDeniedError,
- *   ENOTDIR -> NotADirectoryError, le reste rethrow tel quel.
- * - readDir ne suit pas les symlinks (filtrés entièrement).
- * - resolve()/homeDir() sont purs (path math / os.homedir()).
- *
- * Seul endroit du repo où node:fs/promises, node:os, node:path sont
- * importés hors composition root.
- */
 import * as fs from "node:fs/promises";
 import * as fsSync from "node:fs";
 import { homedir } from "node:os";

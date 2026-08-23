@@ -32,6 +32,7 @@ import {
 } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
+import { translate } from "../../../application/localization/locale.js";
 import { createSkillCatalogRuntime, type SkillDefinition } from "./skill-catalog.js";
 
 export type SkillPlanAction = "create" | "unchanged" | "conflict";
@@ -87,13 +88,13 @@ export function installSkills(frameworkRoot: string, request: SkillInstallReques
   const target = resolve(request.target);
   const desired = desiredFiles(runtime.definitions, target, (definition) => runtime.renderRepoSkillMd(definition), (definition) => runtime.renderOpenaiYaml(definition));
   if (request.global === true) {
-    if (request.globalHome === undefined) throw new Error("Le home global doit être explicite pour une installation globale");
+    if (request.globalHome === undefined) throw new Error(translate("cli.skills.globalHomeRequired"));
     desired.push(...desiredGlobalFiles(runtime.definitions, resolve(request.globalHome), (definition) => runtime.renderGlobalSkillMd(definition), (definition) => runtime.renderRepoSkillMd(definition), (definition) => runtime.renderOpenaiYaml(definition)));
   }
   const plan = desired.map((item) => ({ ...item, action: classify(item.file, item.content) }));
   const skills = runtime.definitions.map((definition) => definition.name);
   if (plan.some((item) => item.action === "conflict") && request.force !== true) {
-    return { ok: false, code: 5, dryRun: request.dryRun === true, profile, skills, plan, error: "Conflits locaux détectés ; utilise --force pour sauvegarder puis remplacer." };
+    return { ok: false, code: 5, dryRun: request.dryRun === true, profile, skills, plan, error: translate("cli.skills.conflicts") };
   }
   if (request.dryRun === true) return { ok: true, code: 0, dryRun: true, profile, skills, plan };
 
@@ -132,11 +133,6 @@ export function inspectSkills(frameworkRoot: string, target: string, profile = "
   });
 }
 
-/**
- * Inspecte uniquement les artefacts d'entrée utilisateur Claude/Codex.
- * Cette vue séparée évite qu'une copie locale saine masque un point d'entrée
- * global obsolète dans la TUI.
- */
 export function inspectGlobalSkills(frameworkRoot: string, globalHome: string, profile = "all"): readonly SkillDefinitionHealth[] {
   const runtime = createSkillCatalogRuntime(frameworkRoot, profile);
   return runtime.definitions.map((definition) => {
@@ -155,11 +151,6 @@ export function inspectGlobalSkills(frameworkRoot: string, globalHome: string, p
   });
 }
 
-/**
- * Détecte les entrées `arka-*` présentes dans un emplacement de skills mais
- * absentes du catalogue. Ces copies non gérées ne peuvent pas être comparées à
- * une référence : elles sont signalées, jamais modifiées ici.
- */
 export function findOrphanSkills(
   frameworkRoot: string,
   target: string,
@@ -230,7 +221,7 @@ function fileStatus(file: string, expected: string): SkillFileHealth {
 function assertSafeDestination(root: string, file: string): void {
   const absoluteRoot = resolve(root);
   if (!existsSync(absoluteRoot)) mkdirSync(absoluteRoot, { recursive: true, mode: 0o700 });
-  if (lstatSync(absoluteRoot).isSymbolicLink()) throw new Error(`Cible symbolique refusée : ${absoluteRoot}`);
+  if (lstatSync(absoluteRoot).isSymbolicLink()) throw new Error(translate("cli.skills.symlinkRoot", { path: absoluteRoot }));
   const canonicalRoot = realpathSync(absoluteRoot);
   const relation = relative(absoluteRoot, resolve(file));
   if (relation === ".." || relation.startsWith(`..${sep}`) || isAbsolute(relation)) throw new Error(`Sortie hors cible : ${file}`);
@@ -244,14 +235,14 @@ function assertSafeDestination(root: string, file: string): void {
     cursor = dirname(cursor);
   }
   while (true) {
-    if (lstatSync(cursor).isSymbolicLink()) throw new Error(`Composant symbolique refusé : ${cursor}`);
+    if (lstatSync(cursor).isSymbolicLink()) throw new Error(translate("cli.skills.symlinkComponent", { path: cursor }));
     if (resolve(cursor) === absoluteRoot) break;
     const parent = dirname(cursor);
-    if (parent === cursor) throw new Error(`Cible non confinée : ${file}`);
+    if (parent === cursor) throw new Error(translate("cli.skills.unconfined", { path: file }));
     cursor = parent;
   }
   for (const directory of pending.reverse()) mkdirSync(directory, { mode: 0o700 });
-  if (existsSync(file) && lstatSync(file).isSymbolicLink()) throw new Error(`Fichier symbolique refusé : ${file}`);
+  if (existsSync(file) && lstatSync(file).isSymbolicLink()) throw new Error(translate("cli.skills.symlinkFile", { path: file }));
 }
 
 function backupExisting(root: string, file: string, stamp: string): string {

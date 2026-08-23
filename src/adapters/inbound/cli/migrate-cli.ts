@@ -15,15 +15,18 @@
  */
 
 import { existsSync, lstatSync, readdirSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 import { migrateMarkerFile } from "../../outbound/filesystem/marker-migrator.js";
+import { migrateLegacyFeatureContract } from "../../outbound/filesystem/legacy-feature-migrator.js";
 import { PathSecurityError } from "../../../domain/errors.js";
 import type { CliExecution } from "./cli-execution.js";
 import { CliUsageError, parseStrictArguments } from "./strict-arguments.js";
+import { jsonEnvelope } from "./cli-envelope.js";
 
 export interface MigrateCliContext {
   readonly cwd: string;
+  readonly frameworkRoot?: string;
 }
 
 interface MarkerCandidate {
@@ -53,8 +56,32 @@ export async function runMigrateCommand(argv: readonly string[], context: Migrat
       readonly toVersion: number;
       readonly applied: boolean;
       readonly backupPath?: string;
+      readonly documentCount?: number;
     }[] = [];
     for (const candidate of findMarkers(target, 3)) {
+      if (candidate.kind === "feature") {
+        try {
+          const migration = await migrateLegacyFeatureContract({
+            featureRoot: dirname(dirname(candidate.source)),
+            frameworkRoot: context.frameworkRoot ?? resolve(import.meta.dirname, "..", "..", "..", ".."),
+            apply,
+          });
+          results.push({
+            kind: "feature",
+            source: candidate.source,
+            destination: candidate.source,
+            changed: migration.changed,
+            fromVersion: migration.fromMarkerVersion,
+            toVersion: migration.toMarkerVersion,
+            applied: migration.applied,
+            documentCount: migration.documents.length,
+            ...(migration.markerBackupPath === undefined ? {} : { backupPath: migration.markerBackupPath }),
+          });
+          continue;
+        } catch (error) {
+          if (!(error instanceof Error) || !error.message.startsWith("Unsupported Feature marker")) throw error;
+        }
+      }
       const migration = candidate.kind === "project"
         ? await migrateMarkerFile({
             kind: "project",
@@ -80,22 +107,22 @@ export async function runMigrateCommand(argv: readonly string[], context: Migrat
       });
     }
     const data = { mode: apply ? "apply" : "dry-run", target, results };
-    if (json) return { code: 0, stdout: `${JSON.stringify({ schemaVersion: 1, command: "migrate", ok: true, data, errors: [], warnings: [] })}\n`, stderr: "" };
+    if (json) return { code: 0, stdout: jsonEnvelope({ command: "migrate", ok: true, data }), stderr: "" };
     const rows = results.map((result) => `${result.changed ? (result.applied ? "APPLIED" : "PLANNED") : "CURRENT"}\t${result.source}`);
-    return { code: 0, stdout: [`Migration — ${data.mode} — ${results.length} marker(s)`, ...rows].join("\n") + "\n", stderr: "" };
+    return { code: 0, stdout: [`Migration: ${data.mode} (${results.length} marker(s))`, ...rows].join("\n") + "\n", stderr: "" };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const code = error instanceof CliUsageError ? 64 : 3;
     return json
-      ? { code, stdout: `${JSON.stringify({ schemaVersion: 1, command: "migrate", ok: false, data: null, errors: [message], warnings: [] })}\n`, stderr: "" }
-      : { code, stdout: "", stderr: `ERREUR — ${message}\n` };
+      ? { code, stdout: jsonEnvelope({ command: "migrate", ok: false, data: null, errors: [message], errorCode: error instanceof CliUsageError ? "invalid_arguments" : "migration_failed" }), stderr: "" }
+      : { code, stdout: "", stderr: `ERROR: ${message}\n` };
   }
 }
 
 export function findMarkers(root: string, depth: number): readonly MarkerCandidate[] {
-  if (!existsSync(root)) throw new Error(`Cible de migration inexistante : ${root}`);
+  if (!existsSync(root)) throw new Error(`Migration target does not exist: ${root}`);
   const rootStat = lstatSync(root);
-  if (rootStat.isSymbolicLink() || !rootStat.isDirectory()) throw new Error(`Cible de migration invalide : ${root}`);
+  if (rootStat.isSymbolicLink() || !rootStat.isDirectory()) throw new Error(`Invalid migration target: ${root}`);
   const found: MarkerCandidate[] = [];
   walk(root, depth, found);
   return found.sort((left, right) => left.source.localeCompare(right.source));

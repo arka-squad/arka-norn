@@ -19,6 +19,8 @@ import { FsAuditStore } from "../../outbound/filesystem/fs-audit-store.js";
 import { readJson } from "../../outbound/filesystem/_shared/atomic-json.js";
 import type { CliExecution } from "./cli-execution.js";
 import { CliUsageError, parseStrictArguments, type StrictArgumentSpec } from "./strict-arguments.js";
+import { jsonEnvelope } from "./cli-envelope.js";
+import { formatBytes, formatNumber, translate } from "../../../application/localization/locale.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -27,23 +29,9 @@ export interface AuditCliContext {
   readonly homeDir: string;
 }
 
-export const AUDIT_HELP = `Audit et découverte assistés (hors Pipeline)
-
-  audit inspect --project <id> [--feature <id>] [--path <rel>] [--json]
-  audit prepare --project <id> --request <request.json> [--feature <id>] [--json]
-  audit start <audit-id> --project <id> --confirm <empreinte> [--json]
-  audit status <audit-id> --project <id> [--json]
-  audit submit <audit-id> --project <id> --module <M00..M11> --input <result.json> [--json]
-  audit finalize <audit-id> --project <id> [--json]
-  audit cancel|resume <audit-id> --project <id> [--json]
-  audit list --project <id> [--json]
-  audit show <audit-id> --project <id> [--json]
-  audit compare <audit-id> --baseline <audit-id> --project <id> [--json]
-  audit kb search --project <id> [--domain <Mxx>] [--severity <niveau>] [--priority <valeur>] [--status <état>] [--type <type>] [--scope <scope>] [--audit <id>] [--commit <sha>] [--confidence <niveau>] [--origin <origine>] [--json]
-  audit evidence show <evidence-id> --audit <audit-id> --project <id> [--json]
-  audit export <audit-id> --project <id> --to <dossier> [--include-evidence] [--json]
-  audit tools doctor --project <id> [--json]
-`;
+export function auditHelp(): string {
+  return translate("cli.audit.help");
+}
 
 export async function runAuditCommand(argv: readonly string[], context: AuditCliContext): Promise<CliExecution> {
   const action = argv[0];
@@ -51,7 +39,7 @@ export async function runAuditCommand(argv: readonly string[], context: AuditCli
   const json = rest.includes("--json");
   const command = `audit.${action ?? "unknown"}`;
   try {
-    if (action === undefined || action === "help" || action === "--help" || action === "-h") return success(command, AUDIT_HELP, AUDIT_HELP, json);
+    if (action === undefined || action === "help" || action === "--help" || action === "-h") return success(command, auditHelp(), auditHelp(), json);
     if (action === "kb") return await runKb(rest, context);
     if (action === "evidence") return await runEvidence(rest, context);
     if (action === "tools") return await runTools(rest, context);
@@ -82,7 +70,7 @@ export async function runAuditCommand(argv: readonly string[], context: AuditCli
       const run = await service.requiredRun(parsed.positionals[0]!);
       const audit = await store.loadCanonical(run.id);
       const data = { run, audit, reportPath: audit === undefined ? null : resolve(run.inspection.projectRoot, ".arka-norn", "audits", run.id, "report.md") };
-      return success(command, data, audit === undefined ? humanRun(run) : `Audit ${run.id} · ${run.status}\nRapport : ${data.reportPath}`, json);
+      return success(command, data, audit === undefined ? humanRun(run) : `${translate("cli.audit.summary", { id: run.id, status: run.status })}\n${translate("cli.audit.report", { path: data.reportPath ?? "" })}`, json);
     }
     if (action === "submit") {
       const moduleId = required(parsed.values, "module");
@@ -90,11 +78,11 @@ export async function runAuditCommand(argv: readonly string[], context: AuditCli
       const input = await readJson<unknown>(resolve(context.cwd, required(parsed.values, "input")));
       if (input === undefined) throw new Error("Audit module input not found");
       const data = await service.submit(parsed.positionals[0]!, moduleId, input);
-      return success(command, data, `${moduleId} enregistré et validé.`, json);
+      return success(command, data, translate("cli.audit.moduleSaved", { module: moduleId }), json);
     }
     if (action === "finalize") {
       const data = await service.finalize(parsed.positionals[0]!);
-      return success(command, data, `Audit ${data.run.id} · ${data.run.status}\nRapport : ${data.reportPath}`, json);
+      return success(command, data, `${translate("cli.audit.summary", { id: data.run.id, status: data.run.status })}\n${translate("cli.audit.report", { path: data.reportPath })}`, json);
     }
     if (action === "cancel") {
       const data = await service.cancel(parsed.positionals[0]!);
@@ -106,18 +94,18 @@ export async function runAuditCommand(argv: readonly string[], context: AuditCli
     }
     if (action === "list") {
       const data = await store.listRuns();
-      const human = data.length === 0 ? "Aucun audit local." : data.map((entry) => `${entry.id} · ${entry.status} · ${entry.mode}`).join("\n");
+      const human = data.length === 0 ? translate("cli.audit.none") : data.map((entry) => `${entry.id} - ${entry.status} - ${entry.mode}`).join("\n");
       return success(command, data, human, json);
     }
     if (action === "compare") {
       const data = await service.compare(parsed.positionals[0]!, required(parsed.values, "baseline"));
-      return success(command, data, `Nouveaux ${data.new.length} · persistants ${data.persisting.length} · résolus ${data.resolved.length} · régressions ${data.regressed.length}`, json);
+      return success(command, data, translate("cli.audit.compare", { newCount: formatNumber(data.new.length), persisting: formatNumber(data.persisting.length), resolved: formatNumber(data.resolved.length), regressed: formatNumber(data.regressed.length) }), json);
     }
     if (action === "export") {
       const data = await store.exportAudit(parsed.positionals[0]!, resolve(context.cwd, required(parsed.values, "to")), parsed.booleans.has("include-evidence"));
-      return success(command, data, `Export terminé : ${data.length} fichier(s).`, json);
+      return success(command, data, translate("cli.audit.exported", { count: formatNumber(data.length) }), json);
     }
-    throw new CliUsageError(`unknown audit action: ${action}\n\n${AUDIT_HELP}`);
+    throw new CliUsageError(`unknown audit action: ${action}\n\n${auditHelp()}`);
   } catch (error) {
     return failure(command, error, json);
   }
@@ -135,7 +123,7 @@ async function runKb(argv: readonly string[], context: AuditCliContext): Promise
     const aliases: Readonly<Record<string, string>> = { domain: "moduleId", audit: "auditId", commit: "commitExact" };
     const filters = Object.fromEntries(["domain", "severity", "priority", "status", "type", "scope", "audit", "commit", "confidence", "origin"].flatMap((name) => parsed.values.get(name) === undefined ? [] : [[aliases[name] ?? name, parsed.values.get(name)!]]));
     const data = await new FsAuditStore(resolved.context.projectRoot).searchKb(filters);
-    const human = data.length === 0 ? "Aucune entrée KB correspondante." : data.map((record) => `${record.id} · ${record.moduleId} · ${record.severity ?? "n/a"} · ${record.title}`).join("\n");
+    const human = data.length === 0 ? translate("cli.audit.kb.none") : data.map((record) => `${record.id} - ${record.moduleId} - ${record.severity ?? "n/a"} - ${record.title}`).join("\n");
     return success(command, data, human, json);
   } catch (error) {
     return failure(command, error, json);
@@ -215,51 +203,49 @@ function argumentSpec(action: string): StrictArgumentSpec {
 }
 
 function success(command: string, data: unknown, human: string, json: boolean): CliExecution {
-  return { code: 0, stdout: json ? `${JSON.stringify({ schemaVersion: 1, command, ok: true, data, errors: [], warnings: [] })}\n` : `${human.trimEnd()}\n`, stderr: "" };
+  return { code: 0, stdout: json ? jsonEnvelope({ command, ok: true, data, message: human }) : `${human.trimEnd()}\n`, stderr: "" };
 }
 
 function failure(command: string, error: unknown, json: boolean): CliExecution {
   const message = error instanceof Error ? error.message : String(error);
   const code = error instanceof CliUsageError ? 64 : /not found/i.test(message) ? 4 : 3;
   return json
-    ? { code, stdout: `${JSON.stringify({ schemaVersion: 1, command, ok: false, data: null, errors: [message], warnings: [] })}\n`, stderr: "" }
-    : { code, stdout: "", stderr: `ERREUR — ${message}\n` };
+    ? { code, stdout: jsonEnvelope({ command, ok: false, data: null, errors: [message], errorCode: "audit_command_failed" }), stderr: "" }
+    : { code, stdout: "", stderr: `${translate("common.error", { message })}\n` };
 }
 
 function humanInspection(data: Awaited<ReturnType<AuditService["inspect"]>>): string {
   return [
-    `Project ${data.projectId} · commit ${data.commitExact ?? "inconnu"} · workspace ${data.workspaceClean === true ? "propre" : data.workspaceClean === false ? "modifié" : "inconnu"}`,
-    `Sandbox : ${data.sandbox.runtime ?? "indisponible"}`,
-    ...data.recommendations.map((item) => `${item.state === "recommande" ? "✓" : item.state === "limite" ? "!" : "○"} ${item.moduleId} · ${item.state} · ${item.reason}`),
+    translate("cli.audit.inspection", {
+      project: data.projectId,
+      commit: data.commitExact ?? translate("cli.audit.unknown"),
+      workspace: translate(data.workspaceClean === true ? "cli.audit.workspace.clean" : data.workspaceClean === false ? "cli.audit.workspace.modified" : "cli.audit.unknown"),
+    }),
+    translate("cli.audit.sandbox", { runtime: data.sandbox.runtime ?? translate("cli.audit.unavailable") }),
+    ...data.recommendations.map((item) => `${item.state === "recommended" ? "+" : item.state === "limited" ? "!" : "-"} ${item.moduleId} - ${item.state} - ${item.reason}`),
   ].join("\n");
 }
 
 function humanRun(data: { readonly id: string; readonly status: string; readonly fingerprint: string; readonly selectedModules: readonly string[]; readonly warnings: readonly string[]; readonly moduleStatuses?: Readonly<Record<string, string>>; readonly plan?: { readonly images: readonly { readonly reference: string; readonly installed: boolean | null; readonly sizeBytes: number | null }[]; readonly hosts: readonly string[]; readonly logicalCommands: readonly string[]; readonly estimatedDuration: string; readonly requiresAdditionalConfirmation: boolean } }): string {
   return [
-    `Audit ${data.id} · ${data.status}`,
-    `Modules : ${data.selectedModules.join(", ")}`,
+    translate("cli.audit.summary", { id: data.id, status: data.status }),
+    translate("cli.audit.modules", { modules: data.selectedModules.join(", ") }),
     ...(data.moduleStatuses === undefined ? [] : data.selectedModules.map((moduleId) => progressLine(moduleId, data.moduleStatuses?.[moduleId] ?? "pending"))),
     ...(data.plan === undefined ? [] : [
-      `Commandes logiques : ${data.plan.logicalCommands.join(", ")}`,
-      `Images : ${data.plan.images.length === 0 ? "aucune" : data.plan.images.map((item) => `${item.reference} (${item.installed === true ? "présente" : item.installed === false ? "absente" : "état inconnu"}${item.sizeBytes === null ? "" : `, ${formatBytes(item.sizeBytes)}`})`).join(", ")}`,
-      `Hôtes : ${data.plan.hosts.length === 0 ? "aucun" : data.plan.hosts.join(", ")}`,
-      `Durée indicative : ${data.plan.estimatedDuration}`,
-      `Confirmation sensible : ${data.plan.requiresAdditionalConfirmation ? "requise" : "non requise"}`,
+      translate("cli.audit.logicalCommands", { commands: data.plan.logicalCommands.join(", ") }),
+      translate("cli.audit.images", { images: data.plan.images.length === 0 ? translate("cli.audit.images.none") : data.plan.images.map((item) => `${item.reference} (${translate(item.installed === true ? "cli.audit.image.present" : item.installed === false ? "cli.audit.image.absent" : "cli.audit.image.unknown")}${item.sizeBytes === null ? "" : `, ${formatBytes(item.sizeBytes)}`})`).join(", ") }),
+      translate("cli.audit.hosts", { hosts: data.plan.hosts.length === 0 ? translate("cli.audit.hosts.none") : data.plan.hosts.join(", ") }),
+      translate("cli.audit.duration", { duration: data.plan.estimatedDuration }),
+      translate("cli.audit.confirmation", { state: translate(data.plan.requiresAdditionalConfirmation ? "cli.audit.required" : "cli.audit.notRequired") }),
     ]),
-    `Empreinte : ${data.fingerprint}`,
+    translate("cli.audit.fingerprint", { fingerprint: data.fingerprint }),
     ...data.warnings.map((warning) => `! ${warning}`),
   ].join("\n");
 }
 
-function formatBytes(value: number): string {
-  if (value < 1_024) return `${value} o`;
-  if (value < 1_048_576) return `${Math.round(value / 1_024)} Kio`;
-  return `${Math.round(value / 1_048_576)} Mio`;
-}
-
 function progressLine(moduleId: string, status: string): string {
-  const icon = status === "complete" ? "✓" : status === "pending" ? "○" : status === "partial" || status === "skipped" ? "!" : "×";
-  return `${icon} ${moduleId} · ${status}`;
+  const icon = status === "complete" ? "+" : status === "pending" ? "-" : status === "partial" || status === "skipped" ? "!" : "x";
+  return `${icon} ${moduleId} - ${status}`;
 }
 
 async function probe(name: string): Promise<{ readonly name: string; readonly available: boolean; readonly version: string | null }> {

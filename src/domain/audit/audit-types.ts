@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-export const AUDIT_MODES = ["decouverte", "audit", "mixte"] as const;
+export const AUDIT_MODES = ["discovery", "audit", "mixed"] as const;
 export type AuditMode = typeof AUDIT_MODES[number];
 
-export const AUDIT_DEPTHS = ["inventaire", "statique", "connecte", "dynamique"] as const;
+export const AUDIT_DEPTHS = ["inventory", "static", "connected", "dynamic"] as const;
 export type AuditDepth = typeof AUDIT_DEPTHS[number];
 
 export const AUDIT_MODULE_IDS = ["M00", "M01", "M02", "M03", "M04", "M05", "M06", "M07", "M08", "M09", "M10", "M11"] as const;
@@ -76,7 +76,7 @@ export interface AuditSignal {
 
 export interface AuditModuleRecommendation {
   readonly moduleId: AuditModuleId;
-  readonly state: "recommande" | "disponible" | "limite" | "non_applicable_probable";
+  readonly state: "recommended" | "available" | "limited" | "probably_not_applicable";
   readonly reason: string;
   readonly suggestedDepth: AuditDepth;
 }

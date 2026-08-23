@@ -14,11 +14,6 @@
  * limitations under the License.
  */
 
-/**
- * Named domain errors. Port fidèle du pattern d'arka-cc-management
- * (core/domain/errors.ts) : chaque erreur a un `code` stable (matching
- * machine) et un message humain.
- */
 
 export type DomainErrorCode =
   | "INVALID_AGENT_ID"

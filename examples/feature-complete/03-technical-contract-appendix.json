@@ -1,0 +1,47 @@
+{
+  "schema_version": 5,
+  "author_agent_id": "Codex_dev_20260819",
+  "id": "annexe-a-extensibilite-connecteurs",
+  "feature_id": "connecteurs-notion-linear",
+  "type": "technical_contract_appendix",
+  "sequence": 1,
+  "created_at": "2026-06-30T09:00:00.000Z",
+  "depends_on_document_ids": [
+    "plan-memoire-evenementielle-notion-linear-v2.2"
+  ],
+  "title": "Documented title for the canonical English example.",
+  "appendix_of": "Documented appendix of for the canonical English example.",
+  "extensibility_principle": "Documented extensibility principle for the canonical English example.",
+  "contract": {
+    "name": "Documented name for the canonical English example.",
+    "methods": [
+      "Documented methods for the canonical English example.",
+      "discover",
+      "Documented methods for the canonical English example.",
+      "Documented methods for the canonical English example.",
+      "Documented methods for the canonical English example."
+    ],
+    "invariants": [
+      "Documented invariants for the canonical English example.",
+      "Documented invariants for the canonical English example.",
+      "Documented invariants for the canonical English example.",
+      "Documented invariants for the canonical English example.",
+      "Documented invariants for the canonical English example.",
+      "Documented invariants for the canonical English example.",
+      "Documented invariants for the canonical English example."
+    ]
+  },
+  "boundary": {
+    "pure_domain": [
+      "Documented pure domain for the canonical English example.",
+      "Documented pure domain for the canonical English example.",
+      "Documented pure domain for the canonical English example."
+    ],
+    "adapter": [
+      "Documented adapter for the canonical English example.",
+      "Documented adapter for the canonical English example."
+    ]
+  },
+  "status": "valid",
+  "content_locale": "en"
+}

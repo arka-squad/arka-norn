@@ -16,18 +16,8 @@
 
 import { spawnSync } from "node:child_process";
 
-// Exemptions explicites : chaque entrée doit citer l'advisory, la raison
-// technique et la condition de retrait. Toute autre vulnérabilité fait
-// échouer la gate, quelle que soit sa sévérité.
 const ALLOWED_ADVISORIES = new Set([
-  // GHSA-866g-f22w-33x8 (low) : consommation de ressources dans
-  // @ai-sdk/provider-utils. Toutes les versions 3.x publiées sont dans la
-  // plage affectée (ligne arrêtée en 3.0.32) et chaque @mastra/core jusqu'à
-  // 1.61.0 épingle l'alias provider-utils-v5 en 3.0.30 exactement : aucune
-  // version corrigée n'existe donc à ce jour. arka.norn n'appelle jamais un
   // provider AI in-process (les workers sont des processus ACP externes),
-  // le chemin vulnérable est inatteignable. À retirer dès que @mastra/core
-  // publie un alias corrigé.
   "https://github.com/advisories/GHSA-866g-f22w-33x8",
 ]);
 
@@ -65,21 +55,21 @@ for (const [name, vulnerability] of Object.entries(vulnerabilities)) {
 }
 
 if (exempted.length > 0) {
-  console.log("Advisories exemptés (allowlist documentée) :");
+  console.log("Exempted advisories (documented allowlist):");
   for (const entry of exempted) {
     console.log(`  - ${entry.name} (${entry.severity}) : ${entry.leaves.join(", ")}`);
   }
 }
 
 if (failures.length > 0) {
-  console.error("Vulnérabilités sans exemption, corriger avant release :");
+  console.error("Unexempted vulnerabilities must be fixed before release:");
   for (const entry of failures) {
     console.error(`  - ${entry.name} (${entry.severity}) : ${entry.leaves.join(", ")}`);
   }
   process.exit(1);
 }
 
-console.log(`Audit ${omitDev ? "production " : ""}passé : aucune vulnérabilité non exemptée.`);
+  console.log(`${omitDev ? "Production " : ""}audit passed: no unexempted vulnerabilities.`);
 
 function collectAdvisoryLeaves(name, vulnerabilities, visited) {
   if (visited.has(name)) return [];
@@ -91,7 +81,7 @@ function collectAdvisoryLeaves(name, vulnerabilities, visited) {
     if (typeof via === "string") {
       leaves.push(...collectAdvisoryLeaves(via, vulnerabilities, visited));
     } else {
-      leaves.push(via.url ?? via.title ?? "(advisory sans URL)");
+    leaves.push(via.url ?? via.title ?? "(advisory without URL)");
     }
   }
   return leaves;

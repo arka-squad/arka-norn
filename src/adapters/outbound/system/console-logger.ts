@@ -14,14 +14,6 @@
  * limitations under the License.
  */
 
-/**
- * ConsoleLogger — adapter stderr du port Logger. Port fidèle de
- * arka-cc-management (adapters/outbound/system/console-logger.ts).
- *
- * Sortie sur STDERR (jamais stdout, réservé au frame buffer de la TUI).
- * JSON-line si non-TTY, pretty single-line si TTY. Niveaux filtrés par
- * seuil. child(fields) accumule des bindings sans re-threader partout.
- */
 import type { Logger, LogFields, LogLevel } from "../../../ports/outbound/logger.js";
 
 const LEVEL_ORDER: Record<LogLevel, number> = { debug: 10, info: 20, warn: 30, error: 40 };

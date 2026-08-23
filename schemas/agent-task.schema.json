@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-task.schema.json",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "document-envelope.schema.json"
+    }
+  ],
+  "unevaluatedProperties": false,
+  "required": [
+    "id",
+    "type",
+    "number",
+    "title",
+    "block",
+    "status",
+    "internal_plan_sources",
+    "dependencies",
+    "objective",
+    "plan_statement",
+    "recommended_breakdown",
+    "expected_output"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "type": {
+      "const": "agent_task"
+    },
+    "number": {
+      "type": "integer"
+    },
+    "title": {
+      "type": "string"
+    },
+    "block": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "todo",
+        "in_progress",
+        "done",
+        "blocked"
+      ]
+    },
+    "internal_plan_sources": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "objective": {
+      "type": "string"
+    },
+    "plan_statement": {
+      "type": "string"
+    },
+    "recommended_breakdown": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "expected_output": {
+      "type": "string"
+    },
+    "assigned_agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "provider"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "provider": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "title": "Agent Task"
+}

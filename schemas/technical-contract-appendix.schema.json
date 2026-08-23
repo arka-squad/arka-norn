@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "technical-contract-appendix.schema.json",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "document-envelope.schema.json"
+    }
+  ],
+  "unevaluatedProperties": false,
+  "required": [
+    "id",
+    "type",
+    "title",
+    "appendix_of",
+    "extensibility_principle",
+    "contract",
+    "boundary",
+    "status"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "type": {
+      "const": "technical_contract_appendix"
+    },
+    "title": {
+      "type": "string"
+    },
+    "appendix_of": {
+      "type": "string"
+    },
+    "extensibility_principle": {
+      "type": "string"
+    },
+    "contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "methods",
+        "invariants"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "methods": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "invariants": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pure_domain",
+        "adapter"
+      ],
+      "properties": {
+        "pure_domain": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "adapter": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "valid",
+        "obsolete"
+      ]
+    }
+  },
+  "title": "Technical Contract Appendix"
+}

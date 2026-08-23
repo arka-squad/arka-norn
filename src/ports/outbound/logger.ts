@@ -14,10 +14,6 @@
  * limitations under the License.
  */
 
-/**
- * Logger — structured logger port. Port fidèle de arka-cc-management
- * (core/ports/outbound/logger.ts). `console.log` interdit hors adapter.
- */
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
 export interface LogFields {

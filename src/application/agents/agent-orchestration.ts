@@ -28,6 +28,7 @@ import type {
   OrchestratedAgentRole,
   ProductHandoffPrompt,
 } from "../../ports/inbound/for-agent-orchestration.js";
+import { canonicalDocumentType, canonicalPipelineId } from "../compatibility/legacy-french-contract.js";
 
 export interface AgentOrchestrationState {
   readonly project: Project;
@@ -46,27 +47,27 @@ interface RolePolicy {
 
 const ROLE_POLICIES: Readonly<Record<OrchestratedAgentRole, RolePolicy>> = {
   product: { role: "product", skill: "arka-product", profile: "product" },
-  architecte: { role: "architecte", skill: "arka-framework-maitrise", profile: "architecture" },
+  architecte: { role: "architecte", skill: "arka-framework-mastery", profile: "architecture" },
   audit: { role: "audit", skill: "arka-framework-audit", profile: "audit" },
-  dev: { role: "dev", skill: "arka-framework-dev", profile: "dev" },
-  qa: { role: "qa", skill: "arka-framework-recette-qa", profile: "qa" },
+  dev: { role: "dev", skill: "arka-framework-development", profile: "dev" },
+  qa: { role: "qa", skill: "arka-framework-qa-review", profile: "qa" },
 };
 
 const STEP_ROLES: Readonly<Record<string, OrchestratedAgentRole>> = {
   concept: "product",
-  cadrage_essentiel: "product",
-  cadrage_rework: "product",
+  feature_brief: "product",
+  rework_brief: "product",
   plan: "product",
-  registre_dettes: "product",
-  tache_agent: "product",
-  annexe_contrat_technique: "architecte",
-  invariants_figes: "architecte",
-  spec_integration_technique: "architecte",
-  audit_etat_reel: "audit",
-  audit_rework: "audit",
-  cr_dev: "dev",
-  recette_qa: "qa",
-  validation_fastdev: "qa",
+  debt_register: "product",
+  agent_task: "product",
+  technical_contract_appendix: "architecte",
+  frozen_invariants: "architecte",
+  technical_integration_specification: "architecte",
+  current_state_audit: "audit",
+  delivery_audit: "audit",
+  development_report: "dev",
+  qa_review: "qa",
+  delivery_validation: "qa",
 };
 
 export function createAgentAdvice(state: AgentOrchestrationState): AgentOrchestrationAdvice {
@@ -78,14 +79,14 @@ export function createAgentAdvice(state: AgentOrchestrationState): AgentOrchestr
     ? []
     : recommendationsFor(requiredRole, next.stepId, state.feature!);
   const warnings = [...(state.warnings ?? [])];
-  if (state.feature === undefined) warnings.push("Aucune Feature unique n'est sélectionnée ; le Product doit choisir ou créer la priorité avant de lancer un profil spécialisé.");
+  if (state.feature === undefined) warnings.push("No unique Feature is selected; Product must choose or create the priority before starting a specialized profile.");
   if (product.status !== "ready") warnings.push(product.reason);
   return {
     schemaVersion: 1,
     projectId: state.project.id.value,
     ...(featureId === undefined ? {} : { featureId }),
     ...(state.feature === undefined ? {} : { pipelineId: state.feature.pipelineId }),
-    phase: next?.phase ?? (state.report?.overallStatus === "completed" ? "Clôture" : "Organisation Project"),
+    phase: next?.phase ?? (state.report?.overallStatus === "completed" ? "Closure" : "Project organization"),
     ...(next === undefined ? {} : { nextStepId: next.stepId }),
     productPrincipal: product,
     productNextAction: productNextAction(state, requiredRole, next?.stepId),
@@ -106,7 +107,7 @@ export function createInitializationPrompt(
 ): AgentInitializationPrompt {
   const feature = state.feature;
   const policy = policyFor(input.role, feature);
-  if (input.role !== "product" && feature === undefined) throw new InvalidAgentOptionError("feature", `le rôle ${input.role} exige une Feature explicite`);
+  if (input.role !== "product" && feature === undefined) throw new InvalidAgentOptionError("feature", `role ${input.role} requires an explicit Feature`);
   const next = state.report?.nextActions[0];
   const requiredRole = next === undefined ? undefined : roleForAction(next);
   const advised = feature === undefined || next === undefined || requiredRole === undefined
@@ -114,13 +115,13 @@ export function createInitializationPrompt(
     : recommendationsFor(requiredRole, next.stepId, feature).find((item) => item.role === input.role);
   const mode = input.mode ?? advised?.mode ?? (input.role === "product" && requiredRole === "product" ? "execute" : "prepare");
   if (mode === "execute" && (next === undefined || requiredRole !== input.role)) {
-    throw new InvalidAgentOptionError("mode", `le rôle ${input.role} ne peut pas exécuter l'étape ${next?.stepId ?? "aucune"}; génère un prompt en mode prepare`);
+    throw new InvalidAgentOptionError("mode", `role ${input.role} cannot execute step ${next?.stepId ?? "none"}; generate a prompt in prepare mode`);
   }
   const sessionId = input.role === "product"
     ? AgentSessionId.MAIN
     : input.sessionId ?? deriveAgentSessionId(input.role, feature!.id.value);
   if (input.role === "product" && input.sessionId !== undefined && !input.sessionId.equals(AgentSessionId.MAIN)) {
-    throw new InvalidAgentOptionError("session", "le Product principal utilise toujours la session main");
+    throw new InvalidAgentOptionError("session", "the main Product Agent always uses the main session");
   }
   const existingAgent = resolveSessionAgent(state, sessionId, input.role, feature, input.provider);
   const canWrite = mode === "execute";
@@ -146,42 +147,42 @@ export function createProductHandoffPrompt(state: AgentOrchestrationState, reque
   const agent = requestedAgentId === undefined
     ? product.agentId === undefined ? undefined : state.agents.find((candidate) => candidate.id.value === product.agentId)
     : state.agents.find((candidate) => candidate.id.value === requestedAgentId);
-  if (agent === undefined) throw new InvalidAgentOptionError("product", "aucun Agent product principal actif n'est disponible pour la reprise");
-  if (!agent.active || roleCategory(agent.role) !== "product") throw new InvalidAgentOptionError("product", `l'Agent ${agent.id.value} n'est pas un Product principal actif`);
+  if (agent === undefined) throw new InvalidAgentOptionError("product", "no active main Product Agent is available for handoff");
+  if (!agent.active || roleCategory(agent.role) !== "product") throw new InvalidAgentOptionError("product", `Agent ${agent.id.value} is not an active main Product Agent`);
   const advice = createAgentAdvice(state);
   const feature = state.feature;
   const documents = state.report?.steps.flatMap((step) => step.documents.filter((document) => document.valid).map((document) => document.filePath)) ?? [];
-  const sessionLines = state.sessions.map((binding) => `- ${binding.sessionId.value}: ${binding.agent.id.value} (${binding.agent.role}, ${binding.agent.active ? "actif" : "inactif"})`);
+  const sessionLines = state.sessions.map((binding) => `- ${binding.sessionId.value}: ${binding.agent.id.value} (${binding.agent.role}, ${binding.agent.active ? "active" : "inactive"})`);
   const prompt = [
-    "Utilise $arka-norn puis $arka-product pour reprendre la session Product principale sans créer une nouvelle identité.",
+    "Use $arka-norn, then $arka-product, to resume the main Product session without creating a new identity.",
     "",
-    "CONTEXTE DE REPRISE — vérifier chaque valeur avec la CLI avant toute mutation",
+    "HANDOFF CONTEXT - verify every value with the CLI before any mutation",
     `- Project: ${state.project.id.value}`,
-    `- Racine: ${state.project.root}`,
+    `- Root: ${state.project.root}`,
     `- Session: main`,
-    `- Agent Product à réutiliser: ${agent.id.value}`,
-    ...(feature === undefined ? ["- Feature: aucune Feature unique sélectionnée"] : [`- Feature: ${feature.id.value}`, `- Workflow: ${feature.pipelineId}`]),
-    `- Phase observée: ${advice.phase}`,
-    `- Prochaine étape observée: ${advice.nextStepId ?? "aucune"}`,
-    `- Prochaine responsabilité Product: ${advice.productNextAction}`,
+    `- Product Agent to reuse: ${agent.id.value}`,
+    ...(feature === undefined ? ["- Feature: no unique Feature selected"] : [`- Feature: ${feature.id.value}`, `- Workflow: ${feature.pipelineId}`]),
+    `- Observed phase: ${advice.phase}`,
+    `- Observed next step: ${advice.nextStepId ?? "none"}`,
+    `- Next Product responsibility: ${advice.productNextAction}`,
     "",
-    "SESSIONS AGENT OBSERVÉES",
-    ...(sessionLines.length === 0 ? ["- aucune"] : sessionLines),
+    "OBSERVED AGENT SESSIONS",
+    ...(sessionLines.length === 0 ? ["- none"] : sessionLines),
     "",
-    "DOCUMENTS VALIDES À RELIRE",
-    ...(documents.length === 0 ? ["- aucun"] : documents.map((file) => `- ${file}`)),
+    "VALID DOCUMENTS TO REVIEW",
+    ...(documents.length === 0 ? ["- none"] : documents.map((file) => `- ${file}`)),
     "",
-    "PROCÉDURE OBLIGATOIRE",
-    `1. Place-toi dans la racine vérifiée : cd ${shellQuote(state.project.root)}.`,
-    `2. Exécute arka-norn agent use ${agent.id.value} --project ${state.project.id.value} --session main.`,
-    `3. Confirme avec arka-norn agent current --project ${state.project.id.value} --session main, puis relis arka-norn agent sessions --project ${state.project.id.value}.`,
-    "4. Lance arka-norn doctor et traite tout FAIL avant la suite.",
-    ...(feature === undefined ? ["5. Liste les Features et demande laquelle piloter si le choix n'est pas univoque."] : [
-      `5. Lance arka-norn pipeline status ${feature.id.value} puis arka-norn pipeline next ${feature.id.value}.`,
-      `6. Lance arka-norn agent advise --project ${state.project.id.value} --feature ${feature.id.value}.`,
+    "REQUIRED PROCEDURE",
+    `1. Enter the verified root: cd ${shellQuote(state.project.root)}.`,
+    `2. Run arka-norn agent use ${agent.id.value} --project ${state.project.id.value} --session main.`,
+    `3. Confirm with arka-norn agent current --project ${state.project.id.value} --session main, then review arka-norn agent sessions --project ${state.project.id.value}.`,
+    "4. Run arka-norn doctor and resolve every FAIL before continuing.",
+    ...(feature === undefined ? ["5. List Features and ask which one to control if the choice is ambiguous."] : [
+      `5. Run arka-norn pipeline status ${feature.id.value}, then arka-norn pipeline next ${feature.id.value}.`,
+      `6. Run arka-norn agent advise --project ${state.project.id.value} --feature ${feature.id.value}.`,
     ]),
-    "7. Reste dans le rôle product : organisation, décisions produit, priorisation et passations. Ne réalise pas l'audit, le développement ou la QA à la place des profils dédiés.",
-    "8. Résume l'état vérifié, conseille la suite et fournis les prompts des agents à lancer. Ne te fie pas à ce prompt si la CLI le contredit.",
+    "7. Stay in the Product role: organization, product decisions, prioritization and handoffs. Do not perform audit, development or QA for dedicated profiles.",
+    "8. Summarize verified state, advise the next action and provide Agent prompts. Trust the CLI if it contradicts this prompt.",
   ].join("\n");
   return {
     schemaVersion: 1,
@@ -197,32 +198,32 @@ export function parseOrchestratedRole(value: string): OrchestratedAgentRole {
   const normalized = value.trim().toLowerCase();
   if (normalized === "architect" || normalized === "architecture") return "architecte";
   if (normalized === "product" || normalized === "audit" || normalized === "dev" || normalized === "qa" || normalized === "architecte") return normalized;
-  throw new Error(`Rôle non orchestré : ${value}. Utilise product, architecte, audit, dev ou qa.`);
+  throw new Error(`Unsupported orchestrated role: ${value}. Use product, architecte, audit, dev or qa.`);
 }
 
 function resolveProductPrincipal(state: AgentOrchestrationState): AgentOrchestrationAdvice["productPrincipal"] & { readonly agentId?: string } {
   const main = state.sessions.find((binding) => binding.sessionId.equals(AgentSessionId.MAIN));
   if (main !== undefined) {
     if (main.agent.active && roleCategory(main.agent.role) === "product") {
-      return { sessionId: "main", status: "ready", agentId: main.agent.id.value, reason: "Le Product principal est actif et lié à la session main." };
+      return { sessionId: "main", status: "ready", agentId: main.agent.id.value, reason: "The main Product Agent is active and bound to the main session." };
     }
-    return { sessionId: "main", status: "conflict", agentId: main.agent.id.value, reason: `La session main pointe vers ${main.agent.id.value} (${main.agent.role}) au lieu d'un Product actif.` };
+    return { sessionId: "main", status: "conflict", agentId: main.agent.id.value, reason: `The main session points to ${main.agent.id.value} (${main.agent.role}) instead of an active Product Agent.` };
   }
   const products = state.agents.filter((agent) => agent.active && roleCategory(agent.role) === "product");
-  if (products.length === 1) return { sessionId: "main", status: "unbound", agentId: products[0]!.id.value, reason: `Le Product ${products[0]!.id.value} doit être lié à la session main.` };
-  if (products.length === 0) return { sessionId: "main", status: "missing", reason: "Aucun Agent product actif n'est enregistré ; le premier Agent du Project doit prendre ce rôle." };
-  return { sessionId: "main", status: "conflict", reason: `${products.length} Agents product actifs existent sans liaison main ; une décision humaine est requise.` };
+  if (products.length === 1) return { sessionId: "main", status: "unbound", agentId: products[0]!.id.value, reason: `Product Agent ${products[0]!.id.value} must be bound to the main session.` };
+  if (products.length === 0) return { sessionId: "main", status: "missing", reason: "No active Product Agent is registered; the first Project Agent must take this role." };
+  return { sessionId: "main", status: "conflict", reason: `${products.length} active Product Agents exist without a main binding; a human decision is required.` };
 }
 
 function productNextAction(state: AgentOrchestrationState, requiredRole: OrchestratedAgentRole | undefined, stepId: string | undefined): string {
   const product = resolveProductPrincipal(state);
-  if (product.status === "missing") return `Enregistrer le Product principal avec arka-norn agent register --project ${state.project.id.value} --provider <provider> --role product --session main.`;
-  if (product.status === "unbound" && product.agentId !== undefined) return `Lier ${product.agentId} avec arka-norn agent use ${product.agentId} --project ${state.project.id.value} --session main.`;
+  if (product.status === "missing") return `Register the main Product Agent with arka-norn agent register --project ${state.project.id.value} --provider <provider> --role product --session main.`;
+  if (product.status === "unbound" && product.agentId !== undefined) return `Bind ${product.agentId} with arka-norn agent use ${product.agentId} --project ${state.project.id.value} --session main.`;
   if (product.status === "conflict") return product.reason;
-  if (state.feature === undefined) return "Choisir, créer ou importer la Feature prioritaire avant de mobiliser un profil spécialisé.";
-  if (state.report?.overallStatus === "completed") return "Vérifier les handoffs, clôturer la Feature et choisir la prochaine priorité produit.";
-  if (requiredRole === "product") return `Exécuter ${stepId ?? "la prochaine étape"} dans la session Product principale, puis recalculer le conseil.`;
-  return `Conserver le pilotage Product et lancer le profil ${requiredRole ?? "requis"} pour ${stepId ?? "la prochaine étape"}.`;
+  if (state.feature === undefined) return "Choose, create or import the priority Feature before starting a specialized profile.";
+  if (state.report?.overallStatus === "completed") return "Verify handoffs, close the Feature and choose the next product priority.";
+  if (requiredRole === "product") return `Execute ${stepId ?? "the next step"} in the main Product session, then recalculate advice.`;
+  return `Keep Product control and start the ${requiredRole ?? "required"} profile for ${stepId ?? "the next step"}.`;
 }
 
 function recommendationsFor(requiredRole: OrchestratedAgentRole, stepId: string, feature: Feature): readonly AgentRoleRecommendation[] {
@@ -237,8 +238,8 @@ function recommendation(role: OrchestratedAgentRole, mode: AgentWorkMode, stepId
   const policy = policyFor(role, feature);
   const sessionId = deriveAgentSessionId(role, feature.id.value).value;
   const reason = mode === "execute"
-    ? `${role} est le profil responsable de l'étape ${stepId}.`
-    : `${role} peut lire le contexte et préparer ses questions en parallèle, sans produire de document ni modifier le code.`;
+    ? `${role} is responsible for step ${stepId}.`
+    : `${role} may read context and prepare questions in parallel without producing documents or modifying code.`;
   return {
     role,
     mode,
@@ -252,9 +253,10 @@ function recommendation(role: OrchestratedAgentRole, mode: AgentWorkMode, stepId
 }
 
 function policyFor(role: OrchestratedAgentRole, feature: Feature | undefined): RolePolicy {
-  const guidedSkill = feature?.pipelineId === "arka-norn-fastdev"
+  const pipelineId = feature === undefined ? undefined : canonicalPipelineId(feature.pipelineId);
+  const guidedSkill = pipelineId === "arka-norn-fastdev"
     ? "arka-fastdev"
-    : feature?.pipelineId === "arka-norn-essentiel" ? "arka-essentiel" : undefined;
+    : pipelineId === "arka-norn-essential" ? "arka-essential" : undefined;
   if (guidedSkill !== undefined && ["audit", "dev", "qa"].includes(role)) {
     return { role, skill: guidedSkill, profile: role };
   }
@@ -279,44 +281,44 @@ function renderInitializationPrompt(
     ? `arka-norn agent register --project ${state.project.id.value} --provider ${shellQuote(provider!)} --role ${policy.role}${featureOption}${pathOption} --responsibilities ${shellQuote(responsibilities(policy.role))} --session ${sessionId.value}`
     : `arka-norn agent use ${existingAgent.id.value} --project ${state.project.id.value} --session ${sessionId.value}`;
   const permission = mode === "execute"
-    ? `Tu peux produire uniquement ${expectedStepId}. Vérifie que pipeline next retourne encore cette étape avant toute écriture.`
-    : "Travail en lecture seule : analyse, dépendances, questions et risques. Ne modifie aucun fichier et ne produis aucun document Pipeline ou CR.";
+    ? `You may produce only ${expectedStepId}. Verify that pipeline next still returns this step before writing.`
+    : "Read-only work: analysis, dependencies, questions and risks. Do not modify files or produce Pipeline documents or reports.";
   return [
     policy.role === "product"
-      ? "Utilise $arka-norn puis $arka-product pour reprendre le pilotage Product."
-      : `Utilise $arka-framework-maitrise puis $${policy.skill} pour initialiser cette session Agent ${policy.role}. N'utilise pas $arka-norn, réservé au Product principal et aux nouveaux Projects.`,
+      ? "Use $arka-norn, then $arka-product, to resume Product control."
+      : `Use $arka-framework-mastery, then $${policy.skill}, to initialize this ${policy.role} Agent session. Do not use $arka-norn; it is reserved for the main Product Agent and new Projects.`,
     "",
-    "PRÉREQUIS EXÉCUTÉ PAR LE PRODUCT AVANT L'OUVERTURE DE CETTE SESSION",
+    "PREREQUISITE RUN BY PRODUCT BEFORE OPENING THIS SESSION",
     `- ${preflightCommand}`,
-    `- Si $${policy.skill} n'est pas disponible, arrête-toi et demande au Product de corriger l'installation.`,
+    `- If $${policy.skill} is unavailable, stop and ask Product to repair the installation.`,
     "",
-    "CONTEXTE FOURNI — le vérifier avec arka-norn, ne jamais le deviner",
+    "PROVIDED CONTEXT - verify it with arka-norn; never guess it",
     `- Project: ${state.project.id.value}`,
-    `- Racine Project: ${state.project.root}`,
-    ...(feature === undefined ? [] : [`- Feature: ${feature.id.value}`, `- Racine Feature: ${feature.root}`, `- Workflow: ${feature.pipelineId}`]),
-    `- Rôle: ${policy.role}`,
-    `- Session isolée: ${sessionId.value}`,
+    `- Project root: ${state.project.root}`,
+    ...(feature === undefined ? [] : [`- Feature: ${feature.id.value}`, `- Feature root: ${feature.root}`, `- Workflow: ${feature.pipelineId}`]),
+    `- Role: ${policy.role}`,
+    `- Isolated session: ${sessionId.value}`,
     `- Mode: ${mode}`,
-    `- Étape attendue: ${expectedStepId ?? "aucune écriture autorisée"}`,
+    `- Expected step: ${expectedStepId ?? "no writing allowed"}`,
     "",
-    "RÈGLES DE SESSION",
-    `- Utilise --session ${sessionId.value} sur chaque commande agent ; ne sélectionne et ne remplace jamais l'Agent Product de la session main.`,
-    "- Réutilise une identité uniquement si provider, rôle et périmètre correspondent exactement à cette session.",
+    "SESSION RULES",
+    `- Use --session ${sessionId.value} on every Agent command; never select or replace the Product Agent in the main session.`,
+    "- Reuse an identity only when provider, role and scope exactly match this session.",
     `- ${permission}`,
-    "- Si la CLI contredit ce prompt, arrête-toi et remonte l'écart au Product principal.",
+    "- If the CLI contradicts this prompt, stop and report the discrepancy to the main Product Agent.",
     "",
-    "INITIALISATION",
-    `1. Place-toi dans la racine vérifiée : cd ${shellQuote(state.project.root)}.`,
-    `2. Lance arka-norn skills doctor --target ${shellQuote(state.project.root)} --profile ${policy.profile}.`,
-    `3. Lance arka-norn agent list --project ${state.project.id.value} --active et arka-norn agent sessions --project ${state.project.id.value}.`,
-    `4. ${existingAgent === undefined ? "Crée et sélectionne l'identité bornée avec" : `Réutilise l'identité compatible ${existingAgent.id.value} avec`} :`,
+    "INITIALIZATION",
+    `1. Enter the verified root: cd ${shellQuote(state.project.root)}.`,
+    `2. Run arka-norn skills doctor --target ${shellQuote(state.project.root)} --profile ${policy.profile}.`,
+    `3. Run arka-norn agent list --project ${state.project.id.value} --active and arka-norn agent sessions --project ${state.project.id.value}.`,
+    `4. ${existingAgent === undefined ? "Create and select the bounded identity with" : `Reuse compatible identity ${existingAgent.id.value} with`}:`,
     `   ${register}`,
-    `5. Confirme avec arka-norn agent current --project ${state.project.id.value} --session ${sessionId.value}.`,
+    `5. Confirm with arka-norn agent current --project ${state.project.id.value} --session ${sessionId.value}.`,
     ...(feature === undefined ? [] : [
-      `6. Lance arka-norn pipeline status ${feature.id.value} puis arka-norn pipeline next ${feature.id.value}.`,
-      `7. Charge $${policy.skill} et exécute seulement le mode autorisé ci-dessus.`,
+      `6. Run arka-norn pipeline status ${feature.id.value}, then arka-norn pipeline next ${feature.id.value}.`,
+      `7. Load $${policy.skill} and execute only the authorized mode above.`,
     ]),
-    "8. Termine par un état factuel destiné au Product principal : identité, session, périmètre, preuves, blocages et prochaine décision.",
+    "8. Finish with a factual report for the main Product Agent: identity, session, scope, evidence, blockers and next decision.",
   ].join("\n");
 }
 
@@ -335,11 +337,11 @@ function resolveSessionAgent(
 ): AgentRegistration | undefined {
   const binding = state.sessions.find((candidate) => candidate.sessionId.equals(sessionId));
   if (binding !== undefined && !canReuseBinding(binding.agent, role, state.project, feature)) {
-    throw new InvalidAgentOptionError("session", `la session ${sessionId.value} est déjà liée à ${binding.agent.id.value} avec un rôle, un état ou un périmètre incompatible`);
+    throw new InvalidAgentOptionError("session", `session ${sessionId.value} is already bound to ${binding.agent.id.value} with an incompatible role, state or scope`);
   }
   if (binding !== undefined) return binding.agent;
-  if (provider?.trim() === "") throw new InvalidAgentOptionError("provider", "le provider ne peut pas être vide");
-  if (provider === undefined) throw new InvalidAgentOptionError("provider", `--provider est requis pour créer l'identité ${role} de la session ${sessionId.value}`);
+  if (provider?.trim() === "") throw new InvalidAgentOptionError("provider", "provider cannot be empty");
+  if (provider === undefined) throw new InvalidAgentOptionError("provider", `--provider is required to create the ${role} identity for session ${sessionId.value}`);
   return undefined;
 }
 
@@ -357,7 +359,7 @@ function normalizePath(value: string): string {
 
 /** Stable routing used by the control plane before it prepares a bounded mission. */
 export function roleForStep(stepId: string): OrchestratedAgentRole | undefined {
-  return STEP_ROLES[stepId];
+  return STEP_ROLES[canonicalDocumentType(stepId)];
 }
 
 /** Business actions carry the stable role signal across pipeline-specific step names. */
@@ -380,11 +382,11 @@ function roleCategory(role: string): OrchestratedAgentRole | undefined {
 
 function responsibilities(role: OrchestratedAgentRole): string {
   const values: Readonly<Record<OrchestratedAgentRole, string>> = {
-    product: "organisation du Project;décisions produit;priorisation;coordination et passations",
-    architecte: "architecture;contrats techniques;invariants;spécification d'intégration",
-    audit: "audit état réel;preuves reproductibles;constats sans correction",
-    dev: "implémentation bornée;tests;CR de développement",
-    qa: "recette indépendante;preuves fonctionnelles;verdict",
+    product: "Project organization;product decisions;prioritization;coordination and handoffs",
+    architecte: "architecture;technical contracts;invariants;integration specification",
+    audit: "current-state audit;reproducible evidence;findings without corrections",
+    dev: "bounded implementation;tests;development report",
+    qa: "independent review;functional evidence;verdict",
   };
   return values[role];
 }

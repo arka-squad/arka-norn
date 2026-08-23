@@ -1,0 +1,213 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "delivery-audit.schema.json",
+  "type": "object",
+  "unevaluatedProperties": false,
+  "required": [
+    "schema_version",
+    "author_agent_id",
+    "id",
+    "feature_id",
+    "type",
+    "sequence",
+    "created_at",
+    "depends_on_document_ids",
+    "development_report_id",
+    "exact_commit",
+    "commands_run",
+    "reviewed_dimensions",
+    "findings",
+    "limitations",
+    "verdict"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 5
+    },
+    "author_agent_id": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string"
+    },
+    "feature_id": {
+      "type": "string"
+    },
+    "type": {
+      "enum": [
+        "delivery_audit",
+        "delivery_audit"
+      ]
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "depends_on_document_ids": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "development_report_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "exact_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{7,64}$"
+    },
+    "commands_run": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "command",
+          "result",
+          "evidence"
+        ],
+        "properties": {
+          "command": {
+            "type": "string",
+            "minLength": 1
+          },
+          "result": {
+            "enum": [
+              "pass",
+              "fail",
+              "not_run"
+            ]
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "reviewed_dimensions": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 4,
+      "items": {
+        "enum": [
+          "code",
+          "functional",
+          "ux",
+          "security"
+        ]
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "type",
+          "priority",
+          "description",
+          "evidence",
+          "decision"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+          },
+          "type": {
+            "enum": [
+              "code",
+              "functional",
+              "ux",
+              "security"
+            ]
+          },
+          "priority": {
+            "enum": [
+              "blocker",
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 1
+          },
+          "decision": {
+            "enum": [
+              "fix",
+              "accept",
+              "none"
+            ]
+          }
+        }
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "verdict": {
+      "enum": [
+        "pass",
+        "corrections_required",
+        "blocked"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "$ref": "document-envelope.schema.json"
+    },
+    {
+      "if": {
+        "properties": {
+          "verdict": {
+            "const": "corrections_required"
+          }
+        },
+        "required": [
+          "verdict"
+        ]
+      },
+      "then": {
+        "properties": {
+          "findings": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "decision": {
+                  "const": "fix"
+                }
+              },
+              "required": [
+                "decision"
+              ]
+            }
+          }
+        }
+      }
+    }
+  ],
+  "title": "Delivery Audit"
+}

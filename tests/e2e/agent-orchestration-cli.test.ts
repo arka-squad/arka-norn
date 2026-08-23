@@ -70,31 +70,33 @@ test("la CLI isole les sessions et livre des prompts Product/spécialistes direc
   const productPrompt = run(["agent", "prompt", "product", "--project", "product", "--feature", "navigation", "--provider", "Codex", "--mode", "execute"], home, workspace);
   assert.equal(productPrompt.status, 0, productPrompt.stderr);
   assert.match(productPrompt.stdout, /\$arka-product/);
-  assert.match(productPrompt.stdout, /Session isolée: main/);
-  assert.match(productPrompt.stdout, /Étape attendue: concept/);
-  assert.match(productPrompt.stdout, /PRÉREQUIS À EXÉCUTER AVANT D'OUVRIR/);
+  assert.match(productPrompt.stdout, /Isolated session: main/);
+  assert.match(productPrompt.stdout, /Expected step: concept/);
+  assert.match(productPrompt.stdout, /PREREQUISITE TO RUN BEFORE OPENING/);
 
   const auditPreparation = run(["agent", "prompt", "audit", "--project", "product", "--feature", "navigation", "--mode", "prepare"], home, workspace);
   assert.equal(auditPreparation.status, 0, auditPreparation.stderr);
-  assert.match(auditPreparation.stdout, /Session isolée: audit-navigation/);
-  assert.match(auditPreparation.stdout, /Travail en lecture seule/);
+  assert.match(auditPreparation.stdout, /Isolated session: audit-navigation/);
+  assert.match(auditPreparation.stdout, /Read-only work/);
   assert.match(auditPreparation.stdout, new RegExp(`agent use ${audit.data.id}.*--session audit-navigation`));
-  assert.doesNotMatch(auditPreparation.stdout, /Utilise \$arka-norn puis \$arka-fastdev/);
+  assert.doesNotMatch(auditPreparation.stdout, /Use \$arka-norn, then \$arka-fastdev/);
   assert.doesNotMatch(auditPreparation.stdout, /'"'"'/);
 
   const missingProvider = run(["agent", "prompt", "dev", "--project", "product", "--feature", "navigation", "--mode", "prepare", "--json"], home, workspace);
   assert.equal(missingProvider.status, 3);
-  assert.match(missingProvider.stdout, /--provider est requis/);
+  const missingProviderEnvelope = JSON.parse(missingProvider.stdout) as { readonly display: { readonly errors: readonly string[] } };
+  assert.match(missingProviderEnvelope.display.errors.join("\n"), /--provider is required/);
 
   const refusedDev = run(["agent", "prompt", "dev", "--project", "product", "--feature", "navigation", "--mode", "execute", "--json"], home, workspace);
   assert.equal(refusedDev.status, 3);
-  assert.match(refusedDev.stdout, /ne peut pas exécuter l'étape concept/);
+  const refusedDevEnvelope = JSON.parse(refusedDev.stdout) as { readonly display: { readonly errors: readonly string[] } };
+  assert.match(refusedDevEnvelope.display.errors.join("\n"), /cannot execute step concept/);
 
   const handoff = run(["agent", "handoff-prompt", "--project", "product", "--feature", "navigation"], home, workspace);
   assert.equal(handoff.status, 0, handoff.stderr);
-  assert.match(handoff.stdout, new RegExp(`Agent Product à réutiliser: ${product.data.id}`));
+  assert.match(handoff.stdout, new RegExp(`Product Agent to reuse: ${product.data.id}`));
   assert.match(handoff.stdout, /audit-navigation: .*_audit_/);
-  assert.match(handoff.stdout, /Ne réalise pas l'audit, le développement ou la QA/);
+  assert.match(handoff.stdout, /Do not perform audit, development or QA/);
   assert.match(handoff.stdout, /cd '.*[\\/]workspace[\\/]product'/);
   assert.doesNotMatch(handoff.stderr, /listFeatures: index entry has no readable marker|norn-test/);
 });

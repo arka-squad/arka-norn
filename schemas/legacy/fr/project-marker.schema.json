@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "project-marker.schema.json",
+  "title": "Marker Project arka-norn v4 portable",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "name", "orchestrationMode", "createdAt", "updatedAt"],
+  "properties": {
+    "schemaVersion": { "const": 4 },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "orchestrationMode": { "enum": ["manual", "automatic"] },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  }
+}

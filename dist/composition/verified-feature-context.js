@@ -17,11 +17,6 @@ import { existsSync } from "node:fs";
 import { isAbsolute, relative, sep } from "node:path";
 import { agentRegistryPath } from "../adapters/outbound/filesystem/fs-agent-registry-store.js";
 import { InvalidAgentRegistryError, PathSecurityError } from "../domain/errors.js";
-/**
- * Charge le contexte minimum nécessaire à toute inspection d'une Feature gérée.
- * Les markers et index sont non fiables : la racine Feature et le registre sont
- * donc vérifiés avant de construire un rapport Pipeline.
- */
 export async function loadVerifiedFeatureContext(feature, deps) {
     const project = await deps.projects.show(feature.projectId);
     if (!project.id.equals(feature.projectId)) {

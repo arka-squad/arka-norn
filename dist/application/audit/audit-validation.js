@@ -10,7 +10,7 @@ export function parseAuditRequest(value) {
     if (!isRecord(value))
         throw new Error("Audit request must be an object");
     if (!isAuditMode(value["mode"]))
-        throw new Error("Audit request mode must be decouverte, audit or mixte");
+        throw new Error("Audit request mode must be discovery, audit or mixed");
     const objective = printable(value["objective"], "objective", 2_000);
     const paths = stringArray(value["paths"], "paths", true).map(normalizeRelativePath);
     if (!Array.isArray(value["modules"]) || value["modules"].length === 0)
@@ -35,11 +35,11 @@ export function parseAuditRequest(value) {
     });
     if (new Set(modules.map((item) => item.moduleId)).size !== modules.length)
         throw new Error("Audit request modules must be unique");
-    if (value["mode"] === "decouverte" && modules.some((item) => item.intent !== "discover"))
+    if (value["mode"] === "discovery" && modules.some((item) => item.intent !== "discover"))
         throw new Error("Discovery mode only accepts discover module intents");
     if (value["mode"] === "audit" && modules.some((item) => item.intent !== "audit"))
         throw new Error("Audit mode only accepts audit module intents");
-    if (value["mode"] === "mixte" && (!modules.some((item) => item.intent === "discover") || !modules.some((item) => item.intent === "audit")))
+    if (value["mode"] === "mixed" && (!modules.some((item) => item.intent === "discover") || !modules.some((item) => item.intent === "audit")))
         throw new Error("Mixed mode requires discover and audit module intents");
     const sources = record(value["sources"], "sources");
     const capabilities = record(value["capabilities"], "capabilities");
@@ -72,7 +72,7 @@ export function parseAuditRequest(value) {
     return request;
 }
 function depthRank(depth) {
-    return ["inventaire", "statique", "connecte", "dynamique"].indexOf(depth);
+    return ["inventory", "static", "connected", "dynamic"].indexOf(depth);
 }
 export function parseModuleResult(value, expectedAuditId, expectedModuleId) {
     if (!isRecord(value) || value["schemaVersion"] !== 1 || value["auditId"] !== expectedAuditId || value["moduleId"] !== expectedModuleId || !isAuditModuleId(value["moduleId"])) {

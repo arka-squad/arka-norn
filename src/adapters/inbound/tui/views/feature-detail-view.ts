@@ -14,17 +14,8 @@
  * limitations under the License.
  */
 
-/**
- * FeatureDetailView -- écran d'une feature sélectionnée : statut pipeline,
- * scaffold, validation, retrait. Modelé sur project-detail-view.ts
- * (arka-cc-management), sans équivalent direct : "bundles" (agents/hooks/
- * teams installés) n'existe pas pour une feature -- remplacé par les 4
- * actions pipeline (status/scaffold/validate/forget), chacune déléguée à
- * un callback fourni par composition/container.ts (qui seul connaît `app`
- * et peut pousser TextInput/ResultView -- cf. home-view.ts).
- */
 import { createMenuScene, filterItems, type MenuItem, type MenuScene } from "../components/menu.js";
-import { GUIDED_SHORTCUTS, renderGuidance } from "../components/guidance.js";
+import { guidedShortcuts, renderGuidance } from "../components/guidance.js";
 import type { KeyEvent } from "../runtime/input.js";
 import type { Renderer } from "../runtime/render.js";
 import type { Scene } from "../runtime/tui-app.js";
@@ -32,6 +23,7 @@ import type { Theme } from "../runtime/theme.js";
 import type { Feature } from "../../../../domain/feature/feature.js";
 import type { PipelineReport } from "../../../../domain/pipeline/pipeline-report.js";
 import { createFeatureCockpitViewModel } from "../../../../application/view-models/feature-cockpit.js";
+import { formatNumber, translate } from "../../../../application/localization/locale.js";
 
 type FeatureDetailAction = "action:continue" | "action:orchestrate" | "action:status" | "action:scaffold" | "action:validate" | "action:forget" | "action:back";
 
@@ -67,7 +59,7 @@ export function createFeatureDetailView(deps: FeatureDetailViewDeps): FeatureDet
   function buildMenu(): MenuScene {
     return createMenuScene<FeatureDetailAction>(buildMenuItems(), {
       title: deps.feature.name,
-      hint: "↑/↓ naviguer · Entrée agir · / filtrer · ? aide · Échap retour",
+      hint: translate("tui.feature.menu.hint"),
       maxVisible: 12,
       onSelect: (value) => {
         void handleSelect(value);
@@ -84,7 +76,7 @@ export function createFeatureDetailView(deps: FeatureDetailViewDeps): FeatureDet
           await run(() => deps.onContinue!(deps.feature));
           return;
         }
-        status = "Action indisponible.";
+        status = translate("tui.feature.actionUnavailable");
         deps.redraw();
         return;
       case "action:status":
@@ -92,7 +84,7 @@ export function createFeatureDetailView(deps: FeatureDetailViewDeps): FeatureDet
           await run(() => deps.onShowStatus!(deps.feature));
           return;
         }
-        status = "Action indisponible.";
+        status = translate("tui.feature.actionUnavailable");
         deps.redraw();
         return;
       case "action:orchestrate":
@@ -100,7 +92,7 @@ export function createFeatureDetailView(deps: FeatureDetailViewDeps): FeatureDet
           await run(() => deps.onOrchestrate!(deps.feature));
           return;
         }
-        status = "Action indisponible.";
+        status = translate("tui.feature.actionUnavailable");
         deps.redraw();
         return;
       case "action:scaffold":
@@ -108,7 +100,7 @@ export function createFeatureDetailView(deps: FeatureDetailViewDeps): FeatureDet
           await run(() => deps.onScaffold!(deps.feature));
           return;
         }
-        status = "Action indisponible.";
+        status = translate("tui.feature.actionUnavailable");
         deps.redraw();
         return;
       case "action:validate":
@@ -116,7 +108,7 @@ export function createFeatureDetailView(deps: FeatureDetailViewDeps): FeatureDet
           await run(() => deps.onValidate!(deps.feature));
           return;
         }
-        status = "Action indisponible.";
+        status = translate("tui.feature.actionUnavailable");
         deps.redraw();
         return;
       case "action:forget":
@@ -124,7 +116,7 @@ export function createFeatureDetailView(deps: FeatureDetailViewDeps): FeatureDet
           await run(() => deps.onForget!(deps.feature));
           return;
         }
-        status = "Action indisponible.";
+        status = translate("tui.feature.actionUnavailable");
         deps.redraw();
         return;
       case "action:back":
@@ -140,7 +132,7 @@ export function createFeatureDetailView(deps: FeatureDetailViewDeps): FeatureDet
     try {
       await task();
     } catch (error) {
-      status = `Action impossible : ${error instanceof Error ? error.message : String(error)}`;
+      status = translate("tui.feature.actionFailed", { message: error instanceof Error ? error.message : String(error) });
     } finally {
       busy = false;
       deps.redraw();
@@ -180,39 +172,45 @@ export function createFeatureDetailView(deps: FeatureDetailViewDeps): FeatureDet
   function renderFeatureDetail(theme: Theme): readonly string[] {
     if (helpVisible) {
       return renderGuidance({
-        title: "Aide — cockpit Feature",
+        title: translate("tui.feature.help.title"),
         purpose: cockpit.workflowBadge === "FASTDEV"
-          ? "FastDev guide un rework borné : quatre documents, audit bloquant et correction conditionnelle. La validation doit viser le dernier CR."
-          : "Le Pipeline décide de la prochaine action à partir des documents réellement présents, de leur schéma, de leurs dépendances et du verdict métier.",
+          ? translate("tui.feature.help.fastdev")
+          : translate("tui.feature.help.pipeline"),
         steps: [
-          "Lisez l’action recommandée et sa raison ; ne sautez pas à une étape ultérieure.",
-          "Si l’action demande un document, vérifiez qu’un agent actif est affiché puis utilisez le scaffold.",
-          "Remplissez toutes les valeurs À_REMPLIR et validez le fichier.",
-          "Relancez le statut après chaque document ; une QA fail renvoie au développement.",
+          translate("tui.feature.help.step1"),
+          translate("tui.feature.help.step2"),
+          translate("tui.feature.help.step3"),
+          translate("tui.feature.help.step4"),
         ],
-        shortcuts: GUIDED_SHORTCUTS,
+        shortcuts: guidedShortcuts(),
       }, theme);
     }
     const lines = [
       `  ${cockpit.workflowBadge === undefined ? "" : `${theme.arkaRed(`[${cockpit.workflowBadge}]`)} `}${theme.bold(deps.feature.name)}`,
       `  ${theme.gray(deps.feature.root)}`,
-      `  État : ${theme.arkaAccent(cockpit.overallStatus)} · ${cockpit.progress}`,
-      `  Agent auteur : ${deps.currentAgentId ?? "aucun — revenez au Project > Gérer les agents"}`,
-      `  Session Agent : ${deps.sessionId ?? "main"} · la sélection est isolée des autres sessions`,
-      `  Prochaine action : ${cockpit.nextAction}`,
-      `  Pourquoi : ${cockpit.nextReason}`,
-      `  Runs : dev=${cockpit.developmentRuns} QA=${cockpit.qaRuns} échecs=${cockpit.qaFailures} · dettes=${cockpit.debtDocuments} · handoffs=${cockpit.handoffSignals}`,
+      `  ${translate("tui.feature.status", { status: theme.arkaAccent(cockpit.overallStatus), progress: cockpit.progress })}`,
+      `  ${translate("tui.feature.author", { agent: deps.currentAgentId ?? translate("tui.feature.noAuthor") })}`,
+      `  ${translate("tui.feature.session", { session: deps.sessionId ?? "main" })}`,
+      `  ${translate("tui.feature.nextAction", { action: cockpit.nextAction })}`,
+      `  ${translate("tui.feature.reason", { reason: cockpit.nextReason })}`,
+      `  ${translate("tui.feature.runs", {
+        development: formatNumber(cockpit.developmentRuns),
+        qa: formatNumber(cockpit.qaRuns),
+        failures: formatNumber(cockpit.qaFailures),
+        debts: formatNumber(cockpit.debtDocuments),
+        handoffs: formatNumber(cockpit.handoffSignals),
+      })}`,
       ...(cockpit.workflowBadge === "FASTDEV" ? [
-        `  Itération Dev : ${cockpit.iteration} · constats ouverts : ${cockpit.openFindings} · corrections fermées : ${cockpit.closedCorrections}`,
-        `  Commit audité : ${cockpit.latestAuditedCommit ?? "aucun"} · validation : ${cockpit.validationState}`,
+        `  ${translate("tui.feature.iteration", { iteration: formatNumber(cockpit.iteration), open: formatNumber(cockpit.openFindings), closed: formatNumber(cockpit.closedCorrections) })}`,
+        `  ${translate("tui.feature.audit", { commit: cockpit.latestAuditedCommit ?? translate("tui.feature.none"), validation: cockpit.validationState })}`,
       ] : []),
       "",
-      `  ${theme.bold("Timeline du pipeline")}`,
+      `  ${theme.bold(translate("tui.feature.timeline"))}`,
       ...cockpit.timeline.map((step) => `    ${step}`),
       "",
     ];
     if (busy) {
-      lines.push(`  ${theme.dim("Chargement…")}`);
+      lines.push(`  ${theme.dim(translate("tui.project.loading"))}`);
       lines.push("");
     } else if (status !== undefined) {
       lines.push(`  ${theme.arkaAccent(status)}`);
@@ -227,7 +225,7 @@ export function createFeatureDetailView(deps: FeatureDetailViewDeps): FeatureDet
 
     lines.push("");
     lines.push(`  ${theme.dim(HORIZONTAL.repeat(44))}`);
-    lines.push(`  ${theme.dim("↑/↓ naviguer · Entrée agir · / filtrer · ? aide · Échap retour")}`);
+    lines.push(`  ${theme.dim(translate("tui.feature.menu.hint"))}`);
     if (menu.filterMode) {
       lines.push(`  / ${menu.filterText}${theme.dim("_")}`);
     }
@@ -241,7 +239,7 @@ export function createFeatureDetailView(deps: FeatureDetailViewDeps): FeatureDet
     matchCursorOn: "index" | "origin",
   ): readonly string[] {
     if (items.length === 0) {
-      return [`    ${theme.dim("(vide)")}`];
+      return [`    ${theme.dim(translate("tui.feature.empty"))}`];
     }
 
     return items.map((item, index) => {
@@ -255,13 +253,13 @@ export function createFeatureDetailView(deps: FeatureDetailViewDeps): FeatureDet
 
   function buildMenuItems(): readonly MenuItem<FeatureDetailAction>[] {
     return [
-      { label: deps.feature.pipelineId === "arka-norn-fastdev" ? "Continuer le rework" : "Continuer la Feature", value: "action:continue", description: "ouvre l'action guidée, sa raison, ses preuves et sa commande" },
-      { label: "Préparer une session manuelle", value: "action:orchestrate", description: "conseil Product, prompts parallèles et contexte principal ; aucun lancement automatique" },
-      { label: "Voir le diagnostic complet", value: "action:status", description: "présence, schéma, métier, dépendances et raison de blocage" },
-      { label: "Scaffold manuel", value: "action:scaffold", description: deps.currentAgentId === undefined ? "bloqué : sélectionnez d’abord un agent dans le Project" : `action secondaire · document v3 signé par ${deps.currentAgentId}` },
-      { label: "Valider un document rempli", value: "action:validate", description: "détecte champs manquants, sentinelles et contrat invalide" },
-      { label: "Retirer de l'index", value: "action:forget", description: "conserve les fichiers et le marqueur sur disque" },
-      { label: `${LEFT_ARROW} Retour`, value: "action:back" },
+      { label: translate(deps.feature.pipelineId === "arka-norn-fastdev" ? "tui.feature.continue.rework" : "tui.feature.continue.feature"), value: "action:continue", description: translate("tui.feature.continue.description") },
+      { label: translate("tui.feature.orchestrate.label"), value: "action:orchestrate", description: translate("tui.feature.orchestrate.description") },
+      { label: translate("tui.feature.diagnostic.label"), value: "action:status", description: translate("tui.feature.diagnostic.description") },
+      { label: translate("tui.feature.scaffold.label"), value: "action:scaffold", description: deps.currentAgentId === undefined ? translate("tui.feature.scaffold.blocked") : translate("tui.feature.scaffold.description", { agent: deps.currentAgentId }) },
+      { label: translate("tui.feature.validate.label"), value: "action:validate", description: translate("tui.feature.validate.description") },
+      { label: translate("tui.feature.forget.label"), value: "action:forget", description: translate("tui.feature.forget.description") },
+      { label: `${LEFT_ARROW} ${translate("tui.project.back")}`, value: "action:back" },
     ];
   }
 

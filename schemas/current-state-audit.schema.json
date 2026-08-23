@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "current-state-audit.schema.json",
+  "type": "object",
+  "allOf": [
+    {
+    "if": {
+      "properties": {
+        "project_id": {}
+      },
+      "required": [
+          "project_id"
+        ]
+      },
+      "then": {
+        "$ref": "project-audit-envelope.schema.json"
+      },
+      "else": {
+        "$ref": "document-envelope.schema.json"
+      }
+    }
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "type": {
+      "const": "current_state_audit"
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "plan_sources": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "audited_repository": {
+      "type": "string"
+    },
+    "audited_reference": {
+      "type": "string"
+    },
+    "audit_date": {
+      "type": "string"
+    },
+    "method": {
+      "type": "string"
+    },
+    "overall_verdict": {
+      "type": "string"
+    },
+    "findings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "disproved",
+              "discovered"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "description",
+          "status"
+        ]
+      }
+    }
+  },
+  "required": [
+    "id",
+    "type",
+    "task_id",
+    "plan_sources",
+    "audited_repository",
+    "audited_reference",
+    "audit_date",
+    "method",
+    "overall_verdict",
+    "findings"
+  ],
+  "title": "Current State Audit"
+}

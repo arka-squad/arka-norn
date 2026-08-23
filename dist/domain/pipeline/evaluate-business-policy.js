@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { canonicalEnumValue, compatibleFieldValue, isDocumentType } from "../compatibility/legacy-contract.js";
 import { selectLatestRun } from "./select-latest-run.js";
 export function evaluateBusinessPolicy(input) {
     const valid = input.documents.filter((document) => document.valid);
@@ -33,9 +34,9 @@ function delivery(policy, documents, stepId, featureId) {
     if (verdict !== undefined && policy.passValues.includes(verdict))
         return result("passed", selected);
     if (verdict !== undefined && policy.inProgressValues.includes(verdict)) {
-        return result("in_progress", selected, createGuidedAction("continue_development", stepId, "La dernière livraison est partielle.", featureId, selected?.id));
+        return result("in_progress", selected, createGuidedAction("continue_development", stepId, "The latest delivery is partial.", featureId, selected?.id));
     }
-    return result("blocked", selected, createGuidedAction("continue_development", stepId, "La dernière livraison n'est pas livrée.", featureId, selected?.id));
+    return result("blocked", selected, createGuidedAction("continue_development", stepId, "The latest delivery is not marked as delivered.", featureId, selected?.id));
 }
 function reviewLatest(policy, reviews, allDocuments, stepId, featureId) {
     const targets = allDocuments.filter((document) => document.type === policy.targetStep && document.valid);
@@ -60,14 +61,14 @@ function reviewLatest(policy, reviews, allDocuments, stepId, featureId) {
             errors.push(`Latest ${policy.targetStep} ${latestTarget.id} must depend on failed ${stepId} ${staleFailure.id}.`);
             return {
                 status: "failed",
-                action: createGuidedAction("return_to_development", policy.retryStep, `Le correctif doit dépendre de ${staleFailure.id}.`, featureId, staleFailure.id),
+                action: createGuidedAction("return_to_development", policy.retryStep, `The corrective report must depend on ${staleFailure.id}.`, featureId, staleFailure.id),
                 errors,
                 warnings,
             };
         }
         return {
             status: "not_started",
-            action: createGuidedAction(stepId === "recette_qa" ? "run_qa" : "run_validation", stepId, `Aucun ${stepId} concluant ne vise le dernier ${policy.targetStep}.`, featureId, latestTarget.id),
+            action: createGuidedAction(isQaReview(stepId) ? "run_qa" : "run_validation", stepId, `No conclusive ${stepId} targets the latest ${policy.targetStep}.`, featureId, latestTarget.id),
             errors,
             warnings,
         };
@@ -78,15 +79,15 @@ function reviewLatest(policy, reviews, allDocuments, stepId, featureId) {
     if (verdict !== undefined && policy.failValues.includes(verdict)) {
         return {
             status: "failed", selected,
-            action: createGuidedAction("return_to_development", policy.retryStep, `${stepId} a échoué sur le dernier ${policy.targetStep}.`, featureId, selected.id),
+            action: createGuidedAction("return_to_development", policy.retryStep, `${stepId} failed against the latest ${policy.targetStep}.`, featureId, selected.id),
             errors, warnings,
         };
     }
     if (verdict !== undefined && policy.inProgressValues.includes(verdict)) {
-        const kind = stepId === "recette_qa" ? "resolve_qa" : "return_to_development";
+        const kind = isQaReview(stepId) ? "resolve_qa" : "return_to_development";
         return {
             status: "in_progress", selected,
-            action: createGuidedAction(kind, kind === "resolve_qa" ? stepId : policy.retryStep, `${stepId} est partiel et ne termine pas le pipeline.`, featureId, selected.id),
+            action: createGuidedAction(kind, kind === "resolve_qa" ? stepId : policy.retryStep, `${stepId} is partial and does not complete the pipeline.`, featureId, selected.id),
             errors, warnings,
         };
     }
@@ -106,7 +107,7 @@ function auditThenFix(policy, audits, allDocuments, stepId, featureId) {
     if (selected === undefined) {
         return {
             status: "not_started",
-            action: createGuidedAction("run_audit", stepId, `Le dernier ${policy.targetStep} livré doit être audité.`, featureId, latestTarget.id),
+            action: createGuidedAction("run_audit", stepId, `The latest delivered ${policy.targetStep} must be audited.`, featureId, latestTarget.id),
             errors,
             warnings: [],
         };
@@ -114,7 +115,7 @@ function auditThenFix(policy, audits, allDocuments, stepId, featureId) {
     const verdict = stringField(selected.content, policy.verdictField);
     if (verdict !== undefined && policy.passValues.includes(verdict))
         return { status: "passed", selected, errors, warnings: [] };
-    if (verdict === "corrections_requises") {
+    if (verdict === "corrections_required" || verdict === "corrections_requises") {
         const required = requiredFindingIds(selected.content);
         const closures = correctionsFor(latestTarget.content, selected.id);
         const missing = required.filter((id) => !closures.has(id));
@@ -123,8 +124,8 @@ function auditThenFix(policy, audits, allDocuments, stepId, featureId) {
         if (dependsOnAudit && missing.length === 0)
             return { status: "passed", selected, errors, warnings: [] };
         const reason = !dependsOnAudit
-            ? `Un nouveau ${policy.targetStep} livré doit dépendre de l'audit ${selected.id ?? "courant"}.`
-            : `Le CR correctif ne ferme pas les constats obligatoires : ${missing.join(", ")}.`;
+            ? `A new delivered ${policy.targetStep} must depend on audit ${selected.id ?? "current"}.`
+            : `The corrective report does not close required findings: ${missing.join(", ")}.`;
         return {
             status: "failed", selected,
             action: createGuidedAction("return_to_development", policy.retryStep, reason, featureId, selected.id),
@@ -134,7 +135,7 @@ function auditThenFix(policy, audits, allDocuments, stepId, featureId) {
     if (verdict !== undefined && policy.failValues.includes(verdict)) {
         return {
             status: "failed", selected,
-            action: createGuidedAction("return_to_development", policy.retryStep, `${stepId} bloque la livraison.`, featureId, selected.id),
+            action: createGuidedAction("return_to_development", policy.retryStep, `${stepId} blocks delivery.`, featureId, selected.id),
             errors, warnings: [],
         };
     }
@@ -148,23 +149,24 @@ function unknownTargets(documents, targets, targetField, stepId) {
     });
 }
 function requiredFindingIds(content) {
-    const findings = content["constats"];
+    const findings = compatibleFieldValue(content, "findings");
     if (!Array.isArray(findings))
         return [];
     return findings.flatMap((finding) => {
-        if (!isRecord(finding) || finding["decision"] !== "corriger" || typeof finding["id"] !== "string")
+        if (!isRecord(finding) || canonicalEnumValue(String(finding["decision"])) !== "fix" || typeof finding["id"] !== "string")
             return [];
         return [finding["id"]];
     });
 }
 function correctionsFor(content, sourceId) {
-    const corrections = content["corrections_apportees"];
+    const corrections = compatibleFieldValue(content, "corrections_applied");
     if (!Array.isArray(corrections) || sourceId === undefined)
         return new Set();
     return new Set(corrections.flatMap((correction) => {
-        if (!isRecord(correction) || correction["source_document_id"] !== sourceId || typeof correction["constat_id"] !== "string")
+        const findingId = isRecord(correction) ? compatibleFieldValue(correction, "finding_id") : undefined;
+        if (!isRecord(correction) || correction["source_document_id"] !== sourceId || typeof findingId !== "string")
             return [];
-        return [correction["constat_id"]];
+        return [findingId];
     }));
 }
 function isAncestor(ancestorId, document, allDocuments) {
@@ -195,28 +197,28 @@ export function createGuidedAction(kind, stepId, reason, featureId, relatedDocum
     };
 }
 function phaseFor(stepId) {
-    if (stepId === "cadrage_rework" || stepId === "cadrage_essentiel")
-        return "Cadrage";
-    if (stepId === "cr_dev")
-        return "Développement";
-    if (stepId === "audit_rework" || stepId === "audit_livraison")
+    if (stepId === "rework_brief" || stepId === "feature_brief")
+        return "Brief";
+    if (stepId === "development_report")
+        return "Development";
+    if (stepId === "delivery_audit")
         return "Audit";
-    if (stepId === "validation_fastdev" || stepId === "validation_livraison")
+    if (stepId === "delivery_validation")
         return "Validation";
-    if (stepId === "recette_qa")
-        return "Recette QA";
+    if (stepId === "qa_review")
+        return "QA review";
     return stepId;
 }
 function instructionsFor(stepId) {
-    if (stepId === "cadrage_rework" || stepId === "cadrage_essentiel")
-        return ["Borner le problème et les exclusions.", "Définir des critères code, fonctionnels, UX et sécurité."];
-    if (stepId === "cr_dev")
-        return ["Livrer un lot borné avec ses tests.", "Référencer et fermer chaque constat obligatoire lors d'une correction."];
-    if (stepId === "audit_rework" || stepId === "audit_livraison")
-        return ["Auditer le dernier CR et son commit exact.", "Fournir une preuve pour chaque constat."];
-    if (stepId === "validation_fastdev" || stepId === "validation_livraison")
-        return ["Contrôler le dernier CR uniquement.", "Vérifier critères, corrections, gates et preuves UX/fonctionnelles."];
-    return ["Produire le document attendu avec des preuves reproductibles."];
+    if (stepId === "rework_brief" || stepId === "feature_brief")
+        return ["Bound the problem and exclusions.", "Define code, functional, UX and security acceptance criteria."];
+    if (stepId === "development_report")
+        return ["Deliver a bounded batch with its tests.", "Reference and close every required finding in corrective work."];
+    if (stepId === "delivery_audit")
+        return ["Audit the latest development report and exact commit.", "Provide evidence for every finding."];
+    if (stepId === "delivery_validation")
+        return ["Review only the latest development report.", "Verify criteria, corrections, gates and functional/UX evidence."];
+    return ["Produce the expected document with reproducible evidence."];
 }
 function result(status, selected, action) {
     return { status, ...(selected === undefined ? {} : { selected }), ...(action === undefined ? {} : { action }), errors: [], warnings: [] };
@@ -230,5 +232,8 @@ function stringField(content, field) {
 }
 function isRecord(value) {
     return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function isQaReview(stepId) {
+    return isDocumentType(stepId, "qa_review");
 }
 //# sourceMappingURL=evaluate-business-policy.js.map

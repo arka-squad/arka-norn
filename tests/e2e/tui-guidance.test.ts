@@ -22,12 +22,15 @@ import { createFeatureDetailView } from "../../src/adapters/inbound/tui/views/fe
 import { createHomeView } from "../../src/adapters/inbound/tui/views/home-view.ts";
 import { createRenderer } from "../../src/adapters/inbound/tui/runtime/render.ts";
 import { createTheme } from "../../src/adapters/inbound/tui/runtime/theme.ts";
+import { setActiveLocale } from "../../src/application/localization/locale.ts";
 import { FeatureId } from "../../src/domain/feature/feature-id.ts";
 import { Feature } from "../../src/domain/feature/feature.ts";
 import { ProjectId } from "../../src/domain/project/project-id.ts";
 import { createPipelineRuntime } from "../../src/composition/pipeline-runtime.ts";
 
 const theme = createTheme({ NO_COLOR: "1" }, false);
+
+setActiveLocale("fr");
 
 test("l’accueil explique le parcours vide et la touche d’aide", () => {
   let output = "";
@@ -43,11 +46,11 @@ test("l’accueil explique le parcours vide et la touche d’aide", () => {
   });
   view.render(renderer, theme);
   assert.match(output, /Action recommandée.*Créer ou importer un Project/s);
-  assert.match(output, /Project → Agent actif → Feature/);
+  assert.match(output, /Project -> Agent actif -> Feature/);
   output = "";
   view.onKey({ kind: "help" });
   view.render(renderer, theme);
-  assert.match(output, /Aide — démarrer avec arka-norn/);
+  assert.match(output, /Aide - démarrer avec arka-norn/);
   assert.match(output, /enregistrez votre identité Agent/);
 });
 
@@ -75,13 +78,13 @@ test("l’accueil reflète un nouveau résumé de santé sans recréation", () =
   });
   view.render(renderer, theme);
 
-  assert.match(output, /Santé\s+: 10 PASS · 0 WARN · 0 FAIL/);
+  assert.match(output, /Santé du système: 10 PASS · 0 WARN · 0 FAIL/);
   assert.match(output, /21\/21 sains · 0 absents · 0 divergents/);
 });
 
 test("le cockpit Feature expose l’auteur, la raison et l’aide opératoire", async () => {
   const root = resolve(import.meta.dirname, "..", "..");
-  const featureRoot = resolve(root, "examples", "feature-notion-linear");
+  const featureRoot = resolve(root, "tests", "fixtures", "legacy", "fr", "examples", "feature-complete");
   const report = await createPipelineRuntime(root).inspect({
     featureRoot, featureId: "connecteurs-notion-linear", authorRegistry: [{ id: "Codex_dev_20260819", active: true, authorized: true }],
     pipelineId: "standard",
@@ -96,10 +99,10 @@ test("le cockpit Feature expose l’auteur, la raison et l’aide opératoire", 
   const view = createFeatureDetailView({ feature, report, currentAgentId: "Codex_dev_20260819", redraw() {}, onBack() {} });
   view.render(renderer, theme);
   assert.match(output, /Agent auteur : Codex_dev_20260819/);
-  assert.match(output, /Pourquoi : recette_qa a échoué sur le dernier cr_dev/);
+  assert.match(output, /Pourquoi : recette_qa failed against the latest cr_dev/);
   output = "";
   view.onKey({ kind: "help" });
   view.render(renderer, theme);
-  assert.match(output, /Aide — cockpit Feature/);
+  assert.match(output, /Aide - cockpit Feature/);
   assert.match(output, /ne sautez pas à une étape ultérieure/);
 });

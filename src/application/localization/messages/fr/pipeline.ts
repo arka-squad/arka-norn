@@ -1,0 +1,18 @@
+export const PIPELINE_MESSAGES_FR = {
+  "pipeline.requiredMissing": "L’étape obligatoire {step} ne possède aucun document valide.",
+  "pipeline.completed": "Toutes les étapes obligatoires et la dernière revue sont concluantes.",
+  "pipeline.report.header": "=== Pipeline {pipeline} ===",
+  "pipeline.report.feature": "Feature : {feature}",
+  "pipeline.report.status": "État : {status}",
+  "pipeline.report.latestReport": "Dernier rapport de développement : {id}",
+  "pipeline.report.selectedQa": "Recette retenue : {id}",
+  "pipeline.report.selectedAudit": "Audit retenu : {id}",
+  "pipeline.report.selectedValidation": "Validation retenue : {id}",
+  "pipeline.report.errors": "Erreurs :",
+  "pipeline.report.warnings": "Avertissements :",
+  "pipeline.report.next": "=== Prochaine action ===",
+  "pipeline.report.command": "Commande : {command}",
+  "pipeline.report.complete": "Pipeline terminé.",
+  "pipeline.scaffold.fill": "À_REMPLIR",
+  "pipeline.scaffold.choosePrefix": "À_CHOISIR::",
+} as const;

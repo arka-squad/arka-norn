@@ -14,16 +14,6 @@
  * limitations under the License.
  */
 
-/**
- * `listFeatures` use-case. Port fidèle de listProjects
- * (arka-cc-management, core/use-cases/projects/list-projects.ts).
- *
- * Lit l'index et réhydrate chaque entrée via featureStore.load(entry.root).
- * Tri déjà assuré par l'index (lastUsedAt desc, ties par id asc).
- * Cas dégradé : entrée d'index dont le marker est absent → log warn + skip.
- * Source de vérité lastUsedAt = l'index (peut être plus récent que le
- * marker si la propagation a été interrompue).
- */
 import type { Feature } from "../../domain/feature/feature.js";
 import type { ProjectId } from "../../domain/project/project-id.js";
 import { mapConcurrent } from "../../application/shared/map-concurrent.js";

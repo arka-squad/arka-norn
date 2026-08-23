@@ -14,21 +14,12 @@
  * limitations under the License.
  */
 
-/**
- * ResultView -- affiche la sortie capturée d'une commande CLI, code de
- * sortie en tête (vert si 0, rouge sinon). Entrée/Échap/q ferme.
- *
- * Scene feuille : ne pousse jamais rien pendant son `onKey`, donc son
- * propre retour `'pop'` suffit et est sûr. `onBack` ne doit PAS appeler
- * `app.pop()` lui-même (double-pop -- cf. menu.ts en tête de fichier) ;
- * il ne sert qu'à notifier l'appelant (ex: effacer un statut affiché
- * derrière), jamais à manipuler la pile.
- */
 import type { KeyEvent } from "../runtime/input.js";
 import type { Renderer } from "../runtime/render.js";
 import type { Scene } from "../runtime/tui-app.js";
 import type { Theme } from "../runtime/theme.js";
-import { GUIDED_SHORTCUTS, renderGuidance } from "../components/guidance.js";
+import { guidedShortcuts, renderGuidance } from "../components/guidance.js";
+import { formatNumber, translate } from "../../../../application/localization/locale.js";
 
 export interface ResultViewDeps {
   readonly title: string;
@@ -69,30 +60,30 @@ export function createResultView(deps: ResultViewDeps): ResultView {
       renderer.redraw((line) => {
         if (helpVisible) {
           for (const value of renderGuidance({
-            title: `Aide — ${deps.title}`,
-            purpose: "Cet écran présente le résultat réel de l’action précédente. Le code et le détail déterminent la suite.",
+            title: translate("tui.result.help.title", { title: deps.title }),
+            purpose: translate("tui.result.help.purpose"),
             steps: [
-              "OK signifie que l’action technique s’est terminée ; lisez tout de même la suite recommandée.",
-              "ÉCHEC signifie qu’aucune réussite ne doit être supposée ; corrigez la première cause affichée.",
-              "Utilisez ↑/↓ si la sortie dépasse l’écran, puis revenez avec Entrée ou Échap.",
+              translate("tui.result.help.step1"),
+              translate("tui.result.help.step2"),
+              translate("tui.result.help.step3"),
             ],
-            shortcuts: GUIDED_SHORTCUTS,
+            shortcuts: guidedShortcuts(),
           }, theme)) line(value);
           return;
         }
         line(`  ${theme.bold(deps.title)}`);
         line("");
-        const statusLabel = deps.code === 0 ? theme.green("OK") : theme.red(`ÉCHEC (code ${deps.code})`);
-        line(`  Statut : ${statusLabel}`);
+        const statusLabel = deps.code === 0 ? theme.green("OK") : theme.red(translate("tui.result.failure", { code: formatNumber(deps.code) }));
+        line(`  ${translate("tui.result.status", { status: statusLabel })}`);
         line("");
-        if (offset > 0) line(`  ${theme.dim(`▲ ${offset} ligne(s) au-dessus`)}`);
+        if (offset > 0) line(`  ${theme.dim(`${String.fromCharCode(0x25b2)} ${translate("tui.result.above", { count: formatNumber(offset) })}`)}`);
         for (const value of outputLines.slice(offset, offset + maxVisible)) line(`  ${value}`);
         const remaining = outputLines.length - offset - maxVisible;
-        if (remaining > 0) line(`  ${theme.dim(`▼ ${remaining} ligne(s) en dessous`)}`);
+        if (remaining > 0) line(`  ${theme.dim(`${String.fromCharCode(0x25bc)} ${translate("tui.result.below", { count: formatNumber(remaining) })}`)}`);
         line("");
-        line(`  ${theme.bold("Suite")} : ${deps.nextStep ?? (deps.code === 0 ? "revenez à l’écran précédent et poursuivez l’action recommandée" : "corrigez la première erreur, puis relancez la même action")}`);
+        line(`  ${theme.bold(translate("tui.result.next"))}: ${deps.nextStep ?? translate(deps.code === 0 ? "tui.result.next.success" : "tui.result.next.failure")}`);
         line("");
-        line(`  ${theme.dim("↑/↓ défiler · ? aide · Entrée / Échap pour revenir")}`);
+        line(`  ${theme.dim(translate("tui.result.hint"))}`);
       });
     },
   };

@@ -13,15 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * `switchToFeature` use-case. Port fidèle de switchProject
- * (arka-cc-management, core/use-cases/projects/switch-project.ts).
- *
- * Pas de champ `current` explicite dans l'index : la feature courante est
- * implicitement celle dont lastUsedAt est le plus récent. switchTo(id)
- * réalise cette bascule en touchant l'index puis en persistant le nouveau
- * lastUsedAt dans le marker.
- */
 import { FeatureNotFoundError } from "../../domain/errors.js";
 import { loadIndexedFeatureWithinProject } from "./_shared/verified-feature.js";
 export function switchToFeatureUseCaseFactory(deps) {

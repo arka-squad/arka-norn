@@ -27,6 +27,8 @@ import { createAgentOrchestrationRuntime } from "../../../composition/agent-orch
 import type { AgentWorkMode } from "../../../ports/inbound/for-agent-orchestration.js";
 import type { CliExecution } from "./cli-execution.js";
 import { CliUsageError, parseStrictArguments, type StrictArgumentSpec } from "./strict-arguments.js";
+import { jsonEnvelope } from "./cli-envelope.js";
+import { translate } from "../../../application/localization/locale.js";
 
 export interface AgentCliContext {
   readonly homeDir: string;
@@ -35,23 +37,23 @@ export interface AgentCliContext {
   readonly sessionId: AgentSessionId;
 }
 
-export const AGENT_HELP = `Gestion des agents d'un Project
+export const AGENT_HELP = `Manage Agents for a Project
 
   agent list --project <id> [--active]
-  agent register --project <id> --provider <nom> --role <rôle>
-                 [--features id1,id2] [--paths chemin1,chemin2]
+  agent register --project <id> --provider <name> --role <role>
+                 [--features id1,id2] [--paths path1,path2]
                  [--responsibilities "mission 1;mission 2"] [--session <id>]
   agent show <agent-id> --project <id>
   agent current --project <id> [--session <id>]
   agent use <agent-id> --project <id> [--session <id>]
   agent sessions --project <id>
-  agent replace <ancien-id> --project <id> --provider <nom> --role <rôle>
+  agent replace <old-id> --project <id> --provider <name> --role <role>
   agent deactivate <agent-id> --project <id> --yes
 
-Pilotage Product et sessions parallèles :
+Product control and parallel sessions:
   agent advise --project <id> [--feature <id>]
   agent prompt <product|architecte|audit|dev|qa> --project <id>
-               [--feature <id>] [--provider <nom>] [--session <id>]
+               [--feature <id>] [--provider <name>] [--session <id>]
                [--mode execute|prepare]
   agent handoff-prompt --project <id> [--feature <id>] [--agent <product-id>]
 
@@ -223,24 +225,24 @@ export function serializeAgent(agent: AgentRegistration, sessionId?: string) {
 }
 
 function output(command: string, data: unknown, json: boolean, action: string, sessionId: string): CliExecution {
-  if (json) return { code: 0, stdout: `${JSON.stringify({ schemaVersion: 1, command, ok: true, data, errors: [], warnings: [] })}\n`, stderr: "" };
-  if (data === null) return { code: 0, stdout: `Aucun agent actif dans la session ${sessionId}. Utilise \`arka-norn agent use <id> --project <id> --session ${sessionId}\`.\n`, stderr: "" };
+  if (json) return { code: 0, stdout: jsonEnvelope({ command, ok: true, data }), stderr: "" };
+  if (data === null) return { code: 0, stdout: `${translate("cli.agent.none", { session: sessionId })}\n`, stderr: "" };
   if (action === "advise") return { code: 0, stdout: humanAdvice(data), stderr: "" };
   if (action === "prompt") {
     const prompt = data as { readonly preflightCommand: string; readonly prompt: string };
-    return { code: 0, stdout: `PRÉREQUIS À EXÉCUTER AVANT D'OUVRIR LA SESSION PROVIDER\n${prompt.preflightCommand}\n\nPROMPT À TRANSMETTRE\n${prompt.prompt}\n`, stderr: "" };
+    return { code: 0, stdout: `PREREQUISITE TO RUN BEFORE OPENING THE PROVIDER SESSION\n${prompt.preflightCommand}\n\nPROMPT TO SEND\n${prompt.prompt}\n`, stderr: "" };
   }
   if (action === "handoff-prompt" || action === "resume-prompt") {
     return { code: 0, stdout: `${(data as { readonly prompt: string }).prompt}\n`, stderr: "" };
   }
   if (action === "sessions") {
     const sessions = data as readonly { readonly sessionId: string; readonly agent: ReturnType<typeof serializeAgent> }[];
-    return { code: 0, stdout: sessions.length === 0 ? "Aucune session Agent liée à ce Project.\n" : `${sessions.map((item) => `${item.sessionId}\t${humanAgent(item.agent)}`).join("\n")}\n`, stderr: "" };
+    return { code: 0, stdout: sessions.length === 0 ? "No Agent session is bound to this Project.\n" : `${sessions.map((item) => `${item.sessionId}\t${humanAgent(item.agent)}`).join("\n")}\n`, stderr: "" };
   }
   const rows = Array.isArray(data) ? data : [data];
   return {
     code: 0,
-    stdout: rows.length === 0 ? "Aucun agent enregistré. Commence avec `arka-norn agent register`.\n" : `${rows.map(humanAgent).join("\n")}\n`,
+    stdout: rows.length === 0 ? "No Agent is registered. Start with `arka-norn agent register`.\n" : `${rows.map(humanAgent).join("\n")}\n`,
     stderr: "",
   };
 }
@@ -250,9 +252,9 @@ function humanAgent(value: unknown): string {
   const scope = [
     agent.scope.featureIds.length === 0 ? "features=toutes" : `features=${agent.scope.featureIds.join(",")}`,
     agent.scope.paths.length === 0 ? "chemins=tous" : `chemins=${agent.scope.paths.join(",")}`,
-    agent.scope.responsibilities.length === 0 ? "responsabilités=non précisées" : `responsabilités=${agent.scope.responsibilities.join(";")}`,
+    agent.scope.responsibilities.length === 0 ? "responsibilities=unspecified" : `responsibilities=${agent.scope.responsibilities.join(";")}`,
   ].join(" · ");
-  const replacement = "replacedByAgentId" in agent ? ` → remplacé par ${agent.replacedByAgentId}` : "";
+  const replacement = "replacedByAgentId" in agent ? ` -> replaced by ${agent.replacedByAgentId}` : "";
   const session = "sessionId" in agent ? `\tsession=${String(agent.sessionId)}` : "";
   return `${agent.active ? "ACTIF" : "INACTIF"}\t${agent.id}\t${agent.provider}/${agent.role}\t${scope}${session}${replacement}`;
 }
@@ -260,17 +262,17 @@ function humanAgent(value: unknown): string {
 function humanAdvice(value: unknown): string {
   const advice = value as Awaited<ReturnType<ReturnType<typeof orchestrationRuntime>["advise"]>>;
   const recommendations = advice.recommendations.length === 0
-    ? ["  Aucun profil secondaire à lancer maintenant."]
-    : advice.recommendations.map((item) => `  ${item.mode === "execute" ? "MAINTENANT" : "PRÉPARATION"} · ${item.role} · session ${item.sessionId}\n    ${item.reason}\n    ${item.command}`);
+    ? ["  No secondary profile to start now."]
+    : advice.recommendations.map((item) => `  ${item.mode === "execute" ? "NOW" : "PREPARE"} - ${item.role} - session ${item.sessionId}\n    ${item.reason}\n    ${item.command}`);
   return [
     `Pilotage Product — Project ${advice.projectId}${advice.featureId === undefined ? "" : ` · Feature ${advice.featureId}`}`,
-    `Phase : ${advice.phase}${advice.nextStepId === undefined ? "" : ` · prochaine étape ${advice.nextStepId}`}`,
+    `Phase: ${advice.phase}${advice.nextStepId === undefined ? "" : ` - next step ${advice.nextStepId}`}`,
     `Product principal : ${advice.productPrincipal.status}${advice.productPrincipal.agentId === undefined ? "" : ` · ${advice.productPrincipal.agentId}`} · session main`,
     `Conseil : ${advice.productNextAction}`,
-    "Agents proposés :",
+    "Suggested Agents:",
     ...recommendations,
     `Reprise Product : ${advice.handoffPromptCommand}`,
-    ...advice.warnings.map((warning) => `AVERTISSEMENT — ${warning}`),
+    ...advice.warnings.map((warning) => translate("common.warning", { message: warning })),
   ].join("\n") + "\n";
 }
 
@@ -302,8 +304,8 @@ function failure(command: string, error: unknown, json: boolean): CliExecution {
       : hasDomainCode(error, "AGENT_ALREADY_EXISTS") ? 5
         : hasDomainCode(error) || error instanceof DomainError ? 3 : 70;
   return json
-    ? { code, stdout: `${JSON.stringify({ schemaVersion: 1, command, ok: false, data: null, errors: [message], warnings: [] })}\n`, stderr: "" }
-    : { code, stdout: "", stderr: `ERREUR — ${message}\n` };
+    ? { code, stdout: jsonEnvelope({ command, ok: false, data: null, errors: [message], errorCode: "agent_command_failed" }), stderr: "" }
+    : { code, stdout: "", stderr: `${translate("common.error", { message })}\n` };
 }
 
 function hasDomainCode(error: unknown, ...expected: readonly string[]): boolean {

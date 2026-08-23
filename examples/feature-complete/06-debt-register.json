@@ -1,0 +1,70 @@
+{
+  "schema_version": 5,
+  "author_agent_id": "Codex_dev_20260819",
+  "id": "registre-dettes-spec-t03",
+  "feature_id": "connecteurs-notion-linear",
+  "type": "debt_register",
+  "sequence": 1,
+  "created_at": "2026-06-30T12:00:00.000Z",
+  "depends_on_document_ids": [
+    "invariants-n1-figes-t02"
+  ],
+  "task_id": "Documented task id for the canonical English example.",
+  "plan_sources": [
+    "Documented plan sources for the canonical English example.",
+    "Documented plan sources for the canonical English example.",
+    "Documented plan sources for the canonical English example.",
+    "Documented plan sources for the canonical English example."
+  ],
+  "depends_on": [
+    "audit-t01-etat-reel-cortex-lite",
+    "invariants-n1-figes-t02"
+  ],
+  "date": "2026-06-30",
+  "golden_rule": "Documented golden rule for the canonical English example.",
+  "debts": [
+    {
+      "id": "D01",
+      "description": "Documented description for the canonical English example.",
+      "classification": "blocker",
+      "required_decision": "Documented required decision for the canonical English example."
+    },
+    {
+      "id": "D02",
+      "description": "Documented description for the canonical English example.",
+      "classification": "blocker",
+      "required_decision": "Documented required decision for the canonical English example."
+    },
+    {
+      "id": "D05",
+      "description": "Documented description for the canonical English example.",
+      "classification": "blocker",
+      "required_decision": "Documented required decision for the canonical English example."
+    },
+    {
+      "id": "D15",
+      "description": "Documented description for the canonical English example.",
+      "classification": "blocker",
+      "required_decision": "Documented required decision for the canonical English example."
+    },
+    {
+      "id": "D09",
+      "description": "Documented description for the canonical English example.",
+      "classification": "qa",
+      "required_decision": "Documented required decision for the canonical English example."
+    },
+    {
+      "id": "D14",
+      "description": "Documented description for the canonical English example.",
+      "classification": "qa",
+      "required_decision": "Documented required decision for the canonical English example."
+    },
+    {
+      "id": "D23",
+      "description": "Documented description for the canonical English example.",
+      "classification": "extension",
+      "required_decision": "Documented required decision for the canonical English example."
+    }
+  ],
+  "content_locale": "en"
+}

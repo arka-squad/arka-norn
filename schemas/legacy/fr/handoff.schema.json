@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "handoff.schema.json",
+  "title": "Handoff",
+  "description": "Document transversal de passation entre agents, potentiellement de providers différents, dans le pipeline arka-norn. Formalise un échange d'état de travail à n'importe quel moment du cycle.",
+  "type": "object",
+  "allOf": [{ "$ref": "document-envelope.schema.json" }],
+  "unevaluatedProperties": false,
+  "required": [
+    "id",
+    "type",
+    "ref",
+    "date",
+    "agent_emetteur",
+    "agent_destinataire",
+    "type_message",
+    "sujet",
+    "etape_pipeline_concernee",
+    "etat_actuel",
+    "travail_effectue",
+    "travail_restant",
+    "blocages",
+    "fichiers_reference"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Identifiant unique de ce document de handoff dans le dépôt."
+    },
+    "type": {
+      "const": "handoff",
+      "description": "Discriminant fixe indiquant qu'il s'agit d'un document de type handoff."
+    },
+    "ref": {
+      "type": "string",
+      "description": "Référence courte du handoff (ex: nom de fichier source, identifiant de ticket ou de lot concerné)."
+    },
+    "date": {
+      "type": "string",
+      "description": "Date d'émission de ce handoff."
+    },
+    "agent_emetteur": {
+      "type": "object",
+      "description": "Agent qui émet ce message de passation.",
+      "additionalProperties": false,
+      "required": ["nom", "provider"],
+      "properties": {
+        "nom": {
+          "type": "string",
+          "description": "Nom ou identifiant de l'agent émetteur."
+        },
+        "provider": {
+          "type": "string",
+          "description": "Provider ou plateforme de l'agent émetteur (ex: claude-code, codex-cli, antigravity)."
+        }
+      }
+    },
+    "agent_destinataire": {
+      "type": "object",
+      "description": "Agent destinataire de ce message de passation.",
+      "additionalProperties": false,
+      "required": ["nom", "provider"],
+      "properties": {
+        "nom": {
+          "type": "string",
+          "description": "Nom ou identifiant de l'agent destinataire."
+        },
+        "provider": {
+          "type": "string",
+          "description": "Provider ou plateforme de l'agent destinataire. Peut valoir \"any\" si le handoff s'adresse à n'importe quel agent qui reprend le travail, quel que soit son provider."
+        }
+      }
+    },
+    "type_message": {
+      "type": "string",
+      "description": "Nature du message de passation transmis.",
+      "enum": ["handoff", "verdict", "ack", "question", "blocage"]
+    },
+    "sujet": {
+      "type": "string",
+      "description": "Sujet ou objet du handoff, en une phrase."
+    },
+    "etape_pipeline_concernee": {
+      "type": "string",
+      "description": "Étape du pipeline méthodologique à laquelle ce handoff se rattache.",
+      "enum": [
+        "concept",
+        "plan",
+        "annexe_contrat_technique",
+        "audit_etat_reel",
+        "invariants_figes",
+        "registre_dettes",
+        "tache_agent",
+        "spec_integration_technique",
+        "cr_dev",
+        "recette_qa",
+        "transversal"
+      ]
+    },
+    "etat_actuel": {
+      "type": "string",
+      "description": "Description de l'état actuel du travail au moment de l'émission du handoff."
+    },
+    "travail_effectue": {
+      "type": "array",
+      "description": "Liste des éléments de travail déjà accomplis par l'agent émetteur.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "travail_restant": {
+      "type": "array",
+      "description": "Liste des éléments de travail restant à accomplir, à destination de l'agent qui reprend.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "blocages": {
+      "type": "array",
+      "description": "Liste des blocages identifiés au moment du handoff. Peut être vide si aucun blocage n'est en cours.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["description", "decision_requise"],
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "Description du blocage rencontré."
+          },
+          "decision_requise": {
+            "type": "string",
+            "description": "Décision requise pour lever ce blocage."
+          }
+        }
+      }
+    },
+    "fichiers_reference": {
+      "type": "array",
+      "description": "Chemins des fichiers JSON du pipeline concernés par ce handoff.",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "examples": [
+    {
+      "schema_version": 3,
+      "author_agent_id": "Codex_dev_20260819",
+      "id": "handoff-2026-08-18-001",
+      "feature_id": "example-feature",
+      "type": "handoff",
+      "sequence": 1,
+      "created_at": "2026-08-18T16:00:00.000Z",
+      "depends_on_document_ids": ["cr-dev-001"],
+      "ref": "DEV-HANDOFF-lot-routines-builder",
+      "date": "2026-08-18",
+      "agent_emetteur": {
+        "nom": "claude-code-dev",
+        "provider": "claude-code"
+      },
+      "agent_destinataire": {
+        "nom": "qa-agent",
+        "provider": "any"
+      },
+      "type_message": "handoff",
+      "sujet": "Passation du lot builder routines pour recette QA",
+      "etape_pipeline_concernee": "cr_dev",
+      "etat_actuel": "Implémentation terminée, tests unitaires verts, en attente de recette fonctionnelle.",
+      "travail_effectue": [
+        "Implémentation du dépôt au pointeur",
+        "Implémentation de la pause et de l'archivage"
+      ],
+      "travail_restant": [
+        "Recette QA sur le flux de suppression"
+      ],
+      "blocages": [],
+      "fichiers_reference": [
+        "cr-dev-lot-routines-builder.json"
+      ]
+    }
+  ]
+}

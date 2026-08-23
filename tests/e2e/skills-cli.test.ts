@@ -36,10 +36,10 @@ test("skills list/install/doctor partagent le catalogue et détectent une diverg
   assert.ok(listEnvelope.data.some((skill) => skill.name === "arka-audit"));
   assert.ok(listEnvelope.data.some((skill) => skill.name === "arka-product"));
   assert.ok(listEnvelope.data.some((skill) => skill.name === "arka-fastdev"));
-  assert.ok(listEnvelope.data.some((skill) => skill.name === "arka-framework-maitrise"));
+  assert.ok(listEnvelope.data.some((skill) => skill.name === "arka-framework-mastery"));
   assert.ok(listEnvelope.data.some((skill) => skill.name === "arka-framework-audit"));
-  assert.ok(listEnvelope.data.some((skill) => skill.name === "arka-framework-dev"));
-  assert.ok(listEnvelope.data.some((skill) => skill.name === "arka-framework-recette-qa"));
+  assert.ok(listEnvelope.data.some((skill) => skill.name === "arka-framework-development"));
+  assert.ok(listEnvelope.data.some((skill) => skill.name === "arka-framework-qa-review"));
   assert.ok(listEnvelope.data.some((skill) => skill.name === "arka-git-steward"));
 
   const core = run(["skills", "install", "--target", target, "--profile", "core", "--json"], target);
@@ -57,10 +57,10 @@ test("skills list/install/doctor partagent le catalogue et détectent une diverg
     assert.equal((JSON.parse(result.stdout) as { readonly data: { readonly skills: readonly string[] } }).data.skills.length, count, profile);
   }
 
-  const devSkill = resolve(target, ".agents", "skills", "arka-framework-dev", "SKILL.md");
+  const devSkill = resolve(target, ".agents", "skills", "arka-framework-development", "SKILL.md");
   const content = readFileSync(devSkill, "utf8");
   assert.doesNotMatch(content, /\/Users\/|\{\{[^}]+\}\}/);
-  const openai = readFileSync(resolve(target, ".agents", "skills", "arka-framework-dev", "agents", "openai.yaml"), "utf8");
+  const openai = readFileSync(resolve(target, ".agents", "skills", "arka-framework-development", "agents", "openai.yaml"), "utf8");
   assert.match(openai, /default_prompt:/);
   writeFileSync(devSkill, `${content}\nlocal divergence\n`);
   const unhealthy = run(["skills", "doctor", "--target", target, "--json"], target);
@@ -83,18 +83,15 @@ test("skills global installe et diagnostique les 21 rendus sans masquer une dive
   assert.equal(plan.plan.length, 21 * 6);
 
   const nornGlobal = readFileSync(resolve(home, ".claude", "skills", "arka-norn", "SKILL.md"), "utf8");
-  assert.match(nornGlobal, /mode_orchestration/);
-  assert.match(nornGlobal, /Ne jamais créer, choisir un autre dossier ou déduire le mode silencieusement/);
-  assert.match(nornGlobal, /project add <racine> --name <nom> --orchestration-mode <manual\|automatic>/);
-  assert.match(nornGlobal, /skills doctor --target <racine> --profile all --global --json/);
+  assert.match(nornGlobal, /locale show --json/);
+  assert.match(nornGlobal, /content_locale/);
+  assert.match(nornGlobal, /pipeline next <feature> --json/);
+  assert.match(nornGlobal, /Do not execute a second phase/);
 
   const productGlobal = readFileSync(resolve(home, ".claude", "skills", "arka-product", "SKILL.md"), "utf8");
-  assert.match(productGlobal, /demander explicitement.*assistant.*version/i);
-  assert.match(productGlobal, /orchestration configure --project <project-id> --provider <claude\|codex\|kimi\|zai> --model <version>/);
-  assert.match(productGlobal, /orchestration preview --project <project-id> --feature <feature-id>/);
-  assert.match(productGlobal, /attendre la confirmation explicite de l'utilisateur/i);
-  assert.match(productGlobal, /orchestration start --project <project-id> --feature <feature-id> --provider <claude\|codex\|kimi\|zai> --model <version> --preview <empreinte>/);
-  assert.doesNotMatch(productGlobal, /sélecteur Project le choisit de façon déterministe|ne demander ni provider libre/i);
+  assert.match(productGlobal, /Reply in the active display locale/);
+  assert.match(productGlobal, /Machine-readable CLI data is the source of truth/);
+  assert.match(productGlobal, /signed and mechanically validated artifact/);
 
   const healthy = run(["skills", "doctor", "--target", target, "--profile", "all", "--global", "--json"], target, env);
   assert.equal(healthy.status, 0, `${healthy.stdout}\n${healthy.stderr}`);
@@ -113,15 +110,15 @@ test("skills global installe et diagnostique les 21 rendus sans masquer une dive
   assert.deepEqual(orphanData.orphans.map((orphan) => orphan.name), ["arka-local-orphan", "arka-orphan-agentdev"]);
   const withOrphansHuman = run(["skills", "doctor", "--target", target, "--profile", "all", "--global"], target, env);
   assert.equal(withOrphansHuman.status, 0, `${withOrphansHuman.stdout}\n${withOrphansHuman.stderr}`);
-  assert.match(withOrphansHuman.stdout, /WARN\tarka-orphan-agentdev\tentrée arka non gérée/);
+  assert.match(withOrphansHuman.stdout, /WARN\tarka-orphan-agentdev\tunmanaged arka entry/);
 
-  const divergent = resolve(home, ".codex", "skills", "arka-framework-recette-qa", "SKILL.md");
+  const divergent = resolve(home, ".codex", "skills", "arka-framework-qa-review", "SKILL.md");
   writeFileSync(divergent, "custom global content\n");
   const diagnosed = run(["skills", "doctor", "--target", target, "--profile", "all", "--global", "--json"], target, env);
   assert.equal(diagnosed.status, 3, `${diagnosed.stdout}\n${diagnosed.stderr}`);
   const check = (JSON.parse(diagnosed.stdout) as {
     readonly data: { readonly checks: readonly { readonly name: string; readonly status: string }[] };
-  }).data.checks.find((item) => item.name === "arka-framework-recette-qa");
+  }).data.checks.find((item) => item.name === "arka-framework-qa-review");
   assert.equal(check?.status, "divergent");
   assert.equal(readFileSync(divergent, "utf8"), "custom global content\n");
 });

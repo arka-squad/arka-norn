@@ -48,8 +48,8 @@ export function createPipelineRuntime(frameworkRoot: string, options: PipelineRu
     }),
     validate: validatePipelineDocumentUseCaseFactory({ source, validator }),
     scaffold: async (input) => auditedScaffold(audit, clock, input, scaffold),
-    async listSteps(pipelineId) {
-      const definition = await source.loadDefinition(pipelineId);
+    async listSteps(pipelineId, documentContractVersion) {
+      const definition = await source.loadDefinition(pipelineId, documentContractVersion);
       return [
         ...definition.steps.map((step) => ({ id: step.id, required: step.required, transversal: false })),
         ...definition.transversalDocuments.map((document) => ({ id: document.type, required: false, transversal: true })),

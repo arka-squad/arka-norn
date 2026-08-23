@@ -1,0 +1,59 @@
+{
+  "schema_version": 5,
+  "author_agent_id": "Codex_dev_20260819",
+  "id": "concept-notion-linear-anti-tokens",
+  "feature_id": "connecteurs-notion-linear",
+  "type": "concept",
+  "sequence": 1,
+  "created_at": "2026-06-30T08:00:00.000Z",
+  "depends_on_document_ids": [],
+  "title": "Documented title for the canonical English example.",
+  "version": "Documented version for the canonical English example.",
+  "date": "2026-06-30",
+  "scope": "Documented scope for the canonical English example.",
+  "objective": "Documented objective for the canonical English example.",
+  "assumptions": [
+    {
+      "subject": "Documented subject for the canonical English example.",
+      "selected_position": "Documented selected position for the canonical English example."
+    },
+    {
+      "subject": "Documented subject for the canonical English example.",
+      "selected_position": "Documented selected position for the canonical English example."
+    },
+    {
+      "subject": "Documented subject for the canonical English example.",
+      "selected_position": "Documented selected position for the canonical English example."
+    },
+    {
+      "subject": "Documented subject for the canonical English example.",
+      "selected_position": "Documented selected position for the canonical English example."
+    },
+    {
+      "subject": "Documented subject for the canonical English example.",
+      "selected_position": "Documented selected position for the canonical English example."
+    },
+    {
+      "subject": "Documented subject for the canonical English example.",
+      "selected_position": "Documented selected position for the canonical English example."
+    },
+    {
+      "subject": "Documented subject for the canonical English example.",
+      "selected_position": "Documented selected position for the canonical English example."
+    }
+  ],
+  "executive_summary": "Documented executive summary for the canonical English example.",
+  "guiding_principle": "Documented guiding principle for the canonical English example.",
+  "sections": [
+    {
+      "title": "Documented title for the canonical English example.",
+      "content": "Documented content for the canonical English example."
+    },
+    {
+      "title": "Documented title for the canonical English example.",
+      "content": "Documented content for the canonical English example."
+    }
+  ],
+  "status": "valid",
+  "content_locale": "en"
+}

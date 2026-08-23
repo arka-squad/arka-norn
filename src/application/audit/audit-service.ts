@@ -12,6 +12,7 @@ import type { AuditCollector } from "../../ports/outbound/audit-collector.js";
 import type { AuditStore } from "../../ports/outbound/audit-store.js";
 import { buildCanonicalAudit, compareAudits, kbRecordsFromAudit, renderAuditReport, type AuditComparison } from "./audit-report.js";
 import { parseAuditRequest, parseModuleResult } from "./audit-validation.js";
+import { translate } from "../localization/locale.js";
 
 export interface AuditProjectContext {
   readonly projectId: string;
@@ -170,18 +171,18 @@ export class AuditService {
   }
 
   private async findReusableModule(run: AuditRun, moduleId: AuditModuleId): Promise<AuditModuleResult | undefined> {
-    const selection = moduleId === "M00" ? { intent: "discover" as const, depth: "inventaire" as const } : run.request.modules.find((candidate) => candidate.moduleId === moduleId);
-    if (selection === undefined || selection.depth !== "inventaire") return undefined;
+    const selection = moduleId === "M00" ? { intent: "discover" as const, depth: "inventory" as const } : run.request.modules.find((candidate) => candidate.moduleId === moduleId);
+    if (selection === undefined || selection.depth !== "inventory") return undefined;
     for (const entry of await this.store.listRuns()) {
       if (entry.id === run.id || entry.projectId !== run.projectId || (entry.status !== "completed" && entry.status !== "partial")) continue;
       const previous = await this.store.loadRun(entry.id);
       if (previous === undefined || previous.inspection.commitExact !== run.inspection.commitExact || previous.inspection.workspaceFingerprint !== run.inspection.workspaceFingerprint) continue;
       if (JSON.stringify(previous.request.paths) !== JSON.stringify(run.request.paths)) continue;
-      const previousSelection = moduleId === "M00" ? { intent: "discover" as const, depth: "inventaire" as const } : previous.request.modules.find((candidate) => candidate.moduleId === moduleId);
+      const previousSelection = moduleId === "M00" ? { intent: "discover" as const, depth: "inventory" as const } : previous.request.modules.find((candidate) => candidate.moduleId === moduleId);
       if (previousSelection?.intent !== selection.intent || previousSelection.depth !== selection.depth) continue;
       const result = await this.store.loadModuleResult(entry.id, moduleId);
       if (result === undefined || result.execution.status !== "complete" || result.evidence.some((evidence) => evidence.kind === "external" || evidence.producer.startsWith("arka-norn/container/"))) continue;
-      return { ...result, auditId: run.id, strengths: [...result.strengths, `Collecte locale compatible réutilisée depuis ${entry.id}.`] };
+      return { ...result, auditId: run.id, strengths: [...result.strengths, translate("audit.service.reused", { audit: entry.id })] };
     }
     return undefined;
   }
@@ -202,11 +203,11 @@ function buildExecutionPlan(inspection: AuditInspection, request: AuditRequest, 
     return { reference, installed: status?.installed ?? null, sizeBytes: status?.sizeBytes ?? null };
   });
   const logicalCommands = [
-    "inventaire-local-lecture-seule",
-    ...selected.filter((moduleId) => moduleId !== "M00").map((moduleId) => `collecte-${moduleId.toLowerCase()}`),
+    "read-only-local-inventory",
+    ...selected.filter((moduleId) => moduleId !== "M00").map((moduleId) => `collect-${moduleId.toLowerCase()}`),
   ];
   const sensitive = images.length > 0 || request.capabilities.allowedHosts.length > 0 || request.capabilities.credentialRefs.length > 0
-    || request.capabilities.dynamicTargets.length > 0 || request.modules.some((module) => module.depth === "dynamique");
+    || request.capabilities.dynamicTargets.length > 0 || request.modules.some((module) => module.depth === "dynamic");
   return {
     scopePaths: request.paths,
     commitExact: inspection.commitExact,
@@ -215,8 +216,8 @@ function buildExecutionPlan(inspection: AuditInspection, request: AuditRequest, 
     credentialRefs: request.capabilities.credentialRefs,
     dynamicTargets: request.capabilities.dynamicTargets,
     logicalCommands,
-    timeoutMs: request.modules.some((module) => module.depth === "dynamique") ? 900_000 : 300_000,
-    estimatedDuration: request.modules.some((module) => module.depth === "dynamique") ? "10–30 min" : "1–10 min",
+    timeoutMs: request.modules.some((module) => module.depth === "dynamic") ? 900_000 : 300_000,
+    estimatedDuration: request.modules.some((module) => module.depth === "dynamic") ? "10–30 min" : "1–10 min",
     requiresAdditionalConfirmation: sensitive,
   };
 }
@@ -226,14 +227,14 @@ function plannedToolIds(request: AuditRequest, selected: readonly AuditModuleId[
   const toolIds = new Set<AuditToolId>();
   for (const moduleId of selected) {
     const depth = depths.get(moduleId);
-    if (depth === undefined || depth === "inventaire") continue;
-    if (moduleId === "M02" && depth === "dynamique") for (const toolId of runnerToolIds(inspection)) toolIds.add(toolId);
+    if (depth === undefined || depth === "inventory") continue;
+    if (moduleId === "M02" && depth === "dynamic") for (const toolId of runnerToolIds(inspection)) toolIds.add(toolId);
     if (moduleId === "M04" || moduleId === "M08") toolIds.add("syft");
     if (moduleId === "M05") {
       toolIds.add("gitleaks");
-      if (depth === "connecte" || depth === "dynamique") { toolIds.add("trivy"); toolIds.add("grype"); }
+      if (depth === "connected" || depth === "dynamic") { toolIds.add("trivy"); toolIds.add("grype"); }
     }
-    if (moduleId === "M10" && depth === "dynamique") toolIds.add("terraform");
+    if (moduleId === "M10" && depth === "dynamic") toolIds.add("terraform");
   }
   return toolIds;
 }
@@ -253,14 +254,14 @@ function runnerToolIds(inspection: AuditInspection): readonly AuditToolId[] {
 function addDependencySelections(request: AuditRequest, selected: readonly AuditModuleId[]): AuditRequest {
   const byId = new Map(request.modules.map((module) => [module.moduleId, module]));
   const dependencyIntent = request.mode === "audit" ? "audit" as const : "discover" as const;
-  const modules = selected.filter((id) => id !== "M00").map((moduleId) => byId.get(moduleId) ?? { moduleId, intent: dependencyIntent, depth: "statique" as const, criteria: [] });
+  const modules = selected.filter((id) => id !== "M00").map((moduleId) => byId.get(moduleId) ?? { moduleId, intent: dependencyIntent, depth: "static" as const, criteria: [] });
   return { ...request, modules };
 }
 
 function preparationWarnings(inspection: AuditInspection, request: AuditRequest): readonly string[] {
   const warnings: string[] = [];
-  if (inspection.workspaceClean === false) warnings.push("Le workspace est modifié et sera identifié comme non commité.");
-  if (request.modules.some((module) => module.depth === "dynamique") && !inspection.sandbox.available) warnings.push("Docker ou Podman est requis pour les modules dynamiques.");
+  if (inspection.workspaceClean === false) warnings.push(translate("audit.service.workspaceModified"));
+  if (request.modules.some((module) => module.depth === "dynamic") && !inspection.sandbox.available) warnings.push(translate("audit.service.dynamicUnavailable"));
   return warnings;
 }
 

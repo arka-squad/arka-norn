@@ -98,7 +98,7 @@ test("les adaptateurs CLI de catalogue, skills, doctor et migration sont appelé
   assert.equal((await runMigrateCommand(["--target", legacy, "--apply", "--json"], { cwd: fixture.cwd })).code, 0);
   assert.equal((await runMigrateCommand(["--target", legacy], { cwd: fixture.cwd })).code, 0);
   assert.equal((await runMigrateCommand(["--apply", "--dry-run", "--json"], { cwd: fixture.cwd })).code, 64);
-  assert.throws(() => findMarkers(join(fixture.cwd, "missing"), 1), /inexistante/);
+  assert.throws(() => findMarkers(join(fixture.cwd, "missing"), 1), /does not exist/);
 });
 
 test("l'adaptateur CLI d'audit couvre le cycle local et ses sorties spécialisées", async (context) => {
@@ -118,9 +118,9 @@ test("l'adaptateur CLI d'audit couvre le cycle local et ses sorties spécialisé
   const requestPath = join(fixture.cwd, "audit-request.json");
   writeFileSync(requestPath, JSON.stringify({
     objective: "Découvrir le produit",
-    mode: "decouverte",
+    mode: "discovery",
     paths: ["."],
-    modules: [{ moduleId: "M09", intent: "discover", depth: "inventaire", criteria: [] }],
+    modules: [{ moduleId: "M09", intent: "discover", depth: "inventory", criteria: [] }],
     sources: { paths: [], urls: [] },
     capabilities: { allowImagePulls: false, allowedHosts: [], credentialRefs: [], dynamicTargets: [] },
   }));
@@ -213,11 +213,12 @@ test("les adaptateurs CLI Project, Feature, Agent, Pipeline et FastDev couvrent 
   assert.equal((await runStatusCommand([fixture.featureRoot], pipeline)).code, 2);
   assert.equal((await runScaffoldCommand(["concept", "standalone.json", "--agent", AUTHOR, "--json"], pipeline)).code, 0);
   assert.equal((await runScaffoldCommand(["plan", "standalone-plan.json", "--agent", AUTHOR], pipeline)).code, 0);
-  assert.equal((await runScaffoldCommand([
-    "audit_etat_reel", join(fixture.projectRoot, "audit-project.json"), "--project", "quality-project", "--agent", AUTHOR, "--json",
-  ], pipeline)).code, 0);
-  assert.equal((await runValidateCommand([resolve(ROOT, "examples", "feature-notion-linear", "01-concept.json"), "--json"], pipeline)).code, 0);
-  assert.equal((await runValidateCommand([resolve(ROOT, "examples", "feature-notion-linear", "01-concept.json")], pipeline)).code, 0);
+  const projectAuditScaffold = await runScaffoldCommand([
+    "current_state_audit", join(fixture.projectRoot, "audit-project.json"), "--project", "quality-project", "--agent", AUTHOR, "--json",
+  ], pipeline);
+  assert.equal(projectAuditScaffold.code, 0, projectAuditScaffold.stdout || projectAuditScaffold.stderr);
+  assert.equal((await runValidateCommand([resolve(ROOT, "examples", "feature-complete", "01-concept.json"), "--json"], pipeline)).code, 0);
+  assert.equal((await runValidateCommand([resolve(ROOT, "examples", "feature-complete", "01-concept.json")], pipeline)).code, 0);
   assert.equal((await runPipelineCommand(["status", "quality-feature", "--json"], pipeline)).code, 2);
   assert.equal((await runPipelineCommand(["status", "quality-feature"], pipeline)).code, 2);
   assert.equal((await runPipelineCommand(["next", "quality-feature", "--json"], pipeline)).code, 2);
@@ -236,10 +237,10 @@ test("les adaptateurs CLI Project, Feature, Agent, Pipeline et FastDev couvrent 
   assert.equal((await runFastDevCommand(["unknown", "--json"], pipeline)).code, 64);
 });
 
-test("l'aide CLI décrit la validation structurelle et l'audit Project v4", () => {
-  assert.match(CLI_HELP, /Valide schéma et sentinelles de scaffold/);
-  assert.match(CLI_HELP, /identité, relations et verdict métier/);
-  assert.match(CLI_HELP, /scaffold audit_etat_reel <output\.json> --project <id> --agent <id>/);
+test("CLI help documents structural validation and the Project audit v5", () => {
+  assert.match(CLI_HELP, /Validates schema and scaffold sentinels/);
+  assert.match(CLI_HELP, /identity, relations and business verdict/);
+  assert.match(CLI_HELP, /scaffold current_state_audit <output\.json> --project <id> --agent <id>/);
 });
 
 test("un scaffold CLI signale l'indisponibilité du journal avant toute écriture", async (context) => {

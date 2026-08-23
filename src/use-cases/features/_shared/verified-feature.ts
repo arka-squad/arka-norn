@@ -21,11 +21,6 @@ import type { ProjectId } from "../../../domain/project/project-id.js";
 import type { FeatureIndexEntry } from "../../../ports/outbound/feature-index-store.js";
 import type { FeaturesDeps } from "./features-deps.js";
 
-/**
- * Revalide la relation de possession au moment de lire un marker Feature.
- * L'index et le marker sont tous deux non fiables : aucun appelant ne doit
- * réutiliser une racine Feature avant cette vérification.
- */
 export async function loadFeatureWithinProject(deps: FeaturesDeps, root: string): Promise<Feature> {
   const feature = await deps.featureStore.load(root);
   const project = await loadProjectForFeature(deps, feature.projectId);

@@ -1,116 +1,54 @@
 # Changelog
 
-Toutes les modifications notables d’arka.norn sont consignées ici. Le projet
-utilise le versionnement sémantique ; les artefacts sont produits à partir des
-tags `vX.Y.Z`.
+Notable changes to arka-norn are recorded here. The project follows semantic versioning.
 
-## 1.3.0 — 2026-08-23
+## 2.0.0 - 2026-08-23
 
-- nouveau pipeline `arka-norn-essentiel` (alias `essentiel`) devenant le défaut pour toute nouvelle Feature : cadrage fusionné (intention, lots, critères prouvables), annexe technique optionnelle, `cr_dev`, `audit_livraison` et `validation_livraison`, avec boucle corrective vérifiée mécaniquement ;
-- schémas d'audit et de validation mutualisés entre FastDev et Essentiel (`audit-livraison.schema.json`, `validation-livraison.schema.json`) via un enum de type partagé, sans duplication de contrat ;
-- le scaffold résout désormais les refs `#/$defs/*` locales et injecte `type = stepId`, ce qui corrige au passage la génération de `validation_fastdev` (bug latent) ; `validate` et `scaffold` sans pipeline cherchent l'étape dans tout le catalogue ;
-- moteur guidé unique : `guided-next` et `guided-feature-cli` partagés entre `fastdev` et le nouveau `essentiel` (start/status/next), phases et instructions étendues aux étapes essentiel ;
-- le défaut vient du catalogue (`defaultPipelineId`) injecté dans `create-feature` et la CLI ; `DEFAULT_PIPELINE_ID` reste réservé aux migrations de markers anciens ; sélecteur de workflow dynamique en TUI avec essentiel préselectionné ;
-- reporting de sélection généralisé (`selectedDocuments` piloté par les policies) en conservant les champs historiques ;
-- skill `$arka-essentiel` (une phase par invocation, escalade vers standard si le cadrage révèle une incertitude ou une migration critique) ; catalogue v1.10.0 porté à 21 skills ;
-- documentation utilisateur, Agent et développeur alignée sur Essentiel par défaut, exemple complet `examples/feature-essentiel/` avec boucle corrective et selftest couvrant le scaffold et les exemples des trois pipelines.
+### Added
 
-- nouveau moteur transversal de découverte et d’audit, indépendant des Features et de la Pipeline, avec cycle `inspect → prepare → start → submit → finalize` ;
-- skill `$arka-audit` interactive et adaptative couvrant douze domaines M00–M11, tandis que `arka-framework-audit` reste strictement réservé à l’étape Pipeline `audit_etat_reel` ;
-- stockage privé sous `.arka-norn/audits`, rapports Markdown, audit canonique, preuves réduites, KB filtrable, reprise, comparaison et export ;
-- collecteurs locaux déterministes, connecteurs HTTP/GitHub/npm durcis et catalogue d’images officielles épinglées pour les outils sandboxés Docker/Podman ;
-- schémas dédiés hors `pipeline.json`, enveloppes JSON CLI stables et codes de sortie indépendants des verdicts métier ;
-- catalogue porté à 21 skills et documentation des domaines, permissions, limites et reprises.
+- English canonical v5 document contracts with required `content_locale`.
+- English and French display localization with flag, environment, persisted preference and system detection.
+- `locale show` and `locale set auto|en|fr`.
+- Canonical Complete, Essential and FastDev workflow IDs and English step IDs.
+- Public CLI JSON envelope v2 with stable diagnostics and localized `display`.
+- Atomic, deterministic and idempotent migration of legacy French Features with backups and SHA-256 provenance.
+- Generated English skill catalog v2 with bilingual triggers.
+- Canonical English examples for all workflows and Project audit v5.
+- Source line-limit and language gates.
 
-## 1.2.4 — 2026-08-22
+### Changed
 
-- tests : stabilise le scénario TUI d’armement du Pilote assisté sous Windows/Node 22 en donnant plus de budget aux attentes asynchrones de démarrage et de synchronisation Project.
+- Essential is the default workflow for new Features.
+- Public documentation, code comments, schemas and distributed examples are English.
+- The orchestration runtime is split into mission planning, worker launch, provider configuration and proof validation modules.
+- The private Web application and design brief remain under ignored `.input/`.
+- Package version is 2.0.0.
 
-## 1.2.3 — 2026-08-22
+### Compatibility
 
-- packaging npm : normalise le chemin du binaire `arka-norn` au format attendu par `npm pkg fix` (`bin/arka-norn.mjs`) afin que le tarball publié corresponde au manifeste Git sans auto-correction locale.
+- French v2/v3 Feature documents and Project audit v4 remain readable and migrable throughout 2.x.
+- `standard`, `essentiel`, `arka-norn-default` and `arka-norn-essentiel` remain accepted as deprecated aliases.
+- A non-migrated Feature stays entirely on its legacy definition and cannot silently mix v3 and v5 documents.
 
-## 1.2.2 — 2026-08-22
+## 1.3.0 - 2026-08-22
 
-- tests : stabilise le test TUI de bascule du mode Project en sélectionnant explicitement l’entrée `Pilote assisté` par filtre au lieu de dépendre de sa position numérique dans le menu ;
-- release : remplace le tag `v1.2.1` dont la CI Windows/Node 24 pouvait échouer sur un timeout TUI malgré le correctif déjà publié.
+- Added the Essential workflow as the default for new Features.
+- Shared guided workflow, delivery audit and validation logic with FastDev.
+- Added local reference resolution for scaffold `$defs`.
+- Expanded the skill catalog to 21 entries.
+- Added Essential documentation, examples and selftest coverage.
 
-## 1.2.1 — 2026-08-22
+## 1.2.x
 
-- correctif sécurité : la barrière de permissions normalise désormais les séparateurs de chemins sous Windows ; `inside()` comparait `relative()` avec des barres obliques alors que Windows renvoie des antislashs, laissant passer des chemins hors du périmètre autorisé ;
-- tests : création des symlinks de répertoire avec un `type` explicite et assertions de chemins indépendantes du séparateur, afin que la suite tourne à l'identique sous Windows ;
-- CI : gate d'audit avec exemptions documentées (advisory GHSA-866g-f22w-33x8 sans correctif publié, chemin vulnérable inatteignable dans notre exécution) ; toute autre vulnérabilité échoue ;
-- CI : budget d'attente TUI porté à 30 s pour absorber la lenteur du combo Windows + Node 24.
+- Added controlled local orchestration, Project audit, provider policies and execution records.
+- Hardened filesystem boundaries, audit trails and provider permission handling.
+- Added Project marker v4 and portable Agent registries.
 
-## 1.2.0 — 2026-08-21
+## 1.1.x
 
-- marker Project porté en v4 avec le mode persistant `manual|automatic`, tandis que les markers Feature restent en v3 ; les migrations Project v1/v2/v3 choisissent `manual` sans mutation lors d'une lecture ;
-- politique d’exécution et registre de missions séparés sous `.arka-norn/`, sans secret, token, PID ni état de processus portable ;
-- orchestration Mastra locale contrôlée par arka.norn : ordres de mission immuables, assistants Claude, Codex, Kimi Platform et Z.AI Coding Plan évalués par politique, permissions deny-by-default, suspension vérifiable et absence de fallback après démarrage ;
-- mode `automatic` présenté comme un **Pilote assisté** : pour chaque mission, l’utilisateur choisit explicitement l’assistant et sa version, relit un aperçu borné puis le confirme ; aucune mission suivante n’est enchaînée silencieusement ;
-- commandes et cockpit d’orchestration pour armer, consulter, annuler, approuver et relancer une mission sans exposer le worker interne ;
-- Codex ACP documenté en annulation/relance contrôlée, sans promesse de reprise générique d’une exécution interrompue ;
-- prérequis et CI portés à Node.js 22.13+ (matrices 22/24) ; tests CI avec providers fake et smoke réels opt-in avec identifiants explicitement fournis.
-- durcissement post-audit : le worker ne peut pas accéder aux zones de contrôle
-  Feature, les preuves sont liées à l’étape, l’Agent et le provider attendus,
-  la sélection est historisée et les permissions shell/commandes ne sont plus
-  préautorisées par défaut ;
-- l'échec avant dispatch devient terminal et audité, le smoke ACP réutilise la
-  configuration runtime et l'annulation POSIX termine aussi les descendants du
-  worker.
-- `skills doctor --profile all --global` contrôle désormais les 19 skills
-  locales et globales Claude/Codex avant un point d'entrée, signale les
-  entrées `arka-*` non gérées et installe `arka-git-steward` comme discipline
-  Git partagée des runs multi-agents.
-- les schémas `concept` et `plan` exigent au moins une hypothèse tranchée, un
-  concept source et un critère de fin : le scaffold guide déjà ces tableaux
-  par des sentinelles, et la validation rejette désormais un document vide sur
-  ces champs ; `sections` reste volontairement vide-possible.
+- Added Agent sessions, Product orchestration, FastDev and portable Feature markers.
+- Added generated multi-provider skills and repair diagnostics.
 
-- les inspections et commandes Pipeline d'une Feature marquée refusent désormais toute vérification d'auteur sans registre Agent valide ;
-- les markers et index Project/Feature sont réconciliés avant usage ; les racines forgées, les répertoires de markers symboliques et les chemins de migration symboliques sont refusés ;
-- `doctor` traite l'absence d'une skill cœur comme un échec bloquant ;
-- les actions asynchrones de la TUI sont capturées et sérialisées pour éviter les erreurs non gérées et les mutations concurrentes ;
-- la TUI rafraîchit son diagnostic de santé après installation d'une skill ;
-- la gate de release couvre explicitement le code CLI, en complément de la couverture globale ;
-- l'audit Project `audit_etat_reel` dispose d'une enveloppe v4 ciblée, avec `project_id` exclusif de `feature_id` et scaffold CLI autorisé strictement ;
-- les scaffolds sont journalisés avant mutation, refusent toute zone `.arka-norn` et un audit Project v4 ne peut pas écrire dans une Feature ou un Project enfant ; le journal refuse aussi les symlinks, fichiers spéciaux et hardlinks ;
-- `selftest` fonctionne hors npm ;
-- l'aide de `validate` distingue validation structurelle et complétude métier.
+## 1.0.0
 
-- README refondu en porte d’entrée produit, guide développeur de référence et manuel utilisateur non technique garantis dans le package ;
-- Product principal stable dans la session `main`, conseil de prochaine étape et orchestration des profils spécialisés ;
-- sélections Agent v2 isolées par session provider, avec migration transparente du format v1 ;
-- commandes `agent sessions|advise|prompt|handoff-prompt`, prompts autonomes `execute|prepare` et reprise après saturation du contexte ;
-- skill `arka-product`, profils `product|architecture|audit|dev|qa` et catalogue porté à 18 skills ;
-- TUI enrichie avec conseil Product, lancement guidé des rôles et prompt de reprise ;
-- workflow `arka-norn-fastdev` catalogué, avec boucle audit/correction et validation du dernier CR ;
-- commandes `workflow`, `feature --workflow`, `feature set-workflow` et `fastdev start|status|next` ;
-- schémas `cadrage_rework`, `audit_rework`, `validation_fastdev` et fermetures de constats dans `cr_dev` ;
-- cockpit TUI FastDev guidé et skill `arka-fastdev`, catalogue alors porté à 17 skills ;
-- marqueurs Project/Feature v3 réellement portables, sans chemin machine, avec migration v1/v2 sauvegardée ;
-- scans Project/Feature capables de reconnaître directement la racine transmise par les skills ;
-- `doctor` vérifie le contexte Project et les références de session jusqu'à l'Agent actif, sans mutation silencieuse de `agent current` ;
-- `skills doctor --global` contrôle les installations Claude/Codex et les rendus Claude utilisent la version exacte du catalogue ;
-- diagnostics de marqueur et documentation du catalogue corrigés.
-
-## 1.1.0 — 2026-08-19
-
-- registre Agents portable par Project, identités lisibles, scopes, activation et remplacement traçable ;
-- documents v3 signés par `author_agent_id`, avec lecture rétrocompatible des documents v2 ;
-- commandes Agent et guide CLI, scaffold lié à l’agent courant actif ;
-- espace TUI Agents et aide contextuelle `?`, actions recommandées, formulaires expliqués et suites explicites ;
-- skills `arka-norn` et `arka-framework-maitrise`, catalogue porté à 16 skills et réparation avec backup depuis la TUI ;
-- point d'entrée provider `/arka-norn` pour Claude et `$arka-norn` pour Codex, avec installation globale dans les deux environnements ;
-- parcours Concept optionnel via un kit prérempli ChatGPT/Claude.ai, avec garde de confidentialité et réconciliation locale ;
-- `doctor` vérifie les registres Agents en plus des index, markers, locks, audit et skills.
-
-## 1.0.0 — 2026-08-19
-
-- cockpit local Project/Feature disponible en CLI et TUI ;
-- pipeline documentaire v2 avec identité, relations, cardinalités et handoffs ;
-- persistance durcie : locks avec ownership, écritures atomiques et index réparables ;
-- diagnostic unifié des index, markers, locks, journal d’audit et skills ;
-- catalogue de 14 skills multiprovider avec installation transactionnelle ;
-- gates TypeScript, tests unitaires/intégration/E2E, couverture et packaging isolé.
-- loader de tests portable Node 20/22/24 sur Linux, macOS et Windows ; actions CI basées sur Node 24.
+- Initial local Project, Feature, Pipeline, schema, skill and TUI release.

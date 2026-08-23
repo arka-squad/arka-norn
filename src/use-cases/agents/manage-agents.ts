@@ -15,6 +15,7 @@
  */
 
 import { AgentRegistration } from "../../domain/agent/agent.js";
+import { translate } from "../../application/localization/locale.js";
 import { createReadableAgentId } from "../../domain/agent/agent-id.js";
 import { AgentSessionId } from "../../domain/agent/agent-session-id.js";
 import { AgentAlreadyExistsError, AgentInactiveError, AgentNotFoundError, InvalidAgentOptionError } from "../../domain/errors.js";
@@ -45,7 +46,7 @@ export function manageAgentsUseCaseFactory(deps: {
     },
     async register(input) {
       if (sessionId.equals(AgentSessionId.MAIN) && !isProductRole(input.role)) {
-        throw new InvalidAgentOptionError("role", "la session main est réservée au Product principal; utilise --session <role-feature> pour un Agent spécialisé");
+        throw new InvalidAgentOptionError("role", translate("cli.agent.mainReserved"));
       }
       const at = deps.clock.now();
       let created: AgentRegistration | undefined;
@@ -82,7 +83,7 @@ export function manageAgentsUseCaseFactory(deps: {
     async replace(input) {
       const mainAgentId = await deps.session.current(AgentSessionId.MAIN, input.project.id);
       if (mainAgentId?.equals(input.replacedAgentId) === true && !isProductRole(input.role)) {
-        throw new InvalidAgentOptionError("role", "le remplaçant du Product principal doit conserver un rôle product");
+        throw new InvalidAgentOptionError("role", translate("cli.agent.productReplacement"));
       }
       const at = deps.clock.now();
       let replacement: AgentRegistration | undefined;
@@ -111,7 +112,7 @@ export function manageAgentsUseCaseFactory(deps: {
       const agent = find(await deps.registry.load(project), id.value);
       if (!agent.active) throw new AgentInactiveError(id.value);
       if (sessionId.equals(AgentSessionId.MAIN) && !isProductRole(agent.role)) {
-        throw new InvalidAgentOptionError("session", `la session main ne peut pas sélectionner ${agent.id.value} (${agent.role}); utilise une session spécialisée`);
+        throw new InvalidAgentOptionError("session", translate("cli.agent.mainSelection", { agent: agent.id.value, role: agent.role }));
       }
       await deps.session.select(sessionId, project.id, id);
       return agent;

@@ -22,6 +22,7 @@ import { Ajv2020, type AnySchema } from "ajv/dist/2020.js";
 
 import {
   isFeatureMarkerV3,
+  isFeatureMarkerV4,
   isProjectMarkerV3,
   isProjectMarkerV4,
   planFeatureMarkerMigration,
@@ -31,7 +32,7 @@ import {
 const ROOT = resolve(import.meta.dirname, "..", "..");
 const FIXTURES = resolve(ROOT, "tests", "fixtures", "formats");
 
-test("les markers v1 migrent vers Project v4 et Feature v3 portables", () => {
+test("v1 markers migrate to portable Project and Feature v4 markers", () => {
   const projectPlan = planProjectMarkerMigration(fixture("project-marker-v1.json"));
   const featurePlan = planFeatureMarkerMigration(fixture("feature-marker-v1.json"), { projectId: "arka-norn" });
 
@@ -42,7 +43,8 @@ test("les markers v1 migrent vers Project v4 et Feature v3 portables", () => {
   assert.equal(projectPlan.output.createdAt, "2026-08-19T08:00:00.000Z");
   assert.equal(featurePlan.changed, true);
   assert.equal(featurePlan.output.projectId, "arka-norn");
-  assert.equal(featurePlan.output.pipelineId, "arka-norn-default");
+  assert.equal(featurePlan.output.pipelineId, "arka-norn-complete");
+  assert.equal(featurePlan.output.documentContractVersion, 5);
   assert.equal("root" in featurePlan.output, false);
 });
 
@@ -59,7 +61,7 @@ test("les markers v2 migrent en supprimant la racine machine", () => {
   assert.equal("root" in featurePlan.output, false);
 });
 
-test("un Project v3 migre vers le mode manuel tandis qu'une Feature v3 reste idempotente", () => {
+test("Project and Feature v3 markers upgrade explicitly to v4", () => {
   const project = fixture("project-marker-v3.json");
   const feature = fixture("feature-marker-v3.json");
 
@@ -69,8 +71,10 @@ test("un Project v3 migre vers le mode manuel tandis qu'une Feature v3 reste ide
   assert.equal(projectPlan.fromVersion, 3);
   assert.equal(projectPlan.toVersion, 4);
   assert.equal(projectPlan.output.orchestrationMode, "manual");
-  assert.equal(featurePlan.changed, false);
-  assert.deepEqual(featurePlan.output, feature);
+  assert.equal(featurePlan.changed, true);
+  assert.equal(featurePlan.output.schemaVersion, 4);
+  assert.equal(featurePlan.output.pipelineId, "arka-norn-complete");
+  assert.equal(featurePlan.output.documentContractVersion, 5);
   assert.equal(isProjectMarkerV3(project), true);
   assert.equal(isFeatureMarkerV3(feature), true);
 });
@@ -99,7 +103,7 @@ test("une version future est refusée explicitement", () => {
   );
 });
 
-test("le schéma Project v4 et le schéma Feature v3 valident les fixtures portables", () => {
+test("Project and Feature v4 schemas validate portable canonical fixtures", () => {
   const ajv = new Ajv2020({ strict: true });
   ajv.addFormat("date-time", { type: "string", validate: (value: string) => !Number.isNaN(Date.parse(value)) });
   const projectSchema = json(resolve(ROOT, "schemas", "project-marker.schema.json")) as AnySchema;
@@ -107,7 +111,9 @@ test("le schéma Project v4 et le schéma Feature v3 valident les fixtures porta
   const validateProject = ajv.compile(projectSchema);
   const validateFeature = ajv.compile(featureSchema);
   assert.equal(validateProject(fixture("project-marker-v4.json")), true, JSON.stringify(validateProject.errors));
-  assert.equal(validateFeature(fixture("feature-marker-v3.json")), true, JSON.stringify(validateFeature.errors));
+  assert.equal(validateFeature(fixture("feature-marker-v4.json")), true, JSON.stringify(validateFeature.errors));
+  assert.equal(isFeatureMarkerV4(fixture("feature-marker-v4.json")), true);
+  assert.equal(validateFeature(fixture("feature-marker-v3.json")), false);
   assert.equal(validateProject(fixture("project-marker-v3.json")), false);
   assert.equal(validateProject(fixture("project-marker-v2.json")), false);
   assert.equal(validateFeature(fixture("feature-marker-v2.json")), false);

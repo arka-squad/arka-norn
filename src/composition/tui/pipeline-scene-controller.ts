@@ -24,6 +24,7 @@ import type { AgentRegistration } from "../../domain/agent/agent.js";
 import { AgentScopeViolationError } from "../../domain/errors.js";
 import { relative } from "node:path";
 import type { ForPipeline, PipelineAuthorAuthorization } from "../../ports/inbound/for-pipeline.js";
+import { formatNumber, translate } from "../../application/localization/locale.js";
 
 export interface PipelineSceneController {
   showStatus(feature: Feature): Promise<void>;
@@ -41,79 +42,80 @@ export function createPipelineSceneController(
     featureRoot: feature.root,
     featureId: feature.id.value,
     pipelineId: feature.pipelineId,
+    documentContractVersion: feature.documentContractVersion,
     authorRegistry: await authorRegistryForFeature(feature),
   });
   return {
     async showStatus(feature): Promise<void> {
       const report = await inspect(feature);
       app.push(createResultView({
-        title: "Statut du pipeline", code: pipelineExitCode(report), output: presentPipelineReport(report), onBack: () => {},
-        nextStep: report.nextActions[0] === undefined ? "le Pipeline est complet ; vérifiez le handoff ou clôturez la Feature" : `${report.nextActions[0].kind} → ${report.nextActions[0].stepId} : ${report.nextActions[0].reason}`,
+        title: translate("tui.pipeline.statusTitle"), code: pipelineExitCode(report), output: presentPipelineReport(report), onBack: () => {},
+        nextStep: report.nextActions[0] === undefined ? translate("tui.pipeline.complete") : translate("tui.pipeline.next", { kind: report.nextActions[0].kind, step: report.nextActions[0].stepId, reason: report.nextActions[0].reason }),
       }));
     },
     async showGuidance(feature): Promise<void> {
       const report = await inspect(feature);
       const action = report.nextActions[0];
       const output = action === undefined
-        ? "Le workflow est terminé : aucune nouvelle action n'est requise.\n"
+        ? `${translate("tui.pipeline.workflowComplete")}\n`
         : [
-            `Phase : ${action.phase ?? action.stepId}`,
-            `Ce qu'il faut faire : ${(action.instructions ?? []).join(" ")}`,
-            `Pourquoi : ${action.reason}`,
-            `Preuves attendues : document signé, dépendances exactes et résultats reproductibles.`,
-            `Document à produire : ${action.stepId}.json`,
-            `Commande : ${action.suggestedCommand ?? `arka-norn pipeline scaffold ${action.stepId} --feature ${feature.id.value}`}`,
+            translate("tui.pipeline.phase", { phase: action.phase ?? action.stepId }),
+            translate("tui.pipeline.instructions", { instructions: (action.instructions ?? []).join(" ") }),
+            translate("tui.pipeline.reason", { reason: action.reason }),
+            translate("tui.pipeline.expectedEvidence"),
+            translate("tui.pipeline.document", { step: action.stepId }),
+            translate("tui.pipeline.command", { command: action.suggestedCommand ?? `arka-norn pipeline scaffold ${action.stepId} --feature ${feature.id.value}` }),
           ].join("\n") + "\n";
       app.push(createResultView({
-        title: feature.pipelineId === "arka-norn-fastdev" ? "Continuer le rework FastDev" : "Continuer la Feature",
+        title: translate(feature.pipelineId === "arka-norn-fastdev" ? "tui.pipeline.continueRework" : "tui.pipeline.continueFeature"),
         code: pipelineExitCode(report),
         output,
         onBack: () => {},
-        nextStep: action === undefined ? "le workflow est terminé" : "exécutez la commande affichée, remplissez les preuves puis validez le document",
+        nextStep: action === undefined ? translate("tui.pipeline.workflowComplete") : translate("tui.pipeline.execute"),
       }));
     },
     async scaffold(feature, author, projectRoot): Promise<void> {
       if (!author.coversFeature(feature.id)) throw new AgentScopeViolationError(author.id.value, `feature:${feature.id.value}`);
       const authorAgentId = author.id.value;
       const [steps, report] = await Promise.all([
-        pipeline.listSteps(feature.pipelineId),
+        pipeline.listSteps(feature.pipelineId, feature.documentContractVersion),
         inspect(feature),
       ]);
       const recommended = report.nextActions[0]?.stepId;
       const orderedSteps = [...steps].sort((left, right) => Number(right.id === recommended) - Number(left.id === recommended));
       app.push(createMenuScene(
         orderedSteps.map((step) => ({
-          label: `${step.id === recommended ? "★ Recommandé — " : ""}${step.id}`,
+          label: `${step.id === recommended ? `* ${translate("tui.pipeline.recommended")}` : ""}${step.id}`,
           value: step.id,
           description: step.id === recommended
-            ? report.nextActions[0]?.reason ?? "prochaine étape calculée"
-            : step.required ? "obligatoire, mais pas l’action prioritaire actuelle" : step.transversal ? "document transversal" : "optionnelle",
+            ? report.nextActions[0]?.reason ?? translate("tui.pipeline.nextCalculated")
+            : translate(step.required ? "tui.pipeline.requiredLater" : step.transversal ? "tui.pipeline.transversal" : "tui.pipeline.optional"),
         })),
         {
-          title: `Document à générer · auteur ${authorAgentId}`,
-          hint: "★ suit le statut réel · ↑/↓ choisir · Entrée continuer · Échap annuler",
+          title: translate("tui.pipeline.generateTitle", { agent: authorAgentId }),
+          hint: translate("tui.pipeline.generateHint"),
           onSelect: (stepId) => {
             app.pop();
             app.push(createTextInputScene({
-              title: `Squelette — ${stepId}`,
-              hint: `Document v3 signé ${authorAgentId}. Confirmez le chemin dans la racine de la Feature.`,
+              title: translate("tui.pipeline.scaffoldTitle", { step: stepId }),
+              hint: translate("tui.pipeline.pathHint", { agent: authorAgentId }),
               initialValue: `${feature.root}/${stepId}.json`,
               onSubmit: (outputPath) => {
                 app.pop();
                 const projectRelativeOutput = relative(projectRoot, outputPath);
                 if (!author.coversProjectPath(projectRelativeOutput)) {
-                  app.push(errorView(`Squelette — ${stepId}`, new AgentScopeViolationError(author.id.value, `path:${projectRelativeOutput}`)));
+                  app.push(errorView(translate("tui.pipeline.scaffoldTitle", { step: stepId }), new AgentScopeViolationError(author.id.value, `path:${projectRelativeOutput}`)));
                   return;
                 }
-                void pipeline.scaffold({ stepId, outputPath, allowedRoot: feature.root, authorAgentId, featureId: feature.id.value, pipelineId: feature.pipelineId }).then(
+                void pipeline.scaffold({ stepId, outputPath, allowedRoot: feature.root, authorAgentId, featureId: feature.id.value, pipelineId: feature.pipelineId, documentContractVersion: feature.documentContractVersion }).then(
                   (result) => app.push(createResultView({
-                    title: `Squelette — ${stepId}`,
+                    title: translate("tui.pipeline.scaffoldTitle", { step: stepId }),
                     code: 0,
-                    output: `Squelette écrit : ${result.outputPath}\nValeurs à remplacer : ${result.sentinelPaths.length}\n`,
+                    output: translate("tui.pipeline.scaffoldWritten", { path: result.outputPath, count: formatNumber(result.sentinelPaths.length) }),
                     onBack: () => {},
-                    nextStep: "remplacez toutes les sentinelles À_REMPLIR, puis utilisez « Valider un document rempli »",
+                    nextStep: translate("tui.pipeline.scaffoldNext"),
                   })),
-                  (error: unknown) => app.push(errorView(`Squelette — ${stepId}`, error)),
+                  (error: unknown) => app.push(errorView(translate("tui.pipeline.scaffoldTitle", { step: stepId }), error)),
                 );
               },
               onCancel: () => {},
@@ -125,20 +127,20 @@ export function createPipelineSceneController(
     },
     validate(feature): void {
       app.push(createTextInputScene({
-        title: "Valider un document",
-        hint: "Chemin du fichier JSON à valider",
+        title: translate("tui.pipeline.validateTitle"),
+        hint: translate("tui.pipeline.validateHint"),
         initialValue: `${feature.root}/`,
         onSubmit: (filePath) => {
           app.pop();
           void pipeline.validate({ filePath, pipelineId: feature.pipelineId }).then(
             (result) => app.push(createResultView({
-              title: "Validation",
+              title: translate("tui.pipeline.validationTitle"),
               code: result.valid ? 0 : 3,
-              output: result.valid ? `VALIDE — ${filePath}\n` : `INVALIDE — ${filePath}\n${result.errors.map((error) => `- ${error}`).join("\n")}\n`,
+              output: result.valid ? translate("tui.pipeline.valid", { path: filePath }) : translate("tui.pipeline.invalid", { path: filePath, errors: result.errors.map((error) => `- ${error}`).join("\n") }),
               onBack: () => {},
-              nextStep: result.valid ? "revenez au cockpit et relancez le statut du Pipeline" : "corrigez la première erreur affichée puis validez à nouveau",
+              nextStep: translate(result.valid ? "tui.pipeline.validNext" : "tui.pipeline.invalidNext"),
             })),
-            (error: unknown) => app.push(errorView("Validation impossible", error)),
+            (error: unknown) => app.push(errorView(translate("tui.pipeline.validationFailed"), error)),
           );
         },
         onCancel: () => {},

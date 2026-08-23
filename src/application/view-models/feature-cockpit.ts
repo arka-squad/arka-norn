@@ -16,6 +16,7 @@
 
 import type { Feature } from "../../domain/feature/feature.js";
 import type { NextAction, PipelineReport, StepState } from "../../domain/pipeline/pipeline-report.js";
+import { canonicalDocumentType } from "../compatibility/legacy-french-contract.js";
 
 export interface FeatureCockpitViewModel {
   readonly title: string;
@@ -45,9 +46,9 @@ export interface FeatureCockpitViewModel {
 export function createFeatureCockpitViewModel(feature: Feature, report: PipelineReport): FeatureCockpitViewModel {
   const completed = report.steps.filter((step) => step.completionStatus === "completed").length;
   const required = report.steps.filter((step) => step.required).length;
-  const crStep = report.steps.find((step) => step.id === "cr_dev");
-  const qaStep = report.steps.find((step) => step.id === "recette_qa");
-  const debtStep = report.steps.find((step) => step.id === "registre_dettes");
+  const crStep = findStep(report, "development_report");
+  const qaStep = findStep(report, "qa_review");
+  const debtStep = findStep(report, "debt_register");
   const next = report.nextActions[0];
   const fastdev = feature.pipelineId === "arka-norn-fastdev";
   const fastdevDetails = createFastdevDetails(report, crStep, next, fastdev);
@@ -55,10 +56,10 @@ export function createFeatureCockpitViewModel(feature: Feature, report: Pipeline
     title: feature.name,
     root: feature.root,
     overallStatus: report.overallStatus,
-    progress: fastdev ? `${fastdevDetails.phase} · ${completed}/${required}` : `${completed}/${required} étapes obligatoires terminées`,
+    progress: fastdev ? `${fastdevDetails.phase} - ${completed}/${required}` : `${completed}/${required} required steps completed`,
     nextAction: nextLabel(next),
     nextReason: nextReason(next),
-    timeline: report.steps.map((step) => `${String(step.order).padStart(2, "0")} ${symbol(step.completionStatus)} ${step.id} · ${step.schemaStatus}/${step.businessStatus}`),
+    timeline: report.steps.map((step) => `${String(step.order).padStart(2, "0")} ${symbol(step.completionStatus)} ${step.id} - ${step.schemaStatus}/${step.businessStatus}`),
     developmentRuns: crStep?.documents.length ?? 0,
     qaRuns: qaStep?.documents.length ?? 0,
     qaFailures: qaStep?.documents.filter((document) => document.businessVerdict === "fail").length ?? 0,
@@ -75,13 +76,13 @@ function createFastdevDetails(
   fastdev: boolean,
 ): Pick<FeatureCockpitViewModel, "phase" | "iteration" | "openFindings" | "closedCorrections" | "validationState" | "instructions"> &
 Partial<Pick<FeatureCockpitViewModel, "workflowBadge" | "latestAuditedCommit" | "expectedArtifact" | "suggestedCommand">> {
-  const auditStep = report.steps.find((step) => step.id === "audit_rework");
-  const validationStep = report.steps.find((step) => step.id === "validation_fastdev");
+  const auditStep = findStep(report, "delivery_audit");
+  const validationStep = findStep(report, "delivery_validation");
   const closedCorrections = sumField(crStep, "correctionCount");
   const findings = sumField(auditStep, "openFindingCount");
-  const phase = fastdev && next?.stepId === "cr_dev" && auditStep?.businessStatus === "failed"
+  const phase = fastdev && next?.stepId === "development_report" && auditStep?.businessStatus === "failed"
     ? "Corrections"
-    : next?.phase ?? (report.overallStatus === "completed" ? "Terminé" : "Diagnostic");
+    : next?.phase ?? (report.overallStatus === "completed" ? "Completed" : "Diagnostic");
   const auditedCommit = selectedDocument(auditStep)?.exactCommit;
   return {
     ...(fastdev ? { workflowBadge: "FASTDEV" } : {}),
@@ -90,7 +91,7 @@ Partial<Pick<FeatureCockpitViewModel, "workflowBadge" | "latestAuditedCommit" | 
     openFindings: Math.max(0, findings - closedCorrections),
     closedCorrections,
     ...(auditedCommit === undefined ? {} : { latestAuditedCommit: auditedCommit }),
-    validationState: selectedDocument(validationStep)?.businessVerdict ?? "absente",
+    validationState: selectedDocument(validationStep)?.businessVerdict ?? "absent",
     instructions: next?.instructions ?? [],
     ...(next === undefined ? {} : { expectedArtifact: `${next.stepId}.json` }),
     ...(next?.suggestedCommand === undefined ? {} : { suggestedCommand: next.suggestedCommand }),
@@ -106,11 +107,15 @@ function sumField(step: StepState | undefined, field: "correctionCount" | "openF
 }
 
 function nextLabel(next: NextAction | undefined): string {
-  return next === undefined ? "Aucune — pipeline terminé" : `${next.kind} → ${next.stepId}`;
+  return next === undefined ? "None - pipeline completed" : `${next.kind} -> ${next.stepId}`;
 }
 
 function nextReason(next: NextAction | undefined): string {
-  return next === undefined ? "toutes les étapes obligatoires et la dernière revue sont concluantes" : next.reason;
+  return next === undefined ? "all required steps and the latest review are conclusive" : next.reason;
+}
+
+function findStep(report: PipelineReport, canonicalType: string): StepState | undefined {
+  return report.steps.find((step) => canonicalDocumentType(step.id) === canonicalType);
 }
 
 function symbol(status: string): string {

@@ -1,0 +1,62 @@
+{
+  "schema_version": 5,
+  "author_agent_id": "Codex_dev_20260819",
+  "id": "spec-lot4-5-connecteurs-extraction",
+  "feature_id": "connecteurs-notion-linear",
+  "type": "technical_integration_specification",
+  "sequence": 1,
+  "created_at": "2026-07-01T08:00:00.000Z",
+  "depends_on_document_ids": [
+    "tache-19-specifier-le-domaine-cortex-connect-core"
+  ],
+  "title": "Documented title for the canonical English example.",
+  "covered_batches": [
+    "Documented covered batches for the canonical English example."
+  ],
+  "sources": [
+    "Documented sources for the canonical English example.",
+    "Documented sources for the canonical English example.",
+    "Documented sources for the canonical English example.",
+    "Documented sources for the canonical English example.",
+    "Documented sources for the canonical English example.",
+    "Documented sources for the canonical English example.",
+    "Documented sources for the canonical English example."
+  ],
+  "frozen_decisions": [
+    {
+      "id": "D15",
+      "description": "Documented description for the canonical English example."
+    },
+    {
+      "id": "D05",
+      "description": "Documented description for the canonical English example."
+    }
+  ],
+  "date": "2026-07-01",
+  "nature": "Documented nature for the canonical English example.",
+  "structure": {
+    "crates": [
+      "Documented crates for the canonical English example."
+    ],
+    "adapters": [
+      "Documented adapters for the canonical English example.",
+      "Documented adapters for the canonical English example.",
+      "Documented adapters for the canonical English example."
+    ]
+  },
+  "contracts": [
+    {
+      "name": "Documented name for the canonical English example.",
+      "definition": "Documented definition for the canonical English example."
+    },
+    {
+      "name": "Documented name for the canonical English example.",
+      "definition": "Documented definition for the canonical English example."
+    }
+  ],
+  "invariant_references": [
+    "Documented invariant references for the canonical English example.",
+    "Documented invariant references for the canonical English example."
+  ],
+  "content_locale": "en"
+}

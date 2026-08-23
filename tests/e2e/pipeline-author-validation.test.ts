@@ -190,7 +190,7 @@ test("un dossier sans marqueur conserve le mode compatibilité", (context) => {
 
   const result = run(["pipeline", "status", directory, "--json"], resolve(sandbox, "home"), sandbox);
   assert.equal(result.status, 2, result.stderr);
-  assert.match(result.stdout, /Dossier sans marqueur Feature/);
+  assert.match(result.stdout, /Folder without a Feature marker/);
 });
 
 interface ManagedFeatureFixture {

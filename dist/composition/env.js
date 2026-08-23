@@ -13,11 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * Env -- lecture de la config runtime depuis process.env. Port TS
- * simplifié de arka-cc-management (composition/env.ts) : pas d'API
- * distante (pas d'apiUrl/apiKey -- arka-norn n'a pas de backend).
- */
 import { dirname, isAbsolute, resolve } from "node:path";
 import { AgentSessionId } from "../domain/agent/agent-session-id.js";
 const DEFAULT_LOG_LEVEL = "info";

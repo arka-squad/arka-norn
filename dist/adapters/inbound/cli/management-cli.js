@@ -15,6 +15,7 @@
  */
 import { createHash } from "node:crypto";
 import { basename, resolve } from "node:path";
+import { translate } from "../../../application/localization/locale.js";
 import { DomainError } from "../../../domain/errors.js";
 import { FeatureId } from "../../../domain/feature/feature-id.js";
 import { ProjectId } from "../../../domain/project/project-id.js";
@@ -22,13 +23,14 @@ import { isProjectOrchestrationMode } from "../../../domain/project/project.js";
 import { createManagementRuntime } from "../../../composition/management-runtime.js";
 import { createPipelineRuntime } from "../../../composition/pipeline-runtime.js";
 import { CliUsageError, parseStrictArguments } from "./strict-arguments.js";
+import { jsonEnvelope } from "./cli-envelope.js";
 export async function runManagementCommand(argv, context) {
     const json = argv.includes("--json");
     const rawResource = argv[0];
     const resource = rawResource === "depot" ? "project" : rawResource;
     const action = argv[1];
     const command = `${resource ?? "unknown"}.${action ?? "unknown"}`;
-    const warnings = rawResource === "depot" ? ["L'alias 'depot' est déprécié ; utilise 'project'."] : [];
+    const warnings = rawResource === "depot" ? ["Alias 'depot' is deprecated; use 'project'."] : [];
     try {
         if (resource !== "project" && resource !== "feature")
             throw new UsageError("resource must be project or feature");
@@ -234,10 +236,10 @@ function slugify(value) {
 }
 function output(command, data, json, warnings) {
     if (json)
-        return { code: 0, stdout: `${JSON.stringify({ schemaVersion: 1, command, ok: true, data, errors: [], warnings })}\n`, stderr: "" };
+        return { code: 0, stdout: jsonEnvelope({ command, ok: true, data, warnings }), stderr: "" };
     const rows = Array.isArray(data) ? data : [data];
-    const body = rows.length === 0 ? "Aucun résultat." : rows.map(humanRow).join("\n");
-    return { code: 0, stdout: `${body}\n`, stderr: warnings.map((warning) => `AVERTISSEMENT — ${warning}\n`).join("") };
+    const body = rows.length === 0 ? "No results." : rows.map(humanRow).join("\n");
+    return { code: 0, stdout: `${body}\n`, stderr: warnings.map((warning) => `${translate("common.warning", { message: warning })}\n`).join("") };
 }
 function humanRow(value) {
     if (typeof value !== "object" || value === null)
@@ -256,8 +258,8 @@ function failure(command, error, json, warnings) {
     const message = error instanceof Error ? error.message : String(error);
     const code = errorCode(error);
     if (json)
-        return { code, stdout: `${JSON.stringify({ schemaVersion: 1, command, ok: false, data: null, errors: [message], warnings })}\n`, stderr: "" };
-    return { code, stdout: "", stderr: `ERREUR — ${message}\n` };
+        return { code, stdout: jsonEnvelope({ command, ok: false, data: null, errors: [message], warnings, errorCode: "management_command_failed" }), stderr: "" };
+    return { code, stdout: "", stderr: `${translate("common.error", { message })}\n` };
 }
 function errorCode(error) {
     if (error instanceof UsageError || error instanceof CliUsageError)

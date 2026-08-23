@@ -1,23 +1,70 @@
 {
   "name": "arka-framework-audit",
-  "titre_h1_repo": "Arka — Audit de l'état réel",
-  "titre_h1_global": "Skill Audit — Arka Labs",
-  "description_courte": "Audite directement l'état réel d'un projet ou d'une Feature, produit des preuves reproductibles et sépare faits, écarts, invariants et dettes sans correction silencieuse.",
-  "description_do_use": "Use only when `arka-norn pipeline next` attend explicitement l'étape `audit_etat_reel` d'une Feature ou d'un audit Project Pipeline.",
-  "description_do_not_use": "Do NOT use pour une demande générale de découverte ou d'audit transverse : utiliser alors arka-audit. Ne pas implémenter de correction pendant l'observation.",
-  "declencheurs_globaux": "Déclencher uniquement sur arka-framework-audit ou lorsque la CLI confirme que `pipeline next` attend `audit_etat_reel`; les mots audit, sécurité ou état réel seuls déclenchent arka-audit.",
-  "allowed_tools": ["Read", "Bash", "Grep", "Glob"],
-  "quand_utiliser": ["avant de figer les invariants", "doute sur la documentation", "audit de robustesse ou sécurité"],
-  "quand_ne_pas_utiliser": ["corriger silencieusement pendant l'audit", "déclarer conforme sans preuve directe"],
-  "inputs": [{ "obligatoire": true, "nom": "perimetre", "description": "racines, composants et critères audités" }],
-  "note_inputs": "L'accès direct aux sources et commandes de preuve est obligatoire ; toute limite est signalée. Déclarer explicitement le scope : une Feature utilise l'enveloppe v3, un Project sans Feature utilise l'enveloppe v4 dédiée.",
-  "referentiel_extra": ["`{{FRAMEWORK_DIR}}/schemas/audit-etat-reel.schema.json`", "`{{FRAMEWORK_DIR}}/schemas/project-audit-envelope.schema.json`", "`{{FRAMEWORK_DIR}}/docs/"],
-  "procedure": [
-    { "titre": "Confirmer la gate Pipeline", "contenu": "Exécuter `arka-norn pipeline next` et arrêter si l'étape attendue n'est pas `audit_etat_reel`; pour toute demande transverse hors Pipeline, basculer vers `arka-audit`. Lister ensuite sources, exclusions, critères et hypothèses. Ne modifier aucun fichier métier pendant l'audit." },
-    { "titre": "Vérifier directement", "contenu": "Inspecter code, configuration, données et tests. Pour chaque constat conserver chemin, commande ou résultat reproductible." },
-    { "titre": "Classer", "contenu": "Séparer conforme, écart, risque, invariant candidat, dette et information inconnue. Ne jamais transformer une absence de preuve en conformité." },
-    { "titre": "Choisir l'enveloppe", "contenu": "Pour une Feature enregistrée, produire l'audit v3 signé dans son dossier avec `feature_id`. Pour l'audit d'un Project entier sans Feature, produire uniquement `audit_etat_reel` v4 avec `project_id`, via `arka-norn scaffold audit_etat_reel <sortie.json> --project <project-id> --agent <agent-id>`. La sortie Project doit rester hors Feature, Project enfant et `.arka-norn`. Ne jamais inventer de `feature_id` ni mélanger les deux scopes." },
-    { "titre": "Restituer", "contenu": "Remplacer toutes les sentinelles puis valider `audit_etat_reel` avec `arka-norn validate <sortie.json>` ; exposer blocages et ne corriger qu'après décision explicite dans un lot distinct." }
+  "repoTitle": "Current state audit",
+  "globalTitle": "Skill - Current state audit",
+  "summary": "Establish reproducible current-state evidence without hidden fixes.",
+  "useWhen": "Use when the verified Pipeline action or Product handoff assigns the current_state_audit responsibility.",
+  "doNotUseWhen": "Do not use for a different calculated phase, an unverified Agent scope, or to bypass schema and business validation.",
+  "triggers": "Use when the verified Pipeline action or Product handoff assigns the current_state_audit responsibility. English triggers include \"continue the Feature\" and \"run the next phase\". French triggers include \"continuer la Feature\" and \"exécuter la prochaine étape\". Resolve locale, Project, Feature, Agent and phase through the CLI before acting.",
+  "interface": {
+    "displayName": "Current state audit",
+    "shortDescription": "Establish reproducible current-state evidence without hidden...",
+    "defaultPrompt": "Use $arka-framework-audit to execute only the currently calculated phase."
+  },
+  "allowedTools": [
+    "Read",
+    "Bash",
+    "Grep",
+    "Glob"
   ],
-  "format_sortie": "Document JSON `audit_etat_reel` validé — v3 avec `feature_id` pour une Feature, ou v4 avec `project_id` pour un audit Project — preuves brutes, écarts priorisés et limites explicites."
+  "whenToUse": [
+    "Use when the verified Pipeline action or Product handoff assigns the current_state_audit responsibility.",
+    "The work must produce one signed and mechanically validated artifact."
+  ],
+  "whenNotToUse": [
+    "Do not use for a different calculated phase, an unverified Agent scope, or to bypass schema and business validation.",
+    "The current Agent identity or session cannot be verified."
+  ],
+  "inputs": [
+    {
+      "required": true,
+      "name": "feature",
+      "description": "Exact managed Feature identifier."
+    },
+    {
+      "required": true,
+      "name": "session_id",
+      "description": "Specialized Agent session supplied by Product control."
+    },
+    {
+      "required": false,
+      "name": "agent_id",
+      "description": "Explicit active identity; otherwise use the Project session binding."
+    }
+  ],
+  "inputNotes": "Never infer the phase from filenames. Machine-readable CLI data is the source of truth.",
+  "references": [
+    "`{{FRAMEWORK_DIR}}/docs/agent-guide.md` - Agent protocol and locale behavior",
+    "`{{FRAMEWORK_DIR}}/schemas/` - canonical v5 document contracts",
+    "`{{FRAMEWORK_DIR}}/pipelines/catalog.json` - canonical workflow catalog"
+  ],
+  "procedure": [
+    {
+      "title": "Resolve locale and verified context",
+      "content": "Run `arka-norn locale show --json`, `feature show`, `agent current` and `agent sessions`. Reply in the active display locale. Keep contract keys in English and set `content_locale` to the prose locale."
+    },
+    {
+      "title": "Read one calculated action",
+      "content": "Run `arka-norn pipeline next <feature> --json`. Use its stable codes, parameters, expected artifact and suggested command without guessing from display prose. Stop if the action is null."
+    },
+    {
+      "title": "Produce the bounded artifact",
+      "content": "Execute only the proposed scaffold command. Replace every sentinel, preserve the specialized session, satisfy code, functional, UX and security evidence where applicable, and never modify another documentary phase."
+    },
+    {
+      "title": "Validate and stop",
+      "content": "Run `arka-norn pipeline validate <feature> --document <file> --json`, then rerun `arka-norn pipeline next <feature> --json` only to observe the transition. Report the next action without executing it."
+    }
+  ],
+  "outputFormat": "Report the verified Project, Feature, Agent/session, locale, executed phase, signed document, validation result, evidence and observed next command. Do not execute a second phase in the same invocation."
 }

@@ -55,10 +55,10 @@ test("la CLI couvre le cycle Project/Feature et reconstruit les index", (context
   assert.match(humanList.stdout, /^product\tProduct\t/);
   const legacy = run<readonly unknown[]>(["depot", "list", "--json"], home, workspace);
   assert.equal(legacy.status, 0);
-  assert.match(legacy.json.warnings[0] ?? "", /déprécié/);
+  assert.match(legacy.json.display.warnings[0] ?? "", /deprecated/);
 
   const featureRoot = resolve(projectRoot, "secure-cockpit");
-  const feature = run<{ readonly projectId: string }>(["feature", "create", "Secure cockpit", "--project", "product", "--id", "secure-cockpit", "--path", featureRoot, "--workflow", "standard", "--json"], home, workspace);
+  const feature = run<{ readonly projectId: string }>(["feature", "create", "Secure cockpit", "--project", "product", "--id", "secure-cockpit", "--path", featureRoot, "--workflow", "complete", "--json"], home, workspace);
   assert.equal(feature.status, 0, feature.stderr);
   assert.equal(feature.json.data.projectId, "product");
   assert.equal(run<{ readonly root: string }>(["feature", "show", "secure-cockpit", "--json"], home, workspace).json.data.root, realpathSync.native(featureRoot));
@@ -66,7 +66,7 @@ test("la CLI couvre le cycle Project/Feature et reconstruit les index", (context
 
   const agent = run<{ readonly id: string; readonly active: boolean }>([
     "agent", "register", "--project", "product", "--provider", "Codex CLI", "--role", "dev",
-    "--features", "secure-cockpit", "--responsibilities", "implémentation;tests", "--session", "dev-secure-cockpit", "--json",
+    "--features", "secure-cockpit", "--responsibilities", "implementation;tests", "--session", "dev-secure-cockpit", "--json",
   ], home, workspace);
   assert.equal(agent.status, 0, agent.stderr);
   assert.match(agent.json.data.id, /^Codex-CLI_dev_\d{8}$/);
@@ -81,31 +81,31 @@ test("la CLI couvre le cycle Project/Feature et reconstruit les index", (context
   assert.equal(run(["pipeline", "scaffold", "concept", "--feature", "secure-cockpit", "--session", "dev-secure-cockpit", "--json"], home, workspace).status, 5);
   const unfilledConcept = run(["pipeline", "validate", "secure-cockpit", "--document", "concept.json", "--json"], home, workspace);
   assert.equal(unfilledConcept.status, 3);
-  assert.ok(unfilledConcept.json.errors.some((error) => /unresolved scaffold sentinel/.test(error)));
-  assert.ok(unfilledConcept.json.errors.every((error) => !/must be >= 1|must be >=1/.test(error)));
+  assert.ok(unfilledConcept.json.display.errors.some((error) => /unresolved scaffold sentinel/.test(error)));
+  assert.ok(unfilledConcept.json.display.errors.every((error) => !/must be >= 1|must be >=1/.test(error)));
   const scaffold = JSON.parse(readFileSync(resolve(featureRoot, "concept.json"), "utf8")) as {
     readonly schema_version: number;
     readonly author_agent_id: string;
     readonly feature_id: string;
     readonly sequence: number;
-    readonly hypotheses: readonly { readonly sujet: string; readonly position_retenue: string }[];
+    readonly assumptions: readonly { readonly subject: string; readonly selected_position: string }[];
   };
-  assert.equal(scaffold.schema_version, 3);
+  assert.equal(scaffold.schema_version, 5);
   assert.equal(scaffold.author_agent_id, agent.json.data.id);
   assert.equal(scaffold.feature_id, "secure-cockpit");
   assert.equal(scaffold.sequence, 1);
-  assert.deepEqual(scaffold.hypotheses, [{ sujet: "À_REMPLIR", position_retenue: "À_REMPLIR" }]);
+  assert.deepEqual(scaffold.assumptions, [{ subject: "TO_FILL", selected_position: "TO_FILL" }]);
   assert.equal(run(["pipeline", "scaffold", "plan", "--feature", "secure-cockpit", "--output", resolve(featureRoot, "plan.json"), "--session", "dev-secure-cockpit", "--json"], home, workspace).status, 0);
   const plan = JSON.parse(readFileSync(resolve(featureRoot, "plan.json"), "utf8")) as {
     readonly sequence: number;
-    readonly concepts_sources: readonly string[];
-    readonly criteres_de_fini: readonly string[];
-    readonly statut_des_affirmations: { readonly verrouille: readonly string[]; readonly objectif_a_prouver: readonly string[] };
+    readonly source_concepts: readonly string[];
+    readonly completion_criteria: readonly string[];
+    readonly assertion_status: { readonly locked: readonly string[]; readonly objective_to_prove: readonly string[] };
   };
   assert.equal(plan.sequence, 1);
-  assert.deepEqual(plan.concepts_sources, ["À_REMPLIR"]);
-  assert.deepEqual(plan.criteres_de_fini, ["À_REMPLIR"]);
-  assert.deepEqual(plan.statut_des_affirmations, { verrouille: ["À_REMPLIR"], objectif_a_prouver: ["À_REMPLIR"] });
+  assert.deepEqual(plan.source_concepts, ["TO_FILL"]);
+  assert.deepEqual(plan.completion_criteria, ["TO_FILL"]);
+  assert.deepEqual(plan.assertion_status, { locked: ["TO_FILL"], objective_to_prove: ["TO_FILL"] });
 
   const replacement = run<{ readonly id: string; readonly replacesAgentId: string }>([
     "agent", "replace", agent.json.data.id, "--project", "product", "--provider", "Claude Code", "--role", "dev", "--session", "dev-secure-cockpit", "--json",
@@ -161,7 +161,7 @@ test("forget --yes --force retire un cache orphelin sans supprimer le dossier m�
 
   const missingDelegationChoice = run(["project", "add", projectRoot, "--id", "product", "--name", "Product", "--json"], home, workspace);
   assert.equal(missingDelegationChoice.status, 64);
-  assert.match(missingDelegationChoice.json.errors[0] ?? "", /--orchestration-mode is required/);
+  assert.match(missingDelegationChoice.json.display.errors[0] ?? "", /--orchestration-mode is required/);
   assert.equal(run(["project", "add", projectRoot, "--id", "product", "--name", "Product", "--orchestration-mode", "manual", "--json"], home, workspace).status, 0);
   assert.equal(run(["feature", "create", "Orphan feature", "--project", "product", "--id", "orphan-feature", "--path", featureRoot, "--json"], home, workspace).status, 0);
 
@@ -213,7 +213,7 @@ test("feature list --project n'hydrate pas les markers d'un autre Project", (con
   assert.doesNotMatch(listed.stderr, /listFeatures: index entry has no readable marker|norn-test/);
 });
 
-test("le scaffold d'audit Project v4 est signé, confiné et distinct d'une Feature", (context) => {
+test("the Project audit v5 scaffold is signed, confined and distinct from a Feature", (context) => {
   const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-project-audit-cli-"));
   const home = resolve(sandbox, "home");
   const projectRoot = resolve(sandbox, "project");
@@ -228,7 +228,7 @@ test("le scaffold d'audit Project v4 est signé, confiné et distinct d'une Feat
   assert.equal(author.status, 0, author.stderr);
 
   const output = "input/audit/project-audit.json";
-  const scaffold = run(["scaffold", "audit_etat_reel", output, "--project", "product", "--agent", author.json.data.id, "--json"], home, projectRoot);
+  const scaffold = run(["scaffold", "current_state_audit", output, "--project", "product", "--agent", author.json.data.id, "--json"], home, projectRoot);
   assert.equal(scaffold.status, 0, scaffold.stderr);
   const document = JSON.parse(readFileSync(resolve(projectRoot, output), "utf8")) as {
     readonly schema_version: number;
@@ -236,7 +236,7 @@ test("le scaffold d'audit Project v4 est signé, confiné et distinct d'une Feat
     readonly feature_id?: string;
     readonly author_agent_id: string;
   };
-  assert.equal(document.schema_version, 4);
+  assert.equal(document.schema_version, 5);
   assert.equal(document.project_id, "product");
   assert.equal(document.feature_id, undefined);
   assert.equal(document.author_agent_id, author.json.data.id);
@@ -247,10 +247,10 @@ test("le scaffold d'audit Project v4 est signé, confiné et distinct d'une Feat
     "project", "add", nestedProjectRoot, "--id", "nested", "--name", "Nested", "--orchestration-mode", "manual", "--json",
   ], home, projectRoot).status, 0);
   const insideNestedProject = run([
-    "scaffold", "audit_etat_reel", "nested-project/project-audit.json", "--project", "product", "--agent", author.json.data.id, "--json",
+    "scaffold", "current_state_audit", "nested-project/project-audit.json", "--project", "product", "--agent", author.json.data.id, "--json",
   ], home, projectRoot);
   assert.equal(insideNestedProject.status, 3, insideNestedProject.stderr);
-  assert.match(insideNestedProject.json.errors[0] ?? "", /must not be placed inside another managed Project/);
+  assert.match(insideNestedProject.json.display.errors[0] ?? "", /must not be placed inside another managed Project/);
   assert.equal(existsSync(resolve(nestedProjectRoot, "project-audit.json")), false);
 
   const featureRoot = resolve(projectRoot, "feature");
@@ -259,37 +259,37 @@ test("le scaffold d'audit Project v4 est signé, confiné et distinct d'une Feat
   ], home, projectRoot).status, 0);
   const insideFeature = "feature/project-audit.json";
   const rejectedInsideFeature = run([
-    "scaffold", "audit_etat_reel", insideFeature, "--project", "product", "--agent", author.json.data.id, "--json",
+    "scaffold", "current_state_audit", insideFeature, "--project", "product", "--agent", author.json.data.id, "--json",
   ], home, projectRoot);
   assert.equal(rejectedInsideFeature.status, 3, rejectedInsideFeature.stderr);
-  assert.match(rejectedInsideFeature.json.errors[0] ?? "", /must not be placed inside a managed Feature/);
+  assert.match(rejectedInsideFeature.json.display.errors[0] ?? "", /must not be placed inside a managed Feature/);
   assert.equal(existsSync(resolve(projectRoot, insideFeature)), false);
 
   const markerPath = resolve(projectRoot, ".arka-norn", "project.json");
   const originalMarker = readFileSync(markerPath, "utf8");
   const rejectedMarkerOverwrite = run([
-    "scaffold", "audit_etat_reel", ".arka-norn/project.json", "--project", "product", "--agent", author.json.data.id, "--force", "--json",
+    "scaffold", "current_state_audit", ".arka-norn/project.json", "--project", "product", "--agent", author.json.data.id, "--force", "--json",
   ], home, projectRoot);
   assert.equal(rejectedMarkerOverwrite.status, 3, rejectedMarkerOverwrite.stderr);
-  assert.match(rejectedMarkerOverwrite.json.errors[0] ?? "", /reserved .arka-norn directory/);
+  assert.match(rejectedMarkerOverwrite.json.display.errors[0] ?? "", /reserved .arka-norn directory/);
   assert.equal(readFileSync(markerPath, "utf8"), originalMarker);
   const rejectedGenericMarkerOverwrite = run([
-    "scaffold", "audit_etat_reel", ".arka-norn/project.json", "--agent", author.json.data.id, "--force", "--json",
+    "scaffold", "current_state_audit", ".arka-norn/project.json", "--agent", author.json.data.id, "--force", "--json",
   ], home, projectRoot);
   assert.equal(rejectedGenericMarkerOverwrite.status, 3, rejectedGenericMarkerOverwrite.stderr);
-  assert.match(rejectedGenericMarkerOverwrite.json.errors[0] ?? "", /reserved .arka-norn directory/);
+  assert.match(rejectedGenericMarkerOverwrite.json.display.errors[0] ?? "", /reserved .arka-norn directory/);
   assert.equal(readFileSync(markerPath, "utf8"), originalMarker);
 
   assert.equal(run(["scaffold", "concept", "input/audit/concept.json", "--project", "product", "--agent", author.json.data.id, "--json"], home, projectRoot).status, 64);
-  assert.equal(run(["scaffold", "audit_etat_reel", "input/audit/mixed.json", "--project", "product", "--feature-id", "other", "--agent", author.json.data.id, "--json"], home, projectRoot).status, 64);
-  assert.equal(run(["scaffold", "audit_etat_reel", "../outside.json", "--project", "product", "--agent", author.json.data.id, "--json"], home, projectRoot).status, 3);
-  assert.equal(run(["validate", resolve(ROOT, "examples", "project-audit-v4", "01-audit-etat-reel.json"), "--json"], home, projectRoot).status, 0);
+  assert.equal(run(["scaffold", "current_state_audit", "input/audit/mixed.json", "--project", "product", "--feature-id", "other", "--agent", author.json.data.id, "--json"], home, projectRoot).status, 64);
+  assert.equal(run(["scaffold", "current_state_audit", "../outside.json", "--project", "product", "--agent", author.json.data.id, "--json"], home, projectRoot).status, 3);
+  assert.equal(run(["validate", resolve(ROOT, "examples", "project-audit-v5", "01-current-state-audit.json"), "--json"], home, projectRoot).status, 0);
 });
 
 interface RunResult<T> {
   readonly status: number | null;
   readonly stderr: string;
-  readonly json: { readonly ok: boolean; readonly data: T; readonly errors: readonly string[]; readonly warnings: readonly string[] };
+  readonly json: { readonly ok: boolean; readonly data: T; readonly errors: readonly string[]; readonly warnings: readonly string[]; readonly display: { readonly errors: readonly string[]; readonly warnings: readonly string[] } };
 }
 
 function run<T = unknown>(args: readonly string[], home: string, cwd: string): RunResult<T> {

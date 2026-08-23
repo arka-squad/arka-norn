@@ -15,23 +15,24 @@
  */
 import { createMenuScene } from "../../adapters/inbound/tui/components/menu.js";
 import { createResultView } from "../../adapters/inbound/tui/views/result-view.js";
+import { formatNumber, translate } from "../../application/localization/locale.js";
 export function showHealthReport(app, report, projectSkills, globalSkills) {
     const checks = report.checks.map((check) => `${check.status.toUpperCase().padEnd(4)} ${check.id} — ${check.message}`);
-    const projectSummary = healthSummary("Projet", projectSkills);
+    const projectSummary = healthSummary(translate("tui.skills.health.project"), projectSkills);
     const globalSummary = healthSummary("Global Claude/Codex", globalSkills);
     const globalHealthy = globalSkills.missing === 0 && globalSkills.divergent === 0;
     app.push(createResultView({
-        title: "Santé arka-norn",
+        title: translate("tui.skills.health.title"),
         code: report.ok && globalHealthy ? 0 : 3,
-        output: [`Résumé : ${report.summary.pass} PASS · ${report.summary.warn} WARN · ${report.summary.fail} FAIL`, projectSummary, globalSummary, "", ...checks].join("\n"),
+        output: [translate("tui.skills.health.summary", { pass: formatNumber(report.summary.pass), warn: formatNumber(report.summary.warn), fail: formatNumber(report.summary.fail) }), projectSummary, globalSummary, "", ...checks].join("\n"),
         maxVisibleLines: 20,
         nextStep: globalHealthy === false
-            ? "revenez puis choisissez « Installer / réparer les skills » ; le diagnostic global sera affiché avant toute réparation"
+            ? translate("tui.skills.health.next.globalMissing")
             : projectSkills.divergent > 0
-                ? "revenez puis choisissez « Installer / réparer les skills » ; les divergences du Project seront sauvegardées avant remplacement"
+                ? translate("tui.skills.health.next.divergent")
                 : projectSkills.missing > 0
-                    ? "installez les skills manquantes depuis l’accueil"
-                    : "traitez le premier contrôle FAIL, puis relancez Santé",
+                    ? translate("tui.skills.health.next.missing")
+                    : translate("tui.skills.health.next.failure"),
         onBack: () => { },
     }));
 }
@@ -53,27 +54,27 @@ export async function showSkillInstallation(app, skillManager, target, onHealthC
         void skillManager.install({ target, ...input }).then(async (result) => {
             const refreshError = await refreshHealth();
             app.push(createResultView({
-                title: "Installation des skills",
+                title: translate("tui.skills.install.title"),
                 code: result.code,
-                output: refreshError === undefined ? result.output : `${result.output}\n\nSanté non actualisée : ${refreshError}`,
+                output: refreshError === undefined ? result.output : `${result.output}\n\n${translate("tui.skills.health.notRefreshed", { error: refreshError })}`,
                 onBack: () => { },
                 nextStep: result.code === 0
                     ? refreshError === undefined
                         ? input.global
-                            ? "installation globale terminée : les résumés Project et global ont été actualisés"
+                            ? translate("tui.skills.install.globalDone")
                             : globalHealth.missing > 0 || globalHealth.divergent > 0
-                                ? "Project installé : les entrées globales restent à diagnostiquer puis confirmer séparément"
-                                : "installation terminée : les résumés Project et global ont été actualisés"
-                        : "installation terminée ; revenez à l’accueil puis relancez Santé pour actualiser les résumés"
-                    : "consultez le diagnostic puis confirmez la réparation avec sauvegarde si des divergences sont signalées",
+                                ? translate("tui.skills.install.projectOnly")
+                                : translate("tui.skills.install.done")
+                        : translate("tui.skills.install.refresh")
+                    : translate("tui.skills.install.review"),
             }));
         }, async (error) => {
             const refreshError = await refreshHealth();
             const message = error instanceof Error ? error.message : String(error);
             app.push(createResultView({
-                title: "Installation impossible",
+                title: translate("tui.skills.install.failure"),
                 code: 70,
-                output: refreshError === undefined ? message : `${message}\n\nSanté non actualisée : ${refreshError}`,
+                output: refreshError === undefined ? message : `${message}\n\n${translate("tui.skills.health.notRefreshed", { error: refreshError })}`,
                 onBack: () => { },
             }));
         });
@@ -81,20 +82,20 @@ export async function showSkillInstallation(app, skillManager, target, onHealthC
     function confirmGlobalRepair() {
         const force = projectHealth.divergent > 0 || globalHealth.divergent > 0;
         const confirmationLabel = force
-            ? "Oui, sauvegarder puis réparer Project et global"
-            : "Oui, installer les skills globales";
+            ? translate("tui.skills.confirm.all")
+            : translate("tui.skills.install.globalLabel");
         app.push(createMenuScene([
             {
                 label: confirmationLabel,
                 value: "confirm",
-                description: `Projet ${healthSummary("", projectHealth)} · Global ${healthSummary("", globalHealth)}`,
+                description: translate("tui.skills.confirm.description", { project: healthSummary("", projectHealth), global: healthSummary("", globalHealth) }),
             },
-            { label: "Annuler", value: "cancel" },
+            { label: translate("tui.skills.cancel"), value: "cancel" },
         ], {
-            title: "Confirmer la réparation globale (2/2)",
+            title: translate("tui.skills.confirm.globalTitle"),
             hint: force
-                ? "Cette seconde confirmation autorise uniquement les remplacements sauvegardés signalés par le diagnostic."
-                : "Cette seconde confirmation installe les entrées globales manquantes sans remplacer de copie existante.",
+                ? translate("tui.skills.confirm.globalReplace")
+                : translate("tui.skills.confirm.globalMissing"),
             onSelect: (choice) => {
                 app.pop();
                 if (choice === "confirm")
@@ -104,12 +105,12 @@ export async function showSkillInstallation(app, skillManager, target, onHealthC
         }));
     }
     app.push(createMenuScene([
-        { label: "Installer les skills manquantes", value: "repo", description: `${projectHealth.missing} absente(s) dans le Project, conserve toute divergence` },
-        { label: "Réparer le Project avec sauvegarde", value: "repair", description: `${projectHealth.divergent} divergente(s), backup avant remplacement` },
-        { label: "Diagnostiquer puis réparer le scope global", value: "global", description: `${healthSummary("Claude/Codex", globalHealth)} · seconde confirmation requise` },
-        { label: "Annuler", value: "cancel" },
+        { label: translate("tui.skills.install.missing"), value: "repo", description: translate("tui.skills.install.missingDescription", { count: formatNumber(projectHealth.missing) }) },
+        { label: translate("tui.skills.install.repair"), value: "repair", description: translate("tui.skills.install.repairDescription", { count: formatNumber(projectHealth.divergent) }) },
+        { label: translate("tui.skills.install.global"), value: "global", description: translate("tui.skills.install.globalDescription", { health: healthSummary("Claude/Codex", globalHealth) }) },
+        { label: translate("tui.skills.cancel"), value: "cancel" },
     ], {
-        title: "Installer les skills arka-norn",
+        title: translate("tui.skills.install.menuTitle"),
         onSelect: (choice) => {
             app.pop();
             if (choice === "cancel")
@@ -125,6 +126,12 @@ export async function showSkillInstallation(app, skillManager, target, onHealthC
 }
 function healthSummary(scope, health) {
     const prefix = scope.length === 0 ? "" : `${scope} `;
-    return `${prefix}${health.healthy}/${health.total} sains · ${health.missing} absents · ${health.divergent} divergents`;
+    return translate("tui.skills.health.detail", {
+        scope: prefix,
+        healthy: formatNumber(health.healthy),
+        total: formatNumber(health.total),
+        missing: formatNumber(health.missing),
+        divergent: formatNumber(health.divergent),
+    });
 }
 //# sourceMappingURL=skill-scene-controller.js.map

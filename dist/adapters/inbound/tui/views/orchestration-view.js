@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { formatNumber, translate } from "../../../../application/localization/locale.js";
 import { titledBox } from "../components/box.js";
 import { createMenuScene } from "../components/menu.js";
 import { displayCandidateReason, displayMissionAction, displayMissionEvents, displayMissionStatus, displayPermission, displayProvider, displayRole, displayScopePath, displayStep, displayTarget, isReadOnlyAnalysisAwaitingValidation, translatePreparationError, } from "./orchestration-presentation.js";
@@ -36,7 +37,7 @@ export function createOrchestrationView(deps) {
     let menu = buildMenu();
     function buildMenu() {
         return createMenuScene(items(), {
-            hint: "↑/↓ naviguer · Entrée confirmer · Échap retour",
+            hint: translate("tui.orchestration.menu.hint"),
             maxVisible: 10,
             onSelect: (action) => void select(action),
         });
@@ -47,9 +48,9 @@ export function createOrchestrationView(deps) {
                 ...features.map((feature) => ({
                     label: feature.name,
                     value: `feature:${feature.id.value}`,
-                    description: "préparer sa prochaine étape sans lancer d’assistant",
+                    description: translate("tui.orchestration.feature.description"),
                 })),
-                { label: "← Retour au Pilote assisté", value: "back" },
+                { label: `<- ${translate("tui.orchestration.back.dashboard")}`, value: "back" },
             ];
         }
         if (viewMode === "target-selection") {
@@ -60,11 +61,11 @@ export function createOrchestrationView(deps) {
                     label: displayTarget(candidate.target),
                     value: `target:${index}`,
                     description: candidate.recommended
-                        ? "recommandé par Arka selon les règles du Project"
-                        : "compatible avec le périmètre et les autorisations prévus",
+                        ? translate("tui.orchestration.target.recommended")
+                        : translate("tui.orchestration.target.compatible"),
                 })),
-                { label: "Enregistrer un autre assistant et modèle", value: "configure-target", description: "ce choix sera vérifié avant toute mission" },
-                { label: "← Revenir à la préparation", value: "back" },
+                { label: translate("tui.orchestration.target.configure"), value: "configure-target", description: translate("tui.orchestration.target.configureDescription") },
+                { label: `<- ${translate("tui.orchestration.back.preview")}`, value: "back" },
             ];
         }
         if (viewMode === "provider-selection") {
@@ -72,9 +73,9 @@ export function createOrchestrationView(deps) {
                 ...EXECUTION_PROVIDER_CHOICES.map((provider) => ({
                     label: displayProvider(provider),
                     value: `provider:${provider}`,
-                    description: "choisir ensuite le modèle à enregistrer pour ce Project",
+                    description: translate("tui.orchestration.provider.description"),
                 })),
-                { label: "← Revenir à la préparation", value: "back" },
+                { label: `<- ${translate("tui.orchestration.back.preview")}`, value: "back" },
             ];
         }
         if (viewMode === "preview") {
@@ -83,61 +84,61 @@ export function createOrchestrationView(deps) {
                 ...(candidate === undefined
                     ? []
                     : [{
-                            label: `Confirmer et lancer avec ${displayTarget(candidate.target)}`,
+                            label: translate("tui.orchestration.start", { target: displayTarget(candidate.target) }),
                             value: "start",
-                            description: "Arka vérifiera de nouveau cette préparation juste avant le lancement",
+                            description: translate("tui.orchestration.start.description"),
                         }]),
                 ...(selectableCandidates(requirePreview()).length > 1
-                    ? [{ label: "Choisir un autre assistant et modèle", value: "choose-target", description: "seuls les choix compatibles sont proposés" }]
+                    ? [{ label: translate("tui.orchestration.target.choose"), value: "choose-target", description: translate("tui.orchestration.target.chooseDescription") }]
                     : []),
-                { label: "Enregistrer un autre assistant et modèle", value: "configure-target", description: "ce choix sera vérifié avant toute mission" },
-                { label: "Actualiser cette préparation", value: "refresh-preview", description: "relit la Feature et les règles sans rien lancer" },
-                ...(features.length > 1 ? [{ label: "Choisir une autre Feature", value: "choose-feature" }] : []),
-                { label: "← Retour au Pilote assisté", value: "back" },
+                { label: translate("tui.orchestration.target.configure"), value: "configure-target", description: translate("tui.orchestration.target.configureDescription") },
+                { label: translate("tui.orchestration.preview.refresh"), value: "refresh-preview", description: translate("tui.orchestration.preview.refreshDescription") },
+                ...(features.length > 1 ? [{ label: translate("tui.orchestration.feature.chooseAnother"), value: "choose-feature" }] : []),
+                { label: `<- ${translate("tui.orchestration.back.dashboard")}`, value: "back" },
             ];
         }
         const active = status.activeExecution;
         if (active !== undefined) {
             return [
                 ...(active.status === "planned" || active.status === "running" || active.status === "awaiting_approval"
-                    ? [{ label: "Arrêter la mission", value: "cancel", description: "l’arrêt est explicite et ne supprime aucun résultat" }]
+                    ? [{ label: translate("tui.orchestration.mission.cancel"), value: "cancel", description: translate("tui.orchestration.mission.cancelDescription") }]
                     : []),
                 ...(active.status === "awaiting_approval"
-                    ? [{ label: "Donner mon accord et reprendre", value: "approve", description: "Arka vérifiera de nouveau les conditions avant la reprise" }]
+                    ? [{ label: translate("tui.orchestration.mission.approve"), value: "approve", description: translate("tui.orchestration.mission.approveDescription") }]
                     : []),
                 ...(active.status === "failed" || active.status === "cancelled" || active.status === "interrupted"
-                    ? [{ label: "Reprendre avec le même assistant", value: "retry", description: "le choix initial reste inchangé" }]
+                    ? [{ label: translate("tui.orchestration.mission.retry"), value: "retry", description: translate("tui.orchestration.mission.retryDescription") }]
                     : []),
                 ...(status.actionRequired?.kind === "inspect"
-                    ? [{ label: "Vérifier ce qui bloque", value: "inspect", description: "affiche une explication sans donnée technique" }]
+                    ? [{ label: translate("tui.orchestration.mission.inspect"), value: "inspect", description: translate("tui.orchestration.mission.inspectDescription") }]
                     : []),
-                { label: "Actualiser le suivi", value: "refresh", description: "aucun assistant n’est lancé" },
-                { label: "← Retour au Project", value: "back" },
+                { label: translate("tui.orchestration.refresh"), value: "refresh", description: translate("tui.orchestration.refresh.description") },
+                { label: `<- ${translate("tui.orchestration.back.project")}`, value: "back" },
             ];
         }
         const manualAuditValidation = isReadOnlyAnalysisAwaitingValidation(status.latestExecution);
         return [
             ...(isRetryable(status.latestExecution)
-                ? [{ label: "Reprendre avec le même assistant", value: "retry", description: "le choix initial reste inchangé" }]
+                ? [{ label: translate("tui.orchestration.mission.retry"), value: "retry", description: translate("tui.orchestration.mission.retryDescription") }]
                 : []),
             ...(status.actionRequired?.kind === "inspect"
                 ? [{
-                        label: manualAuditValidation ? "Voir la validation attendue" : "Vérifier ce qui bloque",
+                        label: translate(manualAuditValidation ? "tui.orchestration.mission.auditValidation" : "tui.orchestration.mission.inspect"),
                         value: "inspect",
-                        description: manualAuditValidation ? "explique le livrable à valider avant la suite" : "affiche une explication sans donnée technique",
+                        description: translate(manualAuditValidation ? "tui.orchestration.mission.auditValidationDescription" : "tui.orchestration.mission.inspectDescription"),
                     }]
                 : []),
             ...(status.orchestrationMode !== "automatic" || features.length === 0 || manualAuditValidation
                 ? []
                 : [{
                         label: features.length === 1
-                            ? `Préparer la mission de « ${features[0].name} »`
-                            : "Choisir une Feature à préparer",
+                            ? translate("tui.orchestration.prepare.one", { feature: features[0].name })
+                            : translate("tui.orchestration.prepare.many"),
                         value: "prepare",
-                        description: "aucun assistant ne sera lancé avant votre confirmation",
+                        description: translate("tui.orchestration.prepare.description"),
                     }]),
-            { label: "Actualiser le suivi", value: "refresh", description: "aucun assistant n’est lancé" },
-            { label: "← Retour au Project", value: "back", ...(status.orchestrationMode !== "automatic" ? { description: "activez le Pilote assisté avant de préparer une mission" } : {}) },
+            { label: translate("tui.orchestration.refresh"), value: "refresh", description: translate("tui.orchestration.refresh.description") },
+            { label: `<- ${translate("tui.orchestration.back.project")}`, value: "back", ...(status.orchestrationMode !== "automatic" ? { description: translate("tui.orchestration.enable.description") } : {}) },
         ];
     }
     async function select(action) {
@@ -221,15 +222,15 @@ export function createOrchestrationView(deps) {
             return;
         }
         if (action === "cancel") {
-            await updateCurrentMission((execution) => deps.orchestration.cancel({ projectId: project.id, executionId: execution.id }), "La mission a été arrêtée.");
+            await updateCurrentMission((execution) => deps.orchestration.cancel({ projectId: project.id, executionId: execution.id }), translate("tui.orchestration.message.cancelled"));
             return;
         }
         if (action === "approve") {
-            await updateCurrentMission((execution) => deps.orchestration.approve({ projectId: project.id, executionId: execution.id }), "Votre accord a été enregistré. Arka prépare la reprise.");
+            await updateCurrentMission((execution) => deps.orchestration.approve({ projectId: project.id, executionId: execution.id }), translate("tui.orchestration.message.approved"));
             return;
         }
         if (action === "retry") {
-            await updateCurrentMission((execution) => deps.orchestration.retry({ projectId: project.id, executionId: execution.id }), "La mission va reprendre avec le même assistant.");
+            await updateCurrentMission((execution) => deps.orchestration.retry({ projectId: project.id, executionId: execution.id }), translate("tui.orchestration.message.retry"));
         }
     }
     async function loadPreview(feature) {
@@ -250,14 +251,14 @@ export function createOrchestrationView(deps) {
         const model = modelInput.trim();
         const feature = selectedFeature;
         if (provider === undefined || feature === undefined || model.length === 0) {
-            message = "Indiquez un modèle avant de l’enregistrer pour ce Project.";
+            message = translate("tui.orchestration.model.required");
             deps.redraw();
             return;
         }
         await run(async () => {
             await deps.orchestration.configure({ projectId: project.id, selection: { provider, model } });
             await preparePreview(feature, { provider, model });
-            message = `Le choix ${displayProvider(provider)} · ${model} est enregistré. Vérifiez la préparation avant de confirmer.`;
+            message = translate("tui.orchestration.model.saved", { provider: displayProvider(provider), model });
         });
     }
     async function startPreparedMission() {
@@ -266,7 +267,7 @@ export function createOrchestrationView(deps) {
         const candidate = selectedCandidate();
         const model = candidate?.target.model;
         if (prepared === undefined || feature === undefined || candidate === undefined || model === undefined) {
-            message = "Cette préparation ne contient pas de choix d’assistant complet. Actualisez-la avant de continuer.";
+            message = translate("tui.orchestration.target.incomplete");
             deps.redraw();
             return;
         }
@@ -282,7 +283,7 @@ export function createOrchestrationView(deps) {
             selectedCandidateIndex = undefined;
             viewMode = "overview";
             menu = buildMenu();
-            message = `La mission a été confiée à ${displayTarget(candidate.target)}. Arka vérifiera son résultat avant toute suite.`;
+            message = translate("tui.orchestration.mission.started", { target: displayTarget(candidate.target) });
         });
     }
     async function updateCurrentMission(operation, successMessage) {
@@ -366,11 +367,11 @@ export function createOrchestrationView(deps) {
         },
         render(renderer, theme) {
             renderer.redraw((line) => {
-                for (const value of titledBox("Pilote assisté", renderSummary(), theme, { border: theme.arkaAccent }).split("\n"))
+                for (const value of titledBox(translate("tui.orchestration.title"), renderSummary(), theme, { border: theme.arkaAccent }).split("\n"))
                     line(value);
                 line("");
                 if (busy)
-                    line(`  ${theme.dim("Préparation en cours…")}`);
+                    line(`  ${theme.dim(translate("tui.orchestration.busy"))}`);
                 if (message !== undefined)
                     line(`  ${theme.arkaAccent(message)}`);
                 if (viewMode !== "model-input") {
@@ -384,8 +385,8 @@ export function createOrchestrationView(deps) {
         if (viewMode === "feature-selection") {
             return [
                 `Project : ${project.name}`,
-                "Choisissez la Feature à préparer.",
-                "Cette étape est une prévisualisation : aucun assistant ne sera lancé.",
+                translate("tui.orchestration.summary.feature.choose"),
+                translate("tui.orchestration.summary.previewOnly"),
             ];
         }
         if (viewMode === "target-selection") {
@@ -393,27 +394,27 @@ export function createOrchestrationView(deps) {
             return [
                 `Feature : ${requirePreview().featureName}`,
                 choices.length === 0
-                    ? "Aucun assistant et modèle compatibles ne sont encore disponibles."
-                    : "Choisissez l’assistant et le modèle à confirmer.",
+                    ? translate("tui.orchestration.summary.target.none")
+                    : translate("tui.orchestration.summary.target.choose"),
                 choices.length === 0
-                    ? "Vous pouvez enregistrer un choix, qu’Arka vérifiera avant toute mission."
-                    : "Arka ne propose que les choix compatibles avec le périmètre et les autorisations prévus.",
+                    ? translate("tui.orchestration.summary.target.configure")
+                    : translate("tui.orchestration.summary.target.filtered"),
             ];
         }
         if (viewMode === "provider-selection") {
             return [
                 `Feature : ${requirePreview().featureName}`,
-                "Choisissez l’assistant dont vous voulez enregistrer le modèle.",
-                "Arka vérifiera ce choix avant toute mission.",
+                translate("tui.orchestration.summary.provider.choose"),
+                translate("tui.orchestration.summary.provider.verify"),
             ];
         }
         if (viewMode === "model-input") {
             return [
-                `Assistant : ${selectedProvider === undefined ? "à choisir" : displayProvider(selectedProvider)}`,
-                "Indiquez le nom du modèle à utiliser. N’entrez jamais une clé ou un secret.",
+                translate("tui.orchestration.summary.assistant", { provider: selectedProvider === undefined ? translate("tui.orchestration.summary.assistant.none") : displayProvider(selectedProvider) }),
+                translate("tui.orchestration.summary.model.help"),
                 "",
-                `Modèle : ${modelInput}_`,
-                "Entrée enregistre et prépare de nouveau la mission · Échap revient au choix de l’assistant",
+                translate("tui.orchestration.summary.model", { model: `${modelInput}_` }),
+                translate("tui.orchestration.summary.model.hint"),
             ];
         }
         if (viewMode === "preview")
@@ -426,19 +427,19 @@ export function createOrchestrationView(deps) {
             : renderMissionSummary(execution, status.actionRequired, status.activeExecution !== undefined);
         return [
             `Project : ${project.name}`,
-            `Pilote assisté : ${status.orchestrationMode === "automatic" ? "activé" : "désactivé"}`,
+            translate("tui.orchestration.summary.mode", { state: translate(status.orchestrationMode === "automatic" ? "tui.project.state.enabled" : "tui.project.state.disabled") }),
             ...missionSummary,
-            `Situation : ${displayed.title}`,
+            translate("tui.orchestration.summary.situation", { situation: displayed.title }),
             displayed.detail,
             ...(status.activeExecution === undefined && status.orchestrationMode === "automatic"
                 ? [manualAuditValidation
-                        ? "Validez le livrable d’audit avant de préparer la suite."
+                        ? translate("tui.orchestration.summary.audit")
                         : features.length === 0
-                            ? "Créez ou importez une Feature avant de préparer une mission."
-                            : "Aucun assistant ne sera lancé avant votre confirmation de la préparation."]
+                            ? translate("tui.orchestration.summary.noFeature")
+                            : translate("tui.orchestration.summary.confirmation")]
                 : []),
             ...(status.activeExecution === undefined && status.orchestrationMode !== "automatic"
-                ? ["Activez le Pilote assisté depuis le Project pour préparer une mission. Le lancement manuel reste disponible dans le cockpit Feature."]
+                ? [translate("tui.orchestration.summary.disabled")]
                 : []),
         ];
     }
@@ -446,13 +447,13 @@ export function createOrchestrationView(deps) {
 function renderMissionSummary(execution, actionRequired, isActive) {
     const action = displayMissionAction(execution, actionRequired);
     return [
-        `${isActive ? "Mission active" : "Dernière mission"} : ${execution.id}`,
-        `Étape : ${displayStep(execution.order.preconditions.nextStepId)}`,
-        `Assistant : ${displayTarget(execution.target)}`,
-        "Derniers événements :",
-        ...displayMissionEvents(execution).map((event) => `  · ${event}`),
-        `Action attendue : ${action.title}`,
-        `Pourquoi : ${action.detail}`,
+        translate("tui.orchestration.mission.id", { label: translate(isActive ? "tui.orchestration.mission.active" : "tui.orchestration.mission.latest"), id: execution.id }),
+        translate("tui.orchestration.mission.step", { step: displayStep(execution.order.preconditions.nextStepId) }),
+        translate("tui.orchestration.mission.assistant", { assistant: displayTarget(execution.target) }),
+        translate("tui.orchestration.mission.events"),
+        ...displayMissionEvents(execution).map((event) => `  * ${event}`),
+        translate("tui.orchestration.mission.expectedAction", { action: action.title }),
+        translate("tui.orchestration.mission.reason", { reason: action.detail }),
     ];
 }
 function renderPreviewSummary(preview, selectedCandidateIndex) {
@@ -460,19 +461,19 @@ function renderPreviewSummary(preview, selectedCandidateIndex) {
     const compatible = selectableCandidates(preview);
     const unavailable = preview.candidates.filter((candidate) => !candidate.eligible);
     return [
-        "Préparation terminée : aucun assistant n’a été lancé.",
+        translate("tui.orchestration.preview.done"),
         `Feature : ${preview.featureName}`,
-        `Ce qui sera fait : ${preview.summary}`,
-        `Étape : ${displayStep(preview.stepId)}`,
-        `Responsabilité : ${displayRole(preview.role)}`,
-        `Périmètre : ${preview.scopePaths.map(displayScopePath).join(" · ")}`,
-        `Autorisations : ${preview.requiredPermissions.map(displayPermission).join(" · ")}`,
-        `Assistant à confirmer : ${selected?.eligible === true && selected.target.model !== undefined ? displayTarget(selected.target) : "aucun choix disponible"}`,
-        ...(compatible.length > 1 ? [`Autres choix compatibles : ${compatible.length - 1}`] : []),
+        translate("tui.orchestration.preview.work", { summary: preview.summary }),
+        translate("tui.orchestration.mission.step", { step: displayStep(preview.stepId) }),
+        translate("tui.orchestration.preview.role", { role: displayRole(preview.role) }),
+        translate("tui.orchestration.preview.scope", { scope: preview.scopePaths.map(displayScopePath).join(" - ") }),
+        translate("tui.orchestration.preview.permissions", { permissions: preview.requiredPermissions.map(displayPermission).join(" - ") }),
+        translate("tui.orchestration.preview.target", { target: selected?.eligible === true && selected.target.model !== undefined ? displayTarget(selected.target) : translate("tui.orchestration.preview.target.none") }),
+        ...(compatible.length > 1 ? [translate("tui.orchestration.preview.other", { count: formatNumber(compatible.length - 1) })] : []),
         ...(unavailable.length === 0
             ? []
-            : ["Choix non disponibles : " + unavailable.map((candidate) => `${displayTarget(candidate.target)} (${candidate.reasons.map(displayCandidateReason).join(", ")})`).join(" · ")]),
-        "Arka recalculera ces informations au moment de votre confirmation.",
+            : [translate("tui.orchestration.preview.unavailable", { choices: unavailable.map((candidate) => `${displayTarget(candidate.target)} (${candidate.reasons.map(displayCandidateReason).join(", ")})`).join(" - ") })]),
+        translate("tui.orchestration.preview.recheck"),
     ];
 }
 function selectableCandidates(preview) {

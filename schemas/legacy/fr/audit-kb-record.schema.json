@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "audit-kb-record.schema.json",
+  "title": "Entrée de la KB locale d'audit arka.norn",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "auditId", "projectId", "commitExact", "moduleId", "type", "title", "statement", "status", "scope", "priority", "severity", "confidence", "origin", "evidenceIds", "fingerprint", "observedAt"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "type": "string", "pattern": "^KB-" },
+    "auditId": { "type": "string", "pattern": "^audit-" },
+    "projectId": { "type": "string", "minLength": 1 },
+    "commitExact": { "type": ["string", "null"], "pattern": "^[a-fA-F0-9]{7,64}$" },
+    "moduleId": { "enum": ["M00", "M01", "M02", "M03", "M04", "M05", "M06", "M07", "M08", "M09", "M10", "M11"] },
+    "type": { "enum": ["fact", "metric", "evidence", "finding", "risk", "decision", "artifact"] },
+    "title": { "type": "string", "minLength": 1 },
+    "statement": { "type": "string", "minLength": 1 },
+    "status": { "type": "string", "minLength": 1 },
+    "scope": { "type": "string", "minLength": 1 },
+    "priority": { "enum": ["critical", "high", "medium", "low", "info", "none"] },
+    "severity": { "enum": ["critical", "high", "medium", "low", "info", null] },
+    "confidence": { "enum": ["high", "medium", "low"] },
+    "origin": { "enum": ["observed", "inferred"] },
+    "evidenceIds": { "type": "array", "items": { "type": "string" } },
+    "fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "observedAt": { "type": "string", "format": "date-time" }
+  }
+}

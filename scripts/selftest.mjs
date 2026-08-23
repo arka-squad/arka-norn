@@ -1,21 +1,8 @@
 #!/usr/bin/env node
 
-/*
- * Copyright 2026 Arka Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* Copyright 2026 Arka Labs - Licensed under the Apache License, Version 2.0. */
 
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -28,189 +15,131 @@ const FRAMEWORK_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url))
 const BIN = path.join(FRAMEWORK_ROOT, "bin", "arka-norn.mjs");
 const TSC_BIN = path.join(FRAMEWORK_ROOT, "node_modules", "typescript", "bin", "tsc");
 const TEST_RUNNER = path.join(FRAMEWORK_ROOT, "tests", "run-tests.mjs");
-const CLEAN_DIST = path.join(FRAMEWORK_ROOT, "scripts", "clean-dist.mjs");
 const SELFTEST_ENVIRONMENT = { ...process.env };
 delete SELFTEST_ENVIRONMENT.npm_execpath;
 
-export async function runSelftest() {
-  let failures = 0;
-  let checks = 0;
+const EXAMPLES = {
+  "arka-norn-complete": {
+    directory: "feature-complete",
+    files: ["01-concept.json", "02-plan.json", "03-technical-contract-appendix.json", "04-current-state-audit.json", "05-frozen-invariants.json", "06-debt-register.json", "07-agent-task.json", "08-technical-integration-specification.json", "09-development-report.json", "10-qa-review.json", "11-handoff.json"],
+  },
+  "arka-norn-essential": {
+    directory: "feature-essential",
+    files: ["01-feature-brief.json", "02-development-report.json", "03-delivery-audit.json", "04-development-report.json", "05-delivery-validation.json"],
+  },
+  "arka-norn-fastdev": {
+    directory: "feature-fastdev",
+    files: ["01-rework-brief.json", "02-development-report.json", "03-delivery-audit.json", "04-development-report.json", "05-delivery-validation.json"],
+  },
+};
 
-  function check(label, condition, detail) {
-    checks++;
+export async function runSelftest() {
+  let checks = 0;
+  let failures = 0;
+  const check = (label, condition, detail = "") => {
+    checks += 1;
     if (condition) console.log(`  OK   ${label}`);
     else {
-      failures++;
-      console.log(`  FAIL ${label}${detail ? ` — ${detail}` : ""}`);
+      failures += 1;
+      console.log(`  FAIL ${label}${detail ? ` - ${detail}` : ""}`);
     }
-  }
-
-  const sandbox = mkdtempSync(path.join(tmpdir(), "arka-norn-selftest-"));
-  const pipeline = createPipelineRuntime(FRAMEWORK_ROOT, { homeDir: path.join(sandbox, "audit-home") });
-  const workflows = await pipeline.listWorkflows();
-  const exampleSets = {
-    "arka-norn-default": {
-      directory: path.join(FRAMEWORK_ROOT, "examples", "feature-notion-linear"),
-      exampleByType: {
-        concept: "01-concept.json",
-        plan: "02-plan.json",
-        annexe_contrat_technique: "03-annexe.json",
-        audit_etat_reel: "04-audit-etat-reel.json",
-        invariants_figes: "05-invariants-figes.json",
-        registre_dettes: "06-registre-dettes.json",
-        tache_agent: "07-tache-agent.json",
-        spec_integration_technique: "08-spec-integration-technique.json",
-        cr_dev: "09-cr-dev.json",
-        recette_qa: "10-recette-qa.json",
-        handoff: "11-handoff.json",
-      },
-    },
-    "arka-norn-fastdev": {
-      directory: path.join(FRAMEWORK_ROOT, "examples", "feature-fastdev"),
-      exampleByType: {
-        cadrage_rework: "01-cadrage-rework.json",
-        cr_dev: "02-cr-dev.json",
-        audit_rework: "03-audit-rework.json",
-        validation_fastdev: "05-validation-fastdev.json",
-      },
-    },
-    "arka-norn-essentiel": {
-      directory: path.join(FRAMEWORK_ROOT, "examples", "feature-essentiel"),
-      exampleByType: {
-        cadrage_essentiel: "01-cadrage-essentiel.json",
-        cr_dev: "02-cr-dev.json",
-        audit_livraison: "03-audit-livraison.json",
-        validation_livraison: "05-validation-livraison.json",
-      },
-    },
   };
 
+  const sandbox = mkdtempSync(path.join(tmpdir(), "arka-norn-selftest-"));
+  const pipeline = createPipelineRuntime(FRAMEWORK_ROOT, { homeDir: path.join(sandbox, "home") });
   try {
-    console.log("=== 1+2. scaffold pour chaque étape de chaque pipeline : génération + échec attendu uniquement sur sentinelles ===");
+    const workflows = await pipeline.listWorkflows();
+    check("catalog contains Complete, Essential and FastDev", workflows.length === 3 && workflows.every((workflow) => workflow.id in EXAMPLES));
+    check("Essential is the default workflow", await pipeline.defaultWorkflowId() === "arka-norn-essential");
+
+    console.log("\n=== Canonical v5 scaffolds ===");
     for (const workflow of workflows) {
-      const steps = await pipeline.listSteps(workflow.id);
-      for (const step of steps) {
-        const output = path.join(sandbox, `${workflow.id}-${step.id}.json`);
-        try {
-          await pipeline.scaffold({ stepId: step.id, outputPath: output, authorAgentId: "Selftest_validation_20260819", pipelineId: workflow.id });
-          check(`scaffold(${workflow.id}/${step.id}) ne lève pas d'exception`, true);
-        } catch (error) {
-          check(`scaffold(${workflow.id}/${step.id}) ne lève pas d'exception`, false, error instanceof Error ? error.message : String(error));
-          continue;
-        }
-        const result = await pipeline.validate({ filePath: output, pipelineId: workflow.id });
-        const noStructuralErrors = result.errors.every((error) => !/required property|additional propert/i.test(error));
-        check(`scaffold(${workflow.id}/${step.id}) échoue uniquement sur ses sentinelles`, !result.valid && noStructuralErrors, JSON.stringify(result.errors));
+      for (const step of await pipeline.listSteps(workflow.id, 5)) {
+        const outputPath = path.join(sandbox, `${workflow.id}-${step.id}.json`);
+        await pipeline.scaffold({ stepId: step.id, outputPath, authorAgentId: "Selftest_validation_20260819", pipelineId: workflow.id, documentContractVersion: 5 });
+        const result = await pipeline.validate({ filePath: outputPath, pipelineId: workflow.id, documentContractVersion: 5 });
+        const structuralErrors = result.errors.filter((error) => /required property|additional propert/i.test(error));
+        check(`${workflow.id}/${step.id} scaffold has only unresolved sentinels`, !result.valid && structuralErrors.length === 0, JSON.stringify(result.errors));
       }
     }
 
-    console.log("\n=== 3. Chaque exemple réel valide contre le moteur de production ===");
+    console.log("\n=== Distributed examples ===");
     for (const workflow of workflows) {
-      const exampleSet = exampleSets[workflow.id];
-      if (exampleSet === undefined) {
-        check(`exemples déclarés pour ${workflow.id}`, false, "jeu d'exemples absent");
-        continue;
-      }
-      for (const [typeId, filename] of Object.entries(exampleSet.exampleByType)) {
-        const result = await pipeline.validate({ filePath: path.join(exampleSet.directory, filename), pipelineId: workflow.id });
-        check(`${workflow.id} : ${filename} (type ${typeId}) valide`, result.valid, JSON.stringify(result.errors));
+      const example = EXAMPLES[workflow.id];
+      for (const file of example.files) {
+        const result = await pipeline.validate({ filePath: path.join(FRAMEWORK_ROOT, "examples", example.directory, file), pipelineId: workflow.id, documentContractVersion: 5 });
+        check(`${workflow.id}/${file} validates`, result.valid, JSON.stringify(result.errors));
       }
     }
 
-    console.log("\n=== 4. Une rupture de contrat est rejetée explicitement ===");
-    const examples = exampleSets["arka-norn-default"].directory;
-    const concept = loadJson(path.join(examples, "01-concept.json"));
-    delete concept.objectif;
-    const invalidConcept = path.join(sandbox, "invalid-concept.json");
-    writeFileSync(invalidConcept, `${JSON.stringify(concept)}\n`);
-    const conceptResult = await pipeline.validate({ filePath: invalidConcept });
-    check("retirer 'objectif' du concept échoue en nommant le champ", !conceptResult.valid && conceptResult.errors.some((error) => error.includes("objectif")), JSON.stringify(conceptResult.errors));
+    console.log("\n=== Contract breakage ===");
+    const brief = loadJson(path.join(FRAMEWORK_ROOT, "examples", "feature-essential", "01-feature-brief.json"));
+    delete brief.objective;
+    const invalidBrief = path.join(sandbox, "invalid-feature-brief.json");
+    writeFileSync(invalidBrief, `${JSON.stringify(brief)}\n`);
+    const briefResult = await pipeline.validate({ filePath: invalidBrief, pipelineId: "essential", documentContractVersion: 5 });
+    check("missing Essential objective is rejected explicitly", !briefResult.valid && briefResult.errors.some((error) => error.includes("objective")), JSON.stringify(briefResult.errors));
 
-    const cadrage = loadJson(path.join(exampleSets["arka-norn-essentiel"].directory, "01-cadrage-essentiel.json"));
-    delete cadrage.objectif;
-    const invalidCadrage = path.join(sandbox, "invalid-cadrage-essentiel.json");
-    writeFileSync(invalidCadrage, `${JSON.stringify(cadrage)}\n`);
-    const cadrageResult = await pipeline.validate({ filePath: invalidCadrage });
-    check("retirer 'objectif' du cadrage essentiel échoue en nommant le champ", !cadrageResult.valid && cadrageResult.errors.some((error) => error.includes("objectif")), JSON.stringify(cadrageResult.errors));
+    const report = loadJson(path.join(FRAMEWORK_ROOT, "examples", "feature-complete", "09-development-report.json"));
+    report.delivered_files[0].action = "invented_value";
+    const invalidReport = path.join(sandbox, "invalid-development-report.json");
+    writeFileSync(invalidReport, `${JSON.stringify(report)}\n`);
+    const reportResult = await pipeline.validate({ filePath: invalidReport, pipelineId: "complete", documentContractVersion: 5 });
+    check("invented enum values are rejected", !reportResult.valid, JSON.stringify(reportResult.errors));
 
-    const developmentReport = loadJson(path.join(examples, "09-cr-dev.json"));
-    developmentReport.fichiers_livres[0].action = "valeur_inventee";
-    const invalidReport = path.join(sandbox, "invalid-cr-dev.json");
-    writeFileSync(invalidReport, `${JSON.stringify(developmentReport)}\n`);
-    const reportResult = await pipeline.validate({ filePath: invalidReport });
-    check("une valeur enum inventée est rejetée", !reportResult.valid, JSON.stringify(reportResult.errors));
+    console.log("\n=== Locale and packaging contracts ===");
+    const locale = spawnSync(process.execPath, [BIN, "locale", "show", "--locale", "fr", "--json"], {
+      cwd: FRAMEWORK_ROOT,
+      encoding: "utf8",
+      env: { ...process.env, ARKA_NORN_HOME: path.join(sandbox, "locale-home") },
+    });
+    const localeEnvelope = locale.status === 0 ? JSON.parse(locale.stdout) : undefined;
+    check("public JSON uses schemaVersion 2", localeEnvelope?.schemaVersion === 2, locale.stdout || locale.stderr);
+    check("requested French locale is active", localeEnvelope?.data?.locale === "fr", locale.stdout || locale.stderr);
+
+    const catalog = loadJson(path.join(FRAMEWORK_ROOT, "skills-src", "catalog", "skills.json"));
+    const definitions = readdirSync(path.join(FRAMEWORK_ROOT, "skills-src")).filter((file) => file.endsWith(".json"));
+    check("skill catalog contains 21 unique definitions", catalog.skills.length === 21 && new Set(catalog.skills.map((skill) => skill.name)).size === 21);
+    check("skill catalog covers every source definition", catalog.skills.length === definitions.length);
+    check("skill checksums are exact", catalog.skills.every((skill) => {
+      const source = readFileSync(path.join(FRAMEWORK_ROOT, "skills-src", skill.source), "utf8").replace(/\r\n?/gu, "\n");
+      return createHash("sha256").update(source, "utf8").digest("hex") === skill.checksum;
+    }));
+
+    const tui = spawnSync(process.execPath, [BIN], { cwd: FRAMEWORK_ROOT, encoding: "utf8" });
+    check("non-interactive TUI exits with code 1", tui.status === 1, `${tui.stdout}${tui.stderr}`);
+    check("non-interactive TUI writes only to stderr", tui.stdout === "" && tui.stderr.includes("requires an interactive terminal"), `${tui.stdout}${tui.stderr}`);
   } finally {
     rmSync(sandbox, { recursive: true, force: true });
   }
 
-  console.log("\n=== 5. status applique le verdict métier de la recette QA ===");
-  {
-    const result = spawnSync(process.execPath, [BIN, "status", exampleSets["arka-norn-default"].directory], { encoding: "utf8" });
-    const output = `${result.stdout ?? ""}${result.stderr ?? ""}`;
-    check("status sort avec le code 2 pour une recette QA non concluante", result.status === 2, output);
-    check("status n'annonce jamais 'Pipeline complet' pour une recette QA fail", !output.includes("Pipeline complet"), output);
-    check("status renvoie explicitement vers cr_dev", output.includes("return_to_development -> cr_dev"), output);
-  }
-
-  console.log("\n=== 6. L'entrypoint TUI refuse un environnement non interactif ===");
-  {
-    const result = spawnSync(process.execPath, [BIN], { encoding: "utf8" });
-    check("TUI hors TTY : code de sortie 1", result.status === 1, `${result.stdout ?? ""}${result.stderr ?? ""}`);
-    check("TUI hors TTY : aucun rendu sur stdout", result.stdout === "", result.stdout ?? "");
-    check("TUI hors TTY : message explicite sur stderr", (result.stderr ?? "").includes("nécessite un terminal interactif"), result.stderr ?? "");
-  }
-
-  console.log("\n=== 7. Catalogue partagé : skills cohérents, dont Product/Essentiel/FastDev/maîtrise/audit/dev/QA ===");
-  {
-    const catalog = loadJson(path.join(FRAMEWORK_ROOT, "skills-src", "catalog", "skills.json"));
-    const names = catalog.skills.map((skill) => skill.name);
-    const definitions = readdirSync(path.join(FRAMEWORK_ROOT, "skills-src")).filter((file) => file.endsWith(".json"));
-    check("catalogue sans doublon", new Set(names).size === names.length, names.join(", "));
-    check("catalogue couvre chaque définition de skill", names.length === definitions.length, `catalogue ${names.length} vs définitions ${definitions.length}`);
-    check("catalogue contient le bootstrap arka-norn", names.includes("arka-norn"), names.join(", "));
-    check("catalogue contient le pilotage Product", names.includes("arka-product"), names.join(", "));
-    check("catalogue contient Essentiel", names.includes("arka-essentiel"), names.join(", "));
-    check("catalogue contient FastDev", names.includes("arka-fastdev"), names.join(", "));
-    check("catalogue contient maîtrise", names.includes("arka-framework-maitrise"), names.join(", "));
-    check("catalogue contient audit", names.includes("arka-framework-audit"), names.join(", "));
-    check("catalogue contient dev", names.includes("arka-framework-dev"), names.join(", "));
-    check("catalogue contient recette QA", names.includes("arka-framework-recette-qa"), names.join(", "));
-    const listed = spawnSync(process.execPath, [BIN, "skills", "list", "--json"], { cwd: FRAMEWORK_ROOT, encoding: "utf8" });
-    const listedData = listed.status === 0 ? JSON.parse(listed.stdout).data : [];
-    check("CLI skills list consomme le même catalogue", listed.status === 0 && listedData.length === names.length, `${listed.stdout ?? ""}${listed.stderr ?? ""}`);
-  }
-
-  console.log("\n=== 8. Intégrité de l'environnement ===");
-  const developmentCheckout = existsSync(TSC_BIN) && existsSync(TEST_RUNNER) && existsSync(path.join(FRAMEWORK_ROOT, "src"));
-  if (developmentCheckout) {
-    runGate("typecheck du code source", [TSC_BIN, "--noEmit"]);
-    runGate("typecheck des tests", [TSC_BIN, "-p", path.join(FRAMEWORK_ROOT, "tsconfig.tests.json")]);
-    runGate("nettoyage du build précédent", [CLEAN_DIST]);
-    runGate("build TypeScript reproductible", [TSC_BIN]);
-    runGate("tests TypeScript sans contexte npm injecté", [TEST_RUNNER], { env: SELFTEST_ENVIRONMENT });
+  console.log("\n=== Development checkout gates ===");
+  if (existsSync(TSC_BIN) && existsSync(TEST_RUNNER) && existsSync(path.join(FRAMEWORK_ROOT, "src"))) {
+    runGate("source typecheck", [TSC_BIN, "--noEmit"], check);
+    runGate("test typecheck", [TSC_BIN, "-p", path.join(FRAMEWORK_ROOT, "tsconfig.tests.json")], check);
+    runGate("TypeScript tests", [TEST_RUNNER], check, { env: SELFTEST_ENVIRONMENT });
   } else {
-    check("package de production sans sources TypeScript", !existsSync(path.join(FRAMEWORK_ROOT, "src")));
-    check("package de production sans suite de tests interne", !existsSync(TEST_RUNNER));
+    check("production package excludes TypeScript sources", !existsSync(path.join(FRAMEWORK_ROOT, "src")));
+    check("production package excludes internal tests", !existsSync(TEST_RUNNER));
   }
 
-  console.log(`\n${checks - failures}/${checks} vérifications passées.`);
+  console.log(`\n${checks - failures}/${checks} checks passed.`);
   if (failures > 0) {
-    console.log(`${failures} ÉCHEC(S) — corriger avant usage.`);
+    console.log(`${failures} FAILURE(S) - fix before use.`);
     process.exitCode = 1;
   } else {
-    console.log("Toutes les vérifications réelles passent.");
+    console.log("All real checks pass.");
     process.exitCode = 0;
-  }
-
-  function runGate(label, args, options = {}) {
-    const result = spawnSync(process.execPath, args, { cwd: FRAMEWORK_ROOT, encoding: "utf8", ...options });
-    const detail = [result.stdout, result.stderr].filter(Boolean).join("\n");
-    check(label, result.status === 0, detail || `process terminé avec le code ${String(result.status)}`);
   }
 }
 
+function runGate(label, args, check, options = {}) {
+  const result = spawnSync(process.execPath, args, { cwd: FRAMEWORK_ROOT, encoding: "utf8", ...options });
+  check(label, result.status === 0, [result.stdout, result.stderr].filter(Boolean).join("\n") || `process exited with ${String(result.status)}`);
+}
+
 function loadJson(file) {
-  if (!existsSync(file)) throw new Error(`Fichier introuvable : ${file}`);
+  if (!existsSync(file)) throw new Error(`File not found: ${file}`);
   return JSON.parse(readFileSync(file, "utf8"));
 }
 

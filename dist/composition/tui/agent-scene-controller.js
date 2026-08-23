@@ -18,7 +18,9 @@ import { createTextInputScene } from "../../adapters/inbound/tui/components/text
 import { createAgentDetailView } from "../../adapters/inbound/tui/views/agent-detail-view.js";
 import { createAgentRegistryView } from "../../adapters/inbound/tui/views/agent-registry-view.js";
 import { createResultView } from "../../adapters/inbound/tui/views/result-view.js";
+import { CANONICAL_PRODUCT_RESPONSIBILITIES } from "../../domain/agent/product-agent-defaults.js";
 import { FeatureId } from "../../domain/feature/feature-id.js";
+import { translate } from "../../application/localization/locale.js";
 export function createAgentSceneController(app, agentsPort) {
     let mutationInFlight = false;
     return {
@@ -41,17 +43,20 @@ export function createAgentSceneController(app, agentsPort) {
         }));
     }
     function registerFlow(project, onChanged) {
-        prompt("Nouvel agent — provider", "Exemple : Codex CLI, Claude Code, Antigravity", "", true, (provider) => {
+        prompt(translate("tui.agentForm.provider.title"), translate("tui.agentForm.provider.hint"), "", true, (provider) => {
             if (agentsPort.sessionId.value === "main") {
-                prompt("Product principal — responsabilités", "La session main organise le Project et les autres Agents ; séparez par des points-virgules", "organisation produit;priorisation;coordination des Agents;validation des décisions utilisateur", true, (responsibilities) => {
-                    void runMutation(project, false, () => agentsPort.register({ project, provider, role: "product", responsibilities: split(responsibilities, ";") }), "Product principal enregistré", onChanged);
+                prompt(translate("tui.agentForm.product.title"), translate("tui.agentForm.product.hint"), translate("tui.agentForm.product.default"), true, (responsibilities) => {
+                    const normalizedResponsibilities = responsibilities === translate("tui.agentForm.product.default")
+                        ? CANONICAL_PRODUCT_RESPONSIBILITIES
+                        : split(responsibilities, ";");
+                    void runMutation(project, false, () => agentsPort.register({ project, provider, role: "product", responsibilities: normalizedResponsibilities }), translate("tui.agentForm.product.saved"), onChanged);
                 });
                 return;
             }
-            prompt("Nouvel agent — rôle", "Exemple : dev, qa, audit, architecte", "dev", true, (role) => {
-                prompt("Périmètre — Features", "IDs séparés par des virgules ; vide = toutes les Features du Project", "", false, (features) => {
-                    prompt("Périmètre — chemins", "Chemins relatifs séparés par des virgules ; vide = tout le Project", "", false, (paths) => {
-                        prompt("Périmètre — responsabilités", "Responsabilités séparées par des points-virgules ; vide = non précisées", "", false, (responsibilities) => {
+            prompt(translate("tui.agentForm.role.title"), translate("tui.agentForm.role.hint"), "dev", true, (role) => {
+                prompt(translate("tui.agentForm.features.title"), translate("tui.agentForm.features.hint"), "", false, (features) => {
+                    prompt(translate("tui.agentForm.paths.title"), translate("tui.agentForm.paths.hint"), "", false, (paths) => {
+                        prompt(translate("tui.agentForm.responsibilities.title"), translate("tui.agentForm.responsibilities.hint"), "", false, (responsibilities) => {
                             void runMutation(project, false, () => agentsPort.register({
                                 project,
                                 provider,
@@ -59,7 +64,7 @@ export function createAgentSceneController(app, agentsPort) {
                                 ...(features.trim() === "" ? {} : { featureIds: split(features, ",").map((value) => FeatureId.of(value)) }),
                                 ...(paths.trim() === "" ? {} : { paths: split(paths, ",") }),
                                 ...(responsibilities.trim() === "" ? {} : { responsibilities: split(responsibilities, ";") }),
-                            }), "Identité enregistrée", onChanged);
+                            }), translate("tui.agentForm.saved"), onChanged);
                         });
                     });
                 });
@@ -71,29 +76,29 @@ export function createAgentSceneController(app, agentsPort) {
             agent,
             current,
             onBack: () => app.pop(),
-            onSelect: () => runMutation(project, true, () => agentsPort.select(project, agent.id), "Identité sélectionnée", onChanged),
+            onSelect: () => runMutation(project, true, () => agentsPort.select(project, agent.id), translate("tui.agentForm.selected"), onChanged),
             onReplace: () => replaceFlow(project, agent, onChanged),
             onDeactivate: () => confirmDeactivate(project, agent, onChanged),
         }));
     }
     function replaceFlow(project, replaced, onChanged) {
-        prompt("Remplacement — provider", "Provider du nouvel agent", "", true, (provider) => {
-            prompt("Remplacement — rôle", "Le périmètre existant sera conservé", replaced.role, true, (role) => {
-                void runMutation(project, true, () => agentsPort.replace({ project, replacedAgentId: replaced.id, provider, role }), "Agent remplacé", onChanged);
+        prompt(translate("tui.agentForm.replace.providerTitle"), translate("tui.agentForm.replace.providerHint"), "", true, (provider) => {
+            prompt(translate("tui.agentForm.replace.title"), translate("tui.agentForm.replace.hint"), replaced.role, true, (role) => {
+                void runMutation(project, true, () => agentsPort.replace({ project, replacedAgentId: replaced.id, provider, role }), translate("tui.agentForm.replaced"), onChanged);
             });
         });
     }
     function confirmDeactivate(project, agent, onChanged) {
         app.push(createMenuScene([
-            { label: `Oui, désactiver ${agent.id.value}`, value: "confirm", description: "irréversible ; l’historique est conservé" },
-            { label: "Non, revenir", value: "cancel" },
+            { label: translate("tui.agentForm.deactivate.confirm", { agent: agent.id.value }), value: "confirm", description: translate("tui.agentForm.deactivate.description") },
+            { label: translate("tui.agentForm.deactivate.cancel"), value: "cancel" },
         ], {
-            title: "Confirmer la désactivation",
-            hint: "Entrée confirmer · Échap annuler",
+            title: translate("tui.agentForm.deactivate.title"),
+            hint: translate("tui.agentForm.deactivate.hint"),
             onSelect(value) {
                 app.pop();
                 if (value === "confirm")
-                    void runMutation(project, true, () => agentsPort.deactivate(project, agent.id), "Agent désactivé", onChanged);
+                    void runMutation(project, true, () => agentsPort.deactivate(project, agent.id), translate("tui.agentForm.deactivated"), onChanged);
             },
         }));
     }
@@ -111,8 +116,8 @@ export function createAgentSceneController(app, agentsPort) {
         }));
     }
     async function runMutation(project, fromDetail, operation, title, onChanged) {
-        // Les callbacks de menu sont asynchrones : deux entrées rapprochées ne
-        // doivent jamais créer deux écritures concurrentes dans le registre.
+        // Menu callbacks are asynchronous; adjacent inputs must never create
+        // concurrent writes in the registry.
         if (mutationInFlight)
             return;
         mutationInFlight = true;
@@ -125,15 +130,15 @@ export function createAgentSceneController(app, agentsPort) {
             app.push(createResultView({
                 title,
                 code: 0,
-                output: `${result.id.value}\nÉtat : ${result.active ? "actif" : "inactif"}\nProchaine étape : vérifiez le périmètre puis revenez à la Feature.\n`,
+                output: `${result.id.value}\n${translate("tui.agentForm.result.state", { state: translate(result.active ? "tui.agent.active" : "tui.agent.inactive") })}\n${translate("tui.agentForm.result.next")}\n`,
                 onBack: () => { },
             }));
         }
         catch (error) {
             app.push(createResultView({
-                title: `${title} — échec`,
+                title: translate("tui.agentForm.result.failure", { title }),
                 code: 3,
-                output: `${error instanceof Error ? error.message : String(error)}\nAucune transition n’a été confirmée.\n`,
+                output: `${error instanceof Error ? error.message : String(error)}\n${translate("tui.agentForm.result.noTransition")}\n`,
                 onBack: () => { },
             }));
         }

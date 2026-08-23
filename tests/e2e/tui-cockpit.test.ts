@@ -21,14 +21,17 @@ import { test } from "node:test";
 import { createFeatureDetailView } from "../../src/adapters/inbound/tui/views/feature-detail-view.ts";
 import { createRenderer } from "../../src/adapters/inbound/tui/runtime/render.ts";
 import { createTheme } from "../../src/adapters/inbound/tui/runtime/theme.ts";
+import { setActiveLocale } from "../../src/application/localization/locale.ts";
 import { FeatureId } from "../../src/domain/feature/feature-id.ts";
 import { Feature } from "../../src/domain/feature/feature.ts";
 import { ProjectId } from "../../src/domain/project/project-id.ts";
 import { createPipelineRuntime } from "../../src/composition/pipeline-runtime.ts";
 
+setActiveLocale("fr");
+
 test("le cockpit Feature rend état, prochaine action, timeline, runs, dettes et handoffs", async () => {
   const root = resolve(import.meta.dirname, "..", "..");
-  const featureRoot = resolve(root, "examples", "feature-notion-linear");
+  const featureRoot = resolve(root, "tests", "fixtures", "legacy", "fr", "examples", "feature-complete");
   const report = await createPipelineRuntime(root).inspect({
     featureRoot, featureId: "connecteurs-notion-linear", authorRegistry: [{ id: "Codex_dev_20260819", active: true, authorized: true }],
     pipelineId: "standard",
@@ -43,16 +46,16 @@ test("le cockpit Feature rend état, prochaine action, timeline, runs, dettes et
   createFeatureDetailView({ feature, report, redraw() {}, onBack() {} }).render(renderer, createTheme({ NO_COLOR: "1" }, false));
 
   assert.match(output, /État : failed/);
-  assert.match(output, /Prochaine action : return_to_development → cr_dev/);
-  assert.match(output, /Timeline du pipeline/);
+  assert.match(output, /Prochaine action : return_to_development -> cr_dev/);
+  assert.match(output, /Timeline du Pipeline/);
   assert.match(output, /01 ✓ concept/);
-  assert.match(output, /Runs : dev=1 QA=1 échecs=1 · dettes=1 · handoffs=/);
-  assert.match(output, /Retirer de l'index/);
+  assert.match(output, /Runs : dev=1 QA=1 échecs=1 ; dettes=1 ; handoffs=/);
+  assert.match(output, /Retirer de l’index/);
 });
 
 test("le cockpit Feature affiche une erreur asynchrone et reste utilisable", async () => {
   const root = resolve(import.meta.dirname, "..", "..");
-  const featureRoot = resolve(root, "examples", "feature-notion-linear");
+  const featureRoot = resolve(root, "tests", "fixtures", "legacy", "fr", "examples", "feature-complete");
   const report = await createPipelineRuntime(root).inspect({
     featureRoot, featureId: "connecteurs-notion-linear", authorRegistry: [{ id: "Codex_dev_20260819", active: true, authorized: true }],
     pipelineId: "standard",
@@ -70,7 +73,7 @@ test("le cockpit Feature affiche une erreur asynchrone et reste utilisable", asy
     onBack() {},
     async onContinue() {
       attempts += 1;
-      throw new Error("registre Agent indisponible");
+      throw new Error("registre Agent unavailable");
     },
   });
 
@@ -80,7 +83,7 @@ test("le cockpit Feature affiche une erreur asynchrone et reste utilisable", asy
   let output = "";
   view.render(createRenderer({ write: (chunk) => { output += chunk; }, isTTY: false, columns: 120 }), createTheme({ NO_COLOR: "1" }, false));
   assert.equal(attempts, 1);
-  assert.match(output, /Action impossible : registre Agent indisponible/);
+  assert.match(output, /Action impossible : registre Agent unavailable/);
 
   view.onKey({ kind: "enter" });
   await new Promise((resolvePromise) => setImmediate(resolvePromise));

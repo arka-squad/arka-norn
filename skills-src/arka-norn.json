@@ -1,48 +1,70 @@
 {
   "name": "arka-norn",
-  "titre_h1_repo": "Arka Norn — Démarrer un Project",
-  "titre_h1_global": "Skill Arka Norn — Démarrer un Project",
-  "description_courte": "Initialise l'Agent Product principal d'un nouveau Project arka-norn : vérification du framework, installation locale du socle, enregistrement du Project, identité stable en session main et prochaine action explicite.",
-  "description_do_use": "Use when l'utilisateur invoque `/arka-norn` ou `$arka-norn`, demande de démarrer un nouveau Project avec arka-norn, ou veut connecter un agent provider au framework avant toute conception.",
-  "description_do_not_use": "Do NOT use pour commencer à coder, inventer un Project ou une Feature, écraser des skills divergentes, ni contourner une santé FAIL.",
-  "declencheurs_globaux": "Déclencher sur `/arka-norn`, `$arka-norn`, « démarre arka-norn », « initialise ce Project » ou toute demande de lancer un agent provider sur le framework. Ce skill est le point d'entrée utilisateur ; il initialise et identifie l'agent, puis s'arrête avant la conception ou le code tant que l'utilisateur n'a pas choisi la suite.",
+  "repoTitle": "Arka Norn bootstrap",
+  "globalTitle": "Skill - Arka Norn bootstrap",
+  "summary": "Initialize the Product Agent and verified Project context.",
+  "useWhen": "Use when the verified Pipeline action or Product handoff assigns the core.bootstrap responsibility.",
+  "doNotUseWhen": "Do not use for a different calculated phase, an unverified Agent scope, or to bypass schema and business validation.",
+  "triggers": "Use when the verified Pipeline action or Product handoff assigns the core.bootstrap responsibility. English triggers include \"continue the Feature\" and \"run the next phase\". French triggers include \"continuer la Feature\" and \"exécuter la prochaine étape\". Resolve locale, Project, Feature, Agent and phase through the CLI before acting.",
   "interface": {
-    "display_name": "Arka Norn — Démarrer",
-    "short_description": "Initialiser un agent sur un nouveau Project",
-    "default_prompt": "Utilise $arka-norn pour initialiser ce nouveau Project et me guider sans rien supposer."
+    "displayName": "Arka Norn bootstrap",
+    "shortDescription": "Initialize the Product Agent and verified Project context.",
+    "defaultPrompt": "Use $arka-norn to execute only the currently calculated phase."
   },
-  "allowed_tools": ["Read", "Bash", "Grep", "Glob"],
-  "quand_utiliser": [
-    "premier message envoyé par l'utilisateur à un agent Claude, Codex ou compatible pour un nouveau Project",
-    "racine de travail existante qui doit être enregistrée ou importée dans arka-norn",
-    "agent provider qui doit recevoir une identité, un rôle et un périmètre avant de produire"
+  "allowedTools": [
+    "Read",
+    "Bash",
+    "Grep",
+    "Glob"
   ],
-  "quand_ne_pas_utiliser": [
-    "l'utilisateur demande déjà une étape spécialisée sur un Project, une Feature et un Agent actifs",
-    "la commande `arka-norn` est absente : signaler l'installation manquante au lieu de simuler le framework",
-    "une divergence de skill exige `--force` : demander une décision et ne jamais écraser silencieusement",
-    "lancement de la conception, du développement ou de la QA sans Feature choisie"
+  "whenToUse": [
+    "Use when the verified Pipeline action or Product handoff assigns the core.bootstrap responsibility.",
+    "The work must produce one signed and mechanically validated artifact."
+  ],
+  "whenNotToUse": [
+    "Do not use for a different calculated phase, an unverified Agent scope, or to bypass schema and business validation.",
+    "The current Agent identity or session cannot be verified."
   ],
   "inputs": [
-    { "obligatoire": true, "nom": "racine_travail", "description": "dossier existant qui portera le nouveau Project ; utiliser le répertoire courant seulement s'il est confirmé" },
-    { "obligatoire": true, "nom": "provider", "description": "provider observé ou confirmé, par exemple Claude Code ou OpenAI Codex" },
-    { "obligatoire": false, "nom": "nom_project", "description": "nom humain ; le demander seulement s'il n'est ni fourni ni déductible du dossier confirmé" },
-    { "obligatoire": false, "nom": "perimetre", "description": "Features, chemins relatifs et responsabilités si l'utilisateur veut borner l'agent dès l'initialisation" },
-    { "obligatoire": true, "nom": "mode_orchestration", "description": "pour la création d’un nouveau Project : `manual` ou `automatic`, choisi explicitement par l’utilisateur ; sans objet lorsqu’un Project existant est importé et conserve son marker" }
+    {
+      "required": true,
+      "name": "feature",
+      "description": "Exact managed Feature identifier."
+    },
+    {
+      "required": true,
+      "name": "session_id",
+      "description": "Specialized Agent session supplied by Product control."
+    },
+    {
+      "required": false,
+      "name": "agent_id",
+      "description": "Explicit active identity; otherwise use the Project session binding."
+    }
   ],
-  "note_inputs": "Le premier Agent est toujours le Product principal et utilise la session `main`. Résoudre les informations observables avec la CLI. Pour un nouveau Project, demander explicitement Manuel ou Automatique avant `project add` ; ne pas déduire ce choix. S'il manque encore la racine, le mode ou une autorisation de création, poser au maximum trois questions regroupées avant toute mutation.",
-  "referentiel_extra": [
-    "`{{FRAMEWORK_DIR}}/docs/agent-bootstrap.md` — invocation provider et contrat d'initialisation",
-    "`{{FRAMEWORK_DIR}}/docs/cli.md` — commandes et codes de sortie",
-    "`{{FRAMEWORK_DIR}}/docs/agent-registry.md` — identité, scope, activité et remplacement",
-    "`{{FRAMEWORK_DIR}}/docs/architecture.md` — frontières Project, Feature et données locales"
+  "inputNotes": "Never infer the phase from filenames. Machine-readable CLI data is the source of truth.",
+  "references": [
+    "`{{FRAMEWORK_DIR}}/docs/agent-guide.md` - Agent protocol and locale behavior",
+    "`{{FRAMEWORK_DIR}}/schemas/` - canonical v5 document contracts",
+    "`{{FRAMEWORK_DIR}}/pipelines/catalog.json` - canonical workflow catalog"
   ],
   "procedure": [
-    { "titre": "Activer le mode arka-norn", "contenu": "Annoncer brièvement `Mode arka-norn activé`, identifier le provider courant sans l'inventer, puis exécuter `arka-norn help` et `arka-norn guide`. Si la commande est absente, arrêter avec la commande d'installation attendue ; ne pas reproduire le framework de mémoire." },
-    { "titre": "Résoudre la racine et vérifier la distribution complète", "contenu": "Confirmer une racine existante et canonique. Lancer `arka-norn skills doctor --target <racine> --profile all --global --json` : ce diagnostic couvre les 21 skills, les copies locales du Project et les points d’entrée globaux Claude/Codex. Si les seules différences sont des skills absentes, lancer `arka-norn skills install --target <racine> --profile all --global` puis confirmer le même diagnostic. Si une divergence existe, nommer la skill et la copie concernée, y compris globale ; ne pas utiliser `--force` sans décision explicite de l’utilisateur. `--force` est la seule écriture de remplacement et crée une sauvegarde. Si le champ `orphans` liste des entrées `arka-*` non gérées, les nommer avec leur emplacement et demander à l’utilisateur si elles appartiennent à un autre produit Arka ; ne jamais les modifier, les remplacer ni les supprimer ici. Ne pas continuer vers la création du Project tant que la distribution complète n’est pas saine ou qu’une divergence attend une décision." },
-    { "titre": "Importer ou créer le Project", "contenu": "Lancer `arka-norn project scan <racine> --json` puis `arka-norn project list --json`. Si un marker sain existe mais n'est pas indexé, utiliser `arka-norn project import <racine>` et conserver son `orchestrationMode`. Si aucun marker n'existe, demander explicitement `manual` ou `automatic`, puis utiliser `arka-norn project add <racine> --name <nom> --orchestration-mode <manual|automatic>` avec `--id <id>` uniquement si l'utilisateur l'a imposé. Ne jamais créer, choisir un autre dossier ou déduire le mode silencieusement. Confirmer avec `project show` puis `project use`." },
-    { "titre": "Identifier l'Agent Product principal", "contenu": "Utiliser exclusivement la session `main`. Lire `arka-norn agent current --project <project-id> --session main` et `agent list --active`. Réutiliser l'Agent Product actif existant lors d'une reprise ; ne jamais créer un suffixe `_02` seulement parce que la conversation ou la phase change. S'il n'existe pas, enregistrer `arka-norn agent register --project <project-id> --provider <provider> --role product --session main --responsibilities 'organisation produit;priorisation;coordination des Agents;validation des décisions utilisateur'`." },
-    { "titre": "Clore par un conseil Product actionnable", "contenu": "Lancer `arka-norn doctor`, `arka-norn workflow list`, `arka-norn feature list --project <project-id>` puis `arka-norn agent advise --project <project-id> [--feature <feature-id>]`. Ne créer ou importer aucune Feature sans choix utilisateur. Router ensuite vers `arka-product`, qui prépare les prompts des rôles spécialisés. Pour une Feature Essentiel, le prompt spécialisé invoque `arka-essentiel`; pour une Feature FastDev, il invoque `arka-fastdev`; pour le workflow standard, il invoque la skill de phase. Proposer aussi `arka-norn agent handoff-prompt --project <project-id> [--feature <feature-id>]` pour toute future reprise de contexte." }
+    {
+      "title": "Resolve locale and verified context",
+      "content": "Run `arka-norn locale show --json`, `feature show`, `agent current` and `agent sessions`. Reply in the active display locale. Keep contract keys in English and set `content_locale` to the prose locale."
+    },
+    {
+      "title": "Read one calculated action",
+      "content": "Run `arka-norn pipeline next <feature> --json`. Use its stable codes, parameters, expected artifact and suggested command without guessing from display prose. Stop if the action is null."
+    },
+    {
+      "title": "Produce the bounded artifact",
+      "content": "Execute only the proposed scaffold command. Replace every sentinel, preserve the specialized session, satisfy code, functional, UX and security evidence where applicable, and never modify another documentary phase."
+    },
+    {
+      "title": "Validate and stop",
+      "content": "Run `arka-norn pipeline validate <feature> --document <file> --json`, then rerun `arka-norn pipeline next <feature> --json` only to observe the transition. Report the next action without executing it."
+    }
   ],
-  "format_sortie": "```markdown\n## Session arka-norn initialisée\n- Invocation : </arka-norn ou $arka-norn>\n- Provider : <provider observé>\n- Project : <id · nom · racine confirmée>\n- Product principal : <Provider_product_YYYYMMDD · session main>\n- Périmètre : <Project/Features/chemins/responsabilités>\n- Distribution des skills : <21/21 locales et globales saines, ou divergence à décider>\n- Santé : <PASS/WARN/FAIL observés>\n- Features existantes : <liste ou aucune>\n- Conseil Product : <prochaine étape et rôle>\n- Commande proposée : <commande exacte>\n- Reprise de contexte : <commande agent handoff-prompt>\n```"
+  "outputFormat": "Report the verified Project, Feature, Agent/session, locale, executed phase, signed document, validation result, evidence and observed next command. Do not execute a second phase in the same invocation."
 }

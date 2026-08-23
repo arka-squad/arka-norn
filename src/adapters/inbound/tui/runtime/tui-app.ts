@@ -14,20 +14,9 @@
  * limitations under the License.
  */
 
-/**
- * TuiApp -- boucle principale, pile de scènes, cleanup signal-safe. Port TS
- * fidèle de arka-cc-management (adapters/inbound/tui/runtime/tui-app.ts),
- * réduit : pas de Translator/i18n ni de bannières promo/online (non
- * pertinentes pour arka-norn -- pas de service à promouvoir, pas de
- * connectivité réseau à surveiller). Conservé fidèlement : header (logo +
- * marque) ET context (bandeau contexte), tous deux rendus au-dessus de
- * chaque scène sauf opt-out via `chrome`.
- *
- * Lifecycle raw-mode safe : input.start() au début, input.stop() dans
- * finally ; handlers process désinscrits à la fin de run().
- */
 import type { ContextInfo } from "../components/banner.js";
 import { renderContextBanner } from "../components/banner.js";
+import { formatNumber, translate } from "../../../../application/localization/locale.js";
 import type { InputSource, KeyEvent } from "./input.js";
 import type { Renderer } from "./render.js";
 import type { Theme } from "./theme.js";
@@ -44,9 +33,9 @@ export interface Scene {
 }
 
 export interface BannerSources {
-  /** Header pleine page persistant (logo + marque), au-dessus de tout. */
+  /** Persistent full-page header above all content. */
   readonly header?: () => readonly string[];
-  /** Bandeau contexte (Runtime/Racine/Feature), sous le header. */
+  /** Runtime, root, and Feature context banner below the header. */
   readonly context?: () => ContextInfo;
 }
 
@@ -77,12 +66,6 @@ export function createTuiApp(deps: TuiAppDeps): TuiApp & { run(opts?: TuiAppRunO
   let cleanupRegistered = false;
   let cleanupHandlers: { signal: NodeJS.Signals | "exit"; handler: () => void }[] = [];
   let resizeHandler: (() => void) | undefined;
-  // `push()` peut être appelé avant `run()` (pattern `push(homeView); await run();`
-  // de bootstrap.ts). Sans ce garde, ce premier push rendrait sur stdout AVANT que
-  // `run()` n'ait activé le raw mode (`input.start()`) -- fenêtre pendant laquelle
-  // le terminal est encore en mode cooked (ICRNL actif : un `\r` tapé/envoyé très
-  // vite après l'affichage peut être livré comme `\n` non reconnu). `running`
-  // retarde le tout premier rendu jusqu'à ce que `run()` ait démarré la boucle.
   let running = false;
 
   function topScene(): Scene | undefined {
@@ -95,9 +78,9 @@ export function createTuiApp(deps: TuiAppDeps): TuiApp & { run(opts?: TuiAppRunO
     const columns = deps.viewport?.().columns;
     if (columns !== undefined && columns < 60) {
       renderer.redraw((line) => {
-        line("Terminal trop étroit pour le cockpit arka-norn.");
-        line(`Largeur actuelle : ${columns} colonnes · minimum : 60.`);
-        line("Agrandis la fenêtre ; l'écran se redessinera automatiquement.");
+        line(translate("tui.terminal.narrow"));
+        line(translate("tui.terminal.width", { columns: formatNumber(columns), minimum: formatNumber(60) }));
+        line(translate("tui.terminal.resize"));
       });
       return;
     }

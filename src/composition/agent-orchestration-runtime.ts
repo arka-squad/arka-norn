@@ -15,6 +15,7 @@
  */
 
 import { createAgentAdvice, createInitializationPrompt, createProductHandoffPrompt } from "../application/agents/agent-orchestration.js";
+import { formatNumber, translate } from "../application/localization/locale.js";
 import type { Feature } from "../domain/feature/feature.js";
 import type { ForAgentOrchestration } from "../ports/inbound/for-agent-orchestration.js";
 import type { ForAgents } from "../ports/inbound/for-agents.js";
@@ -52,7 +53,7 @@ export function createAgentOrchestrationRuntime(deps: {
       feature === undefined ? undefined : inspect(feature),
     ]);
     const warnings = input.featureId === undefined && projectFeatures.length > 1
-      ? [`${projectFeatures.length} Features existent ; utilise --feature pour choisir explicitement celle à piloter.`]
+      ? [translate("orchestration.warning.chooseFeature", { count: formatNumber(projectFeatures.length) })]
       : [];
     return { project, ...(feature === undefined ? {} : { feature }), ...(report === undefined ? {} : { report }), agents, sessions, warnings };
   }
@@ -63,6 +64,7 @@ export function createAgentOrchestrationRuntime(deps: {
       featureRoot: feature.root,
       featureId: feature.id.value,
       pipelineId: feature.pipelineId,
+      documentContractVersion: feature.documentContractVersion,
       authorRegistry,
     });
   }

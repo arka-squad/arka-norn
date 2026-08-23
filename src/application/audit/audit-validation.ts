@@ -24,7 +24,7 @@ const SECRET_PATTERN = /(?:api[_ -]?key|access[_ -]?token|token|auth(?:orization
 
 export function parseAuditRequest(value: unknown): AuditRequest {
   if (!isRecord(value)) throw new Error("Audit request must be an object");
-  if (!isAuditMode(value["mode"])) throw new Error("Audit request mode must be decouverte, audit or mixte");
+  if (!isAuditMode(value["mode"])) throw new Error("Audit request mode must be discovery, audit or mixed");
   const objective = printable(value["objective"], "objective", 2_000);
   const paths = stringArray(value["paths"], "paths", true).map(normalizeRelativePath);
   if (!Array.isArray(value["modules"]) || value["modules"].length === 0) throw new Error("Audit request modules must not be empty");
@@ -44,9 +44,9 @@ export function parseAuditRequest(value: unknown): AuditRequest {
     };
   });
   if (new Set(modules.map((item) => item.moduleId)).size !== modules.length) throw new Error("Audit request modules must be unique");
-  if (value["mode"] === "decouverte" && modules.some((item) => item.intent !== "discover")) throw new Error("Discovery mode only accepts discover module intents");
+  if (value["mode"] === "discovery" && modules.some((item) => item.intent !== "discover")) throw new Error("Discovery mode only accepts discover module intents");
   if (value["mode"] === "audit" && modules.some((item) => item.intent !== "audit")) throw new Error("Audit mode only accepts audit module intents");
-  if (value["mode"] === "mixte" && (!modules.some((item) => item.intent === "discover") || !modules.some((item) => item.intent === "audit"))) throw new Error("Mixed mode requires discover and audit module intents");
+  if (value["mode"] === "mixed" && (!modules.some((item) => item.intent === "discover") || !modules.some((item) => item.intent === "audit"))) throw new Error("Mixed mode requires discover and audit module intents");
   const sources = record(value["sources"], "sources");
   const capabilities = record(value["capabilities"], "capabilities");
   const sourcePaths = stringArray(sources["paths"], "sources.paths", false).map(normalizeRelativePath);
@@ -76,7 +76,7 @@ export function parseAuditRequest(value: unknown): AuditRequest {
 }
 
 function depthRank(depth: AuditRequest["modules"][number]["depth"]): number {
-  return ["inventaire", "statique", "connecte", "dynamique"].indexOf(depth);
+  return ["inventory", "static", "connected", "dynamic"].indexOf(depth);
 }
 
 export function parseModuleResult(value: unknown, expectedAuditId: string, expectedModuleId: string): AuditModuleResult {

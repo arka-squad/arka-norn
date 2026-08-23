@@ -14,22 +14,6 @@
  * limitations under the License.
  */
 
-/**
- * FeatureId value object — kebab-case slug identifier.
- *
- * Port fidèle de ProjectId (arka-cc-management,
- * core/domain/project/project-id.ts) : même format, même contrat.
- *
- * - Format : `[a-z0-9][a-z0-9-]{0,63}` (1-64 car., minuscules + chiffres +
- *   tiret, jamais commençant par un tiret).
- * - Stocké sous sa forme canonique minuscule. Comparaison exacte.
- *
- * Clé dans `~/.arka-norn/index/features.json`.
- *
- * La stratégie de génération (dérivée du chemin, cf. deriveFeatureId dans
- * home-view.ts) vit dans la couche use-case/adapter. Le domaine valide
- * seulement.
- */
 import { InvalidFeatureIdError } from "../errors.js";
 
 const FEATURE_ID_REGEX = /^[a-z0-9][a-z0-9-]{0,63}$/;

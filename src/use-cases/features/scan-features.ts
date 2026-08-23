@@ -14,25 +14,6 @@
  * limitations under the License.
  */
 
-/**
- * `scanFeatures` use-case. Port fidèle de scanProjects
- * (arka-cc-management, core/use-cases/projects/scan-projects.ts) :
- *
- *     find <cible> -maxdepth 1 -type d -exec test -e "{}/.arka-norn" \; -print
- *
- * Pas de méthode store dédiée — le use-case fait le walk directement via
- * le port Filesystem :
- *   1. readDir(target) → enfants directs (depth 1, pas de récursion).
- *   2. Pour chaque enfant : stat() pour vérifier que c'est un directory,
- *      puis exists(<root>/.arka-norn/feature.json).
- *   3. Si marker présent : featureStore.load(root) réhydrate l'entité.
- *      Marker présent mais illisible → hasMarker: true, feature: undefined
- *      (la TUI affichera « feature cassée »).
- *
- * Effet de bord index : les features nouvellement découvertes sont
- * ajoutées à l'index. On ne retire JAMAIS les entrées non retrouvées
- * (la feature peut être sur un volume débranché).
- */
 import type { Feature } from "../../domain/feature/feature.js";
 import type { FeatureScanResult, ScanOptions } from "../../ports/inbound/for-scan.js";
 import type { FeaturesDeps } from "./_shared/features-deps.js";

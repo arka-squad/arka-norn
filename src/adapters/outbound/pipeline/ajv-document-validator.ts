@@ -21,16 +21,16 @@ import { Ajv2020, type AnySchema, type ValidateFunction } from "ajv/dist/2020.js
 import type { DocumentValidationResult, DocumentValidator } from "../../../ports/outbound/document-validator.js";
 
 export class AjvDocumentValidator implements DocumentValidator {
-  private readonly ajv: Ajv2020;
+  private readonly canonicalAjv: Ajv2020;
+  private readonly legacyAjv: Ajv2020;
   private readonly cache = new Map<string, ValidateFunction>();
   private readonly frameworkRoot: string;
-  private envelopesLoaded = false;
+  private readonly envelopesLoaded = new Set<"canonical" | "legacy">();
 
   public constructor(frameworkRoot: string) {
     this.frameworkRoot = frameworkRoot;
-    this.ajv = new Ajv2020({ allErrors: true, strict: true });
-    this.ajv.addFormat("date", { type: "string", validate: isDate });
-    this.ajv.addFormat("date-time", { type: "string", validate: isDateTime });
+    this.canonicalAjv = createAjv();
+    this.legacyAjv = createAjv();
   }
 
   public async validate(schemaPath: string, content: Readonly<Record<string, unknown>>): Promise<DocumentValidationResult> {
@@ -45,23 +45,33 @@ export class AjvDocumentValidator implements DocumentValidator {
   private async validator(schemaPath: string): Promise<ValidateFunction> {
     const cached = this.cache.get(schemaPath);
     if (cached !== undefined) return cached;
-    await this.loadEnvelopes();
+    const contract = schemaPath.includes("/legacy/fr/") ? "legacy" : "canonical";
+    const ajv = contract === "legacy" ? this.legacyAjv : this.canonicalAjv;
+    await this.loadEnvelopes(contract, ajv);
     const raw = await fs.readFile(resolve(this.frameworkRoot, schemaPath), "utf8");
     const schema = JSON.parse(raw) as AnySchema;
-    const validate = this.ajv.compile(schema);
+    const validate = ajv.compile(schema);
     this.cache.set(schemaPath, validate);
     return validate;
   }
 
-  private async loadEnvelopes(): Promise<void> {
-    if (this.envelopesLoaded) return;
+  private async loadEnvelopes(contract: "canonical" | "legacy", ajv: Ajv2020): Promise<void> {
+    if (this.envelopesLoaded.has(contract)) return;
+    const base = contract === "legacy" ? resolve(this.frameworkRoot, "schemas", "legacy", "fr") : resolve(this.frameworkRoot, "schemas");
     const schemas = await Promise.all([
-      fs.readFile(resolve(this.frameworkRoot, "schemas", "document-envelope.schema.json"), "utf8"),
-      fs.readFile(resolve(this.frameworkRoot, "schemas", "project-audit-envelope.schema.json"), "utf8"),
+      fs.readFile(resolve(base, "document-envelope.schema.json"), "utf8"),
+      fs.readFile(resolve(base, "project-audit-envelope.schema.json"), "utf8"),
     ]);
-    for (const raw of schemas) this.ajv.addSchema(JSON.parse(raw) as AnySchema);
-    this.envelopesLoaded = true;
+    for (const raw of schemas) ajv.addSchema(JSON.parse(raw) as AnySchema);
+    this.envelopesLoaded.add(contract);
   }
+}
+
+function createAjv(): Ajv2020 {
+  const ajv = new Ajv2020({ allErrors: true, strict: true });
+  ajv.addFormat("date", { type: "string", validate: isDate });
+  ajv.addFormat("date-time", { type: "string", validate: isDateTime });
+  return ajv;
 }
 
 function isDate(value: string): boolean {

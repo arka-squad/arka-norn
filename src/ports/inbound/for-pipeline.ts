@@ -25,6 +25,7 @@ export interface InspectPipelineInput {
    */
   readonly featureId?: string;
   readonly pipelineId?: string;
+  readonly documentContractVersion?: 3 | 5;
   readonly authorRegistry?: readonly PipelineAuthorAuthorization[];
 }
 
@@ -36,9 +37,9 @@ export interface PipelineAuthorAuthorization {
 
 export interface ForPipeline {
   inspect(input: InspectPipelineInput): Promise<PipelineReport>;
-  validate(input: { readonly filePath: string; readonly pipelineId?: string }): Promise<PipelineDocumentValidation>;
-  scaffold(input: { readonly stepId: string; readonly outputPath: string; readonly authorAgentId: string; readonly featureId?: string; readonly projectId?: string; readonly pipelineId?: string; readonly force?: boolean; readonly allowedRoot?: string }): Promise<PipelineScaffoldResult>;
-  listSteps(pipelineId?: string): Promise<readonly PipelineStepOption[]>;
+  validate(input: { readonly filePath: string; readonly pipelineId?: string; readonly documentContractVersion?: 3 | 5 }): Promise<PipelineDocumentValidation>;
+  scaffold(input: { readonly stepId: string; readonly outputPath: string; readonly authorAgentId: string; readonly featureId?: string; readonly projectId?: string; readonly pipelineId?: string; readonly documentContractVersion?: 3 | 5; readonly force?: boolean; readonly allowedRoot?: string }): Promise<PipelineScaffoldResult>;
+  listSteps(pipelineId?: string, documentContractVersion?: 3 | 5): Promise<readonly PipelineStepOption[]>;
   listWorkflows(): Promise<readonly PipelineWorkflow[]>;
   showWorkflow(pipelineId?: string): Promise<PipelineWorkflow>;
   defaultWorkflowId(): Promise<string>;

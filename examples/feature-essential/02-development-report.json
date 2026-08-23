@@ -1,0 +1,45 @@
+{
+  "schema_version": 5,
+  "author_agent_id": "Codex_dev_20260823",
+  "id": "cr-filtre-etats-1",
+  "feature_id": "filtre-features-etat",
+  "type": "development_report",
+  "sequence": 1,
+  "created_at": "2026-08-23T10:00:00.000Z",
+  "depends_on_document_ids": [
+    "cadrage-filtre-etats-1"
+  ],
+  "ref": "Documented ref for the canonical English example.",
+  "date": "2026-08-23",
+  "agent": {
+    "name": "Documented name for the canonical English example.",
+    "provider": "Documented provider for the canonical English example."
+  },
+  "spec_sources": [
+    "Documented spec sources for the canonical English example."
+  ],
+  "status": "delivered",
+  "delivered_files": [
+    {
+      "path": "src/adapters/inbound/tui/views/project-detail-view.ts",
+      "action": "modified",
+      "lines": 18,
+      "role": "Documented role for the canonical English example."
+    }
+  ],
+  "covered_requirements": [
+    {
+      "id": "C-FONC",
+      "requirement": "Documented requirement for the canonical English example.",
+      "covered": true,
+      "evidence": "Documented evidence for the canonical English example."
+    },
+    {
+      "id": "C-UX",
+      "requirement": "Documented requirement for the canonical English example.",
+      "covered": true,
+      "evidence": "Documented evidence for the canonical English example."
+    }
+  ],
+  "content_locale": "en"
+}

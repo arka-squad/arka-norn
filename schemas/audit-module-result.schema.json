@@ -1,62 +1,416 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "audit-module-result.schema.json",
-  "title": "Résultat normalisé d'un domaine de découverte ou d'audit",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "auditId", "moduleId", "intent", "depth", "execution", "assessment", "coverage", "summary", "strengths", "findings", "evidence", "limitations", "recommendations", "decisionsRequired"],
+  "required": [
+    "schemaVersion",
+    "auditId",
+    "moduleId",
+    "intent",
+    "depth",
+    "execution",
+    "assessment",
+    "coverage",
+    "summary",
+    "strengths",
+    "findings",
+    "evidence",
+    "limitations",
+    "recommendations",
+    "decisionsRequired"
+  ],
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "auditId": { "type": "string", "pattern": "^audit-" },
-    "moduleId": { "enum": ["M00", "M01", "M02", "M03", "M04", "M05", "M06", "M07", "M08", "M09", "M10", "M11"] },
-    "intent": { "enum": ["discover", "audit"] },
-    "depth": { "enum": ["inventaire", "statique", "connecte", "dynamique"] },
+    "schemaVersion": {
+      "const": 1
+    },
+    "auditId": {
+      "type": "string",
+      "pattern": "^audit-"
+    },
+    "moduleId": {
+      "enum": [
+        "M00",
+        "M01",
+        "M02",
+        "M03",
+        "M04",
+        "M05",
+        "M06",
+        "M07",
+        "M08",
+        "M09",
+        "M10",
+        "M11"
+      ]
+    },
+    "intent": {
+      "enum": [
+        "discover",
+        "audit"
+      ]
+    },
+    "depth": {
+      "enum": [
+        "inventory",
+        "static",
+        "connected",
+        "dynamic"
+      ]
+    },
     "execution": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status", "startedAt", "endedAt", "tools"],
+      "required": [
+        "status",
+        "startedAt",
+        "endedAt",
+        "tools"
+      ],
       "properties": {
-        "status": { "enum": ["complete", "partial", "blocked", "error", "skipped"] },
-        "startedAt": { "type": "string", "format": "date-time" },
-        "endedAt": { "type": "string", "format": "date-time" },
-        "tools": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["name", "version", "dataVersion"], "properties": { "name": { "type": "string", "minLength": 1, "maxLength": 128 }, "version": { "type": ["string", "null"] }, "dataVersion": { "type": ["string", "null"] } } } }
+        "status": {
+          "enum": [
+            "complete",
+            "partial",
+            "blocked",
+            "error",
+            "skipped"
+          ]
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "endedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "version",
+              "dataVersion"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "dataVersion": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
       }
     },
-    "assessment": { "oneOf": [{ "type": "null" }, { "type": "object", "additionalProperties": false, "required": ["status", "confidence"], "properties": { "status": { "enum": ["pass", "warn", "fail", "unknown", "not_applicable"] }, "confidence": { "enum": ["high", "medium", "low"] } } }] },
-    "coverage": { "type": "object", "additionalProperties": false, "required": ["requested", "completed", "missing"], "properties": { "requested": { "type": "array", "uniqueItems": true, "items": { "type": "string" } }, "completed": { "type": "array", "uniqueItems": true, "items": { "type": "string" } }, "missing": { "type": "array", "uniqueItems": true, "items": { "type": "string" } } } },
-    "summary": { "type": "string", "minLength": 1 },
-    "strengths": { "type": "array", "items": { "type": "string" } },
-    "findings": { "type": "array", "items": { "$ref": "#/$defs/finding" } },
-    "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidence" } },
-    "limitations": { "type": "array", "items": { "type": "string" } },
-    "recommendations": { "type": "array", "items": { "type": "string" } },
-    "decisionsRequired": { "type": "array", "items": { "type": "string" } }
-  },
-  "$defs": {
-    "finding": {
-      "type": "object", "additionalProperties": false,
-      "required": ["id", "ruleId", "title", "description", "severity", "confidence", "origin", "status", "evidenceIds", "scope", "location", "recommendation", "fingerprint"],
+    "assessment": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "confidence"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "pass",
+                "warn",
+                "fail",
+                "unknown",
+                "not_applicable"
+              ]
+            },
+            "confidence": {
+              "enum": [
+                "high",
+                "medium",
+                "low"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested",
+        "completed",
+        "missing"
+      ],
       "properties": {
-        "id": { "type": "string", "minLength": 1, "maxLength": 128 }, "ruleId": { "type": "string", "minLength": 1, "maxLength": 128 },
-        "title": { "type": "string", "minLength": 1, "maxLength": 512 }, "description": { "type": "string", "minLength": 1, "maxLength": 8000 },
-        "severity": { "enum": ["critical", "high", "medium", "low", "info"] }, "confidence": { "enum": ["high", "medium", "low"] },
-        "origin": { "enum": ["observed", "inferred"] }, "status": { "enum": ["open", "accepted", "resolved"] },
-        "evidenceIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string" } },
-        "scope": { "type": "string", "minLength": 1, "maxLength": 512 }, "location": { "type": ["string", "null"], "maxLength": 2000 },
-        "recommendation": { "type": ["string", "null"], "maxLength": 2000 }, "fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        "requested": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "completed": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "missing": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "strengths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/finding"
       }
     },
     "evidence": {
-      "type": "object", "additionalProperties": false,
-      "required": ["id", "kind", "summary", "source", "location", "observedAt", "producer", "toolVersion", "dataVersion", "contentHash", "classification", "redacted"],
-      "properties": {
-        "id": { "type": "string", "minLength": 1, "maxLength": 128 }, "kind": { "enum": ["command", "file", "metric", "external"] },
-        "summary": { "type": "string", "minLength": 1, "maxLength": 4000 }, "source": { "type": "string", "minLength": 1, "maxLength": 512 },
-        "location": { "type": ["string", "null"], "maxLength": 2000 }, "observedAt": { "type": "string", "format": "date-time" },
-        "producer": { "type": "string", "minLength": 1, "maxLength": 256 }, "toolVersion": { "type": ["string", "null"] },
-        "dataVersion": { "type": ["string", "null"] }, "contentHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-        "classification": { "enum": ["public", "internal", "sensitive"] }, "redacted": { "type": "boolean" }
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/evidence"
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "recommendations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "decisionsRequired": {
+      "type": "array",
+      "items": {
+        "type": "string"
       }
     }
-  }
+  },
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "ruleId",
+        "title",
+        "description",
+        "severity",
+        "confidence",
+        "origin",
+        "status",
+        "evidenceIds",
+        "scope",
+        "location",
+        "recommendation",
+        "fingerprint"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "ruleId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8000
+        },
+        "severity": {
+          "enum": [
+            "critical",
+            "high",
+            "medium",
+            "low",
+            "info"
+          ]
+        },
+        "confidence": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "origin": {
+          "enum": [
+            "observed",
+            "inferred"
+          ]
+        },
+        "status": {
+          "enum": [
+            "open",
+            "accepted",
+            "resolved"
+          ]
+        },
+        "evidenceIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "location": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2000
+        },
+        "recommendation": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2000
+        },
+        "fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "summary",
+        "source",
+        "location",
+        "observedAt",
+        "producer",
+        "toolVersion",
+        "dataVersion",
+        "contentHash",
+        "classification",
+        "redacted"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "kind": {
+          "enum": [
+            "command",
+            "file",
+            "metric",
+            "external"
+          ]
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "location": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2000
+        },
+        "observedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "producer": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "toolVersion": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "dataVersion": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "contentHash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "classification": {
+          "enum": [
+            "public",
+            "internal",
+            "sensitive"
+          ]
+        },
+        "redacted": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  "title": "Audit Module Result"
 }

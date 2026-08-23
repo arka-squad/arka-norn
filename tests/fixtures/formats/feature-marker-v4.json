@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 4,
+  "id": "project-cockpit",
+  "projectId": "arka-norn",
+  "name": "Project cockpit",
+  "pipelineId": "arka-norn-complete",
+  "documentContractVersion": 5,
+  "createdAt": "2026-08-19T09:00:00.000Z",
+  "updatedAt": "2026-08-19T09:00:00.000Z"
+}

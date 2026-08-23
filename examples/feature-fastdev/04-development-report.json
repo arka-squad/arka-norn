@@ -1,0 +1,49 @@
+{
+  "schema_version": 5,
+  "author_agent_id": "Codex_dev_20260820",
+  "id": "cr-navigation-2",
+  "feature_id": "rework-navigation",
+  "type": "development_report",
+  "sequence": 2,
+  "created_at": "2026-08-20T13:00:00.000Z",
+  "depends_on_document_ids": [
+    "scope-navigation-1",
+    "audit-navigation-1"
+  ],
+  "ref": "Documented ref for the canonical English example.",
+  "date": "2026-08-20",
+  "agent": {
+    "name": "Documented name for the canonical English example.",
+    "provider": "Documented provider for the canonical English example."
+  },
+  "spec_sources": [
+    "Documented spec sources for the canonical English example.",
+    "Documented spec sources for the canonical English example."
+  ],
+  "status": "delivered",
+  "delivered_files": [
+    {
+      "path": "src/adapters/inbound/tui/views/feature-detail-view.ts",
+      "action": "modified",
+      "lines": 4,
+      "role": "Documented role for the canonical English example."
+    }
+  ],
+  "covered_requirements": [
+    {
+      "id": "C-UX",
+      "requirement": "Documented requirement for the canonical English example.",
+      "covered": true,
+      "evidence": "Documented evidence for the canonical English example."
+    }
+  ],
+  "corrections_applied": [
+    {
+      "source_document_id": "audit-navigation-1",
+      "finding_id": "F-UX-1",
+      "action": "Documented action for the canonical English example.",
+      "evidence": "Documented evidence for the canonical English example."
+    }
+  ],
+  "content_locale": "en"
+}

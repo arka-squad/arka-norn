@@ -14,11 +14,6 @@
  * limitations under the License.
  */
 import { PathSecurityError, ProjectNotFoundError } from "../../../domain/errors.js";
-/**
- * Revalide la relation de possession au moment de lire un marker Feature.
- * L'index et le marker sont tous deux non fiables : aucun appelant ne doit
- * réutiliser une racine Feature avant cette vérification.
- */
 export async function loadFeatureWithinProject(deps, root) {
     const feature = await deps.featureStore.load(root);
     const project = await loadProjectForFeature(deps, feature.projectId);

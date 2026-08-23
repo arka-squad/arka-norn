@@ -16,6 +16,7 @@
 import { createMenuScene } from "../../adapters/inbound/tui/components/menu.js";
 import { createTextInputScene } from "../../adapters/inbound/tui/components/text-input.js";
 import { createResultView } from "../../adapters/inbound/tui/views/result-view.js";
+import { translate } from "../../application/localization/locale.js";
 export function createAgentOrchestrationSceneController(app, orchestration) {
     return {
         async showProjectAdvice(project) {
@@ -25,18 +26,18 @@ export function createAgentOrchestrationSceneController(app, orchestration) {
         async openFeatureOrchestration(feature) {
             const advice = await orchestration.advise({ projectId: feature.projectId, featureId: feature.id });
             const items = [
-                { label: "Voir le conseil Product", value: "advice", description: `${advice.phase} · ${advice.productNextAction}` },
+                { label: translate("tui.agentAdvice.productAdvice"), value: "advice", description: `${advice.phase} - ${advice.productNextAction}` },
                 ...advice.recommendations.map((item, index) => ({
-                    label: `${item.mode === "execute" ? "Lancer maintenant" : "Préparer en parallèle"} — ${item.role}`,
+                    label: translate("tui.agentAdvice.item", { mode: translate(item.mode === "execute" ? "tui.agentAdvice.execute" : "tui.agentAdvice.prepare"), role: item.role }),
                     value: `prompt:${index}`,
-                    description: `session ${item.sessionId} · ${item.canWrite ? "écriture bornée" : "lecture seule"}`,
+                    description: translate("tui.agentAdvice.description", { session: item.sessionId, access: translate(item.canWrite ? "tui.agentAdvice.write" : "tui.agentAdvice.read") }),
                 })),
-                { label: "Préparer la reprise du Product principal", value: "handoff", description: "prompt autonome pour un nouveau contexte" },
-                { label: "← Retour", value: "back" },
+                { label: translate("tui.agentAdvice.handoff"), value: "handoff", description: translate("tui.agentAdvice.handoffDescription") },
+                { label: `<- ${translate("tui.agentAdvice.back")}`, value: "back" },
             ];
             app.push(createMenuScene(items, {
-                title: "Organisation Product et Agents",
-                hint: "Entrée ouvrir · Échap retour",
+                title: translate("tui.agentAdvice.organizationTitle"),
+                hint: translate("tui.agentAdvice.menuHint"),
                 onSelect(value) {
                     void select(value);
                 },
@@ -53,10 +54,10 @@ export function createAgentOrchestrationSceneController(app, orchestration) {
                 if (value === "handoff") {
                     try {
                         const result = await orchestration.productHandoffPrompt({ projectId: feature.projectId, featureId: feature.id });
-                        app.push(promptView("Reprise du Product principal", result.prompt));
+                        app.push(promptView(translate("tui.agentAdvice.handoffTitle"), result.prompt));
                     }
                     catch (error) {
-                        app.push(errorView("Reprise Product impossible", error));
+                        app.push(errorView(translate("tui.agentAdvice.handoffFailed"), error));
                     }
                     return;
                 }
@@ -64,8 +65,8 @@ export function createAgentOrchestrationSceneController(app, orchestration) {
                 if (recommendation === undefined)
                     return;
                 app.push(createTextInputScene({
-                    title: `Provider de l'Agent ${recommendation.role}`,
-                    hint: "Exemples : Claude Code, Codex CLI, Antigravity. Ce nom entre dans l'identité humaine de l'Agent.",
+                    title: translate("tui.agentAdvice.providerTitle", { role: recommendation.role }),
+                    hint: translate("tui.agentAdvice.providerHint"),
                     onSubmit(provider) {
                         app.pop();
                         void openPrompt(recommendation, provider.trim());
@@ -81,10 +82,10 @@ export function createAgentOrchestrationSceneController(app, orchestration) {
                         mode: recommendation.mode,
                         provider,
                     });
-                    app.push(promptView(`Prompt Agent ${recommendation.role}`, result.prompt, result.preflightCommand));
+                    app.push(promptView(translate("tui.agentAdvice.promptTitle", { role: recommendation.role }), result.prompt, result.preflightCommand));
                 }
                 catch (error) {
-                    app.push(errorView("Prompt Agent impossible", error));
+                    app.push(errorView(translate("tui.agentAdvice.promptFailed"), error));
                 }
             }
         },
@@ -92,22 +93,28 @@ export function createAgentOrchestrationSceneController(app, orchestration) {
 }
 function adviceView(advice) {
     const recommendations = advice.recommendations.length === 0
-        ? ["- Aucun profil secondaire à lancer maintenant."]
-        : advice.recommendations.map((item) => `- ${item.mode === "execute" ? "MAINTENANT" : "PRÉPARATION"} · ${item.role} · session ${item.sessionId}\n  ${item.reason}\n  ${item.command}`);
+        ? [translate("tui.agentAdvice.none")]
+        : advice.recommendations.map((item) => translate("tui.agentAdvice.recommendation", {
+            mode: translate(item.mode === "execute" ? "tui.agentAdvice.now" : "tui.agentAdvice.parallel"),
+            role: item.role,
+            session: item.sessionId,
+            reason: item.reason,
+            command: item.command,
+        }));
     return createResultView({
-        title: "Conseil du Product principal",
+        title: translate("tui.agentAdvice.adviceTitle"),
         code: advice.productPrincipal.status === "conflict" ? 3 : 0,
         output: [
-            `Phase : ${advice.phase}`,
-            `Prochaine étape : ${advice.nextStepId ?? "choisir une Feature"}`,
-            `Product principal : ${advice.productPrincipal.status} · ${advice.productPrincipal.agentId ?? "non lié"} · session main`,
-            `Conseil : ${advice.productNextAction}`,
+            translate("tui.agentAdvice.phase", { phase: advice.phase }),
+            translate("tui.agentAdvice.next", { step: advice.nextStepId ?? translate("tui.agentAdvice.chooseFeature") }),
+            translate("tui.agentAdvice.product", { status: advice.productPrincipal.status, agent: advice.productPrincipal.agentId ?? translate("tui.agentAdvice.notBound") }),
+            translate("tui.agentAdvice.guidance", { guidance: advice.productNextAction }),
             "",
-            "Agents proposés :",
+            translate("tui.agentAdvice.proposed"),
             ...recommendations,
             "",
-            `Reprise Product : ${advice.handoffPromptCommand}`,
-            ...advice.warnings.map((warning) => `AVERTISSEMENT — ${warning}`),
+            translate("tui.agentAdvice.continuation", { command: advice.handoffPromptCommand }),
+            ...advice.warnings.map((warning) => translate("tui.agentAdvice.warning", { warning })),
         ].join("\n") + "\n",
         onBack: () => { },
         nextStep: advice.recommendations[0]?.command ?? advice.handoffPromptCommand,
@@ -117,9 +124,9 @@ function promptView(title, prompt, preflightCommand) {
     return createResultView({
         title,
         code: 0,
-        output: `${preflightCommand === undefined ? "" : `PRÉREQUIS PRODUCT AVANT LA NOUVELLE SESSION\n${preflightCommand}\n\n`}${prompt}\n`,
+        output: `${preflightCommand === undefined ? "" : translate("tui.agentAdvice.preflight", { command: preflightCommand })}${prompt}\n`,
         onBack: () => { },
-        nextStep: "copiez ce prompt dans une nouvelle session Agent ; la session vérifiera elle-même chaque identifiant",
+        nextStep: translate("tui.agentAdvice.nextPrompt"),
     });
 }
 function errorView(title, error) {

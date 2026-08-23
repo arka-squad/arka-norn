@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import { createGuidedAction, evaluateBusinessPolicy } from "./evaluate-business-policy.js";
+import { documentTypeCandidates } from "../compatibility/legacy-contract.js";
 import { selectLatestRun } from "./select-latest-run.js";
 export { selectLatestRun } from "./select-latest-run.js";
 export function evaluatePipeline(input) {
@@ -80,13 +81,13 @@ export function evaluatePipeline(input) {
         type,
         documents: knownDocuments.filter((document) => document.type === type).map(withoutContent),
     }));
-    const latestCr = selectedFor("cr_dev", states, knownDocuments);
-    const selectedQa = selectedFor("recette_qa", states, knownDocuments);
-    const selectedAudit = selectedFor("audit_rework", states, knownDocuments);
-    const selectedValidation = selectedFor("validation_fastdev", states, knownDocuments);
+    const latestCr = selectedForAny(documentTypeCandidates("development_report"), states, knownDocuments);
+    const selectedQa = selectedForAny(documentTypeCandidates("qa_review"), states, knownDocuments);
+    const selectedAudit = selectedForAny(documentTypeCandidates("delivery_audit"), states, knownDocuments);
+    const selectedValidation = selectedForAny(documentTypeCandidates("delivery_validation"), states, knownDocuments);
     const overallStatus = overallStatusFor(steps, errors);
     return {
-        schemaVersion: 1,
+        schemaVersion: 2,
         pipelineId: input.pipelineId,
         featureRoot: input.featureRoot,
         ...(input.featureId === undefined ? {} : { featureId: input.featureId }),
@@ -103,6 +104,14 @@ export function evaluatePipeline(input) {
         warnings: unique(warnings),
         unknownFiles,
     };
+}
+function selectedForAny(types, states, documents) {
+    for (const type of types) {
+        const selected = selectedFor(type, states, documents);
+        if (selected !== undefined)
+            return selected;
+    }
+    return undefined;
 }
 function validateDocumentGraph(input, documents, errors) {
     const byId = new Map();
@@ -143,9 +152,9 @@ function validateRequiredStepRelations(input, documents, byId, errors) {
                     errors.push(`${step.id} ${document.filePath} must include ${policy.targetDocumentField} ${targetId} in depends_on_document_ids.`);
                 }
             }
-            const auditId = stringField(document.content, "audit_rework_id");
+            const auditId = stringField(document.content, "delivery_audit_id");
             if (auditId !== undefined && !document.dependencyDocumentIds.includes(auditId)) {
-                errors.push(`${step.id} ${document.filePath} must include audit_rework_id ${auditId} in depends_on_document_ids.`);
+                errors.push(`${step.id} ${document.filePath} must include delivery_audit_id ${auditId} in depends_on_document_ids.`);
             }
         }
     }
@@ -161,9 +170,16 @@ function validateFeatureAndAuthors(input, documents, errors) {
                 ? `Document ${document.filePath} has no feature_id; expected ${input.featureId}.`
                 : `Document ${document.filePath} belongs to feature ${document.featureId}, expected ${input.featureId}.`);
         }
-        if (registry === undefined || document.content["schema_version"] !== 3)
+        const version = document.content["schema_version"];
+        if (registry === undefined || (version !== 3 && version !== 5))
             continue;
+        const migration = document.content["migration"];
+        const migratedFromV2 = version === 5
+            && typeof migration === "object" && migration !== null && !Array.isArray(migration)
+            && migration["source_schema_version"] === 2;
         const authorId = stringField(document.content, "author_agent_id");
+        if (migratedFromV2 && authorId === undefined)
+            continue;
         const agent = authorId === undefined ? undefined : registry.get(authorId);
         if (authorId !== undefined && agent === undefined)
             errors.push(`Document ${document.filePath} author ${authorId} is absent from the Project registry.`);
@@ -206,12 +222,12 @@ function completionFor(input) {
 }
 function actionsFor(input) {
     if (input.schemaStatus === "invalid") {
-        return [createGuidedAction("fix_document", input.stepId, "Au moins un document ne valide pas son schéma.", input.featureId)];
+        return [createGuidedAction("fix_document", input.stepId, "At least one document does not validate against its schema.", input.featureId)];
     }
     if (input.dependencyStatus === "unsatisfied")
         return [];
     if (input.presenceStatus === "absent" && input.required) {
-        return [createGuidedAction("create_document", input.stepId, "Cette étape obligatoire est absente.", input.featureId)];
+        return [createGuidedAction("create_document", input.stepId, "This required step is missing.", input.featureId)];
     }
     return input.policyAction === undefined ? [] : [input.policyAction];
 }

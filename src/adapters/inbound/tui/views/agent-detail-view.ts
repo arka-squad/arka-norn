@@ -16,12 +16,13 @@
 
 import type { AgentRegistration } from "../../../../domain/agent/agent.js";
 import { titledBox } from "../components/box.js";
-import { GUIDED_SHORTCUTS, nextActionLine, renderGuidance } from "../components/guidance.js";
+import { guidedShortcuts, nextActionLine, renderGuidance } from "../components/guidance.js";
 import { createMenuScene } from "../components/menu.js";
 import type { KeyEvent } from "../runtime/input.js";
 import type { Renderer } from "../runtime/render.js";
 import type { Scene } from "../runtime/tui-app.js";
 import type { Theme } from "../runtime/theme.js";
+import { formatDate, translate } from "../../../../application/localization/locale.js";
 
 type AgentDetailAction = "action:select" | "action:replace" | "action:deactivate" | "action:back";
 
@@ -37,13 +38,13 @@ export interface AgentDetailViewDeps {
 export function createAgentDetailView(deps: AgentDetailViewDeps): Scene {
   let helpVisible = false;
   const items = [
-    ...(deps.agent.active && !deps.current ? [{ label: "Utiliser cette identité", value: "action:select" as const, description: "devient l’auteur des prochains documents" }] : []),
-    ...(deps.agent.active ? [{ label: "Remplacer cet agent", value: "action:replace" as const, description: "crée un successeur et désactive celui-ci" }] : []),
-    ...(deps.agent.active ? [{ label: "Désactiver sans remplaçant", value: "action:deactivate" as const, description: "interdit toute nouvelle production avec cet ID" }] : []),
-    { label: "← Retour au registre", value: "action:back" as const },
+    ...(deps.agent.active && !deps.current ? [{ label: translate("tui.agent.use.label"), value: "action:select" as const, description: translate("tui.agent.use.description") }] : []),
+    ...(deps.agent.active ? [{ label: translate("tui.agent.replace.label"), value: "action:replace" as const, description: translate("tui.agent.replace.description") }] : []),
+    ...(deps.agent.active ? [{ label: translate("tui.agent.deactivate.label"), value: "action:deactivate" as const, description: translate("tui.agent.deactivate.description") }] : []),
+    { label: `<- ${translate("tui.agent.next.back")}`, value: "action:back" as const },
   ];
   const menu = createMenuScene<AgentDetailAction>(items, {
-    hint: "↑/↓ naviguer · Entrée agir · ? aide · Échap retour",
+    hint: translate("tui.feature.menu.hint"),
     onSelect(value) {
       if (value === "action:select") void deps.onSelect();
       else if (value === "action:replace") void deps.onReplace();
@@ -71,34 +72,34 @@ export function createAgentDetailView(deps: AgentDetailViewDeps): Scene {
       renderer.redraw((line) => {
         if (helpVisible) {
           for (const value of renderGuidance({
-            title: "Aide — identité Agent",
-            purpose: "Une identité reste immuable. Les transitions explicites conservent l’historique.",
+            title: translate("tui.agent.help.title"),
+            purpose: translate("tui.agent.help.purpose"),
             steps: [
-              "Utiliser sélectionne un agent actif pour les prochains scaffolds.",
-              "Remplacer crée un nouvel ID, désactive l’ancien et relie les deux entrées.",
-              "Désactiver bloque l’identité sans créer de successeur.",
-              "Les documents déjà signés gardent toujours leur author_agent_id d’origine.",
+              translate("tui.agent.help.step1"),
+              translate("tui.agent.help.step2"),
+              translate("tui.agent.help.step3"),
+              translate("tui.agent.help.step4"),
             ],
-            shortcuts: GUIDED_SHORTCUTS,
+            shortcuts: guidedShortcuts(),
           }, theme)) line(value);
           return;
         }
         const agent = deps.agent;
         for (const value of titledBox(agent.id.value, [
-          `État : ${agent.active ? "ACTIF" : "INACTIF"}${deps.current ? " · identité courante" : ""}`,
-          `Provider / rôle : ${agent.provider} / ${agent.role}`,
+          translate("tui.agent.state", { state: translate(agent.active ? "tui.agent.active" : "tui.agent.inactive"), current: deps.current ? translate("tui.agent.current") : "" }),
+          translate("tui.agent.providerRole", { provider: agent.provider, role: agent.role }),
           `Project : ${agent.scope.projectId.value}`,
-          `Features : ${agent.scope.featureIds.map((id) => id.value).join(", ") || "toutes"}`,
-          `Chemins : ${agent.scope.paths.join(", ") || "tous"}`,
-          `Responsabilités : ${agent.scope.responsibilities.join(" · ") || "non précisées"}`,
-          `Enregistré : ${agent.registeredAt.toISOString()}`,
-          ...(agent.replacesAgentId === undefined ? [] : [`Remplace : ${agent.replacesAgentId.value}`]),
-          ...(agent.replacedByAgentId === undefined ? [] : [`Remplacé par : ${agent.replacedByAgentId.value}`]),
+          translate("tui.agent.features", { value: agent.scope.featureIds.map((id) => id.value).join(", ") || translate("tui.agent.allFeatures") }),
+          translate("tui.agent.paths", { value: agent.scope.paths.join(", ") || translate("tui.agent.allPaths") }),
+          translate("tui.agent.responsibilities", { value: agent.scope.responsibilities.join(" - ") || translate("tui.agent.unspecified") }),
+          translate("tui.agent.registered", { date: formatDate(agent.registeredAt) }),
+          ...(agent.replacesAgentId === undefined ? [] : [translate("tui.agent.replaces", { id: agent.replacesAgentId.value })]),
+          ...(agent.replacedByAgentId === undefined ? [] : [translate("tui.agent.replacedBy", { id: agent.replacedByAgentId.value })]),
         ], theme, { border: agent.active ? theme.arkaRed : theme.gray }).split("\n")) line(value);
         line("");
         line(nextActionLine(
-          !agent.active ? "Retour au registre" : deps.current ? "Vérifier le périmètre" : "Utiliser cette identité",
-          !agent.active ? "une identité inactive est conservée uniquement pour l’historique" : "ne produisez que dans le scope déclaré",
+          translate(!agent.active ? "tui.agent.next.back" : deps.current ? "tui.agent.next.scope" : "tui.agent.next.use"),
+          translate(!agent.active ? "tui.agent.next.inactiveReason" : "tui.agent.next.scopeReason"),
           theme,
         ));
         for (const value of menu.renderLines(theme)) line(value);

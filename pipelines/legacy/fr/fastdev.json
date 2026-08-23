@@ -1,0 +1,82 @@
+{
+  "$id": "pipelines/arka-norn-fastdev.json",
+  "schemaVersion": 1,
+  "pipelineId": "arka-norn-fastdev",
+  "version": "1.0.0",
+  "description": "Pipeline court pour reworks bornés : cadrage, livraison, audit, correction conditionnelle et validation du dernier CR.",
+  "steps": [
+    {
+      "id": "cadrage_rework",
+      "ordre": 1,
+      "schema": "schemas/cadrage-rework.schema.json",
+      "obligatoire": true,
+      "multiple": false,
+      "depend_de": []
+    },
+    {
+      "id": "cr_dev",
+      "ordre": 2,
+      "schema": "schemas/cr-dev.schema.json",
+      "obligatoire": true,
+      "multiple": true,
+      "depend_de": ["cadrage_rework"],
+      "business_policy": {
+        "type": "delivery",
+        "verdict_field": "statut",
+        "pass_values": ["livre"],
+        "in_progress_values": ["partiel"]
+      }
+    },
+    {
+      "id": "audit_rework",
+      "ordre": 3,
+      "schema": "schemas/audit-livraison.schema.json",
+      "obligatoire": true,
+      "multiple": true,
+      "depend_de": ["cr_dev"],
+      "peut_boucler_vers": "cr_dev",
+      "business_policy": {
+        "type": "audit_then_fix",
+        "target_step": "cr_dev",
+        "target_document_field": "cr_dev_id",
+        "verdict_field": "verdict",
+        "pass_values": ["pass"],
+        "fail_values": ["corrections_requises", "bloque"],
+        "retry_step": "cr_dev"
+      }
+    },
+    {
+      "id": "validation_fastdev",
+      "ordre": 4,
+      "schema": "schemas/validation-livraison.schema.json",
+      "obligatoire": true,
+      "multiple": true,
+      "depend_de": ["cr_dev", "audit_rework"],
+      "peut_boucler_vers": "cr_dev",
+      "business_policy": {
+        "type": "review_latest",
+        "target_step": "cr_dev",
+        "target_document_field": "cr_dev_id",
+        "verdict_field": "verdict",
+        "pass_values": ["pass"],
+        "fail_values": ["fail"],
+        "in_progress_values": ["partial"],
+        "retry_step": "cr_dev"
+      }
+    }
+  ],
+  "transversal": {
+    "handoff": {
+      "schema": "schemas/handoff.schema.json",
+      "description": "Passation optionnelle entre agents ou providers."
+    }
+  },
+  "definition_of_done": {
+    "regle": "Le dernier CR livré est audité ou corrige entièrement un audit, puis une validation_fastdev pass cible exactement ce dernier CR.",
+    "interdits": [
+      "utiliser FastDev pour une architecture nouvelle, une migration critique ou un périmètre incertain",
+      "ignorer un constat dont la décision vaut corriger",
+      "réutiliser une validation portant sur un ancien CR"
+    ]
+  }
+}

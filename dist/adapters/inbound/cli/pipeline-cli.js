@@ -23,9 +23,13 @@ import { ProjectId } from "../../../domain/project/project-id.js";
 import { AgentId } from "../../../domain/agent/agent-id.js";
 import { AgentSessionId } from "../../../domain/agent/agent-session-id.js";
 import { AgentInactiveError, AgentScopeViolationError, PathSecurityError } from "../../../domain/errors.js";
+import { canonicalDocumentType } from "../../../application/compatibility/legacy-french-contract.js";
+import { DEFAULT_PIPELINE_ID } from "../../../domain/shared/marker-formats.js";
 import { FsFeatureStore } from "../../outbound/filesystem/fs-feature-store.js";
 import { pipelineExitCode, pipelineReportEnvelope, presentPipelineReport } from "./presenters/pipeline-report-presenter.js";
 import { CliUsageError, parseStrictArguments } from "./strict-arguments.js";
+import { jsonEnvelope } from "./cli-envelope.js";
+import { formatNumber, translate } from "../../../application/localization/locale.js";
 export async function runStatusCommand(argv, context) {
     const json = argv.includes("--json");
     try {
@@ -54,11 +58,12 @@ export async function runScaffoldCommand(argv, context) {
         const authorAgentId = parsed.values.get("agent");
         if (authorAgentId === undefined)
             throw new CliUsageError("scaffold requires --agent <Provider_role_YYYYMMDD>");
-        const stepId = parsed.positionals[0];
+        const requestedStepId = parsed.positionals[0];
+        const stepId = canonicalDocumentType(requestedStepId);
         const outputPath = resolve(context.cwd, parsed.positionals[1]);
         const explicitProjectId = parsed.values.get("project");
-        if (explicitProjectId !== undefined && stepId !== "audit_etat_reel") {
-            throw new CliUsageError("--project is supported only for scaffold audit_etat_reel");
+        if (explicitProjectId !== undefined && stepId !== "current_state_audit") {
+            throw new CliUsageError("--project is supported only for scaffold current_state_audit");
         }
         const managedProject = explicitProjectId === undefined
             ? undefined
@@ -70,21 +75,21 @@ export async function runScaffoldCommand(argv, context) {
             authorAgentId: AgentId.of(authorAgentId).value,
             ...(managed?.featureId === undefined && parsed.values.get("feature-id") === undefined ? {} : { featureId: managed?.featureId ?? parsed.values.get("feature-id") }),
             ...(managedProject === undefined ? {} : { projectId: managedProject.projectId, allowedRoot: managedProject.projectRoot }),
-            ...(managed === undefined ? {} : { pipelineId: managed.pipelineId, allowedRoot: managed.featureRoot }),
+            ...(managed === undefined ? {} : { pipelineId: managed.pipelineId, documentContractVersion: managed.documentContractVersion, allowedRoot: managed.featureRoot }),
             force: parsed.booleans.has("force"),
         });
         return {
             code: 0,
             stdout: json
-                ? `${JSON.stringify({ schemaVersion: 1, command: "scaffold", ok: true, data: result, errors: [], warnings: [] })}\n`
-                : `Squelette écrit : ${result.outputPath}\nValeurs à remplacer : ${result.sentinelPaths.length}\n`,
+                ? jsonEnvelope({ command: "scaffold", ok: true, data: result })
+                : translate("cli.pipeline.scaffoldWritten", { path: result.outputPath, count: formatNumber(result.sentinelPaths.length) }),
             stderr: "",
         };
     }
     catch (error) {
         const conflict = hasCode(error, "EEXIST");
         const message = conflict && argv.length > 0
-            ? `Le fichier existe déjà. Utilise --force pour confirmer l'écrasement.`
+            ? translate("cli.pipeline.fileExists")
             : error instanceof Error ? error.message : String(error);
         return pipelineFailure("scaffold", message, json, scaffoldFailureExitCode(error, conflict));
     }
@@ -126,7 +131,7 @@ async function managedScaffoldContext(outputPath, authorAgentId, context) {
     const projectRelativeOutput = relative(project.root, outputPath);
     if (!agent.coversProjectPath(projectRelativeOutput))
         throw new AgentScopeViolationError(agent.id.value, `path:${projectRelativeOutput}`);
-    return { featureRoot, featureId: feature.id.value, pipelineId: feature.pipelineId };
+    return { featureRoot, featureId: feature.id.value, pipelineId: feature.pipelineId, documentContractVersion: feature.documentContractVersion };
 }
 function findFeatureRoot(start) {
     let current = resolve(start);
@@ -157,11 +162,11 @@ export async function runValidateCommand(argv, context) {
         const filePath = resolve(context.cwd, parsed.positionals[0]);
         const result = await createPipelineRuntime(context.frameworkRoot, { homeDir: context.homeDir }).validate({ filePath });
         const human = result.valid
-            ? `VALIDE — ${relative(context.cwd, filePath)} (type: ${result.type}, schema: ${result.schemaPath})\n`
-            : `INVALIDE — ${relative(context.cwd, filePath)}${result.type === undefined ? "" : ` (type: ${result.type})`}\n${result.errors.map((error) => `  - ${error}`).join("\n")}\n`;
+            ? `${translate("common.valid")} - ${relative(context.cwd, filePath)} (type: ${result.type}, schema: ${result.schemaPath})\n`
+            : `${translate("common.invalid")} - ${relative(context.cwd, filePath)}${result.type === undefined ? "" : ` (type: ${result.type})`}\n${result.errors.map((error) => `  - ${error}`).join("\n")}\n`;
         return {
             code: result.valid ? 0 : 3,
-            stdout: json ? `${JSON.stringify({ schemaVersion: 1, command: "validate", ok: result.valid, data: result, errors: result.errors, warnings: [] })}\n` : human,
+            stdout: json ? jsonEnvelope({ command: "validate", ok: result.valid, data: result, errors: result.errors, errorCode: "document_invalid", message: human.trimEnd() }) : human,
             stderr: "",
         };
     }
@@ -185,7 +190,7 @@ export async function runPipelineCommand(argv, context) {
             }
             const data = { overallStatus: report.overallStatus, nextAction: report.nextActions[0] ?? null };
             const human = data.nextAction === null ? "Pipeline complet.\n" : `${data.nextAction.kind} -> ${data.nextAction.stepId}: ${data.nextAction.reason}\n`;
-            return { code: pipelineExitCode(report), stdout: json ? `${JSON.stringify({ schemaVersion: 1, command: "pipeline.next", ok: report.overallStatus === "completed", data, errors: report.errors, warnings: report.warnings })}\n` : human, stderr: "" };
+            return { code: pipelineExitCode(report), stdout: json ? jsonEnvelope({ command: "pipeline.next", ok: report.overallStatus === "completed", data, errors: report.errors, warnings: report.warnings, errorCode: "pipeline_incomplete", message: human.trimEnd() }) : human, stderr: "" };
         }
         if (action === "scaffold") {
             return await runManagedScaffold(rest, context, management, pipeline, json);
@@ -195,9 +200,9 @@ export async function runPipelineCommand(argv, context) {
             const target = await resolveFeatureTarget(parsed.positionals[0], context.cwd, management);
             const document = parsed.values.get("document");
             if (document !== undefined) {
-                const result = await pipeline.validate({ filePath: resolve(target.root, document), pipelineId: target.pipelineId });
-                const human = `${result.valid ? "VALIDE" : "INVALIDE"} — ${document}\n${result.errors.join("\n")}${result.errors.length === 0 ? "" : "\n"}`;
-                return { code: result.valid ? 0 : 3, stdout: json ? `${JSON.stringify({ schemaVersion: 1, command: "pipeline.validate", ok: result.valid, data: result, errors: result.errors, warnings: [] })}\n` : human, stderr: "" };
+                const result = await pipeline.validate({ filePath: resolve(target.root, document), pipelineId: target.pipelineId, documentContractVersion: target.documentContractVersion });
+                const human = `${translate(result.valid ? "common.valid" : "common.invalid")} - ${document}\n${result.errors.join("\n")}${result.errors.length === 0 ? "" : "\n"}`;
+                return { code: result.valid ? 0 : 3, stdout: json ? jsonEnvelope({ command: "pipeline.validate", ok: result.valid, data: result, errors: result.errors, errorCode: "pipeline_document_invalid", message: human.trimEnd() }) : human, stderr: "" };
             }
             const report = withTargetWarnings(await pipeline.inspect(inspectInput(target)), target.warnings);
             return { code: pipelineExitCode(report), stdout: json ? `${JSON.stringify(pipelineReportEnvelope(report))}\n` : presentPipelineReport(report), stderr: "" };
@@ -235,9 +240,9 @@ async function runManagedScaffold(argv, context, management, pipeline, json) {
         throw new AgentScopeViolationError(agent.id.value, `path:${projectRelativeOutput}`);
     const result = await pipeline.scaffold({
         stepId: parsed.positionals[0], outputPath, allowedRoot: feature.root,
-        authorAgentId: agent.id.value, featureId: feature.id.value, pipelineId: feature.pipelineId, force: parsed.booleans.has("force"),
+        authorAgentId: agent.id.value, featureId: feature.id.value, pipelineId: feature.pipelineId, documentContractVersion: feature.documentContractVersion, force: parsed.booleans.has("force"),
     });
-    return { code: 0, stdout: json ? `${JSON.stringify({ schemaVersion: 1, command: "pipeline.scaffold", ok: true, data: result, errors: [], warnings: [] })}\n` : `Squelette écrit : ${result.outputPath}\n`, stderr: "" };
+    return { code: 0, stdout: json ? jsonEnvelope({ command: "pipeline.scaffold", ok: true, data: result }) : translate("cli.pipeline.scaffoldWritten", { path: result.outputPath, count: formatNumber(result.sentinelPaths.length) }), stderr: "" };
 }
 async function resolveFeatureTarget(value, cwd, management) {
     const candidate = resolve(cwd, value);
@@ -247,7 +252,7 @@ async function resolveFeatureTarget(value, cwd, management) {
             const feature = await new FsFeatureStore().load(featureRoot);
             return targetFromManagedFeature(feature, management);
         }
-        return { root: candidate, pipelineId: "arka-norn-default", warnings: ["Dossier sans marqueur Feature : pipeline standard utilisé par compatibilité."] };
+        return { root: candidate, pipelineId: DEFAULT_PIPELINE_ID, documentContractVersion: 3, warnings: ["Folder without a Feature marker: using the legacy Complete pipeline for compatibility."] };
     }
     const feature = await management.features.show(FeatureId.of(value));
     return targetFromManagedFeature(feature, management);
@@ -258,6 +263,7 @@ async function targetFromManagedFeature(feature, management) {
         root: feature.root,
         id: feature.id.value,
         pipelineId: feature.pipelineId,
+        documentContractVersion: feature.documentContractVersion,
         authorRegistry,
         warnings: [],
     };
@@ -267,6 +273,7 @@ function inspectInput(target) {
         featureRoot: target.root,
         pipelineId: target.pipelineId,
         ...(target.id === undefined ? {} : { featureId: target.id }),
+        documentContractVersion: target.documentContractVersion,
         ...(target.authorRegistry === undefined ? {} : { authorRegistry: target.authorRegistry }),
     };
 }
@@ -276,8 +283,8 @@ function withTargetWarnings(report, warnings) {
 function pipelineFailure(command, error, json, code) {
     const message = error instanceof Error ? error.message : String(error);
     return json
-        ? { code, stdout: `${JSON.stringify({ schemaVersion: 1, command, ok: false, data: null, errors: [message], warnings: [] })}\n`, stderr: "" }
-        : { code, stdout: "", stderr: `ERREUR — ${message}\n` };
+        ? { code, stdout: jsonEnvelope({ command, ok: false, data: null, errors: [message], errorCode: "pipeline_command_failed" }), stderr: "" }
+        : { code, stdout: "", stderr: `${translate("common.error", { message })}\n` };
 }
 function hasCode(error, expected) {
     return error instanceof Error && "code" in error && error.code === expected;

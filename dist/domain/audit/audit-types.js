@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export const AUDIT_MODES = ["decouverte", "audit", "mixte"];
-export const AUDIT_DEPTHS = ["inventaire", "statique", "connecte", "dynamique"];
+export const AUDIT_MODES = ["discovery", "audit", "mixed"];
+export const AUDIT_DEPTHS = ["inventory", "static", "connected", "dynamic"];
 export const AUDIT_MODULE_IDS = ["M00", "M01", "M02", "M03", "M04", "M05", "M06", "M07", "M08", "M09", "M10", "M11"];
 export const AUDIT_RUN_STATUSES = ["planned", "collecting", "analyzing", "completed", "partial", "blocked", "failed", "cancelled", "interrupted"];
 export const MODULE_EXECUTION_STATUSES = ["complete", "partial", "blocked", "error", "skipped"];

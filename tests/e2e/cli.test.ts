@@ -28,14 +28,14 @@ interface QaDocument {
 
 const ROOT = resolve(import.meta.dirname, "..", "..");
 const BIN = resolve(ROOT, "bin", "arka-norn.mjs");
-const EXAMPLE = resolve(ROOT, "examples", "feature-notion-linear");
+const EXAMPLE = resolve(ROOT, "tests", "fixtures", "legacy", "fr", "examples", "feature-complete");
 const AUTHOR = "Codex_e2e_20260819";
 
 test("status refuse de déclarer complet l'exemple dont la QA échoue", () => {
   const result = runCli(["status", EXAMPLE]);
   assert.equal(result.status, 2, result.stderr);
-  assert.doesNotMatch(result.stdout, /Pipeline complet/);
-  assert.match(result.stdout, /État\s+: failed/);
+  assert.doesNotMatch(result.stdout, /Pipeline complete/);
+  assert.match(result.stdout, /Status:\s+failed/);
   assert.match(result.stdout, /return_to_development -> cr_dev/);
 });
 
@@ -51,7 +51,7 @@ test("status accepte un pipeline structurellement complet avec QA pass", (contex
 
   const result = runCli(["status", sandbox]);
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /Pipeline complet/);
+  assert.match(result.stdout, /Pipeline complete/);
 });
 
 test("status signale une première action absente avec le code 2", (context) => {
@@ -83,8 +83,8 @@ test("status --json respecte l'enveloppe stable sans log parasite", () => {
     readonly errors: readonly unknown[];
     readonly warnings: readonly unknown[];
   };
-  assert.deepEqual(Object.keys(envelope), ["schemaVersion", "ok", "data", "errors", "warnings"]);
-  assert.equal(envelope.schemaVersion, 1);
+  assert.deepEqual(Object.keys(envelope), ["schemaVersion", "command", "ok", "data", "errors", "warnings", "diagnostics", "display"]);
+  assert.equal(envelope.schemaVersion, 2);
   assert.equal(envelope.ok, false);
   assert.equal(envelope.data.overallStatus, "failed");
   assert.equal(envelope.data.steps.length, 10);
@@ -113,12 +113,12 @@ test("scaffold refuse l'écrasement sans --force", (context) => {
 test("guide accompagne le parcours Project → Agent → Feature sans argument caché", () => {
   const guide = runCli(["guide"]);
   assert.equal(guide.status, 0, guide.stderr);
-  assert.match(guide.stdout, /S'identifier comme Product principal/);
+  assert.match(guide.stdout, /Register the main Product identity/);
   assert.match(guide.stdout, /agent current/);
   assert.match(guide.stdout, /agent advise/);
   assert.match(guide.stdout, /agent handoff-prompt/);
   assert.match(guide.stdout, /pipeline next/);
-  assert.match(guide.stdout, /ne devinez jamais/i);
+  assert.match(guide.stdout, /Never guess/i);
   const agentHelp = runCli(["agent", "help"]);
   assert.equal(agentHelp.status, 0, agentHelp.stderr);
   assert.match(agentHelp.stdout, /agent replace/);
@@ -132,21 +132,21 @@ test("validate --json sépare conformité et sentinelles", (context) => {
   assert.equal(runCli(["scaffold", "concept", output, "--agent", AUTHOR]).status, 0);
   const invalid = runCli(["validate", "--json", output]);
   assert.equal(invalid.status, 3);
-  const envelope = JSON.parse(invalid.stdout) as { readonly schemaVersion: number; readonly ok: boolean; readonly errors: readonly string[] };
-  assert.equal(envelope.schemaVersion, 1);
+  const envelope = JSON.parse(invalid.stdout) as { readonly schemaVersion: number; readonly ok: boolean; readonly errors: readonly string[]; readonly display: { readonly errors: readonly string[] } };
+  assert.equal(envelope.schemaVersion, 2);
   assert.equal(envelope.ok, false);
-  assert.ok(envelope.errors.some((error) => error.includes("sentinel")));
+  assert.ok(envelope.display.errors.some((error) => error.includes("sentinel")));
 
   const valid = runCli(["validate", resolve(EXAMPLE, "01-concept.json")]);
   assert.equal(valid.status, 0, valid.stderr);
-  assert.match(valid.stdout, /VALIDE/);
+  assert.match(valid.stdout, /VALID/);
 });
 
 test("la TUI refuse un environnement non interactif sans écrire sur stdout", () => {
   const result = runCli([]);
   assert.equal(result.status, 1);
   assert.equal(result.stdout, "");
-  assert.match(result.stderr, /nécessite un terminal interactif/);
+  assert.match(result.stderr, /requires an interactive terminal/);
 });
 
 test("doctor respecte ARKA_NORN_HOME et refuse toute option inconnue", (context) => {

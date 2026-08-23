@@ -1,61 +1,7 @@
-# Registre des agents
+# Agent Registry
 
-Chaque Project porte une source de vérité portable :
+Each Project owns `.arka-norn/agents.json`. An Agent identity includes provider, role, active state, Feature/path scope, responsibilities and replacement lineage.
 
-```text
-<project-root>/.arka-norn/agents.json
-```
+Sessions select Agents independently. The `main` session is reserved for Product control. Specialized audit, development and QA sessions must carry their session ID through every Agent and scaffold command.
 
-Une entrée relie une identité humaine, son provider, son rôle et son périmètre. L’identifiant est lisible et stable : `Provider_role_YYYYMMDD`, avec suffixe `_02` à `_99` en cas de collision le même jour. Ce n’est ni un UUID opaque ni un nom de session réutilisable.
-
-## Périmètre
-
-Le scope contient toujours le `projectId` et peut borner :
-
-- les `featureIds` ;
-- les chemins relatifs au Project ;
-- les responsabilités confiées.
-
-Une liste Features/chemins vide signifie tout le Project. Les chemins absolus et traversals `..` sont refusés.
-
-## Cycle de vie
-
-- `register` crée une identité active et la sélectionne dans la session provider courante ;
-- `use` sélectionne une identité active existante dans cette session ;
-- `deactivate` positionne `active: false` et interdit toute nouvelle production ;
-- `replace` crée le successeur, désactive l’ancien et écrit les deux relations `replacesAgentId` / `replacedByAgentId`.
-
-Le registre est écrit atomiquement sous lock. Les sélections restent locales dans `~/.arka-norn/context/agents.json` : elles ne modifient pas l’identité partagée du Project. Le format v2 sépare `selectedBySession[sessionId][projectId]`, ce qui empêche deux providers de s’écraser mutuellement. La session `main` est réservée au Product principal ; les rôles spécialisés utilisent par exemple `audit-ma-feature` ou `dev-ma-feature`.
-
-## Documents produit
-
-Tout nouveau scaffold de Feature produit un document `schema_version: 3` avec :
-
-```json
-{
-  "feature_id": "ma-feature",
-  "author_agent_id": "Codex-CLI_dev_20260819"
-}
-```
-
-Les documents v2 restent lisibles pour assurer la compatibilité. Une v3 sans `author_agent_id`, avec un identifiant mal formé ou produite par un agent inactif via la CLI est refusée. Le remplacement ne réécrit jamais les documents historiques.
-
-`audit_etat_reel` possède une exception strictement bornée : un audit du Project
-entier peut utiliser `schema_version: 4` et `project_id`, sans `feature_id`.
-Il est généré uniquement par `scaffold audit_etat_reel … --project … --agent …`,
-qui vérifie l’Agent actif et son scope. Aucun autre document v4 n’est admis.
-
-## Commandes
-
-```text
-arka-norn agent list --project <project-id> --active
-arka-norn agent register --project <project-id> --provider "Codex CLI" --role product --session main
-arka-norn agent register --project <project-id> --provider "Claude Code" --role audit --session audit-ma-feature
-arka-norn agent current --project <project-id> --session audit-ma-feature
-arka-norn agent use <agent-id> --project <project-id> --session audit-ma-feature
-arka-norn agent sessions --project <project-id>
-arka-norn agent replace <ancien-id> --project <project-id> --provider "Claude Code" --role dev
-arka-norn agent deactivate <agent-id> --project <project-id> --yes
-```
-
-La TUI expose les mêmes transitions dans Project → Gérer les agents et affiche la session qui porte l’identité courante. Le parcours Product et les prompts sont détaillés dans [`agent-orchestration.md`](agent-orchestration.md).
+Documents remain historically valid when their author later becomes inactive, provided the identity existed and was authorized for that Feature when verified. Replacement preserves both directions of lineage.

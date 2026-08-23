@@ -19,7 +19,7 @@
 import { isAbsolute, resolve } from "node:path";
 
 if (process.env.ARKA_MASTRA_SMOKE !== "1") {
-  console.error("Smoke Mastra désactivé. Définir ARKA_MASTRA_SMOKE=1 pour une exécution réelle explicite.");
+  console.error("Mastra smoke test disabled. Set ARKA_MASTRA_SMOKE=1 for an explicit live run.");
   process.exitCode = 64;
 } else {
   await runSmoke();

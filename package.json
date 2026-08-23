@@ -1,6 +1,6 @@
 {
   "name": "arka-norn",
-  "version": "1.3.0",
+  "version": "2.0.0",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -31,14 +31,16 @@
     "pipeline.json"
   ],
   "type": "module",
-  "description": "Cockpit local multiprovider pour découvrir et auditer un dépôt, puis piloter Projects, Features, Agents, preuves et workflows vérifiables avec Claude ou Codex.",
+  "description": "Local multi-provider cockpit for repository discovery, verified Features, Agents, evidence and auditable delivery workflows.",
   "bin": {
     "arka-norn": "bin/arka-norn.mjs"
   },
   "scripts": {
-    "build": "node scripts/clean-dist.mjs && tsc",
+    "build": "node scripts/generate-v2-skills.mjs && node scripts/clean-dist.mjs && tsc && node scripts/generate-v2-examples.mjs && node scripts/generate-web-catalogs.mjs",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.tests.json",
     "check:js-syntax": "node tests/lint.mjs",
+    "check:max-lines": "node scripts/check-max-lines.mjs",
+    "check:language": "node scripts/check-language.mjs",
     "lint": "eslint . --max-warnings 0",
     "test": "node tests/run-tests.mjs",
     "test:unit": "node tests/run-tests.mjs unit",
@@ -48,7 +50,7 @@
     "test:coverage:cli": "c8 --all --include \"src/adapters/inbound/cli/**/*.ts\" --reporter=text --reporter=json-summary --check-coverage --lines 70 --functions 70 --branches 60 npm run test:unit",
     "smoke:mastra": "node scripts/mastra-smoke.mjs",
     "benchmark": "npm run build && node scripts/benchmark.mjs",
-    "check": "npm run lint && npm run selftest",
+    "check": "npm run check:max-lines && npm run check:language && npm run lint && npm run selftest",
     "prepare": "npm run build",
     "prepack": "npm run build",
     "install-skills": "node bin/arka-norn.mjs install",

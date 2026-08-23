@@ -70,10 +70,10 @@ test("install déploie réellement chaque skill dans un target et un home tempor
     resolve(home, ".codex", "skills", "arka-norn", "SKILL.md"),
   ]) {
     const content = readFileSync(globalNorn, "utf8");
-    assert.match(content, /mode_orchestration/, globalNorn);
-    assert.match(content, /`manual` ou `automatic`/, globalNorn);
-    assert.match(content, /project add <racine> --name <nom> --orchestration-mode <manual\|automatic>/, globalNorn);
-    assert.match(content, /skills doctor --target <racine> --profile all --global --json/, globalNorn);
+    assert.match(content, /locale show --json/, globalNorn);
+    assert.match(content, /content_locale/, globalNorn);
+    assert.match(content, /pipeline next <feature> --json/, globalNorn);
+    assert.match(content, /Do not execute a second phase/, globalNorn);
   }
 
   const healthy = spawnSync(process.execPath, [BIN, "skills", "doctor", "--target", target, "--profile", "all", "--global", "--json"], {
@@ -92,7 +92,7 @@ test("install déploie réellement chaque skill dans un target et un home tempor
   assert.equal(healthyData.checks.length, 21);
   assert.ok(healthyData.checks.every((check) => check.status === "ok"));
 
-  const divergentName = "arka-framework-recette-qa";
+  const divergentName = "arka-framework-qa-review";
   const divergentSkill = resolve(home, ".codex", "skills", divergentName, "SKILL.md");
   writeFileSync(divergentSkill, "divergent\n");
   const divergent = spawnSync(process.execPath, [BIN, "skills", "doctor", "--target", target, "--profile", "all", "--global", "--json"], {
@@ -145,7 +145,7 @@ test("install dry-run ne crée rien et un conflit exige --force avec backup", (c
 
   const initial = spawnSync(process.execPath, [BIN, "install", "--target", target], { cwd: ROOT, encoding: "utf8" });
   assert.equal(initial.status, 0, initial.stderr);
-  const skill = resolve(target, ".agents", "skills", "arka-framework-statut", "SKILL.md");
+  const skill = resolve(target, ".agents", "skills", "arka-framework-status", "SKILL.md");
   writeFileSync(skill, "custom local content\n");
 
   const refused = spawnSync(process.execPath, [BIN, "install", "--target", target], { cwd: ROOT, encoding: "utf8" });

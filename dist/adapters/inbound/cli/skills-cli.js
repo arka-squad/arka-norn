@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 import { resolve } from "node:path";
+import { translate } from "../../../application/localization/locale.js";
 import { createSkillCatalogRuntime } from "../../outbound/skills/skill-catalog.js";
 import { findOrphanSkills, inspectSkills, installSkills } from "../../outbound/skills/skill-installer.js";
 import { CliUsageError, parseStrictArguments } from "./strict-arguments.js";
+import { jsonEnvelope } from "./cli-envelope.js";
 export function runSkillsCommand(argv, context) {
     const action = argv[0];
     const rest = argv.slice(1);
@@ -54,9 +56,9 @@ export function runSkillsCommand(argv, context) {
             const data = { profile, target, global: globalHome !== undefined, checks, orphans };
             const human = [
                 ...checks.map((check) => `${check.status.toUpperCase()}\t${check.name}`),
-                ...orphans.map((orphan) => `WARN\t${orphan.name}\tentrée arka non gérée — ${orphan.location}`),
+                ...orphans.map((orphan) => `WARN\t${orphan.name}\tunmanaged arka entry - ${orphan.location}`),
             ].join("\n");
-            return envelope("skills.doctor", ok, data, ok ? [] : ["Skills absents ou divergents."], json, ok ? 0 : 3, human);
+            return envelope("skills.doctor", ok, data, ok ? [] : ["Skills are missing or divergent."], json, ok ? 0 : 3, human);
         }
         throw new CliUsageError("skills action must be list, install or doctor");
     }
@@ -98,14 +100,14 @@ function success(command, data, json, human) {
 }
 function envelope(command, ok, data, errors, json, code, human) {
     if (json)
-        return { code, stdout: `${JSON.stringify({ schemaVersion: 1, command, ok, data, errors, warnings: [] })}\n`, stderr: "" };
-    return { code, stdout: human.length === 0 ? "" : `${human}\n`, stderr: errors.map((error) => `ERREUR — ${error}\n`).join("") };
+        return { code, stdout: jsonEnvelope({ command, ok, data, errors, errorCode: "skills_command_failed" }), stderr: "" };
+    return { code, stdout: human.length === 0 ? "" : `${human}\n`, stderr: errors.map((error) => `${translate("common.error", { message: error })}\n`).join("") };
 }
 function failure(command, error, json) {
     const message = error instanceof Error ? error.message : String(error);
     const code = error instanceof CliUsageError || message.startsWith("Profil inconnu") || message.startsWith("Catalogue") ? 64 : 70;
     return json
-        ? { code, stdout: `${JSON.stringify({ schemaVersion: 1, command, ok: false, data: null, errors: [message], warnings: [] })}\n`, stderr: "" }
-        : { code, stdout: "", stderr: `ERREUR — ${message}\n` };
+        ? { code, stdout: jsonEnvelope({ command, ok: false, data: null, errors: [message], errorCode: "skills_command_failed" }), stderr: "" }
+        : { code, stdout: "", stderr: `${translate("common.error", { message })}\n` };
 }
 //# sourceMappingURL=skills-cli.js.map

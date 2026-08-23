@@ -21,50 +21,50 @@ import { evaluatePipeline } from "../../src/domain/pipeline/evaluate-pipeline.ts
 import type { EvaluatedDocument, PipelineEvaluationInput } from "../../src/domain/pipeline/pipeline-report.ts";
 
 const steps: PipelineEvaluationInput["steps"] = [
-  { id: "cadrage_rework", order: 1, required: true, multiple: false, dependsOn: [] },
-  { id: "cr_dev", order: 2, required: true, multiple: true, dependsOn: ["cadrage_rework"], businessPolicy: { type: "delivery", verdictField: "statut", passValues: ["livre"], inProgressValues: ["partiel"] } },
-  { id: "audit_rework", order: 3, required: true, multiple: true, dependsOn: ["cr_dev"], businessPolicy: { type: "audit_then_fix", targetStep: "cr_dev", targetDocumentField: "cr_dev_id", verdictField: "verdict", passValues: ["pass"], failValues: ["corrections_requises", "bloque"], retryStep: "cr_dev" } },
-  { id: "validation_fastdev", order: 4, required: true, multiple: true, dependsOn: ["cr_dev", "audit_rework"], businessPolicy: { type: "review_latest", targetStep: "cr_dev", targetDocumentField: "cr_dev_id", verdictField: "verdict", passValues: ["pass"], failValues: ["fail"], inProgressValues: ["partial"], retryStep: "cr_dev" } },
+  { id: "rework_brief", order: 1, required: true, multiple: false, dependsOn: [] },
+  { id: "development_report", order: 2, required: true, multiple: true, dependsOn: ["rework_brief"], businessPolicy: { type: "delivery", verdictField: "status", passValues: ["delivered"], inProgressValues: ["partial"] } },
+  { id: "delivery_audit", order: 3, required: true, multiple: true, dependsOn: ["development_report"], businessPolicy: { type: "audit_then_fix", targetStep: "development_report", targetDocumentField: "development_report_id", verdictField: "verdict", passValues: ["pass"], failValues: ["corrections_required", "blocked"], retryStep: "development_report" } },
+  { id: "delivery_validation", order: 4, required: true, multiple: true, dependsOn: ["development_report", "delivery_audit"], businessPolicy: { type: "review_latest", targetStep: "development_report", targetDocumentField: "development_report_id", verdictField: "verdict", passValues: ["pass"], failValues: ["fail"], inProgressValues: ["partial"], retryStep: "development_report" } },
 ];
 
-test("audit pass puis validation pass terminent FastDev", () => {
-  const report = evaluate([cadrage(), cr("cr-1", 1, ["scope-1"]), audit("audit-1", "cr-1", "pass"), validation("validation-1", "cr-1", "audit-1", "pass")]);
+test("a passing audit and validation complete FastDev", () => {
+  const report = evaluate([brief(), developmentReport("cr-1", 1, ["scope-1"]), audit("audit-1", "cr-1", "pass"), validation("validation-1", "cr-1", "audit-1", "pass")]);
   assert.equal(report.overallStatus, "completed");
   assert.equal(report.latestCrDevId, "cr-1");
   assert.equal(report.selectedValidationId, "validation-1");
 });
 
-test("audit corrections_requises impose un nouveau CR dépendant et complet", () => {
-  const base = [cadrage(), cr("cr-1", 1, ["scope-1"]), audit("audit-1", "cr-1", "corrections_requises")];
+test("required corrections need a dependent report that closes every finding", () => {
+  const base = [brief(), developmentReport("cr-1", 1, ["scope-1"]), audit("audit-1", "cr-1", "corrections_required")];
   const missing = evaluate(base);
   assert.equal(missing.overallStatus, "failed");
   assert.equal(missing.nextActions[0]?.kind, "return_to_development");
 
-  const partial = evaluate([...base, cr("cr-2", 2, ["scope-1", "audit-1"], [])]);
+  const partial = evaluate([...base, developmentReport("cr-2", 2, ["scope-1", "audit-1"], [])]);
   assert.equal(partial.overallStatus, "failed");
-  assert.match(partial.nextActions[0]?.reason ?? "", /ne ferme pas/);
+  assert.match(partial.nextActions[0]?.reason ?? "", /does not close/);
 
-  const corrected = cr("cr-2", 2, ["scope-1", "audit-1"], [{ source_document_id: "audit-1", constat_id: "F-1", action: "corrigé", preuve: "test" }]);
+  const corrected = developmentReport("cr-2", 2, ["scope-1", "audit-1"], [{ source_document_id: "audit-1", finding_id: "F-1", action: "fixed", evidence: "test" }]);
   const complete = evaluate([...base, corrected, validation("validation-2", "cr-2", "audit-1", "pass")]);
   assert.equal(complete.overallStatus, "completed");
 });
 
-test("validation fail devient obsolète après un nouveau CR qui en dépend", () => {
+test("a failed validation becomes stale after a dependent corrective report", () => {
   const documents = [
-    cadrage(),
-    cr("cr-1", 1, ["scope-1"]),
+    brief(),
+    developmentReport("cr-1", 1, ["scope-1"]),
     audit("audit-1", "cr-1", "pass"),
     validation("validation-1", "cr-1", "audit-1", "fail"),
   ];
   assert.equal(evaluate(documents).nextActions[0]?.kind, "return_to_development");
-  const stale = evaluate([...documents, cr("cr-2", 2, ["scope-1", "validation-1"])]);
+  const stale = evaluate([...documents, developmentReport("cr-2", 2, ["scope-1", "validation-1"])]);
   assert.equal(stale.overallStatus, "incomplete");
   assert.equal(stale.nextActions[0]?.kind, "run_validation");
   assert.equal(stale.selectedValidationId, undefined);
 });
 
-test("les auteurs v3 doivent être enregistrés et autorisés, mais peuvent être inactifs historiquement", () => {
-  const historical = cadrage("Former_dev_20260820");
+test("v3 authors must be registered and authorized but may be historically inactive", () => {
+  const historical = brief("Former_dev_20260820");
   const inactive = evaluate([historical], [{ id: "Former_dev_20260820", active: false, authorized: true }]);
   assert.equal(inactive.errors.length, 0);
 
@@ -89,24 +89,24 @@ function evaluate(
   });
 }
 
-function cadrage(authorAgentId = "Codex_dev_20260820"): EvaluatedDocument {
-  return document("cadrage_rework", "scope-1", [], 1, { schema_version: 3, author_agent_id: authorAgentId });
+function brief(authorAgentId = "Codex_dev_20260820"): EvaluatedDocument {
+  return document("rework_brief", "scope-1", [], 1, { schema_version: 5, author_agent_id: authorAgentId });
 }
 
-function cr(id: string, sequence: number, dependencies: readonly string[], corrections?: readonly Readonly<Record<string, unknown>>[]): EvaluatedDocument {
-  return document("cr_dev", id, dependencies, sequence, { statut: "livre", ...(corrections === undefined ? {} : { corrections_apportees: corrections }) }, "livre");
+function developmentReport(id: string, sequence: number, dependencies: readonly string[], corrections?: readonly Readonly<Record<string, unknown>>[]): EvaluatedDocument {
+  return document("development_report", id, dependencies, sequence, { status: "delivered", ...(corrections === undefined ? {} : { corrections_applied: corrections }) }, "delivered");
 }
 
-function audit(id: string, crDevId: string, verdict: "pass" | "corrections_requises"): EvaluatedDocument {
-  return document("audit_rework", id, [crDevId], 1, {
-    cr_dev_id: crDevId,
+function audit(id: string, reportId: string, verdict: "pass" | "corrections_required"): EvaluatedDocument {
+  return document("delivery_audit", id, [reportId], 1, {
+    development_report_id: reportId,
     verdict,
-    constats: verdict === "corrections_requises" ? [{ id: "F-1", decision: "corriger" }] : [],
-  }, verdict, crDevId);
+    findings: verdict === "corrections_required" ? [{ id: "F-1", decision: "fix" }] : [],
+  }, verdict, reportId);
 }
 
-function validation(id: string, crDevId: string, auditId: string, verdict: "pass" | "fail"): EvaluatedDocument {
-  return document("validation_fastdev", id, [crDevId, auditId], 1, { cr_dev_id: crDevId, audit_rework_id: auditId, verdict }, verdict, crDevId);
+function validation(id: string, reportId: string, auditId: string, verdict: "pass" | "fail"): EvaluatedDocument {
+  return document("delivery_validation", id, [reportId, auditId], 1, { development_report_id: reportId, delivery_audit_id: auditId, verdict }, verdict, reportId);
 }
 
 function document(

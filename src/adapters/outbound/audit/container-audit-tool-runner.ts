@@ -10,6 +10,7 @@ import { basename, join } from "node:path";
 
 import { AUDIT_TOOL_CATALOG, auditToolDefinition, type AuditToolId } from "../../../domain/audit/tool-catalog.js";
 import type { AuditToolInvocation, AuditToolResult, AuditToolRunner, AuditToolStatus } from "../../../ports/outbound/audit-tool-runner.js";
+import { translate } from "../../../application/localization/locale.js";
 
 const MAX_OUTPUT_BYTES = 2 * 1024 * 1024;
 const MAX_COPY_FILES = 50_000;
@@ -32,15 +33,15 @@ export class ContainerAuditToolRunner implements AuditToolRunner {
     validateInvocation(invocation);
     const definition = auditToolDefinition(invocation.toolId);
     const installed = (await execute(this.runtime, ["image", "inspect", definition.image], 15_000)).exitCode === 0;
-    if (!installed && !invocation.allowPull) return { status: "not_executed", exitCode: null, stdout: "", stderr: "Image absente et téléchargement non autorisé.", truncated: false };
+    if (!installed && !invocation.allowPull) return { status: "not_executed", exitCode: null, stdout: "", stderr: translate("audit.runner.imageMissing"), truncated: false };
     if (!installed) {
       const pull = await execute(this.runtime, ["pull", definition.image], Math.max(invocation.timeoutMs, 120_000));
       if (pull.exitCode !== 0) return { ...pull, status: "error" };
     }
     if (definition.network === "allowlisted") {
       const reason = invocation.allowNetwork
-        ? "Collecteur connecté suspendu : aucun proxy d'egress à allowlist n'est configuré."
-        : "Accès réseau requis mais non autorisé.";
+        ? translate("audit.runner.egressMissing")
+        : translate("audit.runner.networkDenied");
       return { status: "not_executed", exitCode: null, stdout: "", stderr: reason, truncated: false };
     }
     const projectRoot = await fs.realpath(invocation.projectRoot);

@@ -1,0 +1,108 @@
+{
+  "$id": "pipelines/arka-norn-essential.json",
+  "schemaVersion": 3,
+  "pipelineId": "arka-norn-essential",
+  "version": "2.0.0",
+  "name": "Essential",
+  "description": "Five-step default workflow for delivering a well-understood Feature.",
+  "steps": [
+    {
+      "id": "feature_brief",
+      "order": 1,
+      "schema": "schemas/feature-brief.schema.json",
+      "required": true,
+      "multiple": false,
+      "dependsOn": []
+    },
+    {
+      "id": "technical_contract_appendix",
+      "order": 2,
+      "schema": "schemas/technical-contract-appendix.schema.json",
+      "required": false,
+      "multiple": false,
+      "dependsOn": [
+        "feature_brief"
+      ]
+    },
+    {
+      "id": "development_report",
+      "order": 3,
+      "schema": "schemas/development-report.schema.json",
+      "required": true,
+      "multiple": true,
+      "dependsOn": [
+        "feature_brief"
+      ],
+      "businessPolicy": {
+        "type": "delivery",
+        "verdictField": "status",
+        "passValues": [
+          "delivered"
+        ],
+        "inProgressValues": [
+          "partial"
+        ]
+      }
+    },
+    {
+      "id": "delivery_audit",
+      "order": 4,
+      "schema": "schemas/delivery-audit.schema.json",
+      "required": true,
+      "multiple": true,
+      "dependsOn": [
+        "development_report"
+      ],
+      "loopTo": "development_report",
+      "businessPolicy": {
+        "type": "audit_then_fix",
+        "targetStep": "development_report",
+        "targetDocumentField": "development_report_id",
+        "verdictField": "verdict",
+        "passValues": [
+          "pass"
+        ],
+        "failValues": [
+          "corrections_required",
+          "blocked"
+        ],
+        "retryStep": "development_report"
+      }
+    },
+    {
+      "id": "delivery_validation",
+      "order": 5,
+      "schema": "schemas/delivery-validation.schema.json",
+      "required": true,
+      "multiple": true,
+      "dependsOn": [
+        "development_report",
+        "delivery_audit"
+      ],
+      "loopTo": "development_report",
+      "businessPolicy": {
+        "type": "review_latest",
+        "targetStep": "development_report",
+        "targetDocumentField": "development_report_id",
+        "verdictField": "verdict",
+        "passValues": [
+          "pass"
+        ],
+        "failValues": [
+          "fail"
+        ],
+        "inProgressValues": [
+          "partial"
+        ],
+        "retryStep": "development_report"
+      }
+    }
+  ],
+  "transversal": {
+    "handoff": {
+      "schema": "schemas/handoff.schema.json",
+      "description": "Optional handoff between agents or providers."
+    }
+  },
+  "definitionOfDone": "Every required document validates, every dependency resolves and the latest delivery review passes."
+}

@@ -42,7 +42,7 @@ export function guidedNext(report: PipelineReport, featureId: string, sessionId:
     return {
       featureId,
       pipelineId: report.pipelineId,
-      phase: "Terminé",
+      phase: "completed",
       iteration: Math.max(1, deliveryRuns),
       action: null,
       prerequisites: report.steps.map((step) => step.id),

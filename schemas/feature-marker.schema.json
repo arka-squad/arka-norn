@@ -1,17 +1,50 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "feature-marker.schema.json",
-  "title": "Marker Feature arka-norn v3 portable",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "id", "projectId", "name", "pipelineId", "createdAt", "updatedAt"],
+  "required": [
+    "schemaVersion",
+    "id",
+    "projectId",
+    "name",
+    "pipelineId",
+    "createdAt",
+    "updatedAt",
+    "documentContractVersion"
+  ],
   "properties": {
-    "schemaVersion": { "const": 3 },
-    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
-    "projectId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
-    "name": { "type": "string", "minLength": 1, "maxLength": 256 },
-    "pipelineId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$" },
-    "createdAt": { "type": "string", "format": "date-time" },
-    "updatedAt": { "type": "string", "format": "date-time" }
-  }
+    "schemaVersion": {
+      "const": 4
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+    },
+    "projectId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "pipelineId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "documentContractVersion": {
+      "const": 5
+    }
+  },
+  "title": "Feature Marker"
 }

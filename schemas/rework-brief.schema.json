@@ -1,0 +1,239 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rework-brief.schema.json",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "document-envelope.schema.json"
+    }
+  ],
+  "unevaluatedProperties": false,
+  "required": [
+    "schema_version",
+    "author_agent_id",
+    "id",
+    "feature_id",
+    "type",
+    "sequence",
+    "created_at",
+    "depends_on_document_ids",
+    "problem",
+    "expected_outcome",
+    "scope",
+    "impacted_areas",
+    "strategy",
+    "acceptance_criteria",
+    "expected_tests",
+    "risks",
+    "definition_of_done"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 5
+    },
+    "author_agent_id": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string"
+    },
+    "feature_id": {
+      "type": "string"
+    },
+    "type": {
+      "const": "rework_brief"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "depends_on_document_ids": {
+      "type": "array",
+      "maxItems": 0
+    },
+    "problem": {
+      "type": "string",
+      "minLength": 1
+    },
+    "expected_outcome": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "included",
+        "excluded"
+      ],
+      "properties": {
+        "included": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "excluded": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "impacted_areas": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "strategy": {
+      "type": "string",
+      "minLength": 1
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "dimension",
+          "criterion",
+          "expected_evidence"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+          },
+          "dimension": {
+            "enum": [
+              "code",
+              "functional",
+              "ux",
+              "security"
+            ]
+          },
+          "criterion": {
+            "type": "string",
+            "minLength": 1
+          },
+          "expected_evidence": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "allOf": [
+        {
+          "contains": {
+            "type": "object",
+            "properties": {
+              "dimension": {
+                "const": "code"
+              }
+            },
+            "required": [
+              "dimension"
+            ]
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "properties": {
+              "dimension": {
+                "const": "functional"
+              }
+            },
+            "required": [
+              "dimension"
+            ]
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "properties": {
+              "dimension": {
+                "const": "ux"
+              }
+            },
+            "required": [
+              "dimension"
+            ]
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "properties": {
+              "dimension": {
+                "const": "security"
+              }
+            },
+            "required": [
+              "dimension"
+            ]
+          }
+        }
+      ]
+    },
+    "expected_tests": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "risks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "risk",
+          "mitigation"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "risk": {
+            "type": "string",
+            "minLength": 1
+          },
+          "mitigation": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "definition_of_done": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "title": "Rework Brief"
+}

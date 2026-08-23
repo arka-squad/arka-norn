@@ -1,76 +1,84 @@
 {
   "$schema": "manifest.json",
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "name": "arka-norn",
-  "version": "1.3.0",
-  "description": "Cockpit local et agent-agnostique pour gérer Project, Feature, Pipeline, documents, audits transverses, runs et handoffs.",
-  "entryPoint": "bin/arka-norn.mjs",
+  "version": "2.0.0",
+  "description": "Local agent-agnostic cockpit for Projects, Features, Pipelines, signed documents, audits, runs and handoffs.",
+  "locales": {
+    "canonical": "en",
+    "supported": [
+      "en",
+      "fr"
+    ],
+    "fallback": "en",
+    "preference": "$ARKA_NORN_HOME/.arka-norn/preferences.json"
+  },
   "domain": {
     "relation": "Project -> Feature -> Pipeline -> Document/Run",
     "projectMarker": ".arka-norn/project.json",
     "featureMarker": ".arka-norn/feature.json",
     "agentRegistry": ".arka-norn/agents.json",
-    "vocabulary": "docs/domain/vocabulaire.md"
+    "vocabulary": "docs/domain/vocabulary.md"
   },
   "contracts": {
     "pipeline": "pipeline.json",
     "pipelineCatalog": "pipelines/catalog.json",
-    "essentielPipeline": "pipelines/arka-norn-essentiel.json",
+    "essentialPipeline": "pipelines/arka-norn-essential.json",
     "fastdevPipeline": "pipelines/arka-norn-fastdev.json",
+    "legacyContracts": "schemas/legacy/fr/",
     "schemas": "schemas/",
-    "userManual": "docs/manuel-utilisateur.md",
-    "developerGuide": "docs/guide-developpeur.md",
-    "essentielGuide": "docs/essentiel.md",
-    "essentielDesignBrief": "docs/design/brief-interface-web-essentiel.md",
-    "agentBootstrapGuide": "docs/agent-bootstrap.md",
-    "conceptBrainstormingGuide": "docs/concept-brainstorming-web.md",
-    "auditDomains": "docs/audit/domaines.md",
-    "auditSecurity": "docs/audit/securite.md",
+    "userGuide": "docs/user-guide.md",
+    "developerGuide": "docs/developer-guide.md",
+    "essentialGuide": "docs/essential.md",
+    "agentGuide": "docs/agent-guide.md",
+    "auditDomains": "docs/audit/domains.md",
+    "auditSecurity": "docs/audit/security.md",
     "adrs": [
-      "docs/adr/ADR-001-project-canonique.md",
-      "docs/adr/ADR-002-sources-de-verite.md",
-      "docs/adr/ADR-003-versionnement-migrations.md",
-      "docs/adr/ADR-004-contrat-cli.md",
-      "docs/adr/ADR-005-registre-agents-identite-documentaire.md",
-      "docs/adr/ADR-006-audit-project-v4.md"
+      "docs/adr/ADR-001-canonical-project.md",
+      "docs/adr/ADR-002-sources-of-truth.md",
+      "docs/adr/ADR-003-versioning-and-migrations.md",
+      "docs/adr/ADR-004-cli-contract.md",
+      "docs/adr/ADR-005-agent-registry.md",
+      "docs/adr/ADR-006-project-audit-v5.md"
     ]
   },
   "cli": {
     "tui": "arka-norn",
+    "locale": "arka-norn locale <show|set auto|en|fr>",
     "project": "arka-norn project <list|add|import|scan|show|use|forget|reconcile>",
     "feature": "arka-norn feature <list|create|import|scan|show|use|forget|reconcile|set-workflow>",
     "agent": "arka-norn agent <list|register|show|current|use|sessions|advise|prompt|handoff-prompt|deactivate|replace>",
     "pipeline": "arka-norn pipeline <status|next|scaffold|validate>",
     "workflow": "arka-norn workflow <list|show>",
-    "essentiel": "arka-norn essentiel <start|status|next>",
+    "essential": "arka-norn essential <start|status|next>",
     "fastdev": "arka-norn fastdev <start|status|next>",
     "audit": "arka-norn audit <inspect|prepare|start|status|submit|finalize|cancel|resume|list|show|compare|kb|evidence|export|tools>",
     "skills": "arka-norn skills <list|install|doctor>",
-    "agentBootstrap": "/arka-norn (Claude) | $arka-norn (Codex)",
-    "doctor": "arka-norn doctor [--repair [--apply]]",
     "migrate": "arka-norn migrate [--target <path>] [--dry-run|--apply]",
-    "status": "arka-norn status <feature-root>",
-    "scaffold": "arka-norn scaffold <step-id> <output.json>",
-    "validate": "arka-norn validate <document.json>",
-    "install": "arka-norn install [--global] [--target <project>] [--profile all|core|delivery] [--dry-run]",
+    "doctor": "arka-norn doctor [--repair [--apply]]",
     "selftest": "arka-norn selftest"
   },
   "quality": {
     "gate": "npm run check",
     "typecheck": "npm run typecheck",
-    "tests": ["npm run test:unit", "npm run test:integration", "npm run test:e2e"]
+    "maxSourceLines": 700,
+    "tests": [
+      "npm run test:unit",
+      "npm run test:integration",
+      "npm run test:e2e"
+    ]
+  },
+  "distribution": {
+    "privateInputExcluded": ".input/",
+    "publicDocumentationLocale": "en"
   },
   "rules": [
-    "Markers portables are sources of truth; local indexes are reconstructible caches.",
-    "A Feature always references its owning Project with projectId.",
-    "Every new v3 document names an active author_agent_id from the Project registry.",
-    "Agent replacement deactivates the old identity and preserves bidirectional lineage.",
-    "A structurally valid document is not automatically business-complete.",
-    "QA completion requires pass for the latest valid development report.",
-    "New Features default to Essentiel; existing and migrated markers keep their explicit pipeline.",
-    "FastDev completion requires validation_fastdev pass for the latest delivered development report.",
-    "The public arka-norn skill resolves the Project and active Agent before product work starts.",
-    "Generated skills are compiled from skills-src and never edited in place.",
-    "Transverse audits never create a Feature or mutate pipeline.json."
+    "English is canonical for code, identifiers, contracts, commands and public documentation.",
+    "Human display text follows the active EN/FR locale; machine data never changes with locale.",
+    "New Features use Essential by default; existing legacy Features retain their explicit contract until migration.",
+    "Portable markers are sources of truth and local indexes are reconstructible caches.",
+    "Every v5 document declares content_locale and a verified author_agent_id.",
+    "Generated skills and Web catalogs come from canonical sources and are never copied manually.",
+    "No source file may exceed 700 lines."
   ]
 }

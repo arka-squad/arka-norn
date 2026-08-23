@@ -64,7 +64,6 @@ try {
   const afterProjects = performance.now();
   const features = await management.features.list();
   const afterFeatures = performance.now();
-  // Le dataset synthétique ne contient aucun document signé ; il fournit donc
   // explicitement le registre d'auteurs vide requis par l'inspection stricte.
   const metrics = await loadProjectMetrics(features.slice(0, DASHBOARD_COUNT), pipeline, () => []);
   const end = performance.now();
@@ -81,7 +80,7 @@ try {
     throw new Error(`Benchmark incomplet : ${JSON.stringify(counts)}`);
   }
   if (exceeded.length > 0) {
-    throw new Error(`Budget de performance dépassé : ${exceeded.map(([key, budget]) => `${key}=${durations[key]}ms>${budget}ms`).join(", ")}`);
+  throw new Error(`Performance budget exceeded: ${exceeded.map(([key, budget]) => `${key}=${durations[key]}ms>${budget}ms`).join(", ")}`);
   }
 } finally {
   await rm(sandbox, { recursive: true, force: true });

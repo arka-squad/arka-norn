@@ -40,12 +40,12 @@ test("cycle local inspect, prepare, start, finalize, KB et export sans Pipeline"
 
   const run = await service.prepare(project, {
     objective: "Découvrir code, architecture et produit",
-    mode: "decouverte",
+    mode: "discovery",
     paths: ["."],
     modules: [
-      { moduleId: "M02", intent: "discover", depth: "inventaire", criteria: [] },
-      { moduleId: "M03", intent: "discover", depth: "inventaire", criteria: [] },
-      { moduleId: "M09", intent: "discover", depth: "inventaire", criteria: [] },
+      { moduleId: "M02", intent: "discover", depth: "inventory", criteria: [] },
+      { moduleId: "M03", intent: "discover", depth: "inventory", criteria: [] },
+      { moduleId: "M09", intent: "discover", depth: "inventory", criteria: [] },
     ],
     sources: { paths: [], urls: [] },
     capabilities: { allowImagePulls: false, allowedHosts: [], credentialRefs: [], dynamicTargets: [] },
@@ -60,7 +60,7 @@ test("cycle local inspect, prepare, start, finalize, KB et export sans Pipeline"
   const finalized = await service.finalize(run.id);
   assert.equal(finalized.run.status, "completed");
   assert.ok(existsSync(finalized.reportPath));
-  assert.match(readFileSync(finalized.reportPath, "utf8"), /Carte du dépôt et du produit/);
+  assert.match(readFileSync(finalized.reportPath, "utf8"), /Repository and product map/);
   assert.ok((await store.searchKb({ type: "evidence" })).length > 0);
 
   const files = await store.exportAudit(run.id, exported, false);
@@ -71,19 +71,19 @@ test("cycle local inspect, prepare, start, finalize, KB et export sans Pipeline"
 
   const rerun = await service.prepare(project, {
     objective: "Découvrir code, architecture et produit une seconde fois",
-    mode: "decouverte",
+    mode: "discovery",
     paths: ["."],
     modules: [
-      { moduleId: "M02", intent: "discover", depth: "inventaire", criteria: [] },
-      { moduleId: "M03", intent: "discover", depth: "inventaire", criteria: [] },
-      { moduleId: "M09", intent: "discover", depth: "inventaire", criteria: [] },
+      { moduleId: "M02", intent: "discover", depth: "inventory", criteria: [] },
+      { moduleId: "M03", intent: "discover", depth: "inventory", criteria: [] },
+      { moduleId: "M09", intent: "discover", depth: "inventory", criteria: [] },
     ],
     sources: { paths: [], urls: [] },
     capabilities: { allowImagePulls: false, allowedHosts: [], credentialRefs: [], dynamicTargets: [] },
   });
   await service.start(project, rerun.id, rerun.fingerprint);
   const reused = await store.loadModuleResult(rerun.id, "M02");
-  assert.match(reused?.strengths.join(" ") ?? "", /réutilisée depuis/);
+  assert.match(reused?.strengths.join(" ") ?? "", /reused from/);
   await service.finalize(rerun.id);
   const comparison = await service.compare(rerun.id, run.id);
   assert.equal(comparison.coverageChanged, false);
@@ -102,9 +102,9 @@ test("une reprise refuse un workspace modifié après la confirmation", async (c
   const project = { projectId: "resume", projectName: "Resume", projectRoot: root, featureId: null };
   const run = await service.prepare(project, {
     objective: "Découvrir le dépôt",
-    mode: "decouverte",
+    mode: "discovery",
     paths: ["."],
-    modules: [{ moduleId: "M01", intent: "discover", depth: "inventaire", criteria: [] }],
+    modules: [{ moduleId: "M01", intent: "discover", depth: "inventory", criteria: [] }],
     sources: { paths: [], urls: [] },
     capabilities: { allowImagePulls: false, allowedHosts: [], credentialRefs: [], dynamicTargets: [] },
   });
@@ -112,7 +112,7 @@ test("une reprise refuse un workspace modifié après la confirmation", async (c
   await assert.rejects(service.start(project, run.id, run.fingerprint), /workspace changed/);
 });
 
-test("un module dynamique utilise le runner sandboxé injecté sans fallback hôte", async (context) => {
+test("un module dynamic utilise le runner sandboxé injecté sans fallback hôte", async (context) => {
   const root = mkdtempSync(join(tmpdir(), "arka-norn-audit-sandbox-"));
   context.after(() => rmSync(root, { recursive: true, force: true }));
   writeFileSync(join(root, "package.json"), JSON.stringify({ name: "sandbox-fixture", scripts: { test: "node --test" } }));
@@ -136,10 +136,10 @@ test("un module dynamique utilise le runner sandboxé injecté sans fallback hô
     projectRoot: root,
     featureId: null,
     request: {
-      objective: "Tester dynamiquement",
-      mode: "decouverte",
+      objective: "Tester dynamicment",
+      mode: "discovery",
       paths: ["."],
-      modules: [{ moduleId: "M02", intent: "discover", depth: "dynamique", criteria: [] }],
+      modules: [{ moduleId: "M02", intent: "discover", depth: "dynamic", criteria: [] }],
       sources: { paths: [], urls: [] },
       capabilities: { allowImagePulls: true, allowedHosts: [], credentialRefs: [], dynamicTargets: [] },
     },

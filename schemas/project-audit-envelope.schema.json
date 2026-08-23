@@ -1,23 +1,21 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "project-audit-envelope.schema.json",
-  "title": "Enveloppe v4 des audits Project arka-norn",
-  "description": "Contrat dédié aux audits d'un Project entier. Il ne remplace pas l'enveloppe Feature v2/v3.",
+  "title": "Arka Norn Project audit envelope",
   "type": "object",
   "required": [
     "schema_version",
-    "author_agent_id",
     "id",
     "project_id",
     "type",
     "sequence",
     "created_at",
-    "depends_on_document_ids"
+    "depends_on_document_ids",
+    "content_locale"
   ],
   "properties": {
     "schema_version": {
-      "const": 4,
-      "description": "Version réservée aux audits Project."
+      "const": 5
     },
     "author_agent_id": {
       "type": "string",
@@ -30,9 +28,7 @@
     },
     "project_id": {
       "type": "string",
-      "minLength": 1,
-      "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
-      "description": "Identifiant du Project audité."
+      "minLength": 1
     },
     "type": {
       "type": "string",
@@ -53,6 +49,73 @@
         "type": "string",
         "minLength": 1
       }
+    },
+    "content_locale": {
+      "enum": [
+        "en",
+        "fr"
+      ]
+    },
+    "migration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_schema_version",
+        "source_document_type",
+        "migrated_at",
+        "source_sha256"
+      ],
+      "properties": {
+        "source_schema_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source_document_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "migrated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "source_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": [
+          "migration"
+        ],
+        "properties": {
+          "migration": {
+            "type": "object",
+            "required": [
+              "source_schema_version"
+            ],
+            "properties": {
+              "source_schema_version": {
+                "const": 2
+              }
+            }
+          }
+        }
+      },
+      "then": {},
+      "else": {
+        "required": [
+          "author_agent_id"
+        ],
+        "properties": {
+          "author_agent_id": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
 }

@@ -14,24 +14,25 @@
  * limitations under the License.
  */
 import { titledBox } from "../components/box.js";
-import { GUIDED_SHORTCUTS, nextActionLine, renderGuidance } from "../components/guidance.js";
+import { guidedShortcuts, nextActionLine, renderGuidance } from "../components/guidance.js";
 import { createMenuScene } from "../components/menu.js";
+import { formatNumber, translate } from "../../../../application/localization/locale.js";
 export function createAgentRegistryView(deps) {
     let helpVisible = false;
     const activeCount = deps.agents.filter((agent) => agent.active).length;
     const mainSession = (deps.sessionId ?? "main") === "main";
     const items = [
-        { label: mainSession ? "Enregistrer le Product principal" : "Enregistrer mon identité spécialisée", value: "action:register", description: mainSession ? "crée Provider_product_YYYYMMDD dans la session main" : "crée Provider_role_YYYYMMDD dans cette session isolée" },
+        { label: translate(mainSession ? "tui.registry.registerProduct" : "tui.registry.registerSpecialist"), value: "action:register", description: translate(mainSession ? "tui.registry.registerProductDescription" : "tui.registry.registerSpecialistDescription") },
         ...[...deps.agents].sort((left, right) => Number(right.active) - Number(left.active) || left.id.value.localeCompare(right.id.value)).map((agent) => ({
-            label: `${agent.active ? "●" : "○"} ${agent.id.value}${agent.id.value === deps.currentAgentId ? " (courant)" : ""}`,
+            label: `${agent.active ? "●" : "○"} ${agent.id.value}${agent.id.value === deps.currentAgentId ? ` (${translate("tui.registry.current")})` : ""}`,
             value: `agent:${agent.id.value}`,
-            description: `${agent.provider}/${agent.role} · ${scopeLabel(agent)}`,
+            description: `${agent.provider}/${agent.role} - ${scopeLabel(agent)}`,
         })),
-        { label: "← Retour au Project", value: "action:back" },
+        { label: `<- ${translate("tui.registry.back")}`, value: "action:back" },
     ];
     const menu = createMenuScene(items, {
-        title: "Actions",
-        hint: "↑/↓ naviguer · Entrée ouvrir · / filtrer · ? aide · Échap retour",
+        title: translate("tui.registry.actions"),
+        hint: translate("tui.project.menu.hint"),
         maxVisible: 12,
         onSelect(value) {
             if (value === "action:register")
@@ -66,30 +67,30 @@ export function createAgentRegistryView(deps) {
             renderer.redraw((line) => {
                 if (helpVisible) {
                     for (const value of renderGuidance({
-                        title: "Aide — registre Agents",
-                        purpose: "Le registre rend chaque intervention attribuable et borne ce que l’agent est autorisé à produire.",
+                        title: translate("tui.registry.help.title"),
+                        purpose: translate("tui.registry.help.purpose"),
                         steps: [
-                            mainSession ? "La session main appartient au Product principal ; enregistrez cette identité une seule fois." : "Enregistrez une identité spécialisée si aucune ligne active ne correspond à cette session.",
-                            "Ouvrez une identité pour voir son périmètre, la sélectionner, la remplacer ou la désactiver.",
-                            "Un document v3 ne peut être généré qu’avec l’agent courant actif.",
-                            "Remplacez un agent au lieu de réutiliser son identité : l’historique reste lisible.",
+                            translate(mainSession ? "tui.registry.help.stepMain" : "tui.registry.help.stepSpecialist"),
+                            translate("tui.registry.help.step2"),
+                            translate("tui.registry.help.step3"),
+                            translate("tui.registry.help.step4"),
                         ],
-                        shortcuts: GUIDED_SHORTCUTS,
+                        shortcuts: guidedShortcuts(),
                     }, theme))
                         line(value);
                     return;
                 }
-                for (const value of titledBox("Registre Agents", [
+                for (const value of titledBox(translate("tui.registry.title"), [
                     `Project : ${deps.project.name} (${deps.project.id.value})`,
-                    `Agents : ${activeCount} actif(s) · ${deps.agents.length - activeCount} inactif(s)`,
-                    `Session courante : ${deps.sessionId ?? "main"}`,
-                    `Identité de cette session : ${deps.currentAgentId ?? "aucune — requise avant tout scaffold"}`,
-                    `Sessions liées : ${deps.sessionBindings?.map((binding) => `${binding.sessionId}=${binding.agentId}`).join(" · ") || "aucune"}`,
-                    `Source portable : ${deps.project.root}/.arka-norn/agents.json`,
+                    translate("tui.registry.agents", { active: formatNumber(activeCount), inactive: formatNumber(deps.agents.length - activeCount) }),
+                    translate("tui.registry.currentSession", { session: deps.sessionId ?? "main" }),
+                    translate("tui.registry.sessionIdentity", { agent: deps.currentAgentId ?? translate("tui.registry.noIdentity") }),
+                    translate("tui.registry.bindings", { bindings: deps.sessionBindings?.map((binding) => `${binding.sessionId}=${binding.agentId}`).join(" - ") || translate("tui.registry.noBindings") }),
+                    translate("tui.registry.portableSource", { path: `${deps.project.root}/.arka-norn/agents.json` }),
                 ], theme, { border: theme.arkaRed }).split("\n"))
                     line(value);
                 line("");
-                line(nextActionLine(deps.currentAgentId === undefined ? mainSession ? "Enregistrer le Product principal" : "Enregistrer mon identité spécialisée" : "Ouvrir l’agent courant", deps.currentAgentId === undefined ? "aucun auteur n’est sélectionné" : "vérifier son périmètre avant de produire", theme));
+                line(nextActionLine(translate(deps.currentAgentId === undefined ? mainSession ? "tui.registry.registerProduct" : "tui.registry.registerSpecialist" : "tui.registry.openCurrent"), translate(deps.currentAgentId === undefined ? "tui.registry.noAuthorReason" : "tui.registry.scopeReason"), theme));
                 for (const value of menu.renderLines(theme))
                     line(value);
             });
@@ -98,10 +99,10 @@ export function createAgentRegistryView(deps) {
 }
 function scopeLabel(agent) {
     if (agent.scope.featureIds.length === 0 && agent.scope.paths.length === 0)
-        return "tout le Project";
+        return translate("tui.registry.scope.project");
     return [
-        agent.scope.featureIds.length === 0 ? undefined : `${agent.scope.featureIds.length} feature(s)`,
-        agent.scope.paths.length === 0 ? undefined : `${agent.scope.paths.length} chemin(s)`,
-    ].filter((value) => value !== undefined).join(" · ");
+        agent.scope.featureIds.length === 0 ? undefined : translate("tui.registry.scope.features", { count: formatNumber(agent.scope.featureIds.length) }),
+        agent.scope.paths.length === 0 ? undefined : translate("tui.registry.scope.paths", { count: formatNumber(agent.scope.paths.length) }),
+    ].filter((value) => value !== undefined).join(" - ");
 }
 //# sourceMappingURL=agent-registry-view.js.map

@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "plan.schema.json",
+  "title": "Plan",
+  "description": "Document de cadrage d'architecture ou de production dans le cycle de vie d'une feature (concept → plan → (annexe) → audit → invariants → dettes → tâches → spec d'intégration → CR de dev → recette QA). Un plan fusionne un ou plusieurs concepts sources en une architecture cible actionnable : il fixe le stack technique, distingue explicitement ce qui est verrouillé (décisions non renégociables) de ce qui reste un objectif à prouver, et découpe le travail en lots dépendants les uns des autres. Ce schéma doit pouvoir être validé et suivi mécaniquement par n'importe quel agent (Claude Code, Codex CLI, Antigravity, etc.).",
+  "type": "object",
+  "allOf": [{ "$ref": "document-envelope.schema.json" }],
+  "unevaluatedProperties": false,
+  "required": [
+    "id",
+    "type",
+    "titre",
+    "version",
+    "cible",
+    "concepts_sources",
+    "nature",
+    "criteres_de_fini",
+    "principe_directeur",
+    "statut_des_affirmations",
+    "lots",
+    "statut"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Identifiant unique du document plan dans le framework."
+    },
+    "type": {
+      "const": "plan",
+      "description": "Type de document du framework. Toujours \"plan\" pour ce schéma."
+    },
+    "titre": {
+      "type": "string",
+      "description": "Titre humain du plan."
+    },
+    "version": {
+      "type": "string",
+      "description": "Version du plan (ex: \"v2.2\")."
+    },
+    "cible": {
+      "type": "string",
+      "description": "Système ou dépôt ciblé par ce plan (ex: nom du repo, du module)."
+    },
+    "concepts_sources": {
+      "type": "array",
+      "description": "Chemins ou identifiants des documents de type \"concept\" dont ce plan s'inspire. Peut en contenir plusieurs lorsqu'un plan fusionne plusieurs concepts.",
+      "minItems": 1,
+      "default": ["À_REMPLIR"],
+      "items": {
+        "type": "string"
+      }
+    },
+    "nature": {
+      "type": "string",
+      "description": "Nature du plan, ce qu'il est et ce qu'il n'est pas (ex: \"cadrage d'architecture de production\")."
+    },
+    "criteres_de_fini": {
+      "type": "array",
+      "description": "Critères qui définissent \"fini\" pour ce plan.",
+      "minItems": 1,
+      "default": ["À_REMPLIR"],
+      "items": {
+        "type": "string"
+      }
+    },
+    "principe_directeur": {
+      "type": "string",
+      "description": "Principe directeur qui gouverne les choix du plan, repris ou dérivé du/des concept(s) source(s)."
+    },
+    "statut_des_affirmations": {
+      "type": "object",
+      "description": "Distinction explicite entre les décisions non renégociables et les propriétés visées mais pas encore garanties.",
+      "additionalProperties": false,
+      "required": [
+        "verrouille",
+        "objectif_a_prouver"
+      ],
+      "properties": {
+        "verrouille": {
+          "type": "array",
+          "description": "Décisions d'architecture non renégociables, actées définitivement par ce plan.",
+          "default": ["À_REMPLIR"],
+          "items": {
+            "type": "string"
+          }
+        },
+        "objectif_a_prouver": {
+          "type": "array",
+          "description": "Propriétés visées par le plan mais qui ne sont pas encore garanties : elles doivent être démontrées par des étapes ultérieures (invariants, recette).",
+          "default": ["À_REMPLIR"],
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "lots": {
+      "type": "array",
+      "description": "Découpage du travail en lots numérotés, avec leurs dépendances mutuelles.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "nom",
+          "description",
+          "depend_de"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Identifiant du lot (ex: \"lot-0\")."
+          },
+          "nom": {
+            "type": "string",
+            "description": "Nom court du lot."
+          },
+          "description": {
+            "type": "string",
+            "description": "Description du contenu et de l'objectif du lot."
+          },
+          "depend_de": {
+            "type": "array",
+            "description": "Identifiants d'autres lots dont ce lot dépend. Peut être vide si le lot n'a aucune dépendance.",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "statut": {
+      "type": "string",
+      "description": "Statut du plan dans son cycle de vie documentaire.",
+      "enum": [
+        "brouillon",
+        "valide",
+        "obsolete"
+      ]
+    },
+    "modele_de_portee": {
+      "type": "string",
+      "description": "Champ optionnel : modèle de portée du plan, décrivant comment le périmètre fonctionnel ou architectural est organisé (ex: hiérarchie workspace → sujet → mémoire)."
+    },
+    "stack_technique": {
+      "type": "array",
+      "description": "Champ optionnel : liste des briques du stack technique tranchées par ce plan.",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "examples": [
+    {
+      "schema_version": 3,
+      "author_agent_id": "Codex_dev_20260819",
+      "id": "plan-architecture-memoire-evenementielle",
+      "feature_id": "example-feature",
+      "type": "plan",
+      "sequence": 1,
+      "created_at": "2026-08-18T09:00:00.000Z",
+      "depends_on_document_ids": ["concept-001"],
+      "titre": "Plan d'architecture — Mémoire événementielle au-dessus de Notion/Linear",
+      "version": "v2.2",
+      "cible": "cortex-lite/",
+      "concepts_sources": [
+        ".input/concepte/Cortex_Concept_Fonctionnel_Notion_Linear_Tokens.md",
+        "docs/memoire-vivante-CONCEPT.md"
+      ],
+      "nature": "cadrage d'architecture de production",
+      "criteres_de_fini": [
+        "effet réel produit en condition réelle, jamais une simulation"
+      ],
+      "principe_directeur": "le LLM ne reçoit jamais tout Notion/Linear ni tout l'historique, il reçoit un context pack court, sourcé, dédupliqué, plafonné par budget tokens",
+      "statut_des_affirmations": {
+        "verrouille": [
+          "SurrealDB embarqué natif (HNSW/BM25/CHANGEFEED)",
+          "hexagonal strict"
+        ],
+        "objectif_a_prouver": [
+          "robustesse",
+          "scalabilité",
+          "justesse de la résonance"
+        ]
+      },
+      "lots": [
+        {
+          "id": "lot-0",
+          "nom": "Audit de confirmation",
+          "description": "Audit court de confirmation des constats de cartographie du code avant la spec d'implémentation.",
+          "depend_de": []
+        }
+      ],
+      "statut": "valide"
+    }
+  ]
+}

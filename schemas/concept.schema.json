@@ -1,159 +1,117 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "concept.schema.json",
-  "title": "Concept fonctionnel",
-  "description": "Schéma d'un document de concept fonctionnel dans le framework méthodologique arka-norn. Ce document ouvre le cycle de vie d'une feature : il fixe le périmètre, les hypothèses tranchées, le principe directeur et le résumé exécutif avant tout travail de plan ou d'audit. Ce schéma est destiné à être suivi mécaniquement par tout agent (Claude Code, Codex CLI, Antigravity, ou autre) — la structure des champs fait autorité, indépendamment de la prose qui peut l'accompagner.",
   "type": "object",
-  "allOf": [{ "$ref": "document-envelope.schema.json" }],
+  "allOf": [
+    {
+      "$ref": "document-envelope.schema.json"
+    }
+  ],
   "unevaluatedProperties": false,
   "required": [
     "id",
     "type",
-    "titre",
+    "title",
     "version",
     "date",
-    "perimetre",
-    "objectif",
-    "hypotheses",
-    "resume_executif",
-    "principe_directeur",
+    "scope",
+    "objective",
+    "assumptions",
+    "executive_summary",
+    "guiding_principle",
     "sections",
-    "statut"
+    "status"
   ],
   "properties": {
     "id": {
-      "type": "string",
-      "description": "Identifiant unique du document de concept."
+      "type": "string"
     },
     "type": {
-      "const": "concept",
-      "description": "Type fixe du document, permettant à un agent de reconnaître mécaniquement ce schéma."
+      "const": "concept"
     },
-    "titre": {
-      "type": "string",
-      "description": "Titre du document de concept."
+    "title": {
+      "type": "string"
     },
     "version": {
-      "type": "string",
-      "description": "Version du document (ex: \"1.0\")."
+      "type": "string"
     },
     "date": {
-      "type": "string",
-      "description": "Date du document, format libre type AAAA-MM-JJ."
+      "type": "string"
     },
-    "perimetre": {
-      "type": "string",
-      "description": "Le périmètre fonctionnel couvert par ce concept."
+    "scope": {
+      "type": "string"
     },
-    "objectif": {
-      "type": "string",
-      "description": "Objectif du document en une ou deux phrases."
+    "objective": {
+      "type": "string"
     },
-    "hypotheses": {
+    "assumptions": {
       "type": "array",
-      "description": "Liste des hypothèses tranchées pour ce concept, chacune avec le sujet traité et la position retenue.",
       "minItems": 1,
       "default": [
         {
-          "sujet": "À_REMPLIR",
-          "position_retenue": "À_REMPLIR"
+          "subject": "TO_FILL",
+          "selected_position": "TO_FILL"
         }
       ],
       "items": {
         "type": "object",
         "additionalProperties": false,
         "required": [
-          "sujet",
-          "position_retenue"
+          "subject",
+          "selected_position"
         ],
         "properties": {
-          "sujet": {
-            "type": "string",
-            "description": "Le sujet ou la question sur laquelle une position a été tranchée."
+          "subject": {
+            "type": "string"
           },
-          "position_retenue": {
-            "type": "string",
-            "description": "La position retenue pour ce sujet."
+          "selected_position": {
+            "type": "string"
           }
         }
       }
     },
-    "resume_executif": {
-      "type": "string",
-      "description": "Résumé exécutif du document de concept."
+    "executive_summary": {
+      "type": "string"
     },
-    "principe_directeur": {
-      "type": "string",
-      "description": "Le principe central à retenir, souvent mis en avant dans le document source."
+    "guiding_principle": {
+      "type": "string"
     },
     "sections": {
       "type": "array",
-      "description": "Contenu narratif libre du document (contexte, objectifs fonctionnels, architecture cible, cycle de vie, flux, gouvernance, observabilité, risques, recommandation, etc.), sans imposer de liste de sections figée. Peut être vide.",
       "items": {
         "type": "object",
         "additionalProperties": false,
         "required": [
-          "titre",
-          "contenu"
+          "title",
+          "content"
         ],
         "properties": {
-          "titre": {
-            "type": "string",
-            "description": "Titre de la section."
+          "title": {
+            "type": "string"
           },
-          "contenu": {
-            "type": "string",
-            "description": "Contenu textuel de la section."
+          "content": {
+            "type": "string"
           }
         }
       }
     },
-    "statut": {
+    "status": {
       "type": "string",
       "enum": [
-        "brouillon",
-        "valide",
+        "draft",
+        "valid",
         "obsolete"
-      ],
-      "description": "Statut du document de concept."
+      ]
     },
-    "recommandation": {
-      "type": "string",
-      "description": "Recommandation finale associée au concept (optionnel)."
+    "recommendation": {
+      "type": "string"
     },
-    "risques": {
+    "risks": {
       "type": "array",
-      "description": "Liste des risques identifiés pour ce concept (optionnel).",
       "items": {
         "type": "string"
       }
     }
   },
-  "examples": [
-    {
-      "schema_version": 3,
-      "author_agent_id": "Codex_dev_20260819",
-      "id": "concept-001",
-      "feature_id": "example-feature",
-      "type": "concept",
-      "sequence": 1,
-      "created_at": "2026-08-18T08:00:00.000Z",
-      "depends_on_document_ids": [],
-      "titre": "Concept fonctionnel — exemple minimal",
-      "version": "1.0",
-      "date": "2026-08-18",
-      "perimetre": "Périmètre fonctionnel minimal du concept.",
-      "objectif": "Décrire l'objectif du document en une phrase.",
-      "hypotheses": [
-        {
-          "sujet": "Choix de l'approche technique",
-          "position_retenue": "Approche A retenue."
-        }
-      ],
-      "resume_executif": "Résumé exécutif minimal du concept.",
-      "principe_directeur": "Un seul principe central à retenir.",
-      "sections": [],
-      "statut": "brouillon"
-    }
-  ]
+  "title": "Concept"
 }

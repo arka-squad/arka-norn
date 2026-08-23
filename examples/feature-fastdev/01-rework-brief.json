@@ -1,0 +1,67 @@
+{
+  "schema_version": 5,
+  "author_agent_id": "Codex_dev_20260820",
+  "id": "scope-navigation-1",
+  "feature_id": "rework-navigation",
+  "type": "rework_brief",
+  "sequence": 1,
+  "created_at": "2026-08-20T10:00:00.000Z",
+  "depends_on_document_ids": [],
+  "problem": "Documented problem for the canonical English example.",
+  "expected_outcome": "Documented expected outcome for the canonical English example.",
+  "scope": {
+    "included": [
+      "Documented included for the canonical English example.",
+      "Documented included for the canonical English example."
+    ],
+    "excluded": [
+      "Documented excluded for the canonical English example."
+    ]
+  },
+  "impacted_areas": [
+    "Documented impacted areas for the canonical English example."
+  ],
+  "strategy": "Documented strategy for the canonical English example.",
+  "acceptance_criteria": [
+    {
+      "id": "C-CODE",
+      "dimension": "code",
+      "criterion": "Documented criterion for the canonical English example.",
+      "expected_evidence": "Documented expected evidence for the canonical English example."
+    },
+    {
+      "id": "C-FONC",
+      "dimension": "functional",
+      "criterion": "Documented criterion for the canonical English example.",
+      "expected_evidence": "Documented expected evidence for the canonical English example."
+    },
+    {
+      "id": "C-UX",
+      "dimension": "ux",
+      "criterion": "Documented criterion for the canonical English example.",
+      "expected_evidence": "Documented expected evidence for the canonical English example."
+    },
+    {
+      "id": "C-SEC",
+      "dimension": "security",
+      "criterion": "Documented criterion for the canonical English example.",
+      "expected_evidence": "Documented expected evidence for the canonical English example."
+    }
+  ],
+  "expected_tests": [
+    "Documented expected tests for the canonical English example.",
+    "Documented expected tests for the canonical English example."
+  ],
+  "risks": [
+    {
+      "id": "R-1",
+      "risk": "Documented risk for the canonical English example.",
+      "mitigation": "Documented mitigation for the canonical English example."
+    }
+  ],
+  "definition_of_done": [
+    "Documented definition of done for the canonical English example.",
+    "Documented definition of done for the canonical English example."
+  ],
+  "content_locale": "en"
+}

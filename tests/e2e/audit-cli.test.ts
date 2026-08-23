@@ -33,9 +33,9 @@ test("la CLI audit exécute une découverte hors Pipeline avec enveloppes JSON s
   const requestPath = join(sandbox, "request.json");
   writeFileSync(requestPath, JSON.stringify({
     objective: "Découvrir le produit",
-    mode: "decouverte",
+    mode: "discovery",
     paths: ["."],
-    modules: [{ moduleId: "M09", intent: "discover", depth: "inventaire", criteria: [] }],
+    modules: [{ moduleId: "M09", intent: "discover", depth: "inventory", criteria: [] }],
     sources: { paths: [], urls: [] },
     capabilities: { allowImagePulls: false, allowedHosts: [], credentialRefs: [], dynamicTargets: [] },
   }));
@@ -51,7 +51,7 @@ test("la CLI audit exécute une découverte hors Pipeline avec enveloppes JSON s
   assert.equal(finalized.status, 0, finalized.stderr);
   assert.equal((finalized.json.data as { run: { status: string } }).run.status, "completed");
   const report = readFileSync(join(projectRoot, ".arka-norn", "audits", plan.id, "report.md"), "utf8");
-  assert.match(report, /Demande utilisateur/);
+  assert.match(report, /User request/);
 
   const invalid = run(["audit", "start", plan.id, "--project", "product", "--confirm", "bad", "--json"], home, sandbox);
   assert.equal(invalid.status, 3);

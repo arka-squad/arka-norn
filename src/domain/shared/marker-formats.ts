@@ -16,9 +16,10 @@
 
 import { DomainError } from "../errors.js";
 import { isProjectOrchestrationMode, type ProjectOrchestrationMode } from "../project/project.js";
+import { canonicalPipelineId } from "../compatibility/legacy-contract.js";
 
 export const CURRENT_PROJECT_MARKER_SCHEMA_VERSION = 4 as const;
-export const CURRENT_FEATURE_MARKER_SCHEMA_VERSION = 3 as const;
+export const CURRENT_FEATURE_MARKER_SCHEMA_VERSION = 4 as const;
 export const DEFAULT_PIPELINE_ID = "arka-norn-default";
 
 export interface ProjectMarkerV2 {
@@ -68,6 +69,17 @@ export interface FeatureMarkerV3 {
   readonly updatedAt: string;
 }
 
+export interface FeatureMarkerV4 {
+  readonly schemaVersion: 4;
+  readonly id: string;
+  readonly projectId: string;
+  readonly name: string;
+  readonly pipelineId: string;
+  readonly documentContractVersion: 5;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
 export interface MarkerMigrationPlan<T, FromVersion extends number = number, ToVersion extends number = number> {
   readonly kind: "project" | "feature";
   readonly fromVersion: FromVersion;
@@ -78,7 +90,7 @@ export interface MarkerMigrationPlan<T, FromVersion extends number = number, ToV
 }
 
 export type ProjectMarkerMigrationPlan = MarkerMigrationPlan<ProjectMarkerV4, 1 | 2 | 3 | 4, 4>;
-export type FeatureMarkerMigrationPlan = MarkerMigrationPlan<FeatureMarkerV3, 1 | 2 | 3, 3>;
+export type FeatureMarkerMigrationPlan = MarkerMigrationPlan<FeatureMarkerV4, 1 | 2 | 3 | 4, 4>;
 
 export function planProjectMarkerMigration(value: unknown): ProjectMarkerMigrationPlan {
   if (isProjectMarkerV4(value)) {
@@ -128,8 +140,18 @@ export function planFeatureMarkerMigration(
   value: unknown,
   context: { readonly projectId?: string } = {},
 ): FeatureMarkerMigrationPlan {
-  if (isFeatureMarkerV3(value)) {
+  if (isFeatureMarkerV4(value)) {
     return unchanged("feature", CURRENT_FEATURE_MARKER_SCHEMA_VERSION, value);
+  }
+  if (isFeatureMarkerV3(value)) {
+    return {
+      kind: "feature",
+      fromVersion: 3,
+      toVersion: CURRENT_FEATURE_MARKER_SCHEMA_VERSION,
+      changed: true,
+      output: upgradeFeatureMarker(value),
+      warnings: ["The pipeline identifier and document contract were upgraded to canonical v5."],
+    };
   }
   if (isFeatureMarkerV2(value)) {
     return {
@@ -157,7 +179,8 @@ export function planFeatureMarkerMigration(
       id: requireId(value.id, "id"),
       projectId: requireId(context.projectId, "projectId"),
       name: requireName(value.name),
-      pipelineId: DEFAULT_PIPELINE_ID,
+      pipelineId: canonicalPipelineId(DEFAULT_PIPELINE_ID),
+      documentContractVersion: 5,
       createdAt: timestamp,
       updatedAt: timestamp,
     },
@@ -198,12 +221,23 @@ export function isProjectMarkerV4(value: unknown): value is ProjectMarkerV4 {
 
 export function isFeatureMarkerV3(value: unknown): value is FeatureMarkerV3 {
   return isRecord(value)
-    && value.schemaVersion === CURRENT_FEATURE_MARKER_SCHEMA_VERSION
+    && value.schemaVersion === 3
     && hasCommonPortableFields(value)
     && isValidId(value.projectId)
     && typeof value.pipelineId === "string"
     && /^[a-z0-9][a-z0-9._-]{0,127}$/.test(value.pipelineId)
     && hasOnlyKeys(value, ["schemaVersion", "id", "projectId", "name", "pipelineId", "createdAt", "updatedAt"]);
+}
+
+export function isFeatureMarkerV4(value: unknown): value is FeatureMarkerV4 {
+  return isRecord(value)
+    && value.schemaVersion === CURRENT_FEATURE_MARKER_SCHEMA_VERSION
+    && hasCommonPortableFields(value)
+    && isValidId(value.projectId)
+    && typeof value.pipelineId === "string"
+    && /^[a-z0-9][a-z0-9._-]{0,127}$/.test(value.pipelineId)
+    && value.documentContractVersion === 5
+    && hasOnlyKeys(value, ["schemaVersion", "id", "projectId", "name", "pipelineId", "documentContractVersion", "createdAt", "updatedAt"]);
 }
 
 function unchanged<T, Version extends number>(kind: "project" | "feature", version: Version, output: T): MarkerMigrationPlan<T, Version, Version> {
@@ -253,15 +287,26 @@ function withManualProjectOrchestration(value: ProjectMarkerV3): ProjectMarkerV4
   };
 }
 
-function withoutFeatureRoot(value: FeatureMarkerV2): FeatureMarkerV3 {
+function withoutFeatureRoot(value: FeatureMarkerV2): FeatureMarkerV4 {
   return {
     schemaVersion: CURRENT_FEATURE_MARKER_SCHEMA_VERSION,
     id: value.id,
     projectId: value.projectId,
     name: value.name,
-    pipelineId: value.pipelineId,
+    pipelineId: canonicalPipelineId(value.pipelineId),
+    documentContractVersion: 5,
     createdAt: value.createdAt,
     updatedAt: value.updatedAt,
+  };
+}
+
+
+function upgradeFeatureMarker(value: FeatureMarkerV3): FeatureMarkerV4 {
+  return {
+    ...value,
+    schemaVersion: CURRENT_FEATURE_MARKER_SCHEMA_VERSION,
+    pipelineId: canonicalPipelineId(value.pipelineId),
+    documentContractVersion: 5,
   };
 }
 
@@ -321,6 +366,6 @@ function unsupportedMarker(kind: "Project" | "Feature", value: unknown): DomainE
   if (isRecord(value) && typeof value.schemaVersion === "number" && value.schemaVersion > currentVersion) {
     return new DomainError("UNSUPPORTED_SCHEMA_VERSION", `${kind} marker schemaVersion ${value.schemaVersion} is newer than supported version ${currentVersion}.`);
   }
-  const supportedVersions = kind === "Project" ? "v1, v2, v3 or v4" : "v1, v2 or v3";
+  const supportedVersions = kind === "Project" ? "v1, v2, v3 or v4" : "v1, v2, v3 or v4";
   return markerError(`${kind} marker is not a valid supported ${supportedVersions} marker.`);
 }

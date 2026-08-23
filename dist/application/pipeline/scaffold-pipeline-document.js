@@ -16,39 +16,48 @@
 import { findScaffoldSentinels, scaffoldFromSchema } from "../../domain/pipeline/scaffold-schema.js";
 import { AgentId } from "../../domain/agent/agent-id.js";
 import { ProjectId } from "../../domain/project/project-id.js";
+import { activeLocale, translate } from "../localization/locale.js";
+import { canonicalDocumentType, isDocumentType } from "../compatibility/legacy-french-contract.js";
 export function scaffoldPipelineDocumentUseCaseFactory(deps) {
     return async (input) => {
         const authorAgentId = AgentId.of(input.authorAgentId).value;
         if (input.projectId !== undefined && input.featureId !== undefined) {
             throw new Error("A scaffold cannot target both a Project and a Feature.");
         }
-        if (input.projectId !== undefined && input.stepId !== "audit_etat_reel") {
-            throw new Error("Project-scoped scaffolds are supported only for audit_etat_reel.");
+        const contractVersion = input.documentContractVersion ?? 5;
+        const stepId = contractVersion === 3 ? input.stepId : canonicalDocumentType(input.stepId);
+        if (input.projectId !== undefined && !isDocumentType(stepId, "current_state_audit")) {
+            throw new Error("Project-scoped scaffolds are supported only for current_state_audit.");
         }
-        const definition = await deps.source.loadDefinition(input.pipelineId);
-        let schemaPath = schemaFor(definition, input.stepId);
+        const definition = await deps.source.loadDefinition(input.pipelineId, contractVersion);
+        let schemaPath = schemaFor(definition, stepId);
         if (schemaPath === undefined && input.pipelineId === undefined) {
             const catalog = await deps.source.loadCatalog();
             for (const entry of catalog.pipelines) {
-                schemaPath = schemaFor(await deps.source.loadDefinition(entry.id), input.stepId);
+                schemaPath = schemaFor(await deps.source.loadDefinition(entry.id, contractVersion), stepId);
                 if (schemaPath !== undefined)
                     break;
             }
         }
         if (schemaPath === undefined)
-            throw new Error(`Unknown pipeline step: ${input.stepId}.`);
+            throw new Error(`Unknown pipeline step: ${stepId}.`);
         const [schema, envelope] = await Promise.all([
             deps.source.loadSchema(schemaPath),
-            deps.source.loadSchema(input.projectId === undefined
-                ? "schemas/document-envelope.schema.json"
-                : "schemas/project-audit-envelope.schema.json"),
+            deps.source.loadSchema(contractVersion === 3
+                ? input.projectId === undefined ? "schemas/legacy/fr/document-envelope.schema.json" : "schemas/legacy/fr/project-audit-envelope.schema.json"
+                : input.projectId === undefined ? "schemas/document-envelope.schema.json" : "schemas/project-audit-envelope.schema.json"),
         ]);
-        const generated = scaffoldFromSchema(mergeObjectSchemas(envelope, schema), input.stepId);
+        const locale = activeLocale();
+        const generated = scaffoldFromSchema(mergeObjectSchemas(envelope, schema), stepId, {
+            fill: translate("pipeline.scaffold.fill", {}, locale),
+            choosePrefix: translate("pipeline.scaffold.choosePrefix", {}, locale),
+        });
         const scaffold = {
             ...generated,
-            schema_version: input.projectId === undefined ? 3 : 4,
+            schema_version: contractVersion === 3 ? input.projectId === undefined ? 3 : 4 : 5,
+            ...(contractVersion === 5 ? { content_locale: locale } : {}),
             author_agent_id: authorAgentId,
-            type: input.stepId,
+            type: stepId,
             ...(input.featureId === undefined ? {} : { feature_id: input.featureId }),
             ...(input.projectId === undefined ? {} : { project_id: ProjectId.of(input.projectId).value }),
         };
@@ -56,7 +65,7 @@ export function scaffoldPipelineDocumentUseCaseFactory(deps) {
             ...(input.force === undefined ? {} : { force: input.force }),
             ...(input.allowedRoot === undefined ? {} : { allowedRoot: input.allowedRoot }),
         });
-        return { stepId: input.stepId, outputPath: input.outputPath, sentinelPaths: findScaffoldSentinels(scaffold) };
+        return { stepId, outputPath: input.outputPath, sentinelPaths: findScaffoldSentinels(scaffold) };
     };
 }
 function schemaFor(definition, stepId) {

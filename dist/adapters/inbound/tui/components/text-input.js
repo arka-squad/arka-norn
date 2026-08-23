@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { translate } from "../../../../application/localization/locale.js";
 const CURSOR_GLYPH = String.fromCharCode(0x2588); // █
 export function createTextInputScene(options) {
     let value = options.initialValue ?? "";
@@ -62,7 +63,7 @@ export function createTextInputScene(options) {
                 }
                 line(`  ${theme.arkaAccent(">")} ${value}${theme.dim(CURSOR_GLYPH)}`);
                 line("");
-                line(`  ${theme.dim("Entrée valider, Échap annuler")}`);
+                line(`  ${theme.dim(translate("tui.input.hint"))}`);
             });
         },
         get value() {

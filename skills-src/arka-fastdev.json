@@ -1,45 +1,70 @@
 {
   "name": "arka-fastdev",
-  "titre_h1_repo": "Arka FastDev — Exécuter un rework guidé",
-  "titre_h1_global": "Skill Arka FastDev — Rework guidé",
-  "description_courte": "Pilote une seule phase calculée d'un rework FastDev arka-norn, depuis la découverte du contexte et de l'Agent jusqu'à la validation du document signé produit.",
-  "description_do_use": "Use when une Feature utilise le workflow arka-norn-fastdev, que l'utilisateur demande de continuer un rework, ou que `arka-norn fastdev next` désigne cadrage_rework, cr_dev, audit_rework ou validation_fastdev.",
-  "description_do_not_use": "Do NOT use pour une nouvelle architecture, une migration critique, un périmètre incertain, une Feature standard, plusieurs phases à la fois, ni pour contourner un audit ou une validation.",
-  "declencheurs_globaux": "Déclencher sur `$arka-fastdev`, « continue le rework FastDev », ou lorsqu'une Feature active porte `pipelineId: arka-norn-fastdev`. Résoudre Project, Feature, Agent et phase avec la CLI ; exécuter exactement une action calculée, produire un document v3 signé et le valider avant de s'arrêter.",
+  "repoTitle": "FastDev guided rework",
+  "globalTitle": "Skill - FastDev guided rework",
+  "summary": "Execute exactly one calculated FastDev guided rework phase.",
+  "useWhen": "Use when a Feature uses arka-norn-fastdev, or when `arka-norn fastdev next` identifies the next phase.",
+  "doNotUseWhen": "Do not use for a different calculated phase, an unverified Agent scope, or to bypass schema and business validation.",
+  "triggers": "Use when a Feature uses arka-norn-fastdev, or when `arka-norn fastdev next` identifies the next phase. English triggers include \"continue the Feature\" and \"run the next phase\". French triggers include \"continuer la Feature\" and \"exécuter la prochaine étape\". Resolve locale, Project, Feature, Agent and phase through the CLI before acting.",
   "interface": {
-    "display_name": "Arka FastDev — Rework",
-    "short_description": "Exécuter une phase FastDev guidée et vérifiable",
-    "default_prompt": "Utilise $arka-fastdev pour exécuter uniquement la prochaine phase calculée de ce rework."
+    "displayName": "FastDev guided rework",
+    "shortDescription": "Execute exactly one calculated FastDev guided rework phase.",
+    "defaultPrompt": "Use $arka-fastdev to execute only the currently calculated phase."
   },
-  "allowed_tools": ["Read", "Bash", "Grep", "Glob"],
-  "quand_utiliser": [
-    "correction, refactor ou amélioration UX bornée déjà enregistrée comme Feature FastDev",
-    "reprise d'un audit corrections_requises ou d'une validation fail/partial",
-    "Agent qui doit recevoir une commande, un livrable et des preuves exactes sans deviner le framework"
+  "allowedTools": [
+    "Read",
+    "Bash",
+    "Grep",
+    "Glob"
   ],
-  "quand_ne_pas_utiliser": [
-    "pipelineId différent de arka-norn-fastdev",
-    "travail hors du périmètre de l'Agent actif",
-    "demande qui exige de modifier plusieurs phases documentaires dans la même exécution",
-    "audit bloque ou contexte incomplet qui nécessite une décision humaine"
+  "whenToUse": [
+    "Use when a Feature uses arka-norn-fastdev, or when `arka-norn fastdev next` identifies the next phase.",
+    "The work must produce one signed and mechanically validated artifact."
+  ],
+  "whenNotToUse": [
+    "Do not use for a different calculated phase, an unverified Agent scope, or to bypass schema and business validation.",
+    "The current Agent identity or session cannot be verified."
   ],
   "inputs": [
-    { "obligatoire": true, "nom": "feature", "description": "identifiant exact de la Feature FastDev" },
-    { "obligatoire": true, "nom": "session_id", "description": "session Agent spécialisée transmise par le Product ; utiliser main uniquement pour le cadrage Product" },
-    { "obligatoire": false, "nom": "agent_id", "description": "identité active explicite ; sinon utiliser l'Agent courant du Project" }
+    {
+      "required": true,
+      "name": "feature",
+      "description": "Exact managed Feature identifier."
+    },
+    {
+      "required": true,
+      "name": "session_id",
+      "description": "Specialized Agent session supplied by Product control."
+    },
+    {
+      "required": false,
+      "name": "agent_id",
+      "description": "Explicit active identity; otherwise use the Project session binding."
+    }
   ],
-  "note_inputs": "Ne jamais déduire la phase depuis les noms de fichiers. `arka-norn fastdev next <feature> --session <session-id> --json` est la source de vérité. Refuser d'agir si la session spécialisée n'est pas fournie ou ne correspond pas au rôle attendu.",
-  "referentiel_extra": [
-    "`{{FRAMEWORK_DIR}}/pipelines/arka-norn-fastdev.json` — ordre et politiques métier",
-    "`{{FRAMEWORK_DIR}}/docs/cli.md` — commandes et sorties JSON",
-    "`{{FRAMEWORK_DIR}}/docs/agent-registry.md` — identité, activité et scope",
-    "`{{FRAMEWORK_DIR}}/schemas/` — contrats des quatre documents FastDev"
+  "inputNotes": "Never infer the phase from filenames. Machine-readable CLI data is the source of truth. Canonical phases: rework_brief, development_report, delivery_audit, delivery_validation.",
+  "references": [
+    "`{{FRAMEWORK_DIR}}/docs/agent-guide.md` - Agent protocol and locale behavior",
+    "`{{FRAMEWORK_DIR}}/schemas/` - canonical v5 document contracts",
+    "`{{FRAMEWORK_DIR}}/pipelines/catalog.json` - canonical workflow catalog"
   ],
   "procedure": [
-    { "titre": "Résoudre le contexte réel", "contenu": "Lancer `arka-norn feature show <feature> --json`, confirmer `pipelineId: arka-norn-fastdev`, puis lire le Project et `arka-norn agent current --project <project-id> --session <session-id> --json`. Vérifier aussi `arka-norn agent sessions --project <project-id>`. Refuser toute écriture si l'Agent est absent, inactif, hors périmètre ou si la session pointe vers le Product principal alors que la phase exige audit, dev ou QA. Lancer `arka-norn doctor` et traiter un FAIL avant la suite." },
-    { "titre": "Lire une seule action calculée", "contenu": "Lancer `arka-norn fastdev next <feature> --session <session-id> --json`. Reprendre sans interprétation `phase`, `iteration`, `prerequisites`, `reason`, `instructions`, `expectedArtifact` et `suggestedCommand`. Vérifier que `suggestedCommand` contient exactement `--session <session-id>` ; sinon refuser d'exécuter et remonter l'écart. Si l'action vaut null, annoncer la fin ; ne créer aucun document supplémentaire." },
-    { "titre": "Exécuter la phase bornée", "contenu": "Générer le squelette avec la commande proposée, sans retirer `--session <session-id>`, puis vérifier que `author_agent_id` est l'identité courante de cette session et jamais le Product main par accident. Pour `cadrage_rework`, couvrir code, fonctionnel, UX et sécurité. Pour `cr_dev`, développer dans le scope et, après audit, fermer chaque constat `corriger` dans `corrections_apportees`. Pour `audit_rework`, contrôler le dernier CR et son commit exact sans corriger silencieusement. Pour `validation_fastdev`, viser uniquement le dernier CR, l'audit associé et les preuves attendues." },
-    { "titre": "Valider et s'arrêter", "contenu": "Remplacer toutes les sentinelles puis lancer `arka-norn pipeline validate <feature> --document <fichier>`. Relancer `arka-norn fastdev next <feature> --session <session-id> --json` pour constater la transition, mais ne pas exécuter cette nouvelle action dans la même invocation. Rapporter le document signé, les preuves, le verdict et la prochaine commande." }
+    {
+      "title": "Resolve locale and verified context",
+      "content": "Run `arka-norn locale show --json`, `feature show`, `agent current` and `agent sessions`. Reply in the active display locale. Keep contract keys in English and set `content_locale` to the prose locale."
+    },
+    {
+      "title": "Read one calculated action",
+      "content": "Run `arka-norn fastdev next <feature> --session <session-id> --json`. Use its stable codes, parameters, expected artifact and suggested command without guessing from display prose. Stop if the action is null."
+    },
+    {
+      "title": "Produce the bounded artifact",
+      "content": "Execute only the proposed scaffold command. Replace every sentinel, preserve the specialized session, satisfy code, functional, UX and security evidence where applicable, and never modify another documentary phase."
+    },
+    {
+      "title": "Validate and stop",
+      "content": "Run `arka-norn pipeline validate <feature> --document <file> --json`, then rerun `arka-norn fastdev next <feature> --session <session-id> --json` only to observe the transition. Report the next action without executing it."
+    }
   ],
-  "format_sortie": "```markdown\n## FastDev — phase exécutée\n- Project : <id>\n- Feature : <id>\n- Agent actif / session : <Provider_role_YYYYMMDD · session-id>\n- Phase / itération : <phase · n>\n- Action exécutée : <action>\n- Document signé : <chemin · id>\n- Validation schema : <pass/fail>\n- Preuves : <résumé vérifiable>\n- Prochaine action observée : <phase ou terminé>\n- Commande suivante : <commande exacte ou aucune>\n```"
+  "outputFormat": "Report the verified Project, Feature, Agent/session, locale, executed phase, signed document, validation result, evidence and observed next command. Do not execute a second phase in the same invocation."
 }

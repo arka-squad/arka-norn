@@ -13,26 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { translate } from "../../../../application/localization/locale.js";
 import { titledBox } from "./box.js";
 export function renderGuidance(content, theme) {
     const lines = [
         content.purpose,
         "",
         ...content.steps.map((step, index) => `${index + 1}. ${step}`),
-        ...(content.shortcuts === undefined ? [] : ["", "Raccourcis", ...content.shortcuts.map((shortcut) => `• ${shortcut}`)]),
+        ...(content.shortcuts === undefined ? [] : ["", translate("tui.guidance.shortcuts"), ...content.shortcuts.map((shortcut) => `* ${shortcut}`)]),
         "",
-        "Appuyez sur ? pour fermer l’aide.",
+        translate("tui.guidance.close"),
     ];
     return titledBox(content.title, lines, theme, { border: theme.arkaRed }).split("\n");
 }
 export function nextActionLine(action, reason, theme) {
-    return `  ${theme.bold("Action recommandée")} : ${theme.arkaAccent(action)} ${theme.gray(`— ${reason}`)}`;
+    return `  ${theme.bold(translate("tui.guidance.nextAction"))}: ${theme.arkaAccent(action)} ${theme.gray(`- ${reason}`)}`;
 }
-export const GUIDED_SHORTCUTS = [
-    "↑/↓ : déplacer la sélection",
-    "Entrée : exécuter l’action sélectionnée",
-    "/ : filtrer la liste",
-    "Échap : revenir sans modifier",
-    "? : afficher ou fermer cette aide",
-];
+export function guidedShortcuts() {
+    return [
+        translate("tui.shortcut.move"),
+        translate("tui.shortcut.execute"),
+        translate("tui.shortcut.filter"),
+        translate("tui.shortcut.back"),
+        translate("tui.shortcut.help"),
+    ];
+}
 //# sourceMappingURL=guidance.js.map

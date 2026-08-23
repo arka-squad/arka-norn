@@ -21,7 +21,7 @@ import { test } from "node:test";
 
 import { findScaffoldSentinels, scaffoldFromSchema } from "../../src/domain/pipeline/scaffold-schema.ts";
 
-test("le scaffold produit toutes les clés requises et conserve les const", () => {
+test("scaffold emits every required property and preserves constants", () => {
   const schema = {
     type: "object",
     required: ["type", "title", "status", "items"],
@@ -43,19 +43,19 @@ test("le scaffold produit toutes les clés requises et conserve les const", () =
   const result = scaffoldFromSchema(schema);
   assert.deepEqual(result, {
     type: "concept",
-    title: "À_REMPLIR",
-    status: "À_CHOISIR::draft|ready",
-    items: [{ id: "À_REMPLIR", enabled: false }],
+    title: "TO_FILL",
+    status: "CHOOSE::draft|ready",
+    items: [{ id: "TO_FILL", enabled: false }],
   });
   assert.deepEqual(findScaffoldSentinels(result), [".title", ".status", ".items[0].id"]);
 });
 
-test("un $ref non résolu est refusé explicitement", () => {
+test("unresolved references are rejected explicitly", () => {
   assert.throws(() => scaffoldFromSchema({ type: "object", required: ["value"], properties: { value: { $ref: "#/$defs/value" } } }), /Cannot scaffold unresolved \$ref/);
   assert.throws(() => scaffoldFromSchema({ type: "object", required: ["value"], properties: { value: { $ref: "other.schema.json#/$defs/value" } } }), /Cannot scaffold unresolved \$ref/);
 });
 
-test("un $ref local vers $defs est résolu récursivement", () => {
+test("local $defs references resolve recursively", () => {
   const result = scaffoldFromSchema({
     type: "object",
     required: ["checks"],
@@ -69,10 +69,10 @@ test("un $ref local vers $defs est résolu récursivement", () => {
       },
     },
   });
-  assert.deepEqual(result, { checks: [{ id: "À_REMPLIR", status: "À_CHOISIR::pass|fail" }] });
+  assert.deepEqual(result, { checks: [{ id: "TO_FILL", status: "CHOOSE::pass|fail" }] });
 });
 
-test("le scaffold respecte un minimum numérique et un exemple de tableau fourni par le schéma", () => {
+test("scaffold honors numeric minimums and schema array defaults", () => {
   const result = scaffoldFromSchema({
     type: "object",
     required: ["sequence", "hypotheses"],
@@ -80,16 +80,16 @@ test("le scaffold respecte un minimum numérique et un exemple de tableau fourni
       sequence: { type: "integer", minimum: 1 },
       hypotheses: {
         type: "array",
-        default: [{ sujet: "À_REMPLIR", position_retenue: "À_REMPLIR" }],
+        default: [{ subject: "TO_FILL", selected_position: "TO_FILL" }],
         items: { type: "object" },
       },
     },
   });
-  assert.deepEqual(result, { sequence: 1, hypotheses: [{ sujet: "À_REMPLIR", position_retenue: "À_REMPLIR" }] });
-  assert.deepEqual(findScaffoldSentinels(result), [".hypotheses[0].sujet", ".hypotheses[0].position_retenue"]);
+  assert.deepEqual(result, { sequence: 1, hypotheses: [{ subject: "TO_FILL", selected_position: "TO_FILL" }] });
+  assert.deepEqual(findScaffoldSentinels(result), [".hypotheses[0].subject", ".hypotheses[0].selected_position"]);
 });
 
-test("les schémas réels guident les tableaux requis non vides et gardent les vides documentés", () => {
+test("canonical schemas guide required arrays and preserve documented empty arrays", () => {
   const root = resolve(import.meta.dirname, "../..");
   const parseSchema = (file: string) => JSON.parse(readFileSync(resolve(root, file), "utf8")) as Record<string, unknown>;
   const strip = (schema: Record<string, unknown>) => {
@@ -101,11 +101,11 @@ test("les schémas réels guident les tableaux requis non vides et gardent les v
   const concept = scaffoldFromSchema(strip(parseSchema("schemas/concept.schema.json")));
   const plan = scaffoldFromSchema(strip(parseSchema("schemas/plan.schema.json")));
 
-  assert.deepEqual(concept.hypotheses, [{ sujet: "À_REMPLIR", position_retenue: "À_REMPLIR" }]);
+  assert.deepEqual(concept.assumptions, [{ subject: "TO_FILL", selected_position: "TO_FILL" }]);
   assert.deepEqual(concept.sections, []);
-  assert.deepEqual(plan.concepts_sources, ["À_REMPLIR"]);
-  assert.deepEqual(plan.criteres_de_fini, ["À_REMPLIR"]);
-  assert.ok(findScaffoldSentinels(plan).includes(".concepts_sources[0]"));
-  assert.ok(findScaffoldSentinels(plan).includes(".criteres_de_fini[0]"));
-  assert.ok(findScaffoldSentinels(concept).includes(".hypotheses[0].sujet"));
+  assert.deepEqual(plan.source_concepts, ["TO_FILL"]);
+  assert.deepEqual(plan.completion_criteria, ["TO_FILL"]);
+  assert.ok(findScaffoldSentinels(plan).includes(".source_concepts[0]"));
+  assert.ok(findScaffoldSentinels(plan).includes(".completion_criteria[0]"));
+  assert.ok(findScaffoldSentinels(concept).includes(".assumptions[0].subject"));
 });

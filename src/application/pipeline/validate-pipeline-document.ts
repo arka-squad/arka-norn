@@ -18,14 +18,18 @@ import { findScaffoldSentinels } from "../../domain/pipeline/scaffold-schema.js"
 import type { PipelineDocumentValidation } from "../../ports/inbound/for-pipeline.js";
 import type { DocumentValidator } from "../../ports/outbound/document-validator.js";
 import type { PipelineDocumentSource } from "../../ports/outbound/pipeline-document-source.js";
+import { canonicalDocumentType, normalizeLegacyDocument } from "../compatibility/legacy-french-contract.js";
 
 export function validatePipelineDocumentUseCaseFactory(deps: { readonly source: PipelineDocumentSource; readonly validator: DocumentValidator }) {
-  return async (input: { readonly filePath: string; readonly pipelineId?: string }): Promise<PipelineDocumentValidation> => {
+  return async (input: { readonly filePath: string; readonly pipelineId?: string; readonly documentContractVersion?: 3 | 5 }): Promise<PipelineDocumentValidation> => {
     const candidate = await deps.source.read(input.filePath);
     if (candidate.content === undefined) return { valid: false, errors: candidate.readErrors };
-    const type = candidate.content["type"];
-    if (typeof type !== "string") return { valid: false, errors: ['missing string field "type"'] };
-    const definition = await deps.source.loadDefinition(input.pipelineId);
+    const sourceType = candidate.content["type"];
+    if (typeof sourceType !== "string") return { valid: false, errors: ['missing string field "type"'] };
+    const contractVersion = input.documentContractVersion ?? 5;
+    const type = contractVersion === 3 ? sourceType : canonicalDocumentType(sourceType);
+    const content = contractVersion === 3 || candidate.content["schema_version"] === 5 ? candidate.content : normalizeLegacyDocument(candidate.content);
+    const definition = await deps.source.loadDefinition(input.pipelineId, contractVersion);
     let schemaPath = schemaFor(definition, type);
     if (schemaPath === undefined && input.pipelineId === undefined) {
       const catalog = await deps.source.loadCatalog();
@@ -36,8 +40,8 @@ export function validatePipelineDocumentUseCaseFactory(deps: { readonly source: 
       }
     }
     if (schemaPath === undefined) return { valid: false, type, errors: [`unknown pipeline document type: ${type}`] };
-    const schemaResult = await deps.validator.validate(schemaPath, candidate.content);
-    const sentinels = findScaffoldSentinels(candidate.content);
+    const schemaResult = await deps.validator.validate(schemaPath, content);
+    const sentinels = findScaffoldSentinels(content);
     const errors = [...schemaResult.errors, ...sentinels.map((path) => `${path} contains an unresolved scaffold sentinel`)];
     return { valid: errors.length === 0, type, schemaPath, errors };
   };

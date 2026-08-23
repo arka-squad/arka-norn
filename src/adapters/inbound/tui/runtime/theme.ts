@@ -14,14 +14,6 @@
  * limitations under the License.
  */
 
-/**
- * Theme — palette ANSI, lifecycle constants, emoji-aware stringWidth. Port
- * TS fidèle de arka-cc-management
- * (adapters/inbound/tui/runtime/theme.ts), sans les constantes lifecycle
- * (bundle-specific, non pertinentes pour arka-norn).
- *
- * Privacy : seuls NO_COLOR/FORCE_COLOR/ARKA_COLOR sont lus.
- */
 const ESC = String.fromCharCode(0x1b);
 const ANSI_RE = new RegExp(`${ESC}\\[[0-9;]*m`, "g");
 

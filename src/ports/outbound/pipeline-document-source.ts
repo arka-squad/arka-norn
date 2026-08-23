@@ -25,7 +25,7 @@ export interface PipelineDocumentCandidate {
 
 export interface PipelineDocumentSource {
   loadCatalog(): Promise<PipelineCatalog>;
-  loadDefinition(pipelineId?: string): Promise<PipelineDefinition>;
+  loadDefinition(pipelineId?: string, documentContractVersion?: 3 | 5): Promise<PipelineDefinition>;
   list(featureRoot: string): Promise<readonly PipelineDocumentCandidate[]>;
   read(filePath: string): Promise<PipelineDocumentCandidate>;
   loadSchema(schemaPath: string): Promise<Readonly<Record<string, unknown>>>;

@@ -14,20 +14,6 @@
  * limitations under the License.
  */
 
-/**
- * `createFeature` use-case. Port fidèle de createProject
- * (arka-cc-management, core/use-cases/projects/create-project.ts).
- *
- * Sémantique idempotente :
- * 1. featureStore.exists(root) === true ET marker.id === input.id
- *    → no-op + logger.warn + retour de la feature existante. Si l'index
- *      ne contient pas l'entrée (orpheline), on la ré-enregistre.
- * 2. featureStore.exists(root) === true ET marker.id !== input.id
- *    → collision pathologique sur le chemin → FeatureAlreadyExistsError.
- * 3. featureStore.exists(root) === false
- *    → écrit d'abord le marker, source de vérité reconstructible, puis
- *      référence la Feature dans l'index local.
- */
 import { FeatureAlreadyExistsError, FeatureNotFoundError } from "../../domain/errors.js";
 import { Feature } from "../../domain/feature/feature.js";
 import { DEFAULT_PIPELINE_ID } from "../../domain/shared/marker-formats.js";
@@ -83,7 +69,8 @@ export function createFeatureUseCaseFactory(deps: FeaturesDeps): CreateFeatureUs
       name: input.name,
       root: confined.child,
       pipelineId: input.pipelineId ?? defaultPipelineId,
-      schemaVersion: 3,
+      schemaVersion: 4,
+      documentContractVersion: 5,
       createdAt: now,
       updatedAt: now,
     });

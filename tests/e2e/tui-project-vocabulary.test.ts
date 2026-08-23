@@ -20,12 +20,15 @@ import { test } from "node:test";
 import { createHomeView } from "../../src/adapters/inbound/tui/views/home-view.ts";
 import { createRenderer } from "../../src/adapters/inbound/tui/runtime/render.ts";
 import { createTheme } from "../../src/adapters/inbound/tui/runtime/theme.ts";
+import { setActiveLocale } from "../../src/application/localization/locale.ts";
 import type { ProjectId } from "../../src/domain/project/project-id.ts";
 import type { CreateProjectInput } from "../../src/ports/inbound/for-projects.ts";
 import { createContainer } from "../../src/composition/container.ts";
 import { createPipelineRuntime } from "../../src/composition/pipeline-runtime.ts";
 import { readEnv } from "../../src/composition/env.ts";
 import { resolve } from "node:path";
+
+setActiveLocale("fr");
 
 test("la vraie vue d'accueil expose uniquement le vocabulaire Project", () => {
   let output = "";
@@ -49,17 +52,17 @@ test("la vraie vue d'accueil expose uniquement le vocabulaire Project", () => {
   });
 
   view.render(renderer, createTheme({ NO_COLOR: "1" }, false));
-  assert.match(output, /Projets/);
+  assert.match(output, /Projects/);
   assert.match(output, /Créer ou importer un Project/);
   assert.doesNotMatch(output, /Dépôt|dépôt/);
   assert.match(output, /Santé du système/);
-  assert.match(output, /Installer \/ réparer les skills/);
+  assert.match(output, /Installer ou réparer les skills/);
   assert.match(output, /21\/21 sains/);
 });
 
 test("la composition TUI et le runtime CLI consomment le même PipelineReport", async () => {
   const root = resolve(import.meta.dirname, "..", "..");
-  const featureRoot = resolve(root, "examples", "feature-notion-linear");
+  const featureRoot = resolve(root, "tests", "fixtures", "legacy", "fr", "examples", "feature-complete");
   const container = createContainer(readEnv({ ARKA_NORN_HOME: resolve(root, ".input", "test-home") }, root));
   const tuiReport = await container.pipeline.inspect({ featureRoot, pipelineId: "standard" });
   const cliReport = await createPipelineRuntime(root).inspect({ featureRoot, pipelineId: "standard" });

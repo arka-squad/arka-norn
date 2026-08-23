@@ -1,0 +1,78 @@
+{
+  "schema_version": 5,
+  "author_agent_id": "Codex_dev_20260819",
+  "id": "invariants-n1-figes-t02",
+  "feature_id": "connecteurs-notion-linear",
+  "type": "frozen_invariants",
+  "sequence": 1,
+  "created_at": "2026-06-30T11:00:00.000Z",
+  "depends_on_document_ids": [
+    "audit-t01-etat-reel-cortex-lite"
+  ],
+  "task_id": "Documented task id for the canonical English example.",
+  "plan_sources": [
+    "Documented plan sources for the canonical English example.",
+    "Documented plan sources for the canonical English example.",
+    "Documented plan sources for the canonical English example.",
+    "Documented plan sources for the canonical English example.",
+    "Documented plan sources for the canonical English example.",
+    "Documented plan sources for the canonical English example.",
+    "Documented plan sources for the canonical English example."
+  ],
+  "depends_on": [
+    "audit-t01-etat-reel-cortex-lite"
+  ],
+  "date": "2026-06-30",
+  "invariants": [
+    {
+      "id": "INV-1",
+      "title": "Documented title for the canonical English example.",
+      "description": "Documented description for the canonical English example.",
+      "level": "N1",
+      "source_section": "Documented source section for the canonical English example."
+    },
+    {
+      "id": "INV-2",
+      "title": "Documented title for the canonical English example.",
+      "description": "Documented description for the canonical English example.",
+      "level": "N1",
+      "source_section": "Documented source section for the canonical English example."
+    },
+    {
+      "id": "INV-3",
+      "title": "Documented title for the canonical English example.",
+      "description": "Documented description for the canonical English example.",
+      "level": "N1",
+      "source_section": "Documented source section for the canonical English example."
+    },
+    {
+      "id": "INV-4",
+      "title": "Documented title for the canonical English example.",
+      "description": "Documented description for the canonical English example.",
+      "level": "N1",
+      "source_section": "Documented source section for the canonical English example."
+    },
+    {
+      "id": "INV-5",
+      "title": "Documented title for the canonical English example.",
+      "description": "Documented description for the canonical English example.",
+      "level": "N1",
+      "source_section": "Documented source section for the canonical English example."
+    },
+    {
+      "id": "INV-6",
+      "title": "Documented title for the canonical English example.",
+      "description": "Documented description for the canonical English example.",
+      "level": "N1",
+      "source_section": "Documented source section for the canonical English example."
+    },
+    {
+      "id": "INV-7",
+      "title": "Documented title for the canonical English example.",
+      "description": "Documented description for the canonical English example.",
+      "level": "N1",
+      "source_section": "Documented source section for the canonical English example."
+    }
+  ],
+  "content_locale": "en"
+}

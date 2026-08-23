@@ -14,22 +14,6 @@
  * limitations under the License.
  */
 
-/**
- * Feature entity — un dossier de feature suivi par arka-norn (pipeline
- * concept -> plan -> ... -> recette QA).
- *
- * Port fidèle du pattern Project (arka-cc-management,
- * core/domain/project/project.ts), simplifié : pas de `code`/`options`
- * (arka-norn ne lance pas de session CLI pour une feature, contrairement à
- * arka-cc-management qui lance `claude --name <code>-<slug>`).
- *
- * Source de vérité sur disque :
- *   `<feature-root>/.arka-norn/feature.json` (marker)
- * Entrée d'index :
- *   `~/.arka-norn/index/features.json` (id + projectId + root + name + updatedAt).
- *
- * Entité IMMUABLE : chaque transition retourne une nouvelle instance.
- */
 import { InvalidFeatureOptionError } from "../errors.js";
 import type { ProjectId } from "../project/project-id.js";
 import type { FeatureId } from "./feature-id.js";
@@ -40,7 +24,8 @@ export interface FeatureProps {
   readonly name: string;
   readonly root: string;
   readonly pipelineId: string;
-  readonly schemaVersion: 3;
+  readonly schemaVersion: 3 | 4;
+  readonly documentContractVersion?: 3 | 5;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }
@@ -51,7 +36,8 @@ export class Feature {
   public readonly name: string;
   public readonly root: string;
   public readonly pipelineId: string;
-  public readonly schemaVersion: 3;
+  public readonly schemaVersion: 3 | 4;
+  public readonly documentContractVersion: 3 | 5;
   public readonly createdAt: Date;
   public readonly updatedAt: Date;
 
@@ -62,6 +48,7 @@ export class Feature {
     this.root = props.root;
     this.pipelineId = props.pipelineId;
     this.schemaVersion = props.schemaVersion;
+    this.documentContractVersion = props.documentContractVersion ?? (props.schemaVersion === 4 ? 5 : 3);
     this.createdAt = new Date(props.createdAt.getTime());
     this.updatedAt = new Date(props.updatedAt.getTime());
   }
@@ -146,6 +133,7 @@ export class Feature {
       root: this.root,
       pipelineId: this.pipelineId,
       schemaVersion: this.schemaVersion,
+      documentContractVersion: this.documentContractVersion,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     };

@@ -1,0 +1,70 @@
+{
+  "name": "arka-framework-integration-specification",
+  "repoTitle": "Integration specification",
+  "globalTitle": "Skill - Integration specification",
+  "summary": "Connect tasks, contracts, invariants and executable tests.",
+  "useWhen": "Use when the verified Pipeline action or Product handoff assigns the technical_integration_specification responsibility.",
+  "doNotUseWhen": "Do not use for a different calculated phase, an unverified Agent scope, or to bypass schema and business validation.",
+  "triggers": "Use when the verified Pipeline action or Product handoff assigns the technical_integration_specification responsibility. English triggers include \"continue the Feature\" and \"run the next phase\". French triggers include \"continuer la Feature\" and \"exécuter la prochaine étape\". Resolve locale, Project, Feature, Agent and phase through the CLI before acting.",
+  "interface": {
+    "displayName": "Integration specification",
+    "shortDescription": "Connect tasks, contracts, invariants and executable tests.",
+    "defaultPrompt": "Use $arka-framework-integration-specification to execute only the currently calculated phase."
+  },
+  "allowedTools": [
+    "Read",
+    "Bash",
+    "Grep",
+    "Glob"
+  ],
+  "whenToUse": [
+    "Use when the verified Pipeline action or Product handoff assigns the technical_integration_specification responsibility.",
+    "The work must produce one signed and mechanically validated artifact."
+  ],
+  "whenNotToUse": [
+    "Do not use for a different calculated phase, an unverified Agent scope, or to bypass schema and business validation.",
+    "The current Agent identity or session cannot be verified."
+  ],
+  "inputs": [
+    {
+      "required": true,
+      "name": "feature",
+      "description": "Exact managed Feature identifier."
+    },
+    {
+      "required": true,
+      "name": "session_id",
+      "description": "Specialized Agent session supplied by Product control."
+    },
+    {
+      "required": false,
+      "name": "agent_id",
+      "description": "Explicit active identity; otherwise use the Project session binding."
+    }
+  ],
+  "inputNotes": "Never infer the phase from filenames. Machine-readable CLI data is the source of truth.",
+  "references": [
+    "`{{FRAMEWORK_DIR}}/docs/agent-guide.md` - Agent protocol and locale behavior",
+    "`{{FRAMEWORK_DIR}}/schemas/` - canonical v5 document contracts",
+    "`{{FRAMEWORK_DIR}}/pipelines/catalog.json` - canonical workflow catalog"
+  ],
+  "procedure": [
+    {
+      "title": "Resolve locale and verified context",
+      "content": "Run `arka-norn locale show --json`, `feature show`, `agent current` and `agent sessions`. Reply in the active display locale. Keep contract keys in English and set `content_locale` to the prose locale."
+    },
+    {
+      "title": "Read one calculated action",
+      "content": "Run `arka-norn pipeline next <feature> --json`. Use its stable codes, parameters, expected artifact and suggested command without guessing from display prose. Stop if the action is null."
+    },
+    {
+      "title": "Produce the bounded artifact",
+      "content": "Execute only the proposed scaffold command. Replace every sentinel, preserve the specialized session, satisfy code, functional, UX and security evidence where applicable, and never modify another documentary phase."
+    },
+    {
+      "title": "Validate and stop",
+      "content": "Run `arka-norn pipeline validate <feature> --document <file> --json`, then rerun `arka-norn pipeline next <feature> --json` only to observe the transition. Report the next action without executing it."
+    }
+  ],
+  "outputFormat": "Report the verified Project, Feature, Agent/session, locale, executed phase, signed document, validation result, evidence and observed next command. Do not execute a second phase in the same invocation."
+}

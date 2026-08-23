@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { translate } from "../../application/localization/locale.js";
 import { mapConcurrent } from "../../application/shared/map-concurrent.js";
 export async function loadProjectMetrics(features, pipeline, authorRegistryForFeature) {
     return new Map(await mapConcurrent(features, 4, async (feature) => {
@@ -20,14 +21,15 @@ export async function loadProjectMetrics(features, pipeline, authorRegistryForFe
             featureRoot: feature.root,
             featureId: feature.id.value,
             pipelineId: feature.pipelineId,
+            documentContractVersion: feature.documentContractVersion,
             authorRegistry: await authorRegistryForFeature(feature),
         });
         return [feature.id.value, metricsFromReport(report, feature.pipelineId)];
     }));
 }
 export function metricsFromReport(report, pipelineId = report.pipelineId) {
-    const debts = report.steps.find((step) => step.id === "registre_dettes");
-    const qa = report.steps.find((step) => step.id === "recette_qa");
+    const debts = report.steps.find((step) => step.id === "debt_register");
+    const qa = report.steps.find((step) => step.id === "qa_review");
     return {
         status: report.overallStatus,
         debtDocuments: debts?.documents.length ?? 0,
@@ -35,9 +37,9 @@ export function metricsFromReport(report, pipelineId = report.pipelineId) {
         handoffSignals: report.transversalDocuments.find((state) => state.type === "handoff")?.documents.length ?? 0,
         invalidDocuments: report.steps.reduce((count, step) => count + step.documents.filter((document) => !document.valid).length, 0),
         pipelineId,
-        phase: report.nextActions[0]?.phase ?? (report.overallStatus === "completed" ? "Terminé" : "Diagnostic"),
+        phase: report.nextActions[0]?.phase ?? translate(report.overallStatus === "completed" ? "tui.project.phase.completed" : "tui.project.phase.diagnostic"),
         progress: `${report.steps.filter((step) => step.completionStatus === "completed").length}/${report.steps.filter((step) => step.required).length}`,
-        iteration: Math.max(1, report.steps.find((step) => step.id === "cr_dev")?.documents.length ?? 0),
+        iteration: Math.max(1, report.steps.find((step) => step.id === "development_report")?.documents.length ?? 0),
     };
 }
 //# sourceMappingURL=project-dashboard.js.map

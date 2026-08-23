@@ -1,0 +1,35 @@
+{
+  "schema_version": 5,
+  "author_agent_id": "Codex_dev_20260819",
+  "id": "tache-19-specifier-le-domaine-cortex-connect-core",
+  "feature_id": "connecteurs-notion-linear",
+  "type": "agent_task",
+  "sequence": 1,
+  "created_at": "2026-06-30T13:00:00.000Z",
+  "depends_on_document_ids": [
+    "registre-dettes-spec-t03"
+  ],
+  "number": 19,
+  "title": "Documented title for the canonical English example.",
+  "block": "Documented block for the canonical English example.",
+  "status": "done",
+  "internal_plan_sources": [
+    "Documented internal plan sources for the canonical English example.",
+    "Documented internal plan sources for the canonical English example.",
+    "Documented internal plan sources for the canonical English example."
+  ],
+  "dependencies": [],
+  "objective": "Documented objective for the canonical English example.",
+  "plan_statement": "Documented plan statement for the canonical English example.",
+  "recommended_breakdown": [
+    "Documented recommended breakdown for the canonical English example.",
+    "Documented recommended breakdown for the canonical English example.",
+    "Documented recommended breakdown for the canonical English example."
+  ],
+  "expected_output": "Documented expected output for the canonical English example.",
+  "assigned_agent": {
+    "name": "Documented name for the canonical English example.",
+    "provider": "Documented provider for the canonical English example."
+  },
+  "content_locale": "en"
+}

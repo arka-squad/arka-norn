@@ -36,12 +36,12 @@ test("guidedNext calcule l'itération depuis l'étape de livraison configurée",
 
 test("guidedNext rend une fin stable sans commande suggérée", () => {
   const next = guidedNext(pipelineReport([step("delivery", 1, "completed", 2)], []), "feature", "main", CONFIG);
-  assert.deepEqual([next.phase, next.iteration, next.action, next.reason, next.suggestedCommand], ["Terminé", 2, null, "Terminé.", null]);
+  assert.deepEqual([next.phase, next.iteration, next.action, next.reason, next.suggestedCommand], ["completed", 2, null, "Terminé.", null]);
 });
 
 function pipelineReport(steps: readonly StepState[], nextActions: PipelineReport["nextActions"]): PipelineReport {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     pipelineId: "pipeline-test",
     featureRoot: "/tmp/feature",
     featureId: "feature",

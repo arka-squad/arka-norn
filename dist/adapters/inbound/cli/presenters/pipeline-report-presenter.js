@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { translate } from "../../../../application/localization/locale.js";
+import { cliEnvelope } from "../cli-envelope.js";
 export function pipelineExitCode(report) {
     if (report.overallStatus === "completed")
         return 0;
@@ -21,48 +23,55 @@ export function pipelineExitCode(report) {
     return 2;
 }
 export function presentPipelineReport(report) {
-    const lines = [`=== Pipeline ${report.pipelineId} ===`, `Feature : ${report.featureRoot}`, `État   : ${report.overallStatus}`, ""];
+    const lines = [
+        translate("pipeline.report.header", { pipeline: report.pipelineId }),
+        translate("pipeline.report.feature", { feature: report.featureRoot }),
+        translate("pipeline.report.status", { status: report.overallStatus }),
+        "",
+    ];
     for (const step of report.steps) {
         const count = step.documents.length;
         lines.push(`[${String(step.order).padStart(2, "0")}] ${step.id.padEnd(30)} ` +
-            `presence=${step.presenceStatus} schema=${step.schemaStatus} métier=${step.businessStatus} dépendances=${step.dependencyStatus} final=${step.completionStatus}` +
+            `presence=${step.presenceStatus} schema=${step.schemaStatus} business=${step.businessStatus} dependencies=${step.dependencyStatus} completion=${step.completionStatus}` +
             `${count > 0 ? ` documents=${count}` : ""}`);
     }
     for (const transversal of report.transversalDocuments) {
         lines.push(`[--] ${transversal.type.padEnd(30)} transversal documents=${transversal.documents.length}`);
     }
     if (report.latestCrDevId !== undefined)
-        lines.push("", `Dernier CR Dev : ${report.latestCrDevId}`);
+        lines.push("", translate("pipeline.report.latestReport", { id: report.latestCrDevId }));
     if (report.selectedQaId !== undefined)
-        lines.push(`Recette retenue : ${report.selectedQaId}`);
+        lines.push(translate("pipeline.report.selectedQa", { id: report.selectedQaId }));
     if (report.selectedAuditId !== undefined)
-        lines.push(`Audit retenu : ${report.selectedAuditId}`);
+        lines.push(translate("pipeline.report.selectedAudit", { id: report.selectedAuditId }));
     if (report.selectedValidationId !== undefined)
-        lines.push(`Validation retenue : ${report.selectedValidationId}`);
+        lines.push(translate("pipeline.report.selectedValidation", { id: report.selectedValidationId }));
     if (report.errors.length > 0)
-        lines.push("", "Erreurs :", ...report.errors.map((error) => `- ${error}`));
+        lines.push("", translate("pipeline.report.errors"), ...report.errors.map((error) => `- ${error}`));
     if (report.warnings.length > 0)
-        lines.push("", "Avertissements :", ...report.warnings.map((warning) => `- ${warning}`));
+        lines.push("", translate("pipeline.report.warnings"), ...report.warnings.map((warning) => `- ${warning}`));
     if (report.nextActions.length > 0) {
-        lines.push("", "=== Prochaine action ===");
+        lines.push("", translate("pipeline.report.next"));
         lines.push(...report.nextActions.flatMap((action) => [
             `${action.phase ?? action.stepId} · ${action.kind} -> ${action.stepId} : ${action.reason}`,
             ...(action.instructions ?? []).map((instruction) => `- ${instruction}`),
-            ...(action.suggestedCommand === undefined ? [] : [`Commande : ${action.suggestedCommand}`]),
+            ...(action.suggestedCommand === undefined ? [] : [translate("pipeline.report.command", { command: action.suggestedCommand })]),
         ]));
     }
     else if (report.overallStatus === "completed") {
-        lines.push("", "Pipeline complet.");
+        lines.push("", translate("pipeline.report.complete"));
     }
     return `${lines.join("\n")}\n`;
 }
-export function pipelineReportEnvelope(report) {
-    return {
-        schemaVersion: 1,
+export function pipelineReportEnvelope(report, command = "pipeline.status") {
+    return cliEnvelope({
+        command,
         ok: pipelineExitCode(report) === 0,
         data: report,
         errors: report.errors,
         warnings: report.warnings,
-    };
+        errorCode: "pipeline_error",
+        warningCode: "pipeline_warning",
+    });
 }
 //# sourceMappingURL=pipeline-report-presenter.js.map

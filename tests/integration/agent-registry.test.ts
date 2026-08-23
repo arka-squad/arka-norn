@@ -96,7 +96,7 @@ test("la session main refuse un nouvel Agent spécialisé", async (context) => {
   const project = Project.create({ id: ProjectId.of("project"), name: "Project", root: projectRoot, schemaVersion: 3, createdAt: at, updatedAt: at });
   const service = manageAgentsUseCaseFactory({ registry: new FsAgentRegistryStore(), session: new FsAgentSessionStore(resolve(sandbox, "home")), clock: new SystemClock() });
 
-  await assert.rejects(service.register({ project, provider: "Codex", role: "dev" }), /session main est réservée au Product principal/);
+  await assert.rejects(service.register({ project, provider: "Codex", role: "dev" }), /main session is reserved for the main Product Agent/);
   assert.match((await service.register({ project, provider: "Codex", role: "product" })).id.value, /_product_/);
 });
 

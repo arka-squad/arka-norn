@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 import { createDoctorRuntime } from "../../../composition/doctor-runtime.js";
+import { translate } from "../../../application/localization/locale.js";
 import { CliUsageError, parseStrictArguments } from "./strict-arguments.js";
+import { jsonEnvelope } from "./cli-envelope.js";
 export async function runDoctorCommand(argv, context) {
     const json = argv.includes("--json");
     try {
@@ -29,7 +31,7 @@ export async function runDoctorCommand(argv, context) {
             apply: parsed.booleans.has("apply"),
         });
         if (json) {
-            return { code: report.ok ? 0 : 3, stdout: `${JSON.stringify({ schemaVersion: 1, command: "doctor", ok: report.ok, data: report, errors: [], warnings: [] })}\n`, stderr: "" };
+            return { code: report.ok ? 0 : 3, stdout: jsonEnvelope({ command: "doctor", ok: report.ok, data: report }), stderr: "" };
         }
         const checks = report.checks.map((check) => `${check.status.toUpperCase().padEnd(4)} ${check.id} — ${check.message}`);
         const repairs = report.repairs.map((repair) => `${repair.applied ? "APPLIED" : "PLANNED"} ${repair.target}`);
@@ -39,8 +41,8 @@ export async function runDoctorCommand(argv, context) {
         const message = error instanceof Error ? error.message : String(error);
         const code = error instanceof CliUsageError ? 64 : 70;
         return json
-            ? { code, stdout: `${JSON.stringify({ schemaVersion: 1, command: "doctor", ok: false, data: null, errors: [message], warnings: [] })}\n`, stderr: "" }
-            : { code, stdout: "", stderr: `${code === 64 ? "Usage : arka-norn doctor [--json] [--repair [--apply]]\n" : ""}ERREUR — ${message}\n` };
+            ? { code, stdout: jsonEnvelope({ command: "doctor", ok: false, data: null, errors: [message], errorCode: "doctor_failed" }), stderr: "" }
+            : { code, stdout: "", stderr: `${code === 64 ? `${translate("cli.doctor.usage")}\n` : ""}${translate("common.error", { message })}\n` };
     }
 }
 //# sourceMappingURL=doctor-cli.js.map

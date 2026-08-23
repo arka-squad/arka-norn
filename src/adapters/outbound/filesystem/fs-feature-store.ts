@@ -23,6 +23,9 @@ import { Feature } from "../../../domain/feature/feature.js";
 import { ProjectId } from "../../../domain/project/project-id.js";
 import {
   type FeatureMarkerV3,
+  type FeatureMarkerV4,
+  isFeatureMarkerV3,
+  isFeatureMarkerV4,
   planFeatureMarkerMigration,
 } from "../../../domain/shared/marker-formats.js";
 import type { FeatureStore } from "../../../ports/outbound/feature-store.js";
@@ -59,7 +62,7 @@ export class FsFeatureStore implements FeatureStore {
     await rejectMarkerDirectorySymlink(root);
     const value = await readJson<unknown>(markerPath(root));
     if (value === undefined) throw new FeatureMarkerNotFoundError(root);
-    const marker = planFeatureMarkerMigration(value).output;
+    const marker = isFeatureMarkerV4(value) || isFeatureMarkerV3(value) ? value : planFeatureMarkerMigration(value).output;
     const canonicalRoot = await this.paths.assertMarkerRoot(root, root);
     return Feature.create({
       id: FeatureId.of(marker.id),
@@ -68,6 +71,7 @@ export class FsFeatureStore implements FeatureStore {
       root: canonicalRoot,
       pipelineId: marker.pipelineId,
       schemaVersion: marker.schemaVersion,
+      documentContractVersion: marker.schemaVersion === 4 ? marker.documentContractVersion : 3,
       createdAt: new Date(marker.createdAt),
       updatedAt: new Date(marker.updatedAt),
     });
@@ -80,9 +84,8 @@ export class FsFeatureStore implements FeatureStore {
   }
 }
 
-function serialize(feature: Feature): FeatureMarkerV3 {
-  return {
-    schemaVersion: 3,
+function serialize(feature: Feature): FeatureMarkerV3 | FeatureMarkerV4 {
+  const common = {
     id: feature.id.value,
     projectId: feature.projectId.value,
     name: feature.name,
@@ -90,6 +93,9 @@ function serialize(feature: Feature): FeatureMarkerV3 {
     createdAt: feature.createdAt.toISOString(),
     updatedAt: feature.updatedAt.toISOString(),
   };
+  return feature.schemaVersion === 4
+    ? { schemaVersion: 4, ...common, documentContractVersion: 5 }
+    : { schemaVersion: 3, ...common };
 }
 
 function markerPath(root: string): string {

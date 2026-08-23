@@ -13,45 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { createHash, randomUUID } from "node:crypto";
-import { existsSync } from "node:fs";
-import { spawn } from "node:child_process";
-import { relative, resolve } from "node:path";
 import { roleForStep } from "../application/agents/agent-orchestration.js";
 import { FsExecutionRegistryStore } from "../adapters/outbound/filesystem/fs-orchestration-execution-registry-store.js";
 import { FsOrchestrationPolicyStore } from "../adapters/outbound/filesystem/fs-orchestration-policy-store.js";
 import { FsOrchestrationWorkerStateStore } from "../adapters/outbound/filesystem/fs-orchestration-worker-state-store.js";
 import { FsAuditTrail } from "../adapters/outbound/filesystem/fs-audit-trail.js";
 import { createMastraExecutionPort } from "../adapters/outbound/execution/mastra-agent-execution-adapter.js";
-import { resolveAcpExecutable } from "../adapters/outbound/execution/secure-runtime.js";
 import { SystemClock } from "../adapters/outbound/system/system-clock.js";
 import { createAgentOrchestrationRuntime } from "./agent-orchestration-runtime.js";
-import { loadVerifiedFeatureContext } from "./verified-feature-context.js";
 import { AuditUnavailableError } from "../domain/errors.js";
 import { MissionPreconditionError } from "../domain/orchestration/errors.js";
-import { ExecutionPolicy, selectBestEligibleTarget, } from "../domain/orchestration/execution-policy.js";
+import {} from "../domain/orchestration/execution-policy.js";
 import { ExecutionRecord, executionSuspensionReason } from "../domain/orchestration/execution-record.js";
-import { containsSecretLikeText, MissionOrder } from "../domain/orchestration/mission-order.js";
-import { sameExecutionTarget, userExecutionTarget, } from "../domain/orchestration/types.js";
+import { MissionOrder } from "../domain/orchestration/mission-order.js";
+import { sameExecutionTarget, } from "../domain/orchestration/types.js";
 import { ProjectId } from "../domain/project/project-id.js";
-/**
- * The automatic worker intentionally does not receive a shell capability.
- * A provider workspace is not an operating-system sandbox, so arbitrary
- * commands cannot be treated as a preauthorized Project write.
- */
-const WRITE_CAPABILITIES = ["inspect_workspace", "modify_workspace", "read_pipeline"];
-const WRITE_WORKER_PERMISSIONS = ["read_workspace", "write_workspace"];
-const READ_ONLY_CAPABILITIES = ["inspect_workspace", "read_pipeline"];
-const READ_ONLY_WORKER_PERMISSIONS = ["read_workspace"];
-const CLAUDE_AUTOMATIC_CAPABILITIES = WRITE_CAPABILITIES;
-// Z.AI uses the same structured Claude SDK tool gate as Claude. It is only
-// offered after an explicit local enablement and credential check.
-const ZAI_AUTOMATIC_CAPABILITIES = WRITE_CAPABILITIES;
-// ACP permissions are opaque in V1. Codex and Kimi remain visible choices,
-// but are not eligible for a Feature-writing mission until their adapter can
-// prove a structured write scope.
-const CODEX_ACP_SAFE_CAPABILITIES = READ_ONLY_CAPABILITIES;
-const READ_ONLY_ANALYSIS_VERDICTS = ["no_blocker", "findings_require_review", "scope_change_required", "inconclusive"];
+import { providerCredentialsFrom, providerLabel, providerMission, requirementsForExecution, } from "./orchestration-provider-configuration.js";
+import { actionRequired, boundedMissionPrompt, isReadOnlyMission, isSafeProviderSessionId, proofReferencesFor, readOnlyAnalysisVerdict, validatePreparedPrompt, } from "./orchestration-proof-validation.js";
+import { createOrchestrationMissionPlanner, relativeFeatureScope, } from "./orchestration-mission-planner.js";
+import { createNodeOrchestrationWorkerLauncher, } from "./orchestration-worker-launcher.js";
+import { delay, includesAll, isActive, nextExecutionId, nextMissionId, resolveBoundedAuthor, } from "./orchestration-runtime-support.js";
+export { configuredProviderHealth } from "./orchestration-provider-configuration.js";
+export { createNodeOrchestrationWorkerLauncher } from "./orchestration-worker-launcher.js";
 const POLL_INTERVAL_MS = 200;
 const STALE_WORKER_AFTER_MS = 60_000;
 /**
@@ -78,13 +61,24 @@ export function createOrchestrationRuntime(options) {
         environment,
     });
     const sleep = options.sleep ?? delay;
+    const missionPlanner = createOrchestrationMissionPlanner({
+        projects: options.projects,
+        features: options.features,
+        agents: options.agents,
+        pipeline: options.pipeline,
+        policyStore,
+        registryStore,
+        clock,
+        environment,
+        ...(options.providerHealth === undefined ? {} : { providerHealth: options.providerHealth }),
+    });
     return {
         async configure(input) {
             const project = await options.projects.show(input.projectId);
             await auditIntent(project, "orchestration.configure", input.selection.provider);
             try {
-                const current = await loadPolicyForPreview(project);
-                const policy = policyWithUserModel(current, input.selection, clock.now());
+                const current = await missionPlanner.loadPolicyForPreview(project);
+                const policy = missionPlanner.policyWithUserModel(current, input.selection, clock.now());
                 await policyStore.save(project, policy);
                 await auditSuccess(project, "orchestration.configure", input.selection.provider, {
                     provider: input.selection.provider,
@@ -99,15 +93,15 @@ export function createOrchestrationRuntime(options) {
         },
         async preview(input) {
             const project = await options.projects.show(input.projectId);
-            return (await prepareMissionPreview(project, input.featureId)).preview;
+            return (await missionPlanner.prepareMissionPreview(project, input.featureId)).preview;
         },
         async start(input) {
             const project = await options.projects.show(input.projectId);
             await auditIntent(project, "orchestration.start", input.featureId.value);
             try {
                 await recoverStaleExecutions(project);
-                const beforeArming = await prepareMissionPreview(project, input.featureId);
-                assertConfirmedPreview(beforeArming, input.selection, input.previewFingerprint);
+                const beforeArming = await missionPlanner.prepareMissionPreview(project, input.featureId);
+                missionPlanner.assertConfirmedPreview(beforeArming, input.selection, input.previewFingerprint);
                 if (project.orchestrationMode !== "automatic") {
                     await options.projects.setOrchestrationMode({ id: project.id, orchestrationMode: "automatic" });
                 }
@@ -234,8 +228,8 @@ export function createOrchestrationRuntime(options) {
         // Preview is deliberately recomputed after arming and immediately before
         // the persistent registry write. A changed Pipeline, policy, health or
         // scope cannot turn the user's earlier agreement into a different run.
-        const prepared = await prepareMissionPreview(currentProject, requestedFeatureId);
-        const target = assertConfirmedPreview(prepared, selection, previewFingerprint);
+        const prepared = await missionPlanner.prepareMissionPreview(currentProject, requestedFeatureId);
+        const target = missionPlanner.assertConfirmedPreview(prepared, selection, previewFingerprint);
         const executionId = nextExecutionId();
         const missionId = nextMissionId();
         // A user may have returned to manual while the control plane was
@@ -276,7 +270,7 @@ export function createOrchestrationRuntime(options) {
             feature = await options.features.show(featureId);
             if (!feature.belongsTo(project.id))
                 throw new Error("feature-project-mismatch");
-            const current = await inspectFeature(feature);
+            const current = await missionPlanner.inspectFeature(feature);
             const next = current.report.nextActions[0];
             if (next === undefined)
                 throw new MissionPreconditionError("Pipeline no longer has an actionable next step.");
@@ -298,7 +292,7 @@ export function createOrchestrationRuntime(options) {
                 await rejectPlanned(project, record.id, "policy_rejected", "The Project policy no longer authorizes the confirmed assistant and version.");
                 return undefined;
             }
-            const health = targetHealthForPolicy(policy, await providerHealth(project));
+            const health = await missionPlanner.targetHealth(project, policy);
             const healthy = health.find((entry) => sameExecutionTarget(entry.target, record.target));
             if (healthy?.healthy !== true || !includesAll(healthy.capabilities, record.order.requiredCapabilities)) {
                 await rejectPlanned(project, record.id, "worker_unavailable", "The confirmed assistant and version are no longer available for this mission.");
@@ -342,7 +336,7 @@ export function createOrchestrationRuntime(options) {
             const rechecked = await loadCurrentMissionContext(project, record);
             if (rechecked === undefined)
                 return undefined;
-            const authorAgentId = await resolveBoundedAuthor(project, rechecked, prompt, record);
+            const authorAgentId = await resolveBoundedAuthor({ agents: options.agents, project, context: rechecked, prompt, record });
             const begun = await updateExecution(project, executionId, (candidate, at) => candidate.begin({ at }));
             const mission = providerMission(begun, boundedMissionPrompt(begun, prompt.skill, rechecked.role, authorAgentId), rechecked.feature.root, environment);
             return { record: begun, mission, context: { ...rechecked, authorAgentId } };
@@ -409,7 +403,14 @@ export function createOrchestrationRuntime(options) {
                 await updateExecution(project, executionId, (record, at) => record.appendEvent("manual_pipeline_validation_required", "The Pipeline remains unchanged until a human validates the official document.", at));
                 return;
             }
-            const proofReferences = await proofReferencesFor(context, current, outcome);
+            const proofReferences = await proofReferencesFor({
+                before: context.report,
+                featureRoot: context.feature.root,
+                expectedAuthorAgentId: context.authorAgentId,
+                record: current,
+                outcome,
+                inspect: async () => (await missionPlanner.inspectFeature(context.feature)).report,
+            });
             if (proofReferences.length === 0) {
                 await updateExecution(project, executionId, (record, at) => record.fail(executionSuspensionReason("missing_proof", "The provider completed without an execution-bound proof marker and a new valid Pipeline document."), at));
                 return;
@@ -419,7 +420,6 @@ export function createOrchestrationRuntime(options) {
                 provider: succeeded.target.provider,
                 model: succeeded.target.model ?? "legacy",
             });
-            // A Project in automatic mode is intentionally a *pilote assisté*.
             // The next Pipeline step can be previewed, but is never chained or
             // launched without a new explanation and explicit confirmation.
             await updateExecution(project, executionId, (record, at) => record.appendEvent("next_preview_required", "Arka validated this result. Prepare and confirm the next mission before another assistant is launched.", at));
@@ -433,186 +433,6 @@ export function createOrchestrationRuntime(options) {
         await updateExecution(project, executionId, (record, at) => record.fail(executionSuspensionReason(reason, outcome.status === "interrupted"
             ? "The provider run was interrupted. Retry creates a fresh run."
             : "The provider failed before it returned verifiable proof."), at));
-    }
-    async function proofReferencesFor(context, record, outcome) {
-        try {
-            if (!hasExecutionProofMarker(outcome.output, record.id, record.order.preconditions.nextStepId))
-                return [];
-            const current = await inspectFeature(context.feature);
-            const next = current.report.nextActions[0];
-            if (next?.stepId === record.order.preconditions.nextStepId)
-                return [];
-            if (context.authorAgentId === undefined)
-                return [];
-            const newDocuments = newValidPipelineDocuments(context.report, current.report, context.feature.root, record.order.preconditions.nextStepId, context.authorAgentId);
-            if (newDocuments.length === 0)
-                return [];
-            const transition = current.report.overallStatus === "completed"
-                ? "pipeline:completed"
-                : next === undefined ? undefined : `pipeline:next-step:${next.stepId}`;
-            if (transition === undefined)
-                return [];
-            return [transition, ...newDocuments.map((filePath) => `document:${filePath}`)];
-        }
-        catch {
-            return [];
-        }
-    }
-    async function resolveBoundedAuthor(project, context, prompt, record) {
-        const binding = (await options.agents.sessions(project)).find((candidate) => candidate.sessionId.value === prompt.sessionId);
-        if (binding === undefined
-            || !binding.agent.active
-            || !binding.agent.coversFeature(context.feature.id)
-            || !binding.agent.coversProjectPath(relativeFeatureScope(project, context.feature))
-            || !matchesOrchestrationRole(binding.agent.role, context.role)
-            || !matchesExecutionProvider(binding.agent.provider, record.provider)) {
-            throw new MissionPreconditionError("The execution role has no active, scoped Agent identity compatible with the selected provider.");
-        }
-        return binding.agent.id.value;
-    }
-    async function resolveFeature(project, requested) {
-        if (requested !== undefined) {
-            const feature = await options.features.show(requested);
-            if (!feature.belongsTo(project.id))
-                throw new Error(`Feature ${feature.id.value} does not belong to Project ${project.id.value}.`);
-            return feature;
-        }
-        const features = await options.features.list(project.id);
-        if (features.length !== 1)
-            throw new Error("Automatic orchestration requires --feature unless the Project has exactly one Feature.");
-        return features[0];
-    }
-    async function inspectFeature(feature) {
-        const { authorRegistry } = await loadVerifiedFeatureContext(feature, { projects: options.projects, agents: options.agents });
-        const report = await options.pipeline.inspect({
-            featureRoot: feature.root,
-            featureId: feature.id.value,
-            pipelineId: feature.pipelineId,
-            authorRegistry,
-        });
-        return { report };
-    }
-    async function loadPolicyForPreview(project) {
-        return (await policyStore.load(project)) ?? ExecutionPolicy.defaultFor(project.id, clock.now());
-    }
-    async function assertNoPendingReadOnlyAnalysis(project, featureId, stepId) {
-        const registry = await registryStore.load(project);
-        const pending = registry.executions.some((record) => record.status === "succeeded"
-            && record.order.scope.featureId?.value === featureId
-            && record.order.preconditions.nextStepId === stepId
-            && readOnlyAnalysisVerdictFromProofReferences(record.proofReferences) !== undefined);
-        if (pending) {
-            throw new Error("A read-only analysis awaits manual Pipeline validation. Create or validate the official document before preparing this step again.");
-        }
-    }
-    async function prepareMissionPreview(project, featureId) {
-        const feature = await resolveFeature(project, featureId);
-        const current = await inspectFeature(feature);
-        const next = current.report.nextActions[0];
-        if (next === undefined)
-            throw new Error("The Pipeline has no next step to prepare with the Pilote assisté.");
-        const role = roleForStep(next.stepId);
-        if (role === undefined)
-            throw new Error(`The current Pipeline step ${next.stepId} has no bounded assistant role.`);
-        await assertNoPendingReadOnlyAnalysis(project, feature.id.value, next.stepId);
-        const requirements = requirementsForExecution(role);
-        const policy = await loadPolicyForPreview(project);
-        const targetSelection = selectBestEligibleTarget(policy, requirements, targetHealthForPolicy(policy, await providerHealth(project)));
-        const scopePaths = [relativeFeatureScope(project, feature)];
-        const candidates = targetSelection.candidates.map((candidate) => ({
-            target: candidate.target,
-            eligible: candidate.eligible,
-            reasons: candidate.reasons,
-            recommended: targetSelection.selected !== undefined && sameExecutionTarget(candidate.target, targetSelection.selected),
-        }));
-        const summary = `Préparer l’étape ${next.stepId} pour la Feature ${feature.name}.`;
-        const fingerprint = previewFingerprint({
-            projectId: project.id.value,
-            featureId: feature.id.value,
-            nextStepId: next.stepId,
-            role,
-            scopePaths,
-            requirements,
-            policyUpdatedAt: policy.updatedAt.toISOString(),
-            candidates,
-        });
-        const preview = {
-            schemaVersion: 1,
-            projectId: project.id.value,
-            featureId: feature.id.value,
-            featureName: feature.name,
-            stepId: next.stepId,
-            role,
-            summary,
-            scopePaths,
-            requiredCapabilities: [...requirements.capabilities],
-            requiredPermissions: [...requirements.permissions],
-            candidates,
-            fingerprint,
-        };
-        return { preview, feature, nextStepId: next.stepId, scopePaths, requirements, summary };
-    }
-    function assertConfirmedPreview(prepared, selection, expectedFingerprint) {
-        if (expectedFingerprint !== prepared.preview.fingerprint) {
-            throw new Error("The mission preview changed before confirmation. Review the updated mission before launching an assistant.");
-        }
-        const target = userExecutionTarget(selection.provider, selection.model);
-        const candidate = prepared.preview.candidates.find((entry) => sameExecutionTarget(entry.target, target));
-        if (candidate === undefined) {
-            throw new Error("The selected assistant and version are not configured for this Project. Configure them, then prepare the mission again.");
-        }
-        if (!candidate.eligible) {
-            throw new Error("The selected assistant and version cannot safely run this mission: " + candidate.reasons.join(", ") + ".");
-        }
-        return target;
-    }
-    function policyWithUserModel(source, selection, updatedAt) {
-        // Validates model text before it ever becomes durable Project state.
-        userExecutionTarget(selection.provider, selection.model);
-        const defaults = ExecutionPolicy.defaultFor(source.projectId, source.createdAt).toProps();
-        const sourceByProvider = new Map(source.providers.map((provider) => [provider.provider, provider]));
-        const providers = defaults.providers.map((defaultProvider) => {
-            const current = sourceByProvider.get(defaultProvider.provider) ?? defaultProvider;
-            if (current.provider !== selection.provider)
-                return current;
-            const existing = current.models.find((model) => model.id === selection.model);
-            const models = [
-                ...current.models.filter((model) => model.id !== selection.model),
-                { id: selection.model, enabled: true, priority: existing?.priority ?? 1000 },
-            ];
-            // Choosing an assistant and model must never broaden a Project policy.
-            // A Project owner can deliberately retain a read-only Claude or Z.AI
-            // policy; the explicit configuration action only enables the model.
-            return {
-                ...current,
-                enabled: true,
-                models,
-            };
-        });
-        return ExecutionPolicy.create({
-            schemaVersion: defaults.schemaVersion,
-            projectId: source.projectId,
-            selectionMode: "assisted",
-            providers,
-            createdAt: source.createdAt,
-            updatedAt,
-        });
-    }
-    function targetHealthForPolicy(policy, providerEntries) {
-        const byProvider = new Map(providerEntries.map((entry) => [entry.provider, entry]));
-        return policy.providers.flatMap((provider) => provider.models.map((model) => {
-            const health = byProvider.get(provider.provider);
-            return {
-                target: userExecutionTarget(provider.provider, model.id),
-                healthy: health?.healthy ?? false,
-                capabilities: health?.capabilities ?? [],
-            };
-        }));
-    }
-    async function providerHealth(project) {
-        if (options.providerHealth !== undefined)
-            return options.providerHealth(project);
-        return configuredProviderHealth(environment);
     }
     async function updateExecution(project, executionId, transition) {
         const registry = await registryStore.update(project, (current) => {
@@ -721,454 +541,5 @@ export function createOrchestrationRuntime(options) {
             throw new AuditUnavailableError(event.action, error instanceof Error ? error.message : String(error));
         }
     }
-}
-function previewFingerprint(value) {
-    const stable = JSON.stringify({
-        projectId: value.projectId,
-        featureId: value.featureId,
-        nextStepId: value.nextStepId,
-        role: value.role,
-        scopePaths: [...value.scopePaths],
-        capabilities: [...value.requirements.capabilities],
-        permissions: [...value.requirements.permissions],
-        policyUpdatedAt: value.policyUpdatedAt,
-        candidates: value.candidates.map((candidate) => ({
-            target: candidate.target,
-            eligible: candidate.eligible,
-            reasons: [...candidate.reasons],
-            recommended: candidate.recommended,
-        })),
-    });
-    return createHash("sha256").update(stable).digest("hex");
-}
-export function createNodeOrchestrationWorkerLauncher(input) {
-    const cliEntry = resolve(input.frameworkRoot, "bin", "arka-norn.mjs");
-    const environment = input.environment ?? process.env;
-    return {
-        launch(request) {
-            if (!existsSync(cliEntry))
-                throw new Error("The local arka-norn worker entrypoint is unavailable.");
-            const child = spawn(process.execPath, [cliEntry, "orchestration", "_worker", "--project", request.projectId, "--execution", request.executionId], {
-                cwd: input.frameworkRoot,
-                detached: true,
-                stdio: "ignore",
-                windowsHide: true,
-                env: workerEnvironment(input.homeDir, environment),
-            });
-            child.unref();
-            return Promise.resolve();
-        },
-    };
-}
-export function configuredProviderHealth(environment = process.env) {
-    return [
-        {
-            provider: "claude",
-            healthy: environment["ARKA_NORN_MASTRA_CLAUDE_ENABLED"] === "1" && hasExplicitProviderCredential(environment["ARKA_NORN_MASTRA_CLAUDE_API_KEY"]),
-            capabilities: CLAUDE_AUTOMATIC_CAPABILITIES,
-        },
-        {
-            provider: "codex",
-            healthy: isConfiguredAcpExecutable(environment["ARKA_NORN_CODEX_ACP_COMMAND"]) && hasExplicitProviderCredential(environment["ARKA_NORN_MASTRA_CODEX_API_KEY"]),
-            // ACP v1 emits generic permission requests with optional locations and
-            // opaque tool input. It is a supported adapter, but is not advertised
-            // for Feature writes until it proves a structured scope contract.
-            capabilities: CODEX_ACP_SAFE_CAPABILITIES,
-        },
-        {
-            provider: "kimi",
-            healthy: isConfiguredAcpExecutable(environment["ARKA_NORN_KIMI_ACP_COMMAND"]) && hasExplicitProviderCredential(environment["ARKA_NORN_MASTRA_KIMI_API_KEY"]),
-            // Kimi Code exposes the same opaque ACP permission shape. Keep it
-            // observable and selectable, but not eligible for Feature writes yet.
-            capabilities: CODEX_ACP_SAFE_CAPABILITIES,
-        },
-        {
-            provider: "zai",
-            healthy: environment["ARKA_NORN_MASTRA_ZAI_ENABLED"] === "1" && hasExplicitProviderCredential(environment["ARKA_NORN_MASTRA_ZAI_API_KEY"]),
-            capabilities: ZAI_AUTOMATIC_CAPABILITIES,
-        },
-    ];
-}
-function providerMission(record, prompt, workspace, environment) {
-    const permissionPolicy = {
-        mode: "preauthorized-workspace",
-        // MissionOrder paths are Project-relative audit data. The provider's
-        // process starts at the verified Feature root, so its only valid local
-        // scope is the whole Feature workspace, represented by `.`.
-        scopePaths: ["."],
-        permissions: record.order.requiredPermissions.filter((permission) => permission === "read_workspace" || permission === "write_workspace"),
-    };
-    if (permissionPolicy.permissions.length === 0)
-        throw new Error("The mission has no workspace permission.");
-    if (record.target.source !== "user" || record.target.model === undefined) {
-        throw new Error("A confirmed assistant and version are required for dispatch.");
-    }
-    if (record.target.provider === "claude") {
-        return {
-            provider: "claude",
-            executionId: record.id,
-            mission: prompt,
-            workspace,
-            permissionPolicy,
-            model: record.target.model,
-        };
-    }
-    if (record.target.provider === "zai") {
-        return {
-            provider: "claude",
-            providerProfile: "zai",
-            executionId: record.id,
-            mission: prompt,
-            workspace,
-            permissionPolicy,
-            model: record.target.model,
-        };
-    }
-    if (record.target.provider === "kimi") {
-        return {
-            provider: "kimi-acp",
-            executionId: record.id,
-            mission: prompt,
-            workspace,
-            permissionPolicy,
-            command: requiredAcpCommand(environment, "kimi"),
-            // Kimi Code owns the ACP subcommand. It never comes from a Project
-            // marker, the MissionOrder, or a free-form command-line option.
-            args: ["acp"],
-            model: record.target.model,
-        };
-    }
-    return {
-        provider: "codex-acp",
-        executionId: record.id,
-        mission: prompt,
-        workspace,
-        permissionPolicy,
-        command: requiredAcpCommand(environment, "codex"),
-        args: configuredAcpArguments(environment["ARKA_NORN_CODEX_ACP_ARGS"]),
-        model: record.target.model,
-    };
-}
-function workerEnvironment(homeDir, source) {
-    const names = [
-        "ARKA_NORN_CODEX_ACP_COMMAND",
-        "ARKA_NORN_CODEX_ACP_ARGS",
-        "ARKA_NORN_KIMI_ACP_COMMAND",
-        "ARKA_NORN_MASTRA_CLAUDE_ENABLED",
-        "ARKA_NORN_MASTRA_ZAI_ENABLED",
-        "ARKA_NORN_MASTRA_CLAUDE_API_KEY",
-        "ARKA_NORN_MASTRA_CODEX_API_KEY",
-        "ARKA_NORN_MASTRA_KIMI_API_KEY",
-        "ARKA_NORN_MASTRA_ZAI_API_KEY",
-        "LANG",
-        "LC_ALL",
-        "LC_CTYPE",
-        "TERM",
-        "NO_COLOR",
-        "TZ",
-    ];
-    const result = { ARKA_NORN_HOME: homeDir };
-    for (const name of names) {
-        const value = source[name];
-        if (value !== undefined)
-            result[name] = value;
-    }
-    return result;
-}
-function requirementsForExecution(role) {
-    // An audit is valuable before any mutation and is intentionally treated as
-    // a read-only mission. The MissionOrder, preview, provider selection and
-    // Claude tool surface all derive from this same requirement set.
-    if (role === "audit") {
-        return { capabilities: READ_ONLY_CAPABILITIES, permissions: READ_ONLY_WORKER_PERMISSIONS };
-    }
-    return { capabilities: WRITE_CAPABILITIES, permissions: WRITE_WORKER_PERMISSIONS };
-}
-function validatePreparedPrompt(prompt, project, context, record) {
-    const requiresWrite = record.order.requiredPermissions.includes("write_workspace");
-    if (prompt.projectId !== project.id.value
-        || prompt.featureId !== context.feature.id.value
-        || prompt.role !== context.role
-        || prompt.mode !== "execute"
-        // The interactive initialization prompt may be writable, but it never
-        // grants a worker more than the immutable MissionOrder. Only a write
-        // mission needs a writable prompt to remain internally coherent.
-        || (requiresWrite && !prompt.canWrite)
-        || prompt.expectedStepId !== record.order.preconditions.nextStepId) {
-        throw new MissionPreconditionError("The generated Agent prompt no longer matches the immutable MissionOrder.");
-    }
-}
-/**
- * The regular Agent initialization prompt contains Project-wide shell setup
- * guidance for an interactive session. A local automatic worker instead gets
- * a Feature-root-only mission with no shell/network authority.
- */
-function boundedMissionPrompt(record, skill, role, authorAgentId) {
-    const expectedStepId = record.order.preconditions.nextStepId;
-    const canWrite = record.order.requiredPermissions.includes("write_workspace");
-    return [
-        "MISSION ARKA NORN BORNÉE",
-        `- Exécution: ${record.id}`,
-        `- Rôle: ${role}`,
-        `- Étape Pipeline immuable: ${expectedStepId}`,
-        `- Référence skill: $${skill}`,
-        `- author_agent_id obligatoire: ${authorAgentId}`,
-        "",
-        canWrite
-            ? "La racine de travail fournie est exactement la racine de la Feature. Lis et écris uniquement dans cette racine."
-            : "La racine de travail fournie est exactement la racine de la Feature. Cette mission est strictement en lecture seule : ne modifie aucun fichier.",
-        "N'utilise ni shell, ni sous-processus, ni réseau, ni accès à une racine Project parente. Ne modifie ni marker Project, ni politique, ni registre d'exécutions, ni identité Agent.",
-        canWrite
-            ? `Vérifie les documents locaux puis produis seulement l'artefact valide attendu pour ${expectedStepId}. Si la situation ne correspond plus, arrête sans écrire.`
-            : `Analyse les documents locaux pour l'étape ${expectedStepId}, puis restitue une synthèse factuelle dans ta réponse. Si la situation ne correspond plus, arrête sans écrire.`,
-        canWrite
-            ? "Ne déclare pas de succès sans un document Pipeline valide nouvellement produit."
-            : "Cette analyse ne fait pas progresser le Pipeline sans une validation humaine et un livrable vérifiable.",
-        "",
-        ...(canWrite
-            ? [
-                "Après une production validable, termine exactement par cette ligne, sans autre valeur dans le marqueur :",
-                `ARKA_NORN_PROOF:${record.id}:${expectedStepId}`,
-            ]
-            : [
-                "Après l’analyse, termine exactement par ces deux lignes, sans autre valeur dans les marqueurs :",
-                "ARKA_NORN_ANALYSIS:<no_blocker|findings_require_review|scope_change_required|inconclusive>",
-                `ARKA_NORN_PROOF:${record.id}:${expectedStepId}`,
-            ]),
-    ].join("\n");
-}
-function matchesOrchestrationRole(value, expected) {
-    const role = value.trim().toLowerCase();
-    if (expected === "product")
-        return role === "product" || role === "product-owner" || role === "po";
-    if (expected === "architecte")
-        return role === "architecte" || role.includes("architect");
-    if (expected === "audit")
-        return role.includes("audit");
-    if (expected === "dev")
-        return role === "dev" || role.includes("developer");
-    return role === "qa" || role.includes("recette");
-}
-function isReadOnlyMission(record) {
-    return !record.order.requiredPermissions.includes("write_workspace");
-}
-function readOnlyAnalysisVerdict(output, record) {
-    if (!hasExecutionProofMarker(output, record.id, record.order.preconditions.nextStepId) || output === undefined)
-        return undefined;
-    const verdicts = output.split(/\r?\n/u)
-        .map((line) => line.trim())
-        .flatMap((line) => line.startsWith("ARKA_NORN_ANALYSIS:") ? [line.slice("ARKA_NORN_ANALYSIS:".length)] : []);
-    if (verdicts.length !== 1)
-        return undefined;
-    return isReadOnlyAnalysisVerdict(verdicts[0]) ? verdicts[0] : undefined;
-}
-function readOnlyAnalysisVerdictFromProofReferences(references) {
-    const values = references
-        .flatMap((reference) => reference.startsWith("analysis:verdict:") ? [reference.slice("analysis:verdict:".length)] : []);
-    if (values.length !== 1)
-        return undefined;
-    return isReadOnlyAnalysisVerdict(values[0]) ? values[0] : undefined;
-}
-function isReadOnlyAnalysisVerdict(value) {
-    return value !== undefined && READ_ONLY_ANALYSIS_VERDICTS.includes(value);
-}
-function hasExecutionProofMarker(output, executionId, expectedStepId) {
-    if (output === undefined || output.length > 64 * 1024)
-        return false;
-    const expected = `ARKA_NORN_PROOF:${executionId}:${expectedStepId}`;
-    return output.split(/\r?\n/u).some((line) => line.trim() === expected);
-}
-function newValidPipelineDocuments(before, after, featureRoot, expectedStepId, expectedAuthorAgentId) {
-    const known = new Set(pipelineDocumentSnapshots(before).map((document) => document.fingerprint));
-    const paths = pipelineDocumentSnapshots(after)
-        .filter((document) => document.valid
-        && document.source === "step"
-        && document.stepId === expectedStepId
-        && document.documentType === expectedStepId
-        && document.authorAgentId === expectedAuthorAgentId
-        && !known.has(document.fingerprint))
-        .map((document) => relative(featureRoot, document.filePath).replaceAll("\\", "/"))
-        .filter(isSafeFeatureRelativeProofPath);
-    return Object.freeze([...new Set(paths)].sort((left, right) => left.localeCompare(right)).slice(0, 20));
-}
-function pipelineDocumentSnapshots(report) {
-    const result = [];
-    for (const step of report.steps) {
-        for (const document of step.documents) {
-            result.push({
-                fingerprint: ["step", step.id, document.filePath, document.id ?? "", document.type ?? "", document.authorAgentId ?? "", document.valid ? "valid" : "invalid", document.createdAt ?? ""].join("\u0001"),
-                filePath: document.filePath,
-                valid: document.valid,
-                source: "step",
-                stepId: step.id,
-                documentType: document.type,
-                authorAgentId: document.authorAgentId,
-            });
-        }
-    }
-    for (const transversal of report.transversalDocuments) {
-        for (const document of transversal.documents) {
-            result.push({
-                fingerprint: ["transversal", transversal.type, document.filePath, document.id ?? "", document.type ?? "", document.authorAgentId ?? "", document.valid ? "valid" : "invalid", document.createdAt ?? ""].join("\u0001"),
-                filePath: document.filePath,
-                valid: document.valid,
-                source: "transversal",
-                stepId: undefined,
-                documentType: document.type,
-                authorAgentId: document.authorAgentId,
-            });
-        }
-    }
-    return result;
-}
-function isSafeFeatureRelativeProofPath(value) {
-    const normalized = value.replaceAll("\\", "/");
-    return normalized.length > 0
-        && normalized.length <= 480
-        && !normalized.startsWith("/")
-        && !normalized.startsWith("../")
-        && normalized !== ".."
-        && !normalized.split("/").includes("..")
-        && !/[\u0000-\u001f\u007f]/u.test(normalized)
-        && !containsSecretLikeText(normalized);
-}
-function isSafeProviderSessionId(value) {
-    return value.length > 0
-        && value.length <= 256
-        && !/[\u0000-\u001f\u007f]/u.test(value)
-        && !containsSecretLikeText(value);
-}
-function actionRequired(record) {
-    if (record === undefined)
-        return undefined;
-    if (record.status === "succeeded" && readOnlyAnalysisVerdictFromProofReferences(record.proofReferences) !== undefined) {
-        return {
-            kind: "inspect",
-            executionId: record.id,
-            reason: "The read-only analysis is ready. Validate the official Pipeline document before preparing this step again.",
-        };
-    }
-    if (record.status === "awaiting_approval")
-        return { kind: "approve", executionId: record.id, reason: record.suspensionReason?.detail ?? "A provider permission requires explicit approval." };
-    if (record.status === "failed" && record.suspensionReason?.code === "permission_not_preapproved") {
-        return { kind: "inspect", executionId: record.id, reason: record.suspensionReason.detail };
-    }
-    if (record.status === "failed" || record.status === "cancelled" || record.status === "interrupted")
-        return { kind: "retry", executionId: record.id, reason: record.suspensionReason?.detail ?? "The mission can be retried as a new provider run." };
-    if (record.status === "rejected")
-        return { kind: "inspect", executionId: record.id, reason: record.suspensionReason?.detail ?? "The control plane rejected the mission." };
-    return undefined;
-}
-function isActive(record) {
-    return record.status === "planned" || record.status === "running" || record.status === "awaiting_approval";
-}
-function relativeFeatureScope(project, feature) {
-    const scope = relative(project.root, feature.root).replaceAll("\\", "/");
-    if (scope.length === 0 || scope === ".." || scope.startsWith("../") || scope.startsWith("/")) {
-        throw new Error("Feature scope is outside the Project root.");
-    }
-    return scope;
-}
-function includesAll(available, required) {
-    const set = new Set(available);
-    return required.every((value) => set.has(value));
-}
-function providerLabel(provider) {
-    if (provider === "claude")
-        return "Claude";
-    if (provider === "codex")
-        return "Codex";
-    if (provider === "kimi")
-        return "Kimi Platform";
-    return "Z.AI Coding Plan";
-}
-function matchesExecutionProvider(agentProvider, selectedProvider) {
-    const normalized = agentProvider.trim().toLowerCase();
-    if (selectedProvider === "claude")
-        return normalized.includes("claude");
-    if (selectedProvider === "codex")
-        return normalized.includes("codex");
-    if (selectedProvider === "kimi")
-        return normalized.includes("kimi");
-    return normalized.includes("z.ai") || normalized.includes("zai");
-}
-function isConfiguredAcpExecutable(value) {
-    if (value === undefined || !safeConfigurationValue(value))
-        return false;
-    try {
-        resolveAcpExecutable(value);
-        return true;
-    }
-    catch {
-        return false;
-    }
-}
-function requiredAcpCommand(environment, provider) {
-    const name = provider === "codex" ? "ARKA_NORN_CODEX_ACP_COMMAND" : "ARKA_NORN_KIMI_ACP_COMMAND";
-    const value = environment[name];
-    if (value === undefined || !safeConfigurationValue(value)) {
-        throw new Error(`A configured absolute ${provider === "codex" ? "Codex" : "Kimi Code"} ACP executable is required.`);
-    }
-    return resolveAcpExecutable(value);
-}
-function configuredAcpArguments(value) {
-    if (value === undefined || value.trim() === "")
-        return [];
-    let parsed;
-    try {
-        parsed = JSON.parse(value);
-    }
-    catch {
-        throw new Error("ARKA_NORN_CODEX_ACP_ARGS must be a JSON string array.");
-    }
-    if (!Array.isArray(parsed)) {
-        throw new Error("ARKA_NORN_CODEX_ACP_ARGS contains an unsafe value.");
-    }
-    const argumentsList = [];
-    for (const item of parsed) {
-        if (typeof item !== "string" || !safeConfigurationValue(item)) {
-            throw new Error("ARKA_NORN_CODEX_ACP_ARGS contains an unsafe value.");
-        }
-        argumentsList.push(item);
-    }
-    return Object.freeze(argumentsList);
-}
-function providerCredentialsFrom(environment) {
-    const claudeApiKey = explicitProviderCredential(environment["ARKA_NORN_MASTRA_CLAUDE_API_KEY"]);
-    const codexApiKey = explicitProviderCredential(environment["ARKA_NORN_MASTRA_CODEX_API_KEY"]);
-    const kimiApiKey = explicitProviderCredential(environment["ARKA_NORN_MASTRA_KIMI_API_KEY"]);
-    const zaiApiKey = explicitProviderCredential(environment["ARKA_NORN_MASTRA_ZAI_API_KEY"]);
-    return {
-        ...(claudeApiKey === undefined ? {} : { claudeApiKey }),
-        ...(codexApiKey === undefined ? {} : { codexApiKey }),
-        ...(kimiApiKey === undefined ? {} : { kimiApiKey }),
-        ...(zaiApiKey === undefined ? {} : { zaiApiKey }),
-    };
-}
-function hasExplicitProviderCredential(value) {
-    return explicitProviderCredential(value) !== undefined;
-}
-function explicitProviderCredential(value) {
-    if (value === undefined)
-        return undefined;
-    if (value.length === 0 || value.length > 16 * 1024 || value.includes("\u0000")) {
-        throw new Error("An explicit provider credential is invalid.");
-    }
-    return value;
-}
-function safeConfigurationValue(value) {
-    return value.length <= 4_096
-        && !value.includes("\u0000")
-        && !containsSecretLikeText(value)
-        && !/(?:token|secret|password|api[_-]?key|authorization|credential)/iu.test(value);
-}
-function nextExecutionId() {
-    return `execution-${randomUUID()}`;
-}
-function nextMissionId() {
-    return `mission-${randomUUID()}`;
-}
-function delay(milliseconds) {
-    return new Promise((resolveDelay) => setTimeout(resolveDelay, milliseconds));
 }
 //# sourceMappingURL=orchestration-runtime.js.map

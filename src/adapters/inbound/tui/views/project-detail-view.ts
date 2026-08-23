@@ -26,8 +26,9 @@ import type { ForFeatures } from "../../../../ports/inbound/for-features.js";
 import type { ForProjects } from "../../../../ports/inbound/for-projects.js";
 import type { ForScan } from "../../../../ports/inbound/for-scan.js";
 import { mapConcurrent } from "../../../../application/shared/map-concurrent.js";
+import { formatNumber, translate } from "../../../../application/localization/locale.js";
 import { titledBox } from "../components/box.js";
-import { GUIDED_SHORTCUTS, nextActionLine, renderGuidance } from "../components/guidance.js";
+import { guidedShortcuts, nextActionLine, renderGuidance } from "../components/guidance.js";
 import { createMenuScene, type MenuItem, type MenuScene } from "../components/menu.js";
 import type { KeyEvent } from "../runtime/input.js";
 import type { Renderer } from "../runtime/render.js";
@@ -35,6 +36,7 @@ import type { Theme } from "../runtime/theme.js";
 import type { Scene } from "../runtime/tui-app.js";
 
 type ProjectAction = "action:product" | "action:import" | "action:agents" | "action:orchestration" | "action:orchestration-dashboard" | "action:scan" | "action:forget" | "action:back" | `action:create:${string}` | `feature:${string}`;
+const CIRCLE = String.fromCharCode(0x25cf);
 
 export interface WorkflowOption {
   readonly id: string;
@@ -43,11 +45,13 @@ export interface WorkflowOption {
   readonly isDefault: boolean;
 }
 
-const FALLBACK_WORKFLOWS: readonly WorkflowOption[] = [
-  { id: "arka-norn-essentiel", name: "Pipeline essentiel", description: "Cycle orienté Feature à cinq étapes pour un périmètre connu : cadrage fusionné, livraison, audit et validation.", isDefault: true },
-  { id: "arka-norn-default", name: "Pipeline standard", description: "Cycle complet à dix étapes pour une Feature structurante ou incertaine.", isDefault: false },
-  { id: "arka-norn-fastdev", name: "FastDev rework", description: "Cycle court et contrôlé pour une correction, un refactor ou une amélioration UX bornée.", isDefault: false },
-];
+function fallbackWorkflows(): readonly WorkflowOption[] {
+  return [
+    { id: "arka-norn-essential", name: "Essential pipeline", description: "Five-step Feature workflow for a known scope: brief, delivery, audit and validation.", isDefault: true },
+    { id: "arka-norn-complete", name: "Complete pipeline", description: "Ten-step workflow for structural or uncertain Features.", isDefault: false },
+    { id: "arka-norn-fastdev", name: "FastDev rework", description: translate("tui.project.fastdev.description"), isDefault: false },
+  ];
+}
 
 export interface ProjectDetailViewDeps {
   readonly project: Project;
@@ -94,7 +98,7 @@ export interface ProjectDetailView extends Scene {
 }
 
 export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDetailView {
-  const workflows = deps.workflows ?? FALLBACK_WORKFLOWS;
+  const workflows = deps.workflows ?? fallbackWorkflows();
   let project = deps.project;
   let features = [...deps.initialFeatures];
   let statuses = new Map(deps.initialStatuses ?? []);
@@ -102,7 +106,7 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
   let agents = [...(deps.initialAgents ?? [])];
   let currentAgentId = deps.currentAgentId;
   let mode: "menu" | "create" | "confirm-fastdev" | "orchestration-mode" = "menu";
-  let createKind: string = "arka-norn-essentiel";
+  let createKind: string = "arka-norn-essential";
   let createPath = `${project.root}/`;
   let selectedOrchestrationMode = project.orchestrationMode;
   let orchestrationModeDirty = false;
@@ -117,40 +121,40 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
       return byStatus === 0 ? left.name.localeCompare(right.name) : byStatus;
     });
     return [
-      { label: "Conseil Product — organiser la suite", value: "action:product", description: "prochaine décision, profils parallèles et prompt de reprise" },
+      { label: translate("tui.project.product.label"), value: "action:product", description: translate("tui.project.product.description") },
       ...workflows.map((workflow) => ({
-        label: `Créer une Feature — ${workflow.name}${workflow.isDefault ? " (défaut)" : ""}`,
+        label: `${translate("tui.project.create.title", { workflow: workflow.name })}${workflow.isDefault ? ` (${translate("tui.project.workflow.default")})` : ""}`,
         value: `action:create:${workflow.id}` as const,
         description: workflow.description,
       })),
-      { label: "Importer une Feature existante", value: "action:import", description: "utilise son marqueur et son workflow" },
+      { label: translate("tui.project.import.label"), value: "action:import", description: translate("tui.project.import.description") },
       ...groupedFeatures.map((feature) => {
         const featureMetrics = metrics.get(feature.id.value);
-        const badge = feature.pipelineId === "arka-norn-fastdev" ? "[FASTDEV] " : feature.pipelineId === "arka-norn-essentiel" ? "[ESSENTIEL] " : "";
-        const progress = featureMetrics === undefined ? "" : ` · ${featureMetrics.phase} · ${featureMetrics.progress}${featureMetrics.phase === "Développement" && featureMetrics.iteration > 1 ? ` · itération ${featureMetrics.iteration}` : ""}`;
-        return { label: `● ${badge}[${statuses.get(feature.id.value) ?? "inconnu"}] ${feature.name}${progress}`, value: `feature:${feature.id.value}` as const, description: feature.root };
+        const badge = feature.pipelineId === "arka-norn-fastdev" ? "[FASTDEV] " : feature.pipelineId === "arka-norn-essential" ? "[ESSENTIAL] " : "";
+        const progress = featureMetrics === undefined ? "" : ` - ${featureMetrics.phase} - ${featureMetrics.progress}${featureMetrics.iteration > 1 ? ` - ${translate("tui.project.iteration", { iteration: formatNumber(featureMetrics.iteration) })}` : ""}`;
+        return { label: `${CIRCLE} ${badge}[${statuses.get(feature.id.value) ?? translate("tui.project.status.unknown")}] ${feature.name}${progress}`, value: `feature:${feature.id.value}` as const, description: feature.root };
       }),
-      { label: "Gérer les agents du projet", value: "action:agents", description: "identités, périmètres, agent courant et remplacements" },
+      { label: translate("tui.project.agents.label"), value: "action:agents", description: translate("tui.project.agents.description") },
       ...(deps.projects === undefined ? [] : [{
-        label: `Pilote assisté — ${project.orchestrationMode === "automatic" ? "activé" : "désactivé"}`,
+        label: translate("tui.project.assisted.label", { state: translate(project.orchestrationMode === "automatic" ? "tui.project.state.enabled" : "tui.project.state.disabled") }),
         value: "action:orchestration" as const,
         description: project.orchestrationMode === "automatic"
-          ? "Arka prépare les missions autorisées et attend votre accord avant chaque lancement"
-          : "vous choisissez et lancez vous-même les assistants",
+          ? translate("tui.project.assisted.enabledDescription")
+          : translate("tui.project.assisted.disabledDescription"),
       }]),
       ...(deps.onOpenOrchestration === undefined ? [] : [{
-        label: "Ouvrir le Pilote assisté", value: "action:orchestration-dashboard" as const,
-        description: "préparer une mission, choisir l’assistant et suivre ce qui nécessite votre accord",
+        label: translate("tui.project.assisted.open"), value: "action:orchestration-dashboard" as const,
+        description: translate("tui.project.assisted.openDescription"),
       }]),
-      { label: "Rescanner le projet", value: "action:scan" },
-      { label: "Retirer ce projet de l’index", value: "action:forget" },
-      { label: "← Retour", value: "action:back" },
+      { label: translate("tui.project.scan.label"), value: "action:scan" },
+      { label: translate("tui.project.forget.label"), value: "action:forget" },
+      { label: `<- ${translate("tui.project.back")}`, value: "action:back" },
     ];
   }
 
   function buildMenu(): MenuScene {
     return createMenuScene<ProjectAction>(items(), {
-      hint: "↑/↓ naviguer · Entrée ouvrir · / filtrer · ? aide · Échap retour",
+      hint: translate("tui.project.menu.hint"),
       maxVisible: 12,
       onSelect: (value) => void select(value),
     });
@@ -186,7 +190,7 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
       await run(async () => {
         const results = await deps.scan.scan({ target: project.root, projectId: project.id });
         await refresh();
-        message = `Scan terminé : ${results.filter((entry) => entry.feature !== undefined).length} feature(s).`;
+        message = translate("tui.project.scan.done", { count: formatNumber(results.filter((entry) => entry.feature !== undefined).length) });
       });
     } else if (value === "action:forget") {
       await run(() => deps.onForget?.(project));
@@ -199,7 +203,7 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
     if (busy) return;
     const root = resolve(createPath.trim());
     if (!isContained(project.root, root)) {
-      message = `La Feature doit rester dans le Project "${project.root}".`;
+      message = translate("tui.project.path.outside", { root: project.root });
       deps.redraw();
       return;
     }
@@ -240,7 +244,7 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
         selectedOrchestrationMode = persistedMode;
         mode = "menu";
         menu = buildMenu();
-        message = `Pilote assisté actualisé : ${persistedMode === "automatic" ? "activé" : "désactivé"}.`;
+        message = translate("tui.project.assisted.updated", { state: translate(persistedMode === "automatic" ? "tui.project.state.enabled" : "tui.project.state.disabled") });
         return;
       }
 
@@ -248,18 +252,14 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
         project = persistedProject;
         mode = "menu";
         menu = buildMenu();
-        message = persistedMode === "automatic"
-          ? "Le Pilote assisté est déjà activé."
-          : "Le Pilote assisté est déjà désactivé.";
+        message = translate(persistedMode === "automatic" ? "tui.project.assisted.alreadyEnabled" : "tui.project.assisted.alreadyDisabled");
         return;
       }
 
       project = await deps.projects!.setOrchestrationMode({ id: project.id, orchestrationMode: selectedOrchestrationMode });
       mode = "menu";
       menu = buildMenu();
-      message = selectedOrchestrationMode === "automatic"
-        ? "Pilote assisté activé : Arka préparera les missions autorisées et attendra votre accord avant chaque lancement."
-        : "Pilote assisté désactivé : la mission en cours continue, mais aucune nouvelle mission ne sera préparée automatiquement.";
+      message = translate(selectedOrchestrationMode === "automatic" ? "tui.project.assisted.enabledMessage" : "tui.project.assisted.disabledMessage");
     });
   }
 
@@ -332,59 +332,59 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
       renderer.redraw((line) => {
         if (helpVisible) {
           for (const value of renderGuidance({
-            title: "Aide — espace Project",
-            purpose: "Un Project regroupe ses Features et son registre d’agents. Rien n’est produit avant d’avoir choisi une identité active.",
+            title: translate("tui.project.help.title"),
+            purpose: translate("tui.project.help.purpose"),
             steps: [
-              "Commencez par le Product principal dans la session main ; il organisera les autres rôles.",
-              "Créez/importez une Feature dans la racine du Project.",
-              "Ouvrez la Feature prioritaire et suivez l’action recommandée par son Pipeline.",
-              "Utilisez le scan pour reconstruire l’index depuis les marqueurs portables.",
+              translate("tui.project.help.step1"),
+              translate("tui.project.help.step2"),
+              translate("tui.project.help.step3"),
+              translate("tui.project.help.step4"),
             ],
-            shortcuts: GUIDED_SHORTCUTS,
+            shortcuts: guidedShortcuts(),
           }, theme)) line(value);
           return;
         }
         if (mode === "confirm-fastdev") {
-          for (const value of titledBox("Démarrer un rework FastDev", [
-            "Parcours court : cadrage → développement → audit → validation.",
-            "4 documents structurés · un même Agent peut tout exécuter.",
-            "L'audit est bloquant ; une seconde passe Dev n'existe que si des corrections sont requises.",
-            "FastDev convient uniquement à un rework borné.",
+          for (const value of titledBox(translate("tui.project.fastdev.title"), [
+            translate("tui.project.fastdev.path"),
+            translate("tui.project.fastdev.documents"),
+            translate("tui.project.fastdev.audit"),
+            translate("tui.project.fastdev.scope"),
             "",
-            "Entrée continue · Échap annule sans modifier",
+            translate("tui.project.fastdev.confirm"),
           ], theme, { border: theme.arkaRed }).split("\n")) line(value);
           return;
         }
         if (mode === "create") {
-          const title = createKind === "import" ? "Importer une Feature existante" : `Créer une Feature — ${workflowName(createKind, workflows)}`;
+          const title = createKind === "import" ? translate("tui.project.import.title") : translate("tui.project.create.title", { workflow: workflowName(createKind, workflows) });
           const explanation = createKind === "import"
-            ? "Indiquez un dossier enfant qui contient déjà .arka-norn/feature.json."
-            : `Indiquez le nouveau dossier enfant. Workflow : ${workflowName(createKind, workflows)}.`;
+            ? translate("tui.project.import.explanation")
+            : translate("tui.project.create.workflowExplanation", { workflow: workflowName(createKind, workflows) });
           for (const value of titledBox(title, [
             explanation,
-            `Racine autorisée : ${project.root}`,
-            `Exemple : ${project.root}/ma-feature`,
+            translate("tui.project.allowedRoot", { root: project.root }),
+            translate("tui.project.create.example", { root: project.root }),
             "",
             `${createPath}${theme.dim("_")}`,
-            message ?? "Entrée confirme · Échap annule sans modifier",
+            message ?? translate("tui.project.path.confirm"),
           ], theme).split("\n")) line(value);
           return;
         }
         if (mode === "orchestration-mode") {
-          const selected = selectedOrchestrationMode === "automatic" ? "activé" : "désactivé";
-          for (const value of titledBox("Pilote assisté", [
-            `État actuel : ${project.orchestrationMode === "automatic" ? "activé" : "désactivé"}.`,
+          const selected = translate(selectedOrchestrationMode === "automatic" ? "tui.project.state.enabled" : "tui.project.state.disabled");
+          for (const value of titledBox(translate("tui.project.assisted.title"), [
+            translate("tui.project.assisted.current", { state: translate(project.orchestrationMode === "automatic" ? "tui.project.state.enabled" : "tui.project.state.disabled") }),
             "",
-            `Nouvel état : ${selected}`,
+            translate("tui.project.assisted.new", { state: selected }),
             selectedOrchestrationMode === "automatic"
-              ? "Arka prépare chaque mission autorisée, vous explique son effet, puis attend votre accord avant de lancer l’assistant."
-              : "Vous gardez la main sur les prochains lancements. Une mission déjà en cours n’est jamais arrêtée silencieusement.",
-            "↑/↓ ou ←/→ change · Entrée enregistre · Échap annule",
+              ? translate("tui.project.assisted.enabledDetail")
+              : translate("tui.project.assisted.disabledDetail"),
+            translate("tui.project.assisted.hint"),
           ], theme, { border: selectedOrchestrationMode === "automatic" ? theme.arkaAccent : theme.arkaRed }).split("\n")) line(value);
           return;
         }
         const health = [...statuses.values()].reduce<Record<string, number>>((counts, status) => ({ ...counts, [status]: (counts[status] ?? 0) + 1 }), {});
-        const groups = Object.entries(health).sort(([left], [right]) => left.localeCompare(right)).map(([status, count]) => `${status}=${count}`).join(" · ") || "aucune";
+        const groups = Object.entries(health).sort(([left], [right]) => left.localeCompare(right)).map(([status, count]) => `${status}=${formatNumber(count)}`).join(" - ") || translate("tui.project.status.none");
         const totals = [...metrics.values()].reduce((sum, item) => ({
           debts: sum.debts + item.debtDocuments,
           qa: sum.qa + item.qaFailures,
@@ -392,22 +392,31 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
           invalid: sum.invalid + item.invalidDocuments,
         }), { debts: 0, qa: 0, handoffs: 0, invalid: 0 });
         for (const value of titledBox(project.name, [
-          `Racine : ${project.root}`,
-          `Pilote assisté : ${project.orchestrationMode === "automatic" ? "activé — Arka prépare, vous confirmez" : "désactivé — vous lancez vos assistants"}`,
-          `Features : ${features.length}`,
-          `États : ${groups}`,
-          `Dettes : ${totals.debts} · anomalies QA : ${totals.qa} · handoffs : ${totals.handoffs} · documents invalides : ${totals.invalid}`,
-          `Agents : ${agents.filter((agent) => agent.active).length} actif(s) / ${agents.length} · courant : ${currentAgentId ?? "aucun"}`,
-          `Session : ${deps.sessionId ?? "main"} · chaque session conserve sa propre identité`,
+          translate("tui.project.root", { root: project.root }),
+          translate("tui.project.assisted.label", { state: translate(project.orchestrationMode === "automatic" ? "tui.project.assisted.summaryEnabled" : "tui.project.assisted.summaryDisabled") }),
+          translate("tui.project.features", { count: formatNumber(features.length) }),
+          translate("tui.project.states", { groups }),
+          translate("tui.project.metrics", {
+            debts: formatNumber(totals.debts),
+            qa: formatNumber(totals.qa),
+            handoffs: formatNumber(totals.handoffs),
+            invalid: formatNumber(totals.invalid),
+          }),
+          translate("tui.project.agents.summary", {
+            active: formatNumber(agents.filter((agent) => agent.active).length),
+            total: formatNumber(agents.length),
+            current: currentAgentId ?? translate("tui.project.current.none"),
+          }),
+          translate("tui.project.session", { session: deps.sessionId ?? "main" }),
         ], theme, { border: theme.arkaRed }).split("\n")) line(value);
         line("");
         line(nextActionLine(
-          currentAgentId === undefined ? "Enregistrer le Product principal" : features.length === 0 ? "Choisir un workflow ou importer" : "Demander le conseil Product",
-          currentAgentId === undefined ? "la session main doit porter l’organisation du Project" : features.length === 0 ? "aucun pipeline n’est encore piloté" : "la prochaine phase et les rôles seront calculés",
+          currentAgentId === undefined ? translate("tui.registry.registerProduct") : features.length === 0 ? translate("tui.project.next.workflow") : translate("tui.project.next.product"),
+          currentAgentId === undefined ? translate("tui.project.noCurrentReason") : features.length === 0 ? translate("tui.project.noFeatureReason") : translate("tui.project.readyReason"),
           theme,
         ));
-        if (features.length === 0) line(`  ${theme.dim("Démarrage guidé : Product principal → Feature → conseil → Agent spécialisé → preuve validée.")}`);
-        if (busy) line(`  ${theme.dim("Chargement…")}`);
+        if (features.length === 0) line(`  ${theme.dim(translate("tui.project.guidedPath"))}`);
+        if (busy) line(`  ${theme.dim(translate("tui.project.loading"))}`);
         if (message !== undefined) line(`  ${theme.arkaAccent(message)}`);
         for (const value of menu.renderLines(theme)) line(value);
       });
@@ -444,6 +453,6 @@ function deriveFeatureId(root: string, code: string): FeatureId {
 
 function slugify(name: string): string {
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-  if (slug.length === 0) throw new DomainError("INVALID_FEATURE_OPTION", `Nom de Feature inexploitable : "${name}".`);
+  if (slug.length === 0) throw new DomainError("INVALID_FEATURE_OPTION", translate("tui.error.invalidFeatureName", { name }));
   return slug;
 }

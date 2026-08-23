@@ -13,12 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * Render -- buffered string-based frame writer, redraw stable via
- * `ESC[NA ESC[J`. Port TS fidèle de arka-cc-management
- * (adapters/inbound/tui/runtime/render.ts). Pas de diff char-by-char.
- */
 import { stringWidth } from "./theme.js";
+import { translate } from "../../../../application/localization/locale.js";
 const ESC = String.fromCharCode(0x1b);
 const CURSOR_HIDE = `${ESC}[?25l`;
 const CURSOR_SHOW = `${ESC}[?25h`;
@@ -108,11 +104,11 @@ function fitFrame(lines, maximumRows, columns) {
         const line = lines[index];
         const lineRows = physicalRows([line], columns);
         const remaining = lines.length - index - 1;
-        const truncation = `… ${remaining + 1} ligne(s) masquée(s)`;
+        const truncation = translate("tui.render.hidden", { count: remaining + 1 });
         const reserve = remaining > 0 ? physicalRows([truncation], columns) : 0;
         if (used + lineRows + reserve > maximumRows) {
             const omitted = lines.length - index;
-            visible.push(`… ${omitted} ligne(s) masquée(s) — utilise les vues scrollables`);
+            visible.push(translate("tui.render.hiddenScrollable", { count: omitted }));
             return visible;
         }
         visible.push(line);

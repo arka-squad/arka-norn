@@ -26,6 +26,8 @@ import { isExecutionProvider } from "../../../domain/orchestration/types.js";
 import type { OrchestrationPreview, OrchestrationStatus } from "../../../ports/inbound/for-orchestration.js";
 import type { CliExecution } from "./cli-execution.js";
 import { CliUsageError, parseStrictArguments, type StrictArgumentSpec } from "./strict-arguments.js";
+import { jsonEnvelope } from "./cli-envelope.js";
+import { translate } from "../../../application/localization/locale.js";
 
 export interface OrchestrationCliContext {
   readonly homeDir: string;
@@ -34,23 +36,9 @@ export interface OrchestrationCliContext {
   readonly environment?: NodeJS.ProcessEnv;
 }
 
-export const ORCHESTRATION_HELP = `Pilote assisté local (Arka contrôle, un assistant exécute)
-
-  orchestration configure --project <id> --provider <claude|codex|kimi|zai> --model <version> [--json]
-  orchestration preview --project <id> --feature <id> [--json]
-  orchestration start --project <id> --feature <id> --provider <claude|codex|kimi|zai> --model <version> --preview <empreinte> [--json]
-  orchestration status --project <id> [--json]
-  orchestration cancel <execution-id> --project <id> [--json]
-  orchestration approve <execution-id> --project <id> [--json]
-  orchestration retry <execution-id> --project <id> [--json]
-
-1. Enregistrer l'assistant et sa version dans le Project avec configure.
-2. Lire l'aperçu de la prochaine mission avec preview.
-3. Confirmer exactement cet aperçu avec start et son empreinte.
-
-start arme le Pilote assisté du Project. Chaque ordre est revalidé avant son
-exécution ; une permission non prévue arrête la mission en sécurité.
-`;
+export function orchestrationHelp(): string {
+  return translate("cli.orchestration.help");
+}
 
 /** Public CLI surface. `_worker` is intentionally accepted but undocumented. */
 export async function runOrchestrationCommand(argv: readonly string[], context: OrchestrationCliContext): Promise<CliExecution> {
@@ -59,8 +47,8 @@ export async function runOrchestrationCommand(argv: readonly string[], context: 
   const json = rest.includes("--json");
   const command = `orchestration.${action ?? "unknown"}`;
   try {
-    if (action === "help" || action === "--help" || action === "-h") return { code: 0, stdout: ORCHESTRATION_HELP, stderr: "" };
-    if (action === undefined) throw new CliUsageError(`missing orchestration action\n\n${ORCHESTRATION_HELP}`);
+    if (action === "help" || action === "--help" || action === "-h") return { code: 0, stdout: orchestrationHelp(), stderr: "" };
+    if (action === undefined) throw new CliUsageError(`missing orchestration action\n\n${orchestrationHelp()}`);
     const args = parseStrictArguments(rest, argumentSpec(action));
     const management = createManagementRuntime({ homeDir: context.homeDir });
     const pipeline = createPipelineRuntime(context.frameworkRoot, { homeDir: context.homeDir });
@@ -149,19 +137,19 @@ function selectionFrom(values: ReadonlyMap<string, string>): { readonly provider
 }
 
 function output(command: string, data: unknown, json: boolean, action: string): CliExecution {
-  if (json) return { code: 0, stdout: `${JSON.stringify({ schemaVersion: 1, command, ok: true, data, errors: [], warnings: [] })}\n`, stderr: "" };
+  if (json) return { code: 0, stdout: jsonEnvelope({ command, ok: true, data }), stderr: "" };
   if (action === "status") return { code: 0, stdout: `${humanStatus(data as ReturnType<typeof serializeStatus>)}\n`, stderr: "" };
   if (action === "configure") return { code: 0, stdout: `${humanPolicy(data as ReturnType<typeof serializePolicy>)}\n`, stderr: "" };
   if (action === "preview") return { code: 0, stdout: `${humanPreview(data as ReturnType<typeof serializePreview>)}\n`, stderr: "" };
   const execution = data as ReturnType<typeof serializeExecution>;
-  return { code: 0, stdout: `Mission ${execution.id} · ${execution.status} · ${assistantLabel(execution.target.provider)} / ${execution.target.model ?? "ancienne configuration"}\n`, stderr: "" };
+  return { code: 0, stdout: `${translate("cli.orchestration.execution", { id: execution.id, status: execution.status, assistant: assistantLabel(execution.target.provider), model: execution.target.model ?? translate("cli.orchestration.legacyModel") })}\n`, stderr: "" };
 }
 
 function failure(command: string, error: unknown, json: boolean): CliExecution {
   const message = error instanceof Error ? error.message : String(error);
   const code = errorCode(error);
-  if (json) return { code, stdout: `${JSON.stringify({ schemaVersion: 1, command, ok: false, data: null, errors: [message], warnings: [] })}\n`, stderr: "" };
-  return { code, stdout: "", stderr: `ERREUR — ${message}\n` };
+  if (json) return { code, stdout: jsonEnvelope({ command, ok: false, data: null, errors: [message], errorCode: "orchestration_command_failed" }), stderr: "" };
+  return { code, stdout: "", stderr: `${translate("common.error", { message })}\n` };
 }
 
 function errorCode(error: unknown): number {
@@ -277,11 +265,12 @@ function serializePreview(preview: OrchestrationPreview) {
 
 function humanStatus(status: ReturnType<typeof serializeStatus>): string {
   const active = status.activeExecution ?? status.latestExecution;
+  const noModel = translate("cli.orchestration.noModel");
   return [
-    `Project ${status.projectId} · Pilote assisté ${status.orchestrationMode === "automatic" ? "activé" : "en pause"}`,
-    `Assistants : ${status.policy === null ? "aucun modèle encore choisi" : status.policy.providers.flatMap((provider) => provider.models.filter((model) => model.enabled).map((model) => `${assistantLabel(provider.provider)} ${model.id}`)).join(", ") || "aucun modèle encore choisi"}`,
-    `Mission : ${active === null ? "aucune" : `${active.id} · ${active.status} · ${assistantLabel(active.target.provider)} / ${active.target.model ?? "ancienne configuration"}`}`,
-    `Action attendue : ${status.actionRequired === null ? "aucune" : `${status.actionRequired.kind} (${status.actionRequired.reason})`}`,
+    translate("cli.orchestration.status", { project: status.projectId, state: translate(status.orchestrationMode === "automatic" ? "cli.orchestration.enabled" : "cli.orchestration.paused") }),
+    translate("cli.orchestration.assistants", { assistants: status.policy === null ? noModel : status.policy.providers.flatMap((provider) => provider.models.filter((model) => model.enabled).map((model) => `${assistantLabel(provider.provider)} ${model.id}`)).join(", ") || noModel }),
+    translate("cli.orchestration.mission", { mission: active === null ? translate("cli.orchestration.none") : `${active.id} - ${active.status} - ${assistantLabel(active.target.provider)} / ${active.target.model ?? translate("cli.orchestration.legacyModel")}` }),
+    translate("cli.orchestration.expectedAction", { action: status.actionRequired === null ? translate("cli.orchestration.none") : `${status.actionRequired.kind} (${status.actionRequired.reason})` }),
   ].join("\n");
 }
 
@@ -289,19 +278,19 @@ function humanPolicy(policy: ReturnType<typeof serializePolicy>): string {
   const models = policy.providers.flatMap((provider) => provider.models
     .filter((model) => model.enabled)
     .map((model) => `${assistantLabel(provider.provider)} / ${model.id}`));
-  return `Assistant mémorisé : ${models.join(", ") || "aucun"}`;
+  return translate("cli.orchestration.policy", { models: models.join(", ") || translate("cli.orchestration.none") });
 }
 
 function humanPreview(preview: ReturnType<typeof serializePreview>): string {
   const assistants = preview.candidates.map((candidate) => {
-    const availability = candidate.eligible ? "prêt" : candidate.reasons.join(", ");
-    return `${assistantLabel(candidate.target.provider)} / ${candidate.target.model ?? "ancienne configuration"} : ${availability}`;
+    const availability = candidate.eligible ? translate("cli.orchestration.ready") : candidate.reasons.join(", ");
+    return `${assistantLabel(candidate.target.provider)} / ${candidate.target.model ?? translate("cli.orchestration.legacyModel")}: ${availability}`;
   });
   return [
-    `Feature : ${preview.featureName}`,
-    `Ce qui va être fait : ${preview.summary}`,
-    `Assistant disponible : ${assistants.join(" · ") || "aucun"}`,
-    `Empreinte à confirmer : ${preview.fingerprint}`,
+    translate("cli.orchestration.feature", { feature: preview.featureName }),
+    translate("cli.orchestration.work", { summary: preview.summary }),
+    translate("cli.orchestration.available", { assistants: assistants.join(" - ") || translate("cli.orchestration.none") }),
+    translate("cli.orchestration.fingerprint", { fingerprint: preview.fingerprint }),
   ].join("\n");
 }
 

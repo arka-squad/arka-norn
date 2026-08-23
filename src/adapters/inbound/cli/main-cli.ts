@@ -30,131 +30,56 @@ import { runPipelineCommand, runScaffoldCommand, runStatusCommand, runValidateCo
 import { runSkillsCommand } from "./skills-cli.js";
 import { runWorkflowCommand } from "./workflow-cli.js";
 import { runFastDevCommand } from "./fastdev-cli.js";
-import { runEssentielCommand } from "./essentiel-cli.js";
+import { runEssentialCommand } from "./essential-cli.js";
 import { runAuditCommand } from "./audit-cli.js";
+import { extractGlobalOptions } from "./global-options.js";
+import { runLocaleCommand } from "./locale-cli.js";
+import { FsLocalePreferenceStore } from "../../outbound/filesystem/fs-locale-preference-store.js";
+import { resolveLocale, runWithLocale, translate } from "../../../application/localization/locale.js";
+import { jsonEnvelope, type CliDiagnostic } from "./cli-envelope.js";
+import { CLI_GUIDE_EN, CLI_HELP_EN, localizedCliGuide, localizedCliHelp } from "../../../application/localization/cli-help.js";
+
+export const CLI_HELP = CLI_HELP_EN;
+export const CLI_GUIDE = CLI_GUIDE_EN;
 
 const FRAMEWORK_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
 
-export const CLI_HELP = `arka-norn — espace local de gestion Project/Feature et pipeline documentaire multiprovider
-
-Sans commande, arka-norn lance la TUI interactive.
-Pour un parcours accompagné : arka-norn guide
-Depuis un agent provider : /arka-norn (Claude) ou $arka-norn (Codex)
-
-Gestion :
-  project <list|add|import|scan|show|use|forget|reconcile|set-orchestration-mode>
-  feature <list|create|import|scan|show|use|forget|reconcile|set-workflow>
-  orchestration <configure|preview|start|status|cancel|approve|retry>
-  agent <list|register|show|current|use|sessions|advise|prompt|handoff-prompt|deactivate|replace>
-  pipeline <status|next|scaffold|validate> Statut : identité, relations et verdict métier.
-  workflow <list|show>
-  essentiel <start|status|next>       Workflow Feature par défaut.
-  fastdev <start|status|next>
-  audit <inspect|prepare|start|status|submit|finalize|cancel|resume|list|show|compare|kb|evidence|export|tools>
-                                        Découverte et audit assistés hors Pipeline.
-
-Récupération d’un marker disparu :
-  project forget <id> --yes --force
-  feature forget <id> --yes --force     Retire uniquement l’entrée d’index orpheline.
-
-Rework FastDev :
-  workflow list                         Liste les workflows autorisés.
-  feature create "Nom" --project <id> --workflow fastdev
-  feature set-workflow <id> --workflow fastdev
-  fastdev start "Nom" --project <id> [--path <dossier>]
-  fastdev status <feature>
-  fastdev next <feature> [--session <id>] [--json]
-                                        Donne une action exacte, signée dans la bonne session.
-
-Feature Essentiel (défaut) :
-  feature create "Nom" --project <id> [--workflow essentiel]
-  essentiel start "Nom" --project <id> [--path <dossier>]
-  essentiel status <feature>
-  essentiel next <feature> [--session <id>] [--json]
-                                        Cadrage fusionné, livraison, audit, validation.
-
-Documents et santé :
-  status [feature-root]                 État complet et prochaine action.
-  scaffold <step-id> <output.json> --agent <id>
-                                        Génère un document v3 signé par un agent actif.
-  scaffold audit_etat_reel <output.json> --project <id> --agent <id>
-                                        Génère un audit Project v4 dans sa racine autorisée.
-  validate <document.json>             Valide schéma et sentinelles de scaffold.
-  doctor [--json] [--repair [--apply]] Santé index, markers, locks, audit et skills.
-  migrate [--target <path>] [--dry-run|--apply]
-
-Skills et maintenance :
-  install [--target <repo>] [--global] [--profile <profil>]
-  skills <list|install|doctor>
-  selftest
-  guide                                Parcours Project → Agent → Feature → Pipeline.
-  config                               Lance explicitement la TUI.
-  help | --help | -h
-`;
-
-export const CLI_GUIDE = `Démarrage guidé arka-norn
-
-Depuis un agent provider
-   /arka-norn dans Claude ou un provider compatible
-   $arka-norn dans Codex
-
-1. Vérifier la santé
-   arka-norn doctor
-
-2. Déclarer ou retrouver le Project
-   arka-norn project scan <racine>
-   arka-norn project list
-
-3. S'identifier comme Product principal
-   arka-norn agent list --project <project-id> --active
-   arka-norn agent register --project <project-id> --provider "Codex CLI" --role product --session main
-   arka-norn agent current --project <project-id> --session main
-
-4. Déclarer ou ouvrir la Feature
-   arka-norn feature list --project <project-id>
-   arka-norn workflow list
-   arka-norn feature create "Nom" --project <project-id> --path <dossier>
-   arka-norn fastdev start "Rework" --project <project-id>
-
-5. Obtenir le conseil et le prompt du rôle calculé
-   arka-norn agent advise --project <project-id> --feature <feature-id>
-   arka-norn agent prompt <rôle> --project <project-id> --feature <feature-id> --provider <provider> --mode execute
-
-6. Suivre la prochaine action calculée dans la session spécialisée
-   arka-norn pipeline status <feature-id>
-   arka-norn pipeline next <feature-id>
-   arka-norn pipeline scaffold <step-id> --feature <feature-id> --session <session-id>
-
-7. Remplir puis valider le document signé
-   arka-norn pipeline validate <feature-id> --document <fichier.json>
-
-8. Avant une nouvelle conversation Product
-   arka-norn agent handoff-prompt --project <project-id> --feature <feature-id>
-
-Règle : ne devinez jamais Project, Feature, Agent, session ou prochaine étape. Les commandes list/show/current/sessions/advise/next sont les sources de vérité.
-`;
 
 export async function runCli(argv: readonly string[]): Promise<number> {
+  try {
+    const global = extractGlobalOptions(argv);
+    const env = readEnv(process.env, process.cwd());
+    const homeDir = env.homeDir ?? homedir();
+    const preference = await new FsLocalePreferenceStore(homeDir).load();
+    const locale = resolveLocale({ ...(global.locale === undefined ? {} : { override: global.locale }), environment: process.env, preference });
+    return await runWithLocale(locale, () => runLocalizedCli(global.argv, homeDir, env, global.locale));
+  } catch (error) {
+    process.stderr.write(`${translate("common.error", { message: error instanceof Error ? error.message : String(error) })}\n`);
+    return 70;
+  }
+}
+
+async function runLocalizedCli(argv: readonly string[], homeDir: string, env: ReturnType<typeof readEnv>, localeOverride?: "en" | "fr"): Promise<number> {
   const command = argv[0];
   const rest = argv.slice(1);
+  const wantsJson = argv.includes("--json");
+  const compatibilityWarnings: string[] = deprecatedAliasWarnings(argv);
   try {
     if (command === "help" || command === "--help" || command === "-h") {
-      process.stdout.write(CLI_HELP);
+      process.stdout.write(localizedCliHelp());
       return 0;
     }
     if (command === "guide") {
       if (rest.length > 0) {
-        process.stderr.write("ERREUR — guide n'accepte aucun argument.\n");
+        process.stderr.write(`${translate("cli.error.noArguments", { command: "guide" })}\n`);
         return 64;
       }
-      process.stdout.write(CLI_GUIDE);
+      process.stdout.write(localizedCliGuide());
       return 0;
     }
     if (command === undefined || command === "config") return launchTui();
     if (command === "selftest") return runSelftest(rest);
 
-    const env = readEnv(process.env, process.cwd());
-    const homeDir = env.homeDir ?? homedir();
     const pipelineContext = { cwd: env.cwd, homeDir, frameworkRoot: FRAMEWORK_ROOT, sessionId: env.agentSessionId };
     let result: CliExecution;
     switch (command) {
@@ -178,11 +103,18 @@ export async function runCli(argv: readonly string[]): Promise<number> {
       case "fastdev":
         result = await runFastDevCommand(rest, pipelineContext);
         break;
+      case "essential":
+        result = await runEssentialCommand(rest, pipelineContext);
+        break;
       case "essentiel":
-        result = await runEssentielCommand(rest, pipelineContext);
+        result = await runEssentialCommand(rest, pipelineContext);
+        compatibilityWarnings.push("'essentiel' is deprecated; use 'essential'.");
         break;
       case "audit":
         result = await runAuditCommand(rest, { homeDir, cwd: env.cwd });
+        break;
+      case "locale":
+        result = await runLocaleCommand(rest, localeCommandContext(homeDir, localeOverride));
         break;
       case "status":
         result = await runStatusCommand(rest, pipelineContext);
@@ -203,24 +135,97 @@ export async function runCli(argv: readonly string[]): Promise<number> {
         result = runSkillsCommand(rest, { cwd: env.cwd, homeDir, frameworkRoot: FRAMEWORK_ROOT });
         break;
       case "migrate":
-        result = await runMigrateCommand(rest, { cwd: env.cwd });
+        result = await runMigrateCommand(rest, { cwd: env.cwd, frameworkRoot: FRAMEWORK_ROOT });
         break;
       default:
-        process.stderr.write(`Commande inconnue : "${command}"\n\n${CLI_HELP}`);
+        process.stderr.write(`${translate("common.unknownCommand", { command })}\n\n${localizedCliHelp()}`);
         return 64;
     }
-    process.stdout.write(result.stdout);
-    process.stderr.write(result.stderr);
+    const publicResult = wantsJson ? normalizePublicJson(result, command ?? "unknown", compatibilityWarnings) : {
+      ...result,
+      stderr: `${compatibilityWarnings.map((warning) => `WARNING: ${warning}\n`).join("")}${result.stderr}`,
+    };
+    process.stdout.write(publicResult.stdout);
+    process.stderr.write(publicResult.stderr);
     return result.code;
   } catch (error) {
-    process.stderr.write(`ERREUR — ${error instanceof Error ? error.message : String(error)}\n`);
+    process.stderr.write(`${translate("common.error", { message: error instanceof Error ? error.message : String(error) })}\n`);
     return 70;
   }
 }
 
+function normalizePublicJson(result: CliExecution, command: string, extraWarnings: readonly string[]): CliExecution {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(result.stdout);
+  } catch {
+    return result;
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return result;
+  const envelope = parsed as Readonly<Record<string, unknown>>;
+  if (envelope["schemaVersion"] === 2) {
+    const display = objectRecord(envelope["display"]);
+    const diagnostics = objectRecord(envelope["diagnostics"]);
+    const aliasDiagnostics: readonly CliDiagnostic[] = extraWarnings.map((_warning, index) => ({ code: "deprecated_alias", params: { index } }));
+    const normalized = {
+      ...envelope,
+      warnings: [...stringArray(envelope["warnings"]), ...extraWarnings.map(() => "deprecated_alias")],
+      diagnostics: {
+        ...diagnostics,
+        warnings: [...diagnosticArray(diagnostics["warnings"]), ...aliasDiagnostics],
+      },
+      display: {
+        ...display,
+        warnings: [...stringArray(display["warnings"]), ...extraWarnings],
+      },
+    };
+    return { ...result, stdout: `${JSON.stringify(normalized)}\n` };
+  }
+  return {
+    ...result,
+    stdout: jsonEnvelope({
+      command: typeof envelope["command"] === "string" ? envelope["command"] : command,
+      ok: envelope["ok"] === true,
+      data: envelope["data"] ?? null,
+      errors: stringArray(envelope["errors"]),
+      warnings: [...stringArray(envelope["warnings"]), ...extraWarnings],
+      errorCode: result.code === 64 ? "invalid_arguments" : "command_error",
+      warningCode: extraWarnings.length > 0 ? "deprecated_alias" : "command_warning",
+    }),
+  };
+}
+
+function stringArray(value: unknown): readonly string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function diagnosticArray(value: unknown): readonly CliDiagnostic[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is CliDiagnostic => {
+    const record = objectRecord(item);
+    return typeof record["code"] === "string" && typeof record["params"] === "object" && record["params"] !== null;
+  });
+}
+
+function objectRecord(value: unknown): Readonly<Record<string, unknown>> {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value as Readonly<Record<string, unknown>> : {};
+}
+
+function localeCommandContext(homeDir: string, override: "en" | "fr" | undefined) {
+  return { homeDir, environment: process.env, ...(override === undefined ? {} : { override }) };
+}
+
+function deprecatedAliasWarnings(argv: readonly string[]): string[] {
+  const values = argv.flatMap((value, index) => value === "--workflow" ? [argv[index + 1]] : []);
+  if (argv[0] === "workflow" && argv[1] === "show") values.push(argv[2]);
+  return values.flatMap((value) => value === "standard"
+    ? ["'standard' is deprecated; use 'complete'."]
+    : value === "essentiel" ? ["'essentiel' is deprecated; use 'essential'."] : []);
+}
+
 async function launchTui(): Promise<number> {
   if (process.stdin.isTTY !== true || process.stdout.isTTY !== true) {
-    process.stderr.write("arka-norn (TUI) nécessite un terminal interactif (TTY). Utilise une sous-commande CLI en mode script.\n");
+    process.stderr.write(`${translate("cli.error.ttyRequired")}\n`);
     return 1;
   }
   await bootstrap();
@@ -229,11 +234,11 @@ async function launchTui(): Promise<number> {
 
 async function runSelftest(argv: readonly string[]): Promise<number> {
   if (argv.length > 0) {
-    process.stderr.write("ERREUR — selftest n'accepte aucun argument.\n");
+    process.stderr.write(`${translate("cli.error.noArguments", { command: "selftest" })}\n`);
     return 64;
   }
   const loaded: unknown = await import(pathToFileURL(resolve(FRAMEWORK_ROOT, "scripts", "selftest.mjs")).href);
-  if (!isSelftestModule(loaded)) throw new Error("Module selftest invalide");
+  if (!isSelftestModule(loaded)) throw new Error(translate("cli.error.invalidSelftest"));
   await loaded.runSelftest();
   return process.exitCode === undefined ? 0 : Number(process.exitCode);
 }

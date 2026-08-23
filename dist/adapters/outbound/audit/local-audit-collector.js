@@ -11,6 +11,7 @@ import { basename, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import { AUDIT_MODULE_CATALOG, auditModuleDefinition } from "../../../domain/audit/module-catalog.js";
 import { ContainerAuditToolRunner } from "./container-audit-tool-runner.js";
+import { formatBytes, formatNumber, translate } from "../../../application/localization/locale.js";
 const execFileAsync = promisify(execFile);
 const MAX_FILES = 25_000;
 const MAX_TEXT_BYTES = 256 * 1024;
@@ -51,7 +52,7 @@ export class LocalAuditCollector {
     async collect(moduleId, context) {
         const selection = context.request.modules.find((candidate) => candidate.moduleId === moduleId);
         const intent = moduleId === "M00" ? "discover" : selection?.intent ?? "discover";
-        const depth = moduleId === "M00" ? "inventaire" : selection?.depth ?? "inventaire";
+        const depth = moduleId === "M00" ? "inventory" : selection?.depth ?? "inventory";
         const startedAt = context.now.toISOString();
         const observedAt = new Date().toISOString();
         const relevantSignals = context.inspection.signals.filter((signal) => auditModuleDefinition(moduleId).signalIds.includes(signal.id));
@@ -63,13 +64,13 @@ export class LocalAuditCollector {
         let status = missing.length === 0 ? "complete" : "partial";
         if (moduleId === "M00")
             status = "complete";
-        if (depth === "dynamique" && !context.inspection.sandbox.available) {
+        if (depth === "dynamic" && !context.inspection.sandbox.available) {
             status = "partial";
-            limitations.push("Analyse dynamique non exécutée : Docker ou Podman est indisponible.");
+            limitations.push(translate("audit.collector.dynamicUnavailable"));
         }
         const toolPlan = plannedTools(moduleId, depth, context.inspection);
         const tools = moduleId === "M01" ? [{ name: "git", version: await gitVersion(), dataVersion: null }] : [];
-        const gitCollection = moduleId === "M01" && depth === "statique" ? await collectGitMetrics(context, observedAt, evidence.length) : emptyCollection();
+        const gitCollection = moduleId === "M01" && depth === "static" ? await collectGitMetrics(context, observedAt, evidence.length) : emptyCollection();
         requested.push(...gitCollection.requested);
         completed.push(...gitCollection.completed);
         evidence.push(...gitCollection.evidence);
@@ -106,13 +107,13 @@ export class LocalAuditCollector {
             status = "partial";
         const missingAfterTools = requested.filter((id) => !completed.includes(id));
         if (missing.length > 0)
-            limitations.push(`Sources non détectées : ${missing.join(", ")}.`);
+            limitations.push(translate("audit.collector.sourcesMissing", { sources: missing.join(", ") }));
         if (context.inspection.workspaceClean === false)
-            limitations.push("L'arbre de travail est modifié ; les observations portent sur un état non commité.");
+            limitations.push(translate("audit.collector.workspaceModified"));
         const title = auditModuleDefinition(moduleId).title;
         const summary = moduleId === "M00"
-            ? `Project ${context.projectName}, commit ${context.inspection.commitExact ?? "non disponible"}, scope ${context.request.paths.join(", ")}.`
-            : `${title} : ${completed.length}/${requested.length} dimension(s) détectée(s) par le pré-inventaire.`;
+            ? `Project ${context.projectName}, commit ${context.inspection.commitExact ?? translate("audit.collector.unavailable")}, scope ${context.request.paths.join(", ")}.`
+            : translate("audit.collector.coverage", { title, completed: formatNumber(completed.length), requested: formatNumber(requested.length) });
         return {
             schemaVersion: 1,
             auditId: context.auditId,
@@ -135,19 +136,19 @@ export class LocalAuditCollector {
 function declaredCoverageGaps(moduleId, depth, context, toolPlan) {
     const requested = [];
     const limitations = [];
-    if (depth === "dynamique" && moduleId === "M02" && toolPlan.length === 0) {
-        limitations.push("Les runners de tests ne sont lancés que lorsqu'une commande structurée compatible est détectée; aucun fallback hôte n'est autorisé.");
+    if (depth === "dynamic" && moduleId === "M02" && toolPlan.length === 0) {
+        limitations.push(translate("audit.collector.testsSkipped"));
     }
-    if (depth === "dynamique" && moduleId === "M09") {
+    if (depth === "dynamic" && moduleId === "M09") {
         requested.push("probe:lighthouse", "probe:axe");
-        limitations.push("Lighthouse et axe ne sont pas exécutés en v1 : aucun collecteur épinglé n'est encore disponible pour ces probes.");
+        limitations.push(translate("audit.collector.uxSkipped"));
     }
-    if (depth === "dynamique" && moduleId === "M05" && context.request.capabilities.dynamicTargets.length > 0) {
+    if (depth === "dynamic" && moduleId === "M05" && context.request.capabilities.dynamicTargets.length > 0) {
         requested.push("probe:zap-baseline");
-        limitations.push("ZAP baseline n'est pas exécuté en v1 : aucun collecteur épinglé n'est encore disponible pour cette probe.");
+        limitations.push(translate("audit.collector.zapSkipped"));
     }
-    if ((depth === "connecte" || depth === "dynamique") && connectedModule(moduleId) && context.request.capabilities.allowedHosts.length === 0) {
-        limitations.push("Couverture connectée limitée : aucun hôte réseau n'a été autorisé.");
+    if ((depth === "connected" || depth === "dynamic") && connectedModule(moduleId) && context.request.capabilities.allowedHosts.length === 0) {
+        limitations.push(translate("audit.collector.connectedLimited"));
     }
     return { requested, limitations };
 }
@@ -156,8 +157,8 @@ function emptyCollection() {
 }
 async function collectGitMetrics(context, observedAt, evidenceOffset) {
     const commands = [
-        { id: "git-integrity", args: ["fsck", "--connectivity-only", "--no-progress"], summarize: () => "Intégrité et connectivité des objets Git vérifiées." },
-        { id: "git-history", args: ["rev-list", "--count", "HEAD"], summarize: (output) => `${Number.parseInt(output.trim(), 10) || 0} commit(s) joignable(s) depuis HEAD.` },
+        { id: "git-integrity", args: ["fsck", "--connectivity-only", "--no-progress"], summarize: () => translate("audit.collector.gitIntegrity") },
+        { id: "git-history", args: ["rev-list", "--count", "HEAD"], summarize: (output) => translate("audit.collector.gitHistory", { count: formatNumber(Number.parseInt(output.trim(), 10) || 0) }) },
         { id: "git-concentration", args: ["shortlog", "-sne", "--all"], summarize: summarizeContributors },
         { id: "git-churn", args: ["log", "--numstat", "--format="], summarize: summarizeChurn },
     ];
@@ -184,7 +185,7 @@ async function collectGitMetrics(context, observedAt, evidenceOffset) {
             completed.push(command.id);
         }
         catch (error) {
-            limitations.push(`${command.id} non exécuté : ${safeToolFailure(error instanceof Error ? error.message : String(error))}.`);
+            limitations.push(translate("audit.collector.commandFailed", { command: command.id, error: safeToolFailure(error instanceof Error ? error.message : String(error)) }));
         }
     }
     return { evidence, completed, requested: commands.map((command) => command.id), limitations, tools: [] };
@@ -193,7 +194,7 @@ function summarizeContributors(output) {
     const counts = output.split("\n").map((line) => Number.parseInt(line.trim().split(/\s+/)[0] ?? "0", 10)).filter((count) => Number.isFinite(count) && count > 0);
     const total = counts.reduce((sum, count) => sum + count, 0);
     const dominant = total === 0 ? 0 : Math.round((Math.max(...counts) / total) * 100);
-    return `${counts.length} contributeur(s) Git; concentration maximale ${dominant}% des commits attribués.`;
+    return translate("audit.collector.contributors", { count: formatNumber(counts.length), percent: formatNumber(dominant) });
 }
 function summarizeChurn(output) {
     let additions = 0;
@@ -207,14 +208,14 @@ function summarizeChurn(output) {
         deletions += Number(deleted);
         entries += 1;
     }
-    return `${entries} entrée(s) de churn; ${additions} ajout(s), ${deletions} suppression(s).`;
+    return translate("audit.collector.churn", { count: formatNumber(entries), additions: formatNumber(additions), deletions: formatNumber(deletions) });
 }
 async function collectSandboxTools(plan, moduleId, depth, context, observedAt, evidenceOffset, runnerFactory) {
     if (plan.length === 0)
         return { evidence: [], completed: [], requested: [], limitations: [], tools: [] };
     const runtime = context.inspection.sandbox.runtime;
     if (runtime === null) {
-        return { evidence: [], completed: [], requested: [], limitations: [`Collecteurs sandboxés non exécutés : ${plan.map((item) => item.id).join(", ")} (Docker/Podman absent).`], tools: [] };
+        return { evidence: [], completed: [], requested: [], limitations: [translate("audit.collector.sandboxMissing", { tools: plan.map((item) => item.id).join(", ") })], tools: [] };
     }
     const evidence = [];
     const completed = [];
@@ -229,13 +230,13 @@ async function collectSandboxTools(plan, moduleId, depth, context, observedAt, e
             allowPull: context.request.capabilities.allowImagePulls,
             allowNetwork: invocation.network && context.request.capabilities.allowedHosts.length > 0,
             writableWorkspace: invocation.writableWorkspace,
-            timeoutMs: depth === "dynamique" ? 900_000 : 300_000,
+            timeoutMs: depth === "dynamic" ? 900_000 : 300_000,
         });
         tools.push({ name: invocation.id, version: null, dataVersion: null });
         evidence.push({
             id: `EV-${moduleId}-TOOL-${String(evidenceOffset + evidence.length + 1).padStart(4, "0")}`,
             kind: "command",
-            summary: `${invocation.id} : ${result.status}, code ${result.exitCode ?? "indisponible"}${result.truncated ? ", sortie tronquée" : ""}.`,
+            summary: translate("audit.collector.toolSummary", { tool: invocation.id, status: result.status, code: result.exitCode ?? translate("audit.collector.unavailable"), truncation: result.truncated ? translate("audit.collector.truncated") : "" }),
             source: context.projectId,
             location: null,
             observedAt,
@@ -254,7 +255,7 @@ async function collectSandboxTools(plan, moduleId, depth, context, observedAt, e
     return { evidence, completed, requested: [], limitations, tools };
 }
 async function collectConnectedSources(moduleId, depth, context, observedAt, evidenceOffset) {
-    if ((depth !== "connecte" && depth !== "dynamique") || context.request.sources.urls.length === 0 || !connectedModule(moduleId)) {
+    if ((depth !== "connected" && depth !== "dynamic") || context.request.sources.urls.length === 0 || !connectedModule(moduleId)) {
         return { evidence: [], completed: [], requested: [], limitations: [], tools: [] };
     }
     const evidence = [];
@@ -269,7 +270,7 @@ async function collectConnectedSources(moduleId, depth, context, observedAt, evi
             completed.push(`source:${host}`);
         }
         catch (error) {
-            limitations.push(`Source connectée indisponible (${host}) : ${safeToolFailure(error instanceof Error ? error.message : String(error))}.`);
+            limitations.push(translate("audit.collector.connectedUnavailable", { host, error: safeToolFailure(error instanceof Error ? error.message : String(error)) }));
         }
     }
     return { evidence, completed, requested, limitations, tools: [] };
@@ -289,16 +290,16 @@ async function collectImportedSources(moduleId, context, observedAt, evidenceOff
                 throw new Error("source hors Project");
             const stat = await fs.lstat(absolute);
             if (!stat.isFile() || stat.isSymbolicLink() || stat.size > MAX_TEXT_BYTES)
-                throw new Error("fichier absent, symbolique ou trop volumineux");
+                throw new Error(translate("audit.collector.fileRejected"));
             if (!/\.(?:json|md|ya?ml|csv|txt)$/i.test(path))
-                throw new Error("format d'import non autorisé");
+                throw new Error(translate("audit.collector.formatRejected"));
             const content = await fs.readFile(absolute, "utf8");
             if (/\.json$/i.test(path))
                 JSON.parse(content);
             evidence.push({
                 id: `EV-${moduleId}-IMPORT-${String(evidenceOffset + evidence.length + 1).padStart(4, "0")}`,
                 kind: "file",
-                summary: `Source structurée importée : ${path}, ${Buffer.byteLength(content)} octet(s).`,
+                summary: translate("audit.collector.imported", { path, bytes: formatBytes(Buffer.byteLength(content)) }),
                 source: context.projectId,
                 location: path,
                 observedAt,
@@ -312,27 +313,27 @@ async function collectImportedSources(moduleId, context, observedAt, evidenceOff
             completed.push(`import:${path}`);
         }
         catch (error) {
-            limitations.push(`Import ${path} refusé : ${safeToolFailure(error instanceof Error ? error.message : String(error))}.`);
+            limitations.push(translate("audit.collector.importRejected", { path, error: safeToolFailure(error instanceof Error ? error.message : String(error)) }));
         }
     }
     return { evidence, completed, requested, limitations, tools: [] };
 }
 function plannedTools(moduleId, depth, inspection) {
-    if (depth === "inventaire")
+    if (depth === "inventory")
         return [];
-    if (moduleId === "M02" && depth === "dynamique")
+    if (moduleId === "M02" && depth === "dynamic")
         return runnerTools(inspection);
     if (moduleId === "M04")
         return [{ id: "syft", arguments: ["dir:/workspace", "-o", "json"], network: false, writableWorkspace: false }];
     if (moduleId === "M05") {
         const local = [{ id: "gitleaks", arguments: ["dir", "/workspace", "--no-banner", "--report-format", "json", "--report-path", "/dev/stdout"], network: false, writableWorkspace: false }];
-        return depth === "connecte" || depth === "dynamique"
+        return depth === "connected" || depth === "dynamic"
             ? [...local, { id: "trivy", arguments: ["fs", "--format", "json", "/workspace"], network: true, writableWorkspace: false }, { id: "grype", arguments: ["dir:/workspace", "-o", "json"], network: true, writableWorkspace: false }]
             : local;
     }
     if (moduleId === "M08")
         return [{ id: "syft", arguments: ["dir:/workspace", "-o", "spdx-json"], network: false, writableWorkspace: false }];
-    if (moduleId === "M10" && depth === "dynamique")
+    if (moduleId === "M10" && depth === "dynamic")
         return [{ id: "terraform", arguments: ["validate", "-json"], network: false, writableWorkspace: true }];
     return [];
 }
@@ -354,8 +355,8 @@ function runnerTools(inspection) {
     return tools;
 }
 function safeToolFailure(value) {
-    const line = value.trim().split("\n")[0] ?? "erreur sans détail";
-    return redact(line).slice(0, 240) || "erreur sans détail";
+    const line = value.trim().split("\n")[0] ?? translate("audit.collector.unknownError");
+    return redact(line).slice(0, 240) || translate("audit.collector.unknownError");
 }
 function connectedModule(moduleId) {
     return ["M04", "M05", "M06", "M07", "M08", "M09", "M10", "M11"].includes(moduleId);
@@ -375,20 +376,20 @@ async function fetchExternalEvidence(sourceUrl, allowedHosts, credentialRefs, ob
             break;
         const location = response.headers.get("location");
         if (location === null || redirect === 3)
-            throw new Error("redirection refusée");
+            throw new Error(translate("audit.collector.redirectRejected"));
         current = new URL(location, current);
     }
     if (response === undefined)
-        throw new Error("réponse absente");
+        throw new Error(translate("audit.collector.responseMissing"));
     if (!response.ok)
-        throw new Error(`réponse HTTP ${response.status}`);
+        throw new Error(translate("audit.collector.httpError", { status: response.status }));
     const contentLength = Number(response.headers.get("content-length") ?? "0");
     if (Number.isFinite(contentLength) && contentLength > MAX_TEXT_BYTES)
         throw new Error("source trop volumineuse");
     const bytes = new Uint8Array(await response.arrayBuffer());
     if (bytes.byteLength > MAX_TEXT_BYTES)
         throw new Error("source trop volumineuse");
-    const summary = `${current.hostname} a répondu HTTP ${response.status}; ${bytes.byteLength} octet(s), ${response.headers.get("content-type") ?? "type inconnu"}.`;
+    const summary = translate("audit.collector.httpSummary", { host: current.hostname, status: response.status, bytes: formatBytes(bytes.byteLength), type: response.headers.get("content-type") ?? translate("audit.collector.typeUnknown") });
     return {
         id: `EV-${moduleId}-EXT-${String(index).padStart(4, "0")}`,
         kind: "external",
@@ -417,14 +418,14 @@ function connectorHeaders(host, credentialRefs) {
 async function assertPublicAllowedUrl(url, allowedHosts) {
     const host = url.hostname.toLowerCase();
     if (url.protocol !== "https:" && url.protocol !== "http:")
-        throw new Error("protocole non autorisé");
+        throw new Error(translate("audit.collector.protocolRejected"));
     if (!allowedHosts.includes(host))
-        throw new Error("hôte absent de l'allowlist");
+        throw new Error(translate("audit.collector.hostNotAllowed"));
     if (host === "localhost" || host.endsWith(".localhost") || host === "metadata.google.internal")
-        throw new Error("hôte local ou metadata refusé");
+        throw new Error(translate("audit.collector.localHostRejected"));
     const addresses = isIP(host) === 0 ? await lookup(host, { all: true, verbatim: true }) : [{ address: host, family: isIP(host) }];
     if (addresses.length === 0 || addresses.some((entry) => isPrivateAddress(entry.address)))
-        throw new Error("résolution vers une adresse privée, link-local ou metadata refusée");
+        throw new Error(translate("audit.collector.privateAddressRejected"));
 }
 function isPrivateAddress(address) {
     const normalized = address.toLowerCase();
@@ -515,26 +516,26 @@ function recommendations(signals) {
         const matching = definition.signalIds.map((id) => byId.get(id)).filter((item) => item !== undefined);
         const found = matching.filter((item) => item.detected).length;
         const state = found === matching.length && found > 0
-            ? "recommande"
-            : found > 0 ? "disponible" : definition.id === "M05" || definition.id === "M08" ? "limite" : "non_applicable_probable";
+            ? "recommended"
+            : found > 0 ? "available" : definition.id === "M05" || definition.id === "M08" ? "limited" : "probably_not_applicable";
         return {
             moduleId: definition.id,
             state,
-            reason: found > 0 ? `${found}/${matching.length} signal(s) pertinent(s) détecté(s).` : "Aucune source spécifique détectée pendant le préflight.",
+            reason: found > 0 ? translate("audit.collector.signalsFound", { found: formatNumber(found), total: formatNumber(matching.length) }) : translate("audit.collector.noSpecificSource"),
             suggestedDepth: suggestedDepth(definition.id, state),
         };
     });
 }
 function suggestedDepth(moduleId, state) {
-    if (state === "non_applicable_probable")
-        return "inventaire";
+    if (state === "probably_not_applicable")
+        return "inventory";
     if (["M05", "M06", "M07", "M08"].includes(moduleId))
-        return "connecte";
-    return "statique";
+        return "connected";
+    return "static";
 }
 function moduleEvidence(moduleId, signals, context, observedAt) {
     return signals.filter((item) => item.detected).map((item, index) => {
-        const summary = `${item.id} détecté : ${item.evidence.slice(0, 5).join(", ")}`;
+        const summary = translate("audit.collector.signalSummary", { id: item.id, evidence: item.evidence.slice(0, 5).join(", ") });
         return {
             id: `EV-${moduleId}-${String(index + 1).padStart(4, "0")}`,
             kind: "file",

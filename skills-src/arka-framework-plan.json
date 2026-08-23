@@ -1,21 +1,70 @@
 {
   "name": "arka-framework-plan",
-  "titre_h1_repo": "Arka — Plan",
-  "titre_h1_global": "Skill Plan — Arka Labs",
-  "description_courte": "Transforme un concept validé en lots ordonnés, dépendances, risques et critères de fin.",
-  "description_do_use": "Use when le concept est valide et qu'un plan exécutable est requis.",
-  "description_do_not_use": "Do NOT use avant validation du concept ni pour coder les lots.",
-  "declencheurs_globaux": "Déclencher pour planifier une Feature arka-norn ou sur arka-framework-plan.",
-  "allowed_tools": ["Read", "Write", "Bash", "Grep", "Glob"],
-  "quand_utiliser": ["concept validé", "découpage en lots nécessaire"],
-  "quand_ne_pas_utiliser": ["concept incomplet", "implémentation directe"],
-  "inputs": [{ "obligatoire": true, "nom": "concept", "description": "document concept validé" }],
-  "note_inputs": "Chaque lot doit avoir dépendances, livrables, risques et DoD.",
-  "referentiel_extra": ["`{{FRAMEWORK_DIR}}/schemas/plan.schema.json`"],
-  "procedure": [
-    { "titre": "Vérifier", "contenu": "Valider le concept et lire ses décisions ouvertes." },
-    { "titre": "Découper", "contenu": "Créer des lots petits, ordonnés et vérifiables sans masquer les dépendances." },
-    { "titre": "Valider", "contenu": "Valider le JSON plan et publier la prochaine action réelle." }
+  "repoTitle": "Delivery plan",
+  "globalTitle": "Skill - Delivery plan",
+  "summary": "Turn a validated concept into ordered, testable batches.",
+  "useWhen": "Use when the verified Pipeline action or Product handoff assigns the plan responsibility.",
+  "doNotUseWhen": "Do not use for a different calculated phase, an unverified Agent scope, or to bypass schema and business validation.",
+  "triggers": "Use when the verified Pipeline action or Product handoff assigns the plan responsibility. English triggers include \"continue the Feature\" and \"run the next phase\". French triggers include \"continuer la Feature\" and \"exécuter la prochaine étape\". Resolve locale, Project, Feature, Agent and phase through the CLI before acting.",
+  "interface": {
+    "displayName": "Delivery plan",
+    "shortDescription": "Turn a validated concept into ordered, testable batches.",
+    "defaultPrompt": "Use $arka-framework-plan to execute only the currently calculated phase."
+  },
+  "allowedTools": [
+    "Read",
+    "Bash",
+    "Grep",
+    "Glob"
   ],
-  "format_sortie": "Document JSON `plan` validé avec lots, dépendances, risques et critères d'acceptation."
+  "whenToUse": [
+    "Use when the verified Pipeline action or Product handoff assigns the plan responsibility.",
+    "The work must produce one signed and mechanically validated artifact."
+  ],
+  "whenNotToUse": [
+    "Do not use for a different calculated phase, an unverified Agent scope, or to bypass schema and business validation.",
+    "The current Agent identity or session cannot be verified."
+  ],
+  "inputs": [
+    {
+      "required": true,
+      "name": "feature",
+      "description": "Exact managed Feature identifier."
+    },
+    {
+      "required": true,
+      "name": "session_id",
+      "description": "Specialized Agent session supplied by Product control."
+    },
+    {
+      "required": false,
+      "name": "agent_id",
+      "description": "Explicit active identity; otherwise use the Project session binding."
+    }
+  ],
+  "inputNotes": "Never infer the phase from filenames. Machine-readable CLI data is the source of truth.",
+  "references": [
+    "`{{FRAMEWORK_DIR}}/docs/agent-guide.md` - Agent protocol and locale behavior",
+    "`{{FRAMEWORK_DIR}}/schemas/` - canonical v5 document contracts",
+    "`{{FRAMEWORK_DIR}}/pipelines/catalog.json` - canonical workflow catalog"
+  ],
+  "procedure": [
+    {
+      "title": "Resolve locale and verified context",
+      "content": "Run `arka-norn locale show --json`, `feature show`, `agent current` and `agent sessions`. Reply in the active display locale. Keep contract keys in English and set `content_locale` to the prose locale."
+    },
+    {
+      "title": "Read one calculated action",
+      "content": "Run `arka-norn pipeline next <feature> --json`. Use its stable codes, parameters, expected artifact and suggested command without guessing from display prose. Stop if the action is null."
+    },
+    {
+      "title": "Produce the bounded artifact",
+      "content": "Execute only the proposed scaffold command. Replace every sentinel, preserve the specialized session, satisfy code, functional, UX and security evidence where applicable, and never modify another documentary phase."
+    },
+    {
+      "title": "Validate and stop",
+      "content": "Run `arka-norn pipeline validate <feature> --document <file> --json`, then rerun `arka-norn pipeline next <feature> --json` only to observe the transition. Report the next action without executing it."
+    }
+  ],
+  "outputFormat": "Report the verified Project, Feature, Agent/session, locale, executed phase, signed document, validation result, evidence and observed next command. Do not execute a second phase in the same invocation."
 }

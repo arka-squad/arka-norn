@@ -14,29 +14,42 @@
  * limitations under the License.
  */
 
-const SENTINEL_PATTERN = /^(À_REMPLIR|À_CHOISIR::)/;
+import { isLegacyScaffoldSentinel, LEGACY_SCAFFOLD_SENTINELS } from "../compatibility/legacy-contract.js";
 
-export function scaffoldFromSchema(schema: Readonly<Record<string, unknown>>, fieldName = "document"): Readonly<Record<string, unknown>> {
-  const value = scaffoldValue(schema, fieldName, schema);
+const SENTINEL_PATTERN = /^(TO_FILL|CHOOSE::)/;
+
+export interface ScaffoldVocabulary {
+  readonly fill: string;
+  readonly choosePrefix: string;
+}
+
+const ENGLISH_VOCABULARY: ScaffoldVocabulary = { fill: "TO_FILL", choosePrefix: "CHOOSE::" };
+
+export function scaffoldFromSchema(
+  schema: Readonly<Record<string, unknown>>,
+  fieldName = "document",
+  vocabulary: ScaffoldVocabulary = ENGLISH_VOCABULARY,
+): Readonly<Record<string, unknown>> {
+  const value = scaffoldValue(schema, fieldName, schema, vocabulary);
   if (!isRecord(value)) throw new Error("Root scaffold schema must describe an object.");
   return value;
 }
 
 export function findScaffoldSentinels(value: unknown, path = ""): readonly string[] {
-  if (typeof value === "string") return SENTINEL_PATTERN.test(value) ? [path || "(root)"] : [];
+  if (typeof value === "string") return SENTINEL_PATTERN.test(value) || isLegacyScaffoldSentinel(value) ? [path || "(root)"] : [];
   if (Array.isArray(value)) return value.flatMap((item, index) => findScaffoldSentinels(item, `${path}[${index}]`));
   if (isRecord(value)) return Object.entries(value).flatMap(([key, item]) => findScaffoldSentinels(item, `${path}.${key}`));
   return [];
 }
 
-function scaffoldValue(schema: Readonly<Record<string, unknown>>, fieldName: string, root: Readonly<Record<string, unknown>>): unknown {
-  if ("$ref" in schema) return scaffoldValue(resolveRef(schema["$ref"], root, fieldName), fieldName, root);
+function scaffoldValue(schema: Readonly<Record<string, unknown>>, fieldName: string, root: Readonly<Record<string, unknown>>, vocabulary: ScaffoldVocabulary): unknown {
+  if ("$ref" in schema) return scaffoldValue(resolveRef(schema["$ref"], root, fieldName), fieldName, root, vocabulary);
   if ("const" in schema) return schema["const"];
-  if ("default" in schema) return schema["default"];
+  if ("default" in schema) return localizeDefault(schema["default"], vocabulary);
   const choices = schema["enum"];
-  if (Array.isArray(choices) && choices.length > 0) return `À_CHOISIR::${choices.map(String).join("|")}`;
+  if (Array.isArray(choices) && choices.length > 0) return `${vocabulary.choosePrefix}${choices.map(String).join("|")}`;
   const type = schema["type"];
-  if (type === "string") return "À_REMPLIR";
+  if (type === "string") return vocabulary.fill;
   if (type === "integer" || type === "number") return typeof schema["minimum"] === "number" ? schema["minimum"] : 0;
   if (type === "boolean") return false;
   if (type === "array") {
@@ -44,7 +57,7 @@ function scaffoldValue(schema: Readonly<Record<string, unknown>>, fieldName: str
     if (minItems <= 0) return [];
     const items = schema["items"];
     if (!isRecord(items)) throw new Error(`Array items missing at ${fieldName}.`);
-    return Array.from({ length: minItems }, (_, index) => scaffoldValue(items, `${fieldName}[${index}]`, root));
+    return Array.from({ length: minItems }, (_, index) => scaffoldValue(items, `${fieldName}[${index}]`, root, vocabulary));
   }
   if (type === "object") {
     const properties = schema["properties"];
@@ -56,11 +69,18 @@ function scaffoldValue(schema: Readonly<Record<string, unknown>>, fieldName: str
     for (const key of required) {
       const child = properties[key];
       if (!isRecord(child)) throw new Error(`Required property ${fieldName}.${key} has no schema.`);
-      output[key] = scaffoldValue(child, `${fieldName}.${key}`, root);
+      output[key] = scaffoldValue(child, `${fieldName}.${key}`, root, vocabulary);
     }
     return output;
   }
   throw new Error(`Unsupported schema type at ${fieldName}: ${String(type)}.`);
+}
+
+function localizeDefault(value: unknown, vocabulary: ScaffoldVocabulary): unknown {
+  if (value === "TO_FILL" || value === LEGACY_SCAFFOLD_SENTINELS.fill) return vocabulary.fill;
+  if (Array.isArray(value)) return value.map((item) => localizeDefault(item, vocabulary));
+  if (isRecord(value)) return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, localizeDefault(item, vocabulary)]));
+  return value;
 }
 
 function resolveRef(ref: unknown, root: Readonly<Record<string, unknown>>, fieldName: string): Readonly<Record<string, unknown>> {

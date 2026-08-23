@@ -19,12 +19,15 @@ import { test } from "node:test";
 
 import { createRenderer } from "../../src/adapters/inbound/tui/runtime/render.ts";
 import { createTheme } from "../../src/adapters/inbound/tui/runtime/theme.ts";
+import { setActiveLocale } from "../../src/application/localization/locale.ts";
 import type { Scene, TuiApp } from "../../src/adapters/inbound/tui/runtime/tui-app.ts";
 import { createAgentOrchestrationSceneController } from "../../src/composition/tui/agent-orchestration-scene-controller.ts";
 import { FeatureId } from "../../src/domain/feature/feature-id.ts";
 import { Feature } from "../../src/domain/feature/feature.ts";
 import { ProjectId } from "../../src/domain/project/project-id.ts";
 import type { ForAgentOrchestration } from "../../src/ports/inbound/for-agent-orchestration.ts";
+
+setActiveLocale("fr");
 
 test("le menu TUI Product ouvre le prompt du rôle calculé avec session et permissions explicites", async () => {
   const stack: Scene[] = [];

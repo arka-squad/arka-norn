@@ -18,6 +18,8 @@ import { createPipelineRuntime } from "../../../composition/pipeline-runtime.js"
 import type { PipelineWorkflow } from "../../../domain/pipeline/pipeline-catalog.js";
 import type { CliExecution } from "./cli-execution.js";
 import { CliUsageError, parseStrictArguments } from "./strict-arguments.js";
+import { jsonEnvelope } from "./cli-envelope.js";
+import { translate } from "../../../application/localization/locale.js";
 
 export async function runWorkflowCommand(argv: readonly string[], frameworkRoot: string): Promise<CliExecution> {
   const action = argv[0];
@@ -38,18 +40,18 @@ export async function runWorkflowCommand(argv: readonly string[], frameworkRoot:
     const message = error instanceof Error ? error.message : String(error);
     const code = error instanceof CliUsageError ? 64 : 3;
     return json
-      ? { code, stdout: `${JSON.stringify({ schemaVersion: 1, command: `workflow.${action ?? "unknown"}`, ok: false, data: null, errors: [message], warnings: [] })}\n`, stderr: "" }
-      : { code, stdout: "", stderr: `ERREUR — ${message}\n` };
+      ? { code, stdout: jsonEnvelope({ command: `workflow.${action ?? "unknown"}`, ok: false, data: null, errors: [message], errorCode: "workflow_command_failed" }), stderr: "" }
+      : { code, stdout: "", stderr: `${translate("common.error", { message })}\n` };
   }
 }
 
 function success(command: string, data: PipelineWorkflow | readonly PipelineWorkflow[], json: boolean): CliExecution {
-  if (json) return { code: 0, stdout: `${JSON.stringify({ schemaVersion: 1, command, ok: true, data, errors: [], warnings: [] })}\n`, stderr: "" };
+  if (json) return { code: 0, stdout: jsonEnvelope({ command, ok: true, data }), stderr: "" };
   const workflows: readonly PipelineWorkflow[] = Array.isArray(data) ? data as readonly PipelineWorkflow[] : [data as PipelineWorkflow];
   const lines = workflows.flatMap((workflow) => [
-    `${workflow.id} (${workflow.aliases.join(", ") || "sans alias"}) — ${workflow.name}`,
+    `${workflow.id} (${workflow.aliases.join(", ") || translate("cli.workflow.noAlias")}) - ${workflow.name}`,
     `  ${workflow.description}`,
-    `  ${workflow.steps.map((step) => step.id).join(" → ")}`,
+    `  ${workflow.steps.map((step) => step.id).join(" -> ")}`,
   ]);
   return { code: 0, stdout: `${lines.join("\n")}\n`, stderr: "" };
 }

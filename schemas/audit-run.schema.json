@@ -1,41 +1,221 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "audit-run.schema.json",
-  "title": "État local d'une exécution d'audit arka.norn",
   "type": "object",
-  "required": ["schemaVersion", "id", "projectId", "createdAt", "updatedAt", "status", "fingerprint", "inspection", "request", "plan", "selectedModules", "moduleStatuses", "attempts", "warnings"],
+  "required": [
+    "schemaVersion",
+    "id",
+    "projectId",
+    "createdAt",
+    "updatedAt",
+    "status",
+    "fingerprint",
+    "inspection",
+    "request",
+    "plan",
+    "selectedModules",
+    "moduleStatuses",
+    "attempts",
+    "warnings"
+  ],
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "id": { "type": "string", "pattern": "^audit-[0-9]{8}t[0-9]{6}z-[a-f0-9]{8}$" },
-    "projectId": { "type": "string", "minLength": 1 },
-    "projectName": { "type": "string", "minLength": 1 },
-    "featureId": { "type": ["string", "null"] },
-    "createdAt": { "type": "string", "format": "date-time" },
-    "updatedAt": { "type": "string", "format": "date-time" },
-    "status": { "enum": ["planned", "collecting", "analyzing", "completed", "partial", "blocked", "failed", "cancelled", "interrupted"] },
-    "fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-    "inspection": { "type": "object" },
-    "request": { "$ref": "audit-request.schema.json" },
+    "schemaVersion": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^audit-[0-9]{8}t[0-9]{6}z-[a-f0-9]{8}$"
+    },
+    "projectId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "projectName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "featureId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "enum": [
+        "planned",
+        "collecting",
+        "analyzing",
+        "completed",
+        "partial",
+        "blocked",
+        "failed",
+        "cancelled",
+        "interrupted"
+      ]
+    },
+    "fingerprint": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "inspection": {
+      "type": "object"
+    },
+    "request": {
+      "$ref": "audit-request.schema.json"
+    },
     "plan": {
       "type": "object",
-      "required": ["scopePaths", "commitExact", "images", "hosts", "credentialRefs", "dynamicTargets", "logicalCommands", "timeoutMs", "estimatedDuration", "requiresAdditionalConfirmation"],
+      "required": [
+        "scopePaths",
+        "commitExact",
+        "images",
+        "hosts",
+        "credentialRefs",
+        "dynamicTargets",
+        "logicalCommands",
+        "timeoutMs",
+        "estimatedDuration",
+        "requiresAdditionalConfirmation"
+      ],
       "properties": {
-        "scopePaths": { "type": "array", "items": { "type": "string" } },
-        "commitExact": { "type": ["string", "null"] },
-        "images": { "type": "array", "items": { "type": "object", "required": ["reference", "installed", "sizeBytes"], "properties": { "reference": { "type": "string", "pattern": "@sha256:[a-f0-9]{64}$" }, "installed": { "type": ["boolean", "null"] }, "sizeBytes": { "type": ["integer", "null"], "minimum": 0 } }, "additionalProperties": false } },
-        "hosts": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
-        "credentialRefs": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
-        "dynamicTargets": { "type": "array", "uniqueItems": true, "items": { "type": "string", "format": "uri" } },
-        "logicalCommands": { "type": "array", "items": { "type": "string" } },
-        "timeoutMs": { "type": "integer", "minimum": 1000 },
-        "estimatedDuration": { "type": "string" },
-        "requiresAdditionalConfirmation": { "type": "boolean" }
+        "scopePaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "commitExact": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "reference",
+              "installed",
+              "sizeBytes"
+            ],
+            "properties": {
+              "reference": {
+                "type": "string",
+                "pattern": "@sha256:[a-f0-9]{64}$"
+              },
+              "installed": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "sizeBytes": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "hosts": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "credentialRefs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "dynamicTargets": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "logicalCommands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1000
+        },
+        "estimatedDuration": {
+          "type": "string"
+        },
+        "requiresAdditionalConfirmation": {
+          "type": "boolean"
+        }
       },
       "additionalProperties": false
     },
-    "selectedModules": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["M00", "M01", "M02", "M03", "M04", "M05", "M06", "M07", "M08", "M09", "M10", "M11"] } },
-    "moduleStatuses": { "type": "object", "additionalProperties": { "enum": ["pending", "complete", "partial", "blocked", "error", "skipped"] } },
-    "attempts": { "type": "array", "items": { "type": "object" } },
-    "warnings": { "type": "array", "items": { "type": "string" } }
-  }
+    "selectedModules": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "M00",
+          "M01",
+          "M02",
+          "M03",
+          "M04",
+          "M05",
+          "M06",
+          "M07",
+          "M08",
+          "M09",
+          "M10",
+          "M11"
+        ]
+      }
+    },
+    "moduleStatuses": {
+      "type": "object",
+      "additionalProperties": {
+        "enum": [
+          "pending",
+          "complete",
+          "partial",
+          "blocked",
+          "error",
+          "skipped"
+        ]
+      }
+    },
+    "attempts": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "title": "Audit Run"
 }

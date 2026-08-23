@@ -19,9 +19,9 @@ const FASTDEV_CONFIG = {
     displayName: "FastDev",
     workflowAlias: "fastdev",
     pipelineId: "arka-norn-fastdev",
-    deliveryStepId: "cr_dev",
-    journey: "cadrage → développement → audit → correction conditionnelle → validation",
-    completionReason: "Validation FastDev pass sur le dernier CR.",
+    deliveryStepId: "development_report",
+    journey: "brief -> development -> audit -> conditional correction -> validation",
+    completionReason: "The latest development report has a passing FastDev validation.",
 };
 export async function runFastDevCommand(argv, context) {
     return runGuidedFeatureCommand(argv, context, FASTDEV_CONFIG);

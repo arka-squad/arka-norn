@@ -14,13 +14,6 @@
  * limitations under the License.
  */
 
-/**
- * Input -- raw-mode keyboard input source. Port TS fidèle de
- * arka-cc-management (adapters/inbound/tui/runtime/input.ts).
- *
- * TTY guard : si stdin.isTTY === false, start() ne fait rien.
- * Cleanup : stop() retire le listener, repasse en cooked mode, idempotent.
- */
 import { emitKeypressEvents } from "node:readline";
 
 export type KeyEvent =

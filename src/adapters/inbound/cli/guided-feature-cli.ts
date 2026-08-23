@@ -27,6 +27,7 @@ import { guidedNext } from "../../../application/guided/guided-next.js";
 import { pipelineExitCode, pipelineReportEnvelope, presentPipelineReport } from "./presenters/pipeline-report-presenter.js";
 import type { CliExecution } from "./cli-execution.js";
 import { CliUsageError, parseStrictArguments } from "./strict-arguments.js";
+import { jsonEnvelope } from "./cli-envelope.js";
 
 export interface GuidedFeatureCliContext {
   readonly cwd: string;
@@ -61,8 +62,8 @@ export async function runGuidedFeatureCommand(
     const message = error instanceof Error ? error.message : String(error);
     const code = error instanceof CliUsageError ? 64 : 3;
     return json
-      ? { code, stdout: `${JSON.stringify({ schemaVersion: 1, command: `${config.commandName}.${action ?? "unknown"}`, ok: false, data: null, errors: [message], warnings: [] })}\n`, stderr: "" }
-      : { code, stdout: "", stderr: `ERREUR — ${message}\n` };
+      ? { code, stdout: jsonEnvelope({ command: `${config.commandName}.${action ?? "unknown"}`, ok: false, data: null, errors: [message], errorCode: error instanceof CliUsageError ? "invalid_arguments" : "guided_feature_failed" }), stderr: "" }
+      : { code, stdout: "", stderr: `ERROR: ${message}\n` };
   }
 }
 
@@ -81,10 +82,10 @@ async function start(argv: readonly string[], context: GuidedFeatureCliContext, 
   const feature = await management.features.create({ id, projectId, name, root, pipelineId });
   const data = serializeFeature(feature);
   const human = [
-    `${config.displayName.toUpperCase()} créé — ${feature.name}`,
-    `Feature : ${feature.id.value}`,
-    `Parcours : ${config.journey}`,
-    `Suite : arka-norn ${config.commandName} next ${feature.id.value}`,
+    `${config.displayName.toUpperCase()} created: ${feature.name}`,
+    `Feature: ${feature.id.value}`,
+    `Journey: ${config.journey}`,
+    `Next: arka-norn ${config.commandName} next ${feature.id.value}`,
   ].join("\n");
   return json ? envelope(`${config.commandName}.start`, data) : { code: 0, stdout: `${human}\n`, stderr: "" };
 }
@@ -106,6 +107,7 @@ async function inspect(
     featureRoot: feature.root,
     featureId: feature.id.value,
     pipelineId: feature.pipelineId,
+    documentContractVersion: feature.documentContractVersion,
     authorRegistry,
   });
   if (action === "status") {
@@ -115,20 +117,20 @@ async function inspect(
   if (json) {
     return {
       code: pipelineExitCode(report),
-      stdout: `${JSON.stringify({ schemaVersion: 1, command: `${config.commandName}.next`, ok: report.errors.length === 0, data, errors: report.errors, warnings: report.warnings })}\n`,
+      stdout: jsonEnvelope({ command: `${config.commandName}.next`, ok: report.errors.length === 0, data, errors: report.errors, warnings: report.warnings, errorCode: "pipeline_error", warningCode: "pipeline_warning" }),
       stderr: "",
     };
   }
-  if (data.action === null) return { code: pipelineExitCode(report), stdout: `${config.displayName} terminé — validation pass sur le dernier CR.\n`, stderr: "" };
+  if (data.action === null) return { code: pipelineExitCode(report), stdout: `${config.displayName} completed: the latest development report passed validation.\n`, stderr: "" };
   return {
     code: pipelineExitCode(report),
     stdout: [
-      `Phase : ${data.phase} · itération ${data.iteration}`,
-      `À faire : ${data.instructions.join(" ")}`,
-      `Pourquoi : ${data.reason}`,
-      `Prérequis : ${data.prerequisites.join(", ") || "aucun"}`,
-      `Livrable : ${data.expectedArtifact}`,
-      `Commande : ${data.suggestedCommand}`,
+      `Phase: ${data.phase} · iteration ${data.iteration}`,
+      `Action: ${data.instructions.join(" ")}`,
+      `Reason: ${data.reason}`,
+      `Prerequisites: ${data.prerequisites.join(", ") || "none"}`,
+      `Deliverable: ${data.expectedArtifact}`,
+      `Command: ${data.suggestedCommand}`,
     ].join("\n") + "\n",
     stderr: "",
   };
@@ -145,5 +147,5 @@ function serializeFeature(feature: Awaited<ReturnType<ReturnType<typeof createMa
 }
 
 function envelope(command: string, data: unknown): CliExecution {
-  return { code: 0, stdout: `${JSON.stringify({ schemaVersion: 1, command, ok: true, data, errors: [], warnings: [] })}\n`, stderr: "" };
+  return { code: 0, stdout: jsonEnvelope({ command, ok: true, data }), stderr: "" };
 }

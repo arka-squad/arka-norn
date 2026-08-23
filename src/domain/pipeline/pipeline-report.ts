@@ -81,7 +81,7 @@ export interface TransversalDocumentState {
 }
 
 export interface PipelineReport {
-  readonly schemaVersion: 1;
+  readonly schemaVersion: 2;
   readonly pipelineId: string;
   readonly featureRoot: string;
   readonly featureId?: string;

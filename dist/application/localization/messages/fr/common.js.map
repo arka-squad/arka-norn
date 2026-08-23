@@ -1,0 +1,1 @@
+{"version":3,"file":"common.js","sourceRoot":"","sources":["../../../../../src/application/localization/messages/fr/common.ts"],"names":[],"mappings":"AAAA,MAAM,CAAC,MAAM,kBAAkB,GAAG;IAChC,cAAc,EAAE,oBAAoB;IACpC,gBAAgB,EAAE,2BAA2B;IAC7C,cAAc,EAAE,QAAQ;IACxB,gBAAgB,EAAE,UAAU;IAC5B,uBAAuB,EAAE,+BAA+B;IACxD,kBAAkB,EAAE,SAAS;IAC7B,kBAAkB,EAAE,UAAU;IAC9B,oBAAoB,EAAE,aAAa;CAC3B,CAAC"}

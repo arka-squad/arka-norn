@@ -1,12 +1,7 @@
-# Politique de sécurité
+# Security Policy
 
-arka.norn est distribué sous licence Apache-2.0. Ne publiez pas une
-vulnérabilité potentielle dans une issue publique. Utilisez une GitHub Security
-Advisory privée sur le dépôt, ou contactez directement un mainteneur autorisé.
+Use a private GitHub Security Advisory or contact an authorized maintainer. Do not publish a suspected vulnerability or a real credential in a public issue.
 
-Sont supportés : la dernière version taguée et la branche `main`. Un signalement
-doit inclure la version ou le commit, le système, la version Node, les étapes de
-reproduction et l’impact estimé, sans joindre de secret réel.
+The latest tagged release and `main` are supported. Reports should include the affected version or commit, operating system, Node.js version, reproduction steps and estimated impact.
 
-Les correctifs critiques sont livrés par un nouveau tag. Le rollback consiste à
-réinstaller le tarball et vérifier le checksum de la version précédente.
+Critical fixes ship as a new tag. Rollback reinstalls the previous verified tarball and checksum.

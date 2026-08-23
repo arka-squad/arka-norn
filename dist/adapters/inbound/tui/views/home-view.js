@@ -18,8 +18,9 @@ import { basename } from "node:path";
 import { DomainError } from "../../../../domain/errors.js";
 import { ProjectId } from "../../../../domain/project/project-id.js";
 import { titledBox } from "../components/box.js";
-import { GUIDED_SHORTCUTS, nextActionLine, renderGuidance } from "../components/guidance.js";
+import { guidedShortcuts, nextActionLine, renderGuidance } from "../components/guidance.js";
 import { createMenuScene, filterItems } from "../components/menu.js";
+import { formatNumber, formatShortDate, formatTime, translate } from "../../../../application/localization/locale.js";
 const CIRCLE = "●";
 const IDENTITY = (value) => value;
 export function createHomeView(deps) {
@@ -32,26 +33,28 @@ export function createHomeView(deps) {
     let message;
     let busy = false;
     let helpVisible = false;
-    let skillHealth = deps.skillHealth ?? "état inconnu";
-    let systemHealth = deps.systemHealth ?? "état inconnu";
+    let skillHealth = deps.skillHealth ?? translate("tui.health.unknown");
+    let systemHealth = deps.systemHealth ?? translate("tui.health.unknown");
+    let localePreference = deps.localePreference ?? "auto";
     let menu = buildMenu();
     syncFocus();
     function items() {
         return [
-            { label: "Créer ou importer un Project", value: "action:create", description: "déclare la racine qui contiendra Features et registre Agents" },
+            { label: translate("tui.home.create.label"), value: "action:create", description: translate("tui.home.create.description") },
             ...projects.map((project) => ({
-                label: `${CIRCLE} ${project.name} · ${project.orchestrationMode === "automatic" ? "Pilote assisté" : "Lancement manuel"}`,
+                label: `${CIRCLE} ${project.name} - ${translate(project.orchestrationMode === "automatic" ? "tui.home.mode.assisted" : "tui.home.mode.manual")}`,
                 value: `project:${project.id.value}`,
                 description: `${project.root}  ${formatActivity(project.updatedAt, now())}`,
             })),
-            { label: "Rescanner ce dossier", value: "action:scan", description: "reconstruit l’index depuis les marqueurs sans supprimer les données" },
-            { label: "Santé du système", value: "action:health", description: `${systemHealth} · détail et réparations sûres` },
-            { label: "Installer / réparer les skills", value: "action:install", description: `${skillHealth} · guide les agents dans le framework` },
+            { label: translate("tui.home.scan.label"), value: "action:scan", description: translate("tui.home.scan.description") },
+            { label: translate("tui.home.health.label"), value: "action:health", description: translate("tui.home.health.description", { health: systemHealth }) },
+            { label: translate("tui.home.skills.label"), value: "action:install", description: translate("tui.home.skills.description", { health: skillHealth }) },
+            { label: `${translate("tui.language")}: ${translate(`common.locale.${localePreference}`)}`, value: "action:locale", description: translate("tui.language.description") },
         ];
     }
     function buildMenu() {
         return createMenuScene(items(), {
-            hint: "↑/↓ naviguer · Entrée ouvrir · / filtrer · ? aide · q quitter",
+            hint: translate("tui.home.menu.hint"),
             maxVisible: 12,
             onSelect: (value) => void select(value),
         });
@@ -80,21 +83,25 @@ export function createHomeView(deps) {
             await run(async () => {
                 const results = await deps.scan.scan({ target: deps.cwd });
                 await refresh();
-                message = `Scan terminé : ${results.filter((entry) => entry.project !== undefined).length} projet(s).`;
+                message = translate("tui.home.scan.done", { count: formatNumber(results.filter((entry) => entry.project !== undefined).length) });
             });
             return;
         }
         if (value === "action:health")
             await run(async () => { await deps.onShowHealth?.(); });
-        else
+        else if (value === "action:install")
             await run(async () => { await deps.onInstallSkills?.(); });
+        else {
+            mode = "locale";
+            deps.redraw();
+        }
     }
     async function submitCreate() {
         if (busy)
             return;
         const root = createPath.trim();
         if (root.length === 0) {
-            message = "Le chemin ne peut pas être vide.";
+            message = translate("tui.home.path.empty");
             deps.redraw();
             return;
         }
@@ -103,7 +110,7 @@ export function createHomeView(deps) {
             try {
                 const project = await deps.projects.importFrom({ root });
                 mode = "menu";
-                message = `Projet importé : ${project.name}`;
+                message = translate("tui.home.project.imported", { name: project.name });
                 await refresh();
             }
             catch (error) {
@@ -125,7 +132,10 @@ export function createHomeView(deps) {
             const project = await deps.projects.create({ ...input, orchestrationMode });
             pendingProject = undefined;
             mode = "menu";
-            message = `Projet créé : ${project.name} (${orchestrationMode === "automatic" ? "Pilote assisté activé" : "lancement manuel"}).`;
+            message = translate("tui.home.project.created", {
+                name: project.name,
+                mode: translate(orchestrationMode === "automatic" ? "tui.home.mode.assistedEnabled" : "tui.home.mode.manualEnabled"),
+            });
             await refresh();
         });
     }
@@ -213,6 +223,23 @@ export function createHomeView(deps) {
                 deps.redraw();
                 return "consumed";
             }
+            if (mode === "locale") {
+                if (event.kind === "escape")
+                    mode = "menu";
+                else if (event.kind === "up" || event.kind === "left")
+                    localePreference = previousLocalePreference(localePreference);
+                else if (event.kind === "down" || event.kind === "right")
+                    localePreference = nextLocalePreference(localePreference);
+                else if (event.kind === "enter" && !busy) {
+                    void run(async () => {
+                        await deps.onLocaleChange?.(localePreference);
+                        mode = "menu";
+                        menu = buildMenu();
+                    });
+                }
+                deps.redraw();
+                return "consumed";
+            }
             const result = menu.onKey(event);
             if (result !== undefined)
                 syncFocus();
@@ -222,41 +249,49 @@ export function createHomeView(deps) {
             renderer.redraw((line) => {
                 if (helpVisible) {
                     for (const value of renderGuidance({
-                        title: "Aide — démarrer avec arka-norn",
-                        purpose: "arka-norn organise le travail selon Project → Feature → Pipeline → Documents/Runs, avec une identité Agent explicite.",
+                        title: translate("tui.home.help.title"),
+                        purpose: translate("tui.home.help.purpose"),
                         steps: [
-                            "Créez ou importez le Project qui porte le produit.",
-                            "Dans le Project, enregistrez votre identité Agent et son périmètre.",
-                            "Créez/importez une Feature, puis ouvrez son cockpit.",
-                            "Suivez l’action recommandée, générez un document signé et validez-le.",
-                            "Consultez Santé si un index, un marker, un lock, l’audit ou une skill est en échec.",
+                            translate("tui.home.help.step1"),
+                            translate("tui.home.help.step2"),
+                            translate("tui.home.help.step3"),
+                            translate("tui.home.help.step4"),
+                            translate("tui.home.help.step5"),
                         ],
-                        shortcuts: GUIDED_SHORTCUTS,
+                        shortcuts: guidedShortcuts(),
                     }, theme))
                         line(value);
                     return;
                 }
                 if (mode === "create") {
-                    for (const value of titledBox("Créer ou importer un Project", [
-                        "Indiquez la racine du produit. Un marker existant sera importé ; sinon `.arka-norn/project.json` sera créé.",
-                        "Exemple : /workspace/mon-produit",
+                    for (const value of titledBox(translate("tui.home.create.title"), [
+                        translate("tui.home.create.explanation"),
+                        translate("tui.home.create.example"),
                         "",
-                        `Chemin absolu : ${createPath}${theme.dim("_")}`,
-                        message ?? "Entrée confirme · Échap annule sans modifier",
+                        `${translate("tui.home.create.path", { path: createPath })}${theme.dim("_")}`,
+                        message ?? translate("tui.home.create.confirm"),
                     ], theme).split("\n"))
                         line(value);
                     return;
                 }
                 if (mode === "orchestration-mode") {
-                    const selected = orchestrationMode === "manual" ? "Je lance moi-même les assistants" : "Pilote assisté";
-                    for (const value of titledBox("Niveau de délégation", [
-                        "Choisissez comment vous souhaitez avancer. Vous pourrez modifier ce choix dans le Project.",
-                        "Je lance moi-même les assistants : vous choisissez chaque mission et son lancement.",
-                        "Pilote assisté : Arka prépare les missions autorisées, explique leur effet et attend votre accord avant chaque lancement.",
+                    const selected = translate(orchestrationMode === "manual" ? "tui.home.delegation.manualChoice" : "tui.home.mode.assisted");
+                    for (const value of titledBox(translate("tui.home.delegation.title"), [
+                        translate("tui.home.delegation.explanation"),
+                        translate("tui.home.delegation.manual"),
+                        translate("tui.home.delegation.assisted"),
                         "",
-                        `Choix : ${selected}`,
-                        "↑/↓ ou ←/→ change · Entrée confirme · Échap revient au chemin sans créer",
+                        translate("tui.home.delegation.choice", { choice: selected }),
+                        translate("tui.home.delegation.hint"),
                     ], theme, { border: orchestrationMode === "automatic" ? theme.arkaAccent : theme.arkaRed }).split("\n"))
+                        line(value);
+                    return;
+                }
+                if (mode === "locale") {
+                    for (const value of titledBox(translate("tui.language.title"), [
+                        translate("tui.language.choice", { locale: translate(`common.locale.${localePreference}`) }),
+                        translate("tui.language.instructions"),
+                    ], theme).split("\n"))
                         line(value);
                     return;
                 }
@@ -267,21 +302,28 @@ export function createHomeView(deps) {
     };
     function renderHome(theme) {
         const lines = [
-            ...titledBox("Bienvenue", [`Runtime : Node ${process.version}`, `Racine  : ${deps.contextRoot}`, `Santé   : ${systemHealth}`], theme, { border: theme.arkaRed }).split("\n"),
+            ...titledBox(translate("tui.home.welcome"), [`${translate("tui.context.runtime")} Node ${process.version}`, `${translate("tui.context.root")} ${deps.contextRoot}`, `${translate("tui.home.health.label")}: ${systemHealth}`], theme, { border: theme.arkaRed }).split("\n"),
             "",
-            `  ${theme.bold("Projets")}`,
+            `  ${theme.bold(translate("tui.home.projects"))}`,
         ];
-        lines.push(nextActionLine(projects.length === 0 ? "Créer ou importer un Project" : "Ouvrir le Project prioritaire", projects.length === 0 ? "aucune racine produit n’est encore indexée" : "vous pourrez ensuite choisir l’identité Agent et la Feature", theme));
+        lines.push(nextActionLine(translate(projects.length === 0 ? "tui.home.next.empty.action" : "tui.home.next.open.action"), translate(projects.length === 0 ? "tui.home.next.empty.reason" : "tui.home.next.open.reason"), theme));
         if (projects.length === 0) {
-            lines.push(`  ${theme.dim("Parcours guidé : Project → Agent actif → Feature → prochaine action Pipeline.")}`);
+            lines.push(`  ${theme.dim(translate("tui.home.guidedPath"))}`);
         }
         if (message !== undefined)
-            lines.push(`  ${busy ? theme.dim("Chargement…") : theme.arkaAccent(message)}`);
+            lines.push(`  ${busy ? theme.dim(translate("tui.home.loading")) : theme.arkaAccent(message)}`);
         if (projects.length === 0)
-            lines.push(`  ${theme.dim("Aucun projet indexé.")}`);
+            lines.push(`  ${theme.dim(translate("tui.home.noProjects"))}`);
         lines.push(...menu.renderLines(theme));
         return lines;
     }
+}
+const LOCALE_PREFERENCES = ["auto", "en", "fr"];
+function nextLocalePreference(value) {
+    return LOCALE_PREFERENCES[(LOCALE_PREFERENCES.indexOf(value) + 1) % LOCALE_PREFERENCES.length];
+}
+function previousLocalePreference(value) {
+    return LOCALE_PREFERENCES[(LOCALE_PREFERENCES.indexOf(value) + LOCALE_PREFERENCES.length - 1) % LOCALE_PREFERENCES.length];
 }
 function visibleItems(items, menu, stripAnsi) {
     return menu.filterMode ? filterItems(items, menu.filterText, stripAnsi) : items.map((item, index) => ({ ...item, _origIndex: index }));
@@ -293,13 +335,11 @@ function deriveProjectId(root, code) {
 function slugify(name) {
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
     if (slug.length === 0)
-        throw new DomainError("INVALID_PROJECT_OPTION", `Nom de projet inexploitable : "${name}".`);
+        throw new DomainError("INVALID_PROJECT_OPTION", translate("tui.error.invalidProjectName", { name }));
     return slug;
 }
 function formatActivity(value, current) {
-    if (value.toDateString() === current.toDateString())
-        return `${String(value.getHours()).padStart(2, "0")}:${String(value.getMinutes()).padStart(2, "0")}`;
-    return `${String(value.getDate()).padStart(2, "0")}/${String(value.getMonth() + 1).padStart(2, "0")}`;
+    return value.toDateString() === current.toDateString() ? formatTime(value) : formatShortDate(value);
 }
 function translateError(error) {
     return error instanceof Error ? error.message : String(error);

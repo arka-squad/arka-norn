@@ -24,6 +24,7 @@ import { createProjectDetailView } from "../../src/adapters/inbound/tui/views/pr
 import { createFeatureDetailView } from "../../src/adapters/inbound/tui/views/feature-detail-view.ts";
 import { createRenderer } from "../../src/adapters/inbound/tui/runtime/render.ts";
 import { createTheme } from "../../src/adapters/inbound/tui/runtime/theme.ts";
+import { setActiveLocale } from "../../src/application/localization/locale.ts";
 import { createPipelineRuntime } from "../../src/composition/pipeline-runtime.ts";
 import { Feature } from "../../src/domain/feature/feature.ts";
 import { FeatureId } from "../../src/domain/feature/feature-id.ts";
@@ -32,6 +33,8 @@ import { ProjectId } from "../../src/domain/project/project-id.ts";
 import type { ForFeatures } from "../../src/ports/inbound/for-features.ts";
 
 const ROOT = resolve(import.meta.dirname, "..", "..");
+
+setActiveLocale("fr");
 const theme = createTheme({ NO_COLOR: "1" }, false);
 
 test("l'espace Project sépare Essentiel, standard, FastDev et import puis confirme FastDev au clavier", () => {
@@ -41,9 +44,9 @@ test("l'espace Project sépare Essentiel, standard, FastDev et import puis confi
   const renderer = createRenderer({ write: (chunk) => { output += chunk; }, isTTY: false, columns: 140 });
   const view = createProjectDetailView({ project, initialFeatures: [], features, scan: { scan: async () => [] }, redraw() {}, onBack() {} });
   view.render(renderer, theme);
-  assert.match(output, /Créer une Feature — Pipeline essentiel \(défaut\)/);
-  assert.match(output, /Créer une Feature — Pipeline standard/);
-  assert.match(output, /Créer une Feature — FastDev rework/);
+  assert.match(output, /Créer une Feature - Essential pipeline \(défaut\)/);
+  assert.match(output, /Créer une Feature - Complete pipeline/);
+  assert.match(output, /Créer une Feature - FastDev rework/);
   assert.match(output, /Importer une Feature existante/);
 
   output = "";
@@ -52,13 +55,13 @@ test("l'espace Project sépare Essentiel, standard, FastDev et import puis confi
   view.onKey({ kind: "down" });
   view.onKey({ kind: "enter" });
   view.render(renderer, theme);
-  assert.match(output, /4 documents structurés/);
-  assert.match(output, /seconde passe Dev.*corrections sont requises/);
+  assert.match(output, /Quatre documents structurés/);
+  assert.match(output, /seconde passe de développement.*corrections sont requises/);
 
   output = "";
   view.onKey({ kind: "enter" });
   view.render(renderer, theme);
-  assert.match(output, /Créer une Feature — FastDev rework/);
+  assert.match(output, /Créer une Feature - FastDev rework/);
   assert.match(output, /Workflow : FastDev rework/);
 });
 
@@ -81,7 +84,7 @@ test("le cockpit FastDev affiche le badge et ouvre l'action guidée principale",
   const view = createFeatureDetailView({ feature, report, currentAgentId: "Codex_dev_20260820", redraw() {}, onBack() {}, onContinue: async () => { continued += 1; } });
   view.render(renderer, theme);
   assert.match(output, /\[FASTDEV\]/);
-  assert.match(output, /Cadrage · 0\/4/);
+  assert.match(output, /Brief - 0\/4/);
   assert.match(output, /Continuer le rework/);
   assert.match(output, /constats ouverts/);
   view.onKey({ kind: "enter" });

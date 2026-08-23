@@ -1,0 +1,127 @@
+{
+  "schema_version": 5,
+  "author_agent_id": "Codex_dev_20260819",
+  "id": "plan-memoire-evenementielle-notion-linear-v2.2",
+  "feature_id": "connecteurs-notion-linear",
+  "type": "plan",
+  "sequence": 1,
+  "created_at": "2026-06-30T08:30:00.000Z",
+  "depends_on_document_ids": [
+    "concept-notion-linear-anti-tokens"
+  ],
+  "title": "Documented title for the canonical English example.",
+  "version": "Documented version for the canonical English example.",
+  "target": "Documented target for the canonical English example.",
+  "source_concepts": [
+    "Documented source concepts for the canonical English example.",
+    "Documented source concepts for the canonical English example."
+  ],
+  "nature": "Documented nature for the canonical English example.",
+  "completion_criteria": [
+    "Documented completion criteria for the canonical English example.",
+    "Documented completion criteria for the canonical English example.",
+    "Documented completion criteria for the canonical English example.",
+    "Documented completion criteria for the canonical English example."
+  ],
+  "guiding_principle": "Documented guiding principle for the canonical English example.",
+  "assertion_status": {
+    "locked": [
+      "Documented locked for the canonical English example.",
+      "Documented locked for the canonical English example.",
+      "Documented locked for the canonical English example.",
+      "Documented locked for the canonical English example.",
+      "Documented locked for the canonical English example."
+    ],
+    "objective_to_prove": [
+      "Documented objective to prove for the canonical English example.",
+      "Documented objective to prove for the canonical English example.",
+      "Documented objective to prove for the canonical English example.",
+      "Documented objective to prove for the canonical English example.",
+      "Documented objective to prove for the canonical English example."
+    ]
+  },
+  "batches": [
+    {
+      "id": "lot-0",
+      "name": "Documented name for the canonical English example.",
+      "description": "Documented description for the canonical English example.",
+      "depends_on": []
+    },
+    {
+      "id": "lot-1",
+      "name": "Documented name for the canonical English example.",
+      "description": "Documented description for the canonical English example.",
+      "depends_on": [
+        "lot-0"
+      ]
+    },
+    {
+      "id": "lot-2",
+      "name": "Documented name for the canonical English example.",
+      "description": "Documented description for the canonical English example.",
+      "depends_on": [
+        "lot-1"
+      ]
+    },
+    {
+      "id": "lot-3",
+      "name": "Documented name for the canonical English example.",
+      "description": "Documented description for the canonical English example.",
+      "depends_on": [
+        "lot-1"
+      ]
+    },
+    {
+      "id": "lot-4-5",
+      "name": "Documented name for the canonical English example.",
+      "description": "Documented description for the canonical English example.",
+      "depends_on": [
+        "lot-1"
+      ]
+    },
+    {
+      "id": "lot-6",
+      "name": "Documented name for the canonical English example.",
+      "description": "Documented description for the canonical English example.",
+      "depends_on": [
+        "lot-4-5"
+      ]
+    },
+    {
+      "id": "lot-7",
+      "name": "Documented name for the canonical English example.",
+      "description": "Documented description for the canonical English example.",
+      "depends_on": [
+        "lot-2",
+        "lot-3",
+        "lot-6"
+      ]
+    },
+    {
+      "id": "lot-8",
+      "name": "Documented name for the canonical English example.",
+      "description": "Documented description for the canonical English example.",
+      "depends_on": [
+        "lot-7"
+      ]
+    },
+    {
+      "id": "lot-9",
+      "name": "Documented name for the canonical English example.",
+      "description": "Documented description for the canonical English example.",
+      "depends_on": [
+        "lot-1"
+      ]
+    },
+    {
+      "id": "lot-10",
+      "name": "Documented name for the canonical English example.",
+      "description": "Documented description for the canonical English example.",
+      "depends_on": [
+        "lot-4-5"
+      ]
+    }
+  ],
+  "status": "valid",
+  "content_locale": "en"
+}

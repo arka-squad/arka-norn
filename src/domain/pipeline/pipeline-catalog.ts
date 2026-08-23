@@ -25,7 +25,7 @@ export interface PipelineCatalogEntry {
 }
 
 export interface PipelineCatalog {
-  readonly schemaVersion: 1;
+  readonly schemaVersion: 1 | 2;
   readonly defaultPipelineId: string;
   readonly pipelines: readonly PipelineCatalogEntry[];
 }
@@ -38,7 +38,7 @@ const PIPELINE_ID = /^[a-z0-9][a-z0-9._-]{0,127}$/;
 const SAFE_DEFINITION = /^(?:[a-zA-Z0-9._-]+\/)*[a-zA-Z0-9._-]+\.json$/;
 
 export function createPipelineCatalog(input: PipelineCatalog): PipelineCatalog {
-  if (input.schemaVersion !== 1) throw new Error("Unsupported pipeline catalog schemaVersion.");
+  if (input.schemaVersion !== 1 && input.schemaVersion !== 2) throw new Error("Unsupported pipeline catalog schemaVersion.");
   if (input.pipelines.length === 0) throw new Error("Pipeline catalog must not be empty.");
   const tokens = new Set<string>();
   for (const entry of input.pipelines) {

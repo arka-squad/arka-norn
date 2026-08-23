@@ -69,27 +69,17 @@ test("les skills audit, dev et QA générés portent un workflow exécutable san
   const fastdev = skill(target, "arka-fastdev");
   const product = skill(target, "arka-product");
   const concept = skill(target, "arka-framework-concept");
-  const dev = skill(target, "arka-framework-dev");
-  const qa = skill(target, "arka-framework-recette-qa");
-  assert.match(audit, /Vérifier directement/);
-  assert.match(audit, /Ne modifier aucun fichier métier pendant l'audit/);
-  assert.match(dev, /Lire avant d'écrire/);
-  assert.match(dev, /typecheck, tests ciblés puis gates globaux/);
-  assert.match(dev, /cr_dev/);
-  assert.match(qa, /dernier `cr_dev_id`/);
-  assert.match(qa, /Ne pas modifier le code pendant la recette indépendante/);
-  assert.match(concept, /ChatGPT ou Claude\.ai/);
-  assert.match(concept, /prompt complètement prérempli/);
-  assert.match(concept, /proposition non fiable/);
-  assert.match(bootstrap, /Mode arka-norn activé/);
-  assert.match(bootstrap, /project add/);
-  assert.match(bootstrap, /agent register/);
-  assert.match(bootstrap, /Ne pas utiliser `--force`|ne pas utiliser `--force`/i);
-  assert.match(fastdev, /fastdev next/);
-  assert.match(fastdev, /une seule action calculée|exactement une action calculée/i);
-  assert.match(product, /session `main`/);
-  assert.match(product, /agent handoff-prompt/);
-  assert.doesNotMatch(`${audit}${dev}${qa}`, /\/Users\/|À_REMPLIR|résultat attendu de cette Feature/);
+  const dev = skill(target, "arka-framework-development");
+  const qa = skill(target, "arka-framework-qa-review");
+  for (const rendered of [audit, bootstrap, fastdev, product, concept, dev, qa]) {
+    assert.match(rendered, /locale show --json/);
+    assert.match(rendered, /content_locale/);
+    assert.match(rendered, /(?:pipeline|essential|fastdev) next <feature>.*--json/);
+    assert.match(rendered, /Do not execute a second phase/);
+  }
+  assert.match(dev, /development_report/);
+  assert.match(qa, /qa_review/);
+  assert.doesNotMatch(`${audit}${dev}${qa}`, /\/Users\/|À_REMPLIR|TO_FILL/);
 });
 
 test("le parcours TUI de réparation force le remplacement après sauvegarde", async () => {
@@ -157,10 +147,10 @@ test("la réparation globale affiche le diagnostic puis exige une seconde confir
   const confirmation = app.topScene();
   assert.ok(confirmation);
   confirmation.render(createRenderer({ write: (chunk) => { output += chunk; }, isTTY: false }), createTheme({ NO_COLOR: "1" }, false));
-  assert.match(output, /Confirmer la réparation globale \(2\/2\)/);
-  assert.match(output, /Projet 19\/21 sains/);
-  assert.match(output, /Global 18\/21 sains/);
-  assert.match(output, /sauvegarder puis réparer Project et global/);
+  assert.match(output, /Confirm global repair \(2\/2\)/);
+  assert.match(output, /Project 19\/21 healthy/);
+  assert.match(output, /Global 18\/21 healthy/);
+  assert.match(output, /back up then repair Project and global/);
 
   confirmation.onKey({ kind: "enter" });
   await new Promise((resolvePromise) => setImmediate(resolvePromise));

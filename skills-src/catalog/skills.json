@@ -1,37 +1,311 @@
 {
-  "schemaVersion": 1,
-  "catalogVersion": "1.10.0",
+  "schemaVersion": 2,
+  "catalogVersion": "2.0.0",
   "profiles": {
-    "all": "21 skills, catalogue complet",
-    "core": "10 skills de socle, démarrage et pilotage Product",
-    "delivery": "18 skills de préparation, développement et QA",
-    "product": "13 skills pour le Product principal et l'organisation",
-    "architecture": "12 skills pour préparer les contrats et invariants",
-    "audit": "11 skills pour établir et vérifier l'état réel",
-    "dev": "11 skills pour préparer et livrer le code",
-    "qa": "10 skills pour la recette et la validation"
+    "all": "21 skills: complete catalog",
+    "core": "10 bootstrap and Product control skills",
+    "delivery": "18 preparation, development and QA skills",
+    "product": "13 Product planning and coordination skills",
+    "architecture": "12 contract and invariant skills",
+    "audit": "11 evidence and verification skills",
+    "dev": "11 implementation and delivery skills",
+    "qa": "10 review and validation skills"
   },
   "skills": [
-    { "name": "arka-norn", "version": "1.3.5", "source": "arka-norn.json", "checksum": "ebc15ce7bf8131acc6dbaf78c204033da7de6518f7d6a17506d5392deb0e05a1", "step": "core.bootstrap", "profiles": ["all", "core", "delivery", "product", "architecture", "audit", "dev", "qa"] },
-    { "name": "arka-audit", "version": "1.0.0", "source": "arka-audit.json", "checksum": "fef2c30b064038d018ae1ceba68ed0d4aec8920cb2c4b5e83942245816ab8a12", "step": "transversal.audit", "profiles": ["all", "core", "product", "architecture", "audit"] },
-    { "name": "arka-product", "version": "1.3.1", "source": "arka-product.json", "checksum": "cb97481ea4db4a0d1886c9a0a796ad1cf4514d219fb388a74285bea0821f3507", "step": "core.product", "profiles": ["all", "core", "delivery", "product"] },
-    { "name": "arka-fastdev", "version": "1.1.0", "source": "arka-fastdev.json", "checksum": "d74fa61bee1881c0187be04286cdc8c01ef4049a4376d919c26b4142cba5c6d9", "step": "core.fastdev", "profiles": ["all", "core", "delivery", "audit", "dev", "qa"] },
-    { "name": "arka-essentiel", "version": "1.0.0", "source": "arka-essentiel.json", "checksum": "64610f7cb6f8c7c674f7fa95b51458454ebae6c4b68017e3323391c480e12d99", "step": "core.essentiel", "profiles": ["all", "core", "delivery", "product", "architecture", "audit", "dev", "qa"] },
-    { "name": "arka-framework-maitrise", "version": "1.3.1", "source": "arka-framework-maitrise.json", "checksum": "153b4b9f30bd5457a8f8558c1ad2d03466e4449332330830f7a00f985fadc46c", "step": "core.mastery", "profiles": ["all", "core", "delivery", "product", "architecture", "audit", "dev", "qa"] },
-    { "name": "arka-framework-statut", "version": "1.0.0", "source": "arka-framework-statut.json", "checksum": "5cda80db55abf00ab0eeeec53c3186d86816c7ad45e5d5987b46253ededa62fa", "step": "core.status", "profiles": ["all", "core", "delivery", "product", "architecture", "audit", "dev", "qa"] },
-    { "name": "arka-framework-scaffold", "version": "1.0.0", "source": "arka-framework-scaffold.json", "checksum": "438aa0df69db38185fdc17039723990f67f3bb31cd1b24f41152dccddb41ff6a", "step": "core.scaffold", "profiles": ["all", "core", "delivery", "product", "architecture", "audit", "dev", "qa"] },
-    { "name": "arka-framework-valider", "version": "1.0.0", "source": "arka-framework-valider.json", "checksum": "b3553534193c0d1fa6fa8c32c546761c5bc692e175efeee4d8797aee194c5302", "step": "core.validate", "profiles": ["all", "core", "delivery", "product", "architecture", "audit", "dev", "qa"] },
-    { "name": "arka-framework-handoff", "version": "1.1.0", "source": "arka-framework-handoff.json", "checksum": "d158b90cb9ed7c57ff73e5476237d7a29069a094e9594ae554f2c246655c24eb", "step": "transversal.handoff", "profiles": ["all", "core", "delivery", "product", "architecture", "audit", "dev", "qa"] },
-    { "name": "arka-framework-concept", "version": "1.1.0", "source": "arka-framework-concept.json", "checksum": "c82acfa8941ae59bbab349b12458b9ef43f15ae3d9806347cfb346ba70f99a6e", "step": "concept", "profiles": ["all", "product"] },
-    { "name": "arka-framework-plan", "version": "1.0.0", "source": "arka-framework-plan.json", "checksum": "ac5db89430e7665e5e11e580e873d649285bf0fea7fdba4b5ee9bf0d5c3ba614", "step": "plan", "profiles": ["all", "delivery", "product"] },
-    { "name": "arka-framework-annexe-technique", "version": "1.0.0", "source": "arka-framework-annexe-technique.json", "checksum": "604d32332126b420d76412893b19d8d5a36b71861cb68885db6bf6b1472e3f02", "step": "annexe_contrat_technique", "profiles": ["all", "architecture"] },
-    { "name": "arka-framework-audit", "version": "1.2.0", "source": "arka-framework-audit.json", "checksum": "ced90e10d0ebbec1bd78d7bcb2979d4bded2a75edc8e69bb91d44c293413b019", "step": "audit_etat_reel", "profiles": ["all", "delivery", "architecture", "audit"] },
-    { "name": "arka-framework-invariants", "version": "1.0.0", "source": "arka-framework-invariants.json", "checksum": "e41b979a8b57ad79d9c8c137976ef8b04a8eb31d1bcf7ab52583b0deac809417", "step": "invariants_figes", "profiles": ["all", "delivery", "architecture", "audit"] },
-    { "name": "arka-framework-dettes", "version": "1.0.0", "source": "arka-framework-dettes.json", "checksum": "4b3bcc39bf5a53bdaeb892edd78d77e107cced585145ef65eae30426b8521fc8", "step": "registre_dettes", "profiles": ["all", "delivery", "product"] },
-    { "name": "arka-framework-taches", "version": "1.0.0", "source": "arka-framework-taches.json", "checksum": "7a7f4abc7329e0595fe8238846047d5fce4132ab616d544f829f55d3f14be2fb", "step": "tache_agent", "profiles": ["all", "delivery", "product"] },
-    { "name": "arka-framework-spec-integration", "version": "1.0.0", "source": "arka-framework-spec-integration.json", "checksum": "c43c5783f82151437d28733028004728985604276e0ff1591a8bba2dfb51ff3c", "step": "spec_integration_technique", "profiles": ["all", "delivery", "architecture", "dev"] },
-    { "name": "arka-framework-dev", "version": "1.0.0", "source": "arka-framework-dev.json", "checksum": "5b717d28b0269529c557db1739571677d9c3c78800a8ac489c4ba086465e6362", "step": "cr_dev", "profiles": ["all", "delivery", "dev"] },
-    { "name": "arka-framework-recette-qa", "version": "1.0.0", "source": "arka-framework-recette-qa.json", "checksum": "ebca437c4a20a1d0cb8ffa8ea0ded2ca3c7045c9e4fc05441add45283be3b5b7", "step": "recette_qa", "profiles": ["all", "delivery", "qa"] },
-    { "name": "arka-git-steward", "version": "1.0.0", "source": "arka-git-steward.json", "checksum": "8219599fbff2e65ba38e6b3042e8c3f00e6dcc135802a03abca7f93d0a38c6ad", "step": "git_steward", "profiles": ["all", "delivery", "dev", "qa"] }
+    {
+      "name": "arka-norn",
+      "version": "2.0.0",
+      "source": "arka-norn.json",
+      "checksum": "bd34becc6e57e69c5eda1e3e4a6cae236bacb376660e7d126d2168f0160124ff",
+      "step": "core.bootstrap",
+      "profiles": [
+        "all",
+        "core",
+        "delivery",
+        "product",
+        "architecture",
+        "audit",
+        "dev",
+        "qa"
+      ]
+    },
+    {
+      "name": "arka-audit",
+      "version": "2.0.0",
+      "source": "arka-audit.json",
+      "checksum": "736bd081912e165660146c9cb524d1a0be0bcf90ba642880fce7e2cbe0389141",
+      "step": "transversal.audit",
+      "profiles": [
+        "all",
+        "core",
+        "product",
+        "architecture",
+        "audit"
+      ]
+    },
+    {
+      "name": "arka-product",
+      "version": "2.0.0",
+      "source": "arka-product.json",
+      "checksum": "ef4de4e80a297f72cd22fbe9aa62be75f38b5a4b5e4234298382218290bbd094",
+      "step": "core.product",
+      "profiles": [
+        "all",
+        "core",
+        "delivery",
+        "product"
+      ]
+    },
+    {
+      "name": "arka-fastdev",
+      "version": "2.0.0",
+      "source": "arka-fastdev.json",
+      "checksum": "0ae7ac07802726686ff173e6badbb398a2258b7ab9374c9819bd072bcd590bb3",
+      "step": "core.fastdev",
+      "profiles": [
+        "all",
+        "core",
+        "delivery",
+        "audit",
+        "dev",
+        "qa"
+      ]
+    },
+    {
+      "name": "arka-essential",
+      "version": "2.0.0",
+      "source": "arka-essential.json",
+      "checksum": "5e82fc72a501df5e5e7b729045719cbc9cf29b7ba4ca42953e250aa85c7820a7",
+      "step": "core.essential",
+      "profiles": [
+        "all",
+        "core",
+        "delivery",
+        "product",
+        "architecture",
+        "audit",
+        "dev",
+        "qa"
+      ]
+    },
+    {
+      "name": "arka-framework-mastery",
+      "version": "2.0.0",
+      "source": "arka-framework-mastery.json",
+      "checksum": "687a941e9947e08d6fd95700fe0b6231df15eea480b90a6fd526ecbc6dc04669",
+      "step": "core.mastery",
+      "profiles": [
+        "all",
+        "core",
+        "delivery",
+        "product",
+        "architecture",
+        "audit",
+        "dev",
+        "qa"
+      ]
+    },
+    {
+      "name": "arka-framework-status",
+      "version": "2.0.0",
+      "source": "arka-framework-status.json",
+      "checksum": "6534d77d161110fdbb3066f9df5b5f4c791a7f4c3702605fabc61d2601171fc3",
+      "step": "core.status",
+      "profiles": [
+        "all",
+        "core",
+        "delivery",
+        "product",
+        "architecture",
+        "audit",
+        "dev",
+        "qa"
+      ]
+    },
+    {
+      "name": "arka-framework-scaffold",
+      "version": "2.0.0",
+      "source": "arka-framework-scaffold.json",
+      "checksum": "0a1fd1298e6274c5413037a1bb6e9a2c4c59f8a77c17f2ceac7da3aa7b0e299c",
+      "step": "core.scaffold",
+      "profiles": [
+        "all",
+        "core",
+        "delivery",
+        "product",
+        "architecture",
+        "audit",
+        "dev",
+        "qa"
+      ]
+    },
+    {
+      "name": "arka-framework-validate",
+      "version": "2.0.0",
+      "source": "arka-framework-validate.json",
+      "checksum": "5ebf8ea209cb54a2ae2762ad9f72857c50deab13b7728f10dbcb808821e0d3e9",
+      "step": "core.validate",
+      "profiles": [
+        "all",
+        "core",
+        "delivery",
+        "product",
+        "architecture",
+        "audit",
+        "dev",
+        "qa"
+      ]
+    },
+    {
+      "name": "arka-framework-handoff",
+      "version": "2.0.0",
+      "source": "arka-framework-handoff.json",
+      "checksum": "f86df8a65eb7451c216f31cc9c2e22478a10e54614db658b9d7757da60628cb8",
+      "step": "transversal.handoff",
+      "profiles": [
+        "all",
+        "core",
+        "delivery",
+        "product",
+        "architecture",
+        "audit",
+        "dev",
+        "qa"
+      ]
+    },
+    {
+      "name": "arka-framework-concept",
+      "version": "2.0.0",
+      "source": "arka-framework-concept.json",
+      "checksum": "067561e50f04a0431c2154ee256e890c08a0d074f9d22d1e60b8c8a9c2f107f2",
+      "step": "concept",
+      "profiles": [
+        "all",
+        "product"
+      ]
+    },
+    {
+      "name": "arka-framework-plan",
+      "version": "2.0.0",
+      "source": "arka-framework-plan.json",
+      "checksum": "755d3ca8f67e70c123b4941d5973290dd0130e1f026601cdacff2cbadbbb79c3",
+      "step": "plan",
+      "profiles": [
+        "all",
+        "delivery",
+        "product"
+      ]
+    },
+    {
+      "name": "arka-framework-technical-appendix",
+      "version": "2.0.0",
+      "source": "arka-framework-technical-appendix.json",
+      "checksum": "4850a7b8d38fb508f4891c1bef1a1a93aaf5ab9dd3d23b85dcc07d65014f6979",
+      "step": "technical_contract_appendix",
+      "profiles": [
+        "all",
+        "architecture"
+      ]
+    },
+    {
+      "name": "arka-framework-audit",
+      "version": "2.0.0",
+      "source": "arka-framework-audit.json",
+      "checksum": "e5ad0ef554ed34e7bd66d81feb08f4a1c881957aa38bd61bd19cc1837b9410f2",
+      "step": "current_state_audit",
+      "profiles": [
+        "all",
+        "delivery",
+        "architecture",
+        "audit"
+      ]
+    },
+    {
+      "name": "arka-framework-invariants",
+      "version": "2.0.0",
+      "source": "arka-framework-invariants.json",
+      "checksum": "ecc70efa7079b11f8b55be33fa0a730ff24b0d76056019415bb7c4b565c02d28",
+      "step": "frozen_invariants",
+      "profiles": [
+        "all",
+        "delivery",
+        "architecture",
+        "audit"
+      ]
+    },
+    {
+      "name": "arka-framework-debt-register",
+      "version": "2.0.0",
+      "source": "arka-framework-debt-register.json",
+      "checksum": "f3d142406bef94fea0238c8822ec22183007a429067f655228540a35a34d48ae",
+      "step": "debt_register",
+      "profiles": [
+        "all",
+        "delivery",
+        "product"
+      ]
+    },
+    {
+      "name": "arka-framework-tasks",
+      "version": "2.0.0",
+      "source": "arka-framework-tasks.json",
+      "checksum": "def499c0a3fdc92d4aa04e7e06223909eb07e3ed1c89c0d8e2b99b371843b207",
+      "step": "agent_task",
+      "profiles": [
+        "all",
+        "delivery",
+        "product"
+      ]
+    },
+    {
+      "name": "arka-framework-integration-specification",
+      "version": "2.0.0",
+      "source": "arka-framework-integration-specification.json",
+      "checksum": "0cc92a876033da25a7acc94a84fc49afd024119db6ad6fb3f5215378b52dbeff",
+      "step": "technical_integration_specification",
+      "profiles": [
+        "all",
+        "delivery",
+        "architecture",
+        "dev"
+      ]
+    },
+    {
+      "name": "arka-framework-development",
+      "version": "2.0.0",
+      "source": "arka-framework-development.json",
+      "checksum": "2243b3ad91df1dd6ff1c3b6bcd4688a8eac9a1813f5e2dbc80a65d5412bb7168",
+      "step": "development_report",
+      "profiles": [
+        "all",
+        "delivery",
+        "dev"
+      ]
+    },
+    {
+      "name": "arka-framework-qa-review",
+      "version": "2.0.0",
+      "source": "arka-framework-qa-review.json",
+      "checksum": "99c913e9d615fe063b1120c6667c8d21d81ac242acff60a785522758301be9f2",
+      "step": "qa_review",
+      "profiles": [
+        "all",
+        "delivery",
+        "qa"
+      ]
+    },
+    {
+      "name": "arka-git-steward",
+      "version": "2.0.0",
+      "source": "arka-git-steward.json",
+      "checksum": "4924a3051d22eaeff11bf4f150b81361477515fc73842586fa6891817902478f",
+      "step": "git_steward",
+      "profiles": [
+        "all",
+        "delivery",
+        "dev",
+        "qa"
+      ]
+    }
   ]
 }

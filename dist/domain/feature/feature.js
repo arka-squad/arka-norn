@@ -13,22 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * Feature entity — un dossier de feature suivi par arka-norn (pipeline
- * concept -> plan -> ... -> recette QA).
- *
- * Port fidèle du pattern Project (arka-cc-management,
- * core/domain/project/project.ts), simplifié : pas de `code`/`options`
- * (arka-norn ne lance pas de session CLI pour une feature, contrairement à
- * arka-cc-management qui lance `claude --name <code>-<slug>`).
- *
- * Source de vérité sur disque :
- *   `<feature-root>/.arka-norn/feature.json` (marker)
- * Entrée d'index :
- *   `~/.arka-norn/index/features.json` (id + projectId + root + name + updatedAt).
- *
- * Entité IMMUABLE : chaque transition retourne une nouvelle instance.
- */
 import { InvalidFeatureOptionError } from "../errors.js";
 export class Feature {
     id;
@@ -37,6 +21,7 @@ export class Feature {
     root;
     pipelineId;
     schemaVersion;
+    documentContractVersion;
     createdAt;
     updatedAt;
     constructor(props) {
@@ -46,6 +31,7 @@ export class Feature {
         this.root = props.root;
         this.pipelineId = props.pipelineId;
         this.schemaVersion = props.schemaVersion;
+        this.documentContractVersion = props.documentContractVersion ?? (props.schemaVersion === 4 ? 5 : 3);
         this.createdAt = new Date(props.createdAt.getTime());
         this.updatedAt = new Date(props.updatedAt.getTime());
     }
@@ -117,6 +103,7 @@ export class Feature {
             root: this.root,
             pipelineId: this.pipelineId,
             schemaVersion: this.schemaVersion,
+            documentContractVersion: this.documentContractVersion,
             createdAt: this.createdAt,
             updatedAt: this.updatedAt,
         };

@@ -16,6 +16,7 @@
 
 import { homedir } from "node:os";
 
+import { formatNumber, translate } from "../../../application/localization/locale.js";
 import type { SkillHealth, SkillInstallResult, SkillManager } from "../../../ports/outbound/skill-manager.js";
 import { inspectGlobalSkills, inspectSkills, installSkills } from "./skill-installer.js";
 
@@ -45,7 +46,12 @@ export class DirectSkillManager implements SkillManager {
       ...(input.force === undefined ? {} : { force: input.force }),
     });
     const counts = result.plan.reduce<Record<string, number>>((summary, item) => ({ ...summary, [item.action]: (summary[item.action] ?? 0) + 1 }), {});
-    const output = result.error ?? `Skills : ${result.skills.length} · créations=${counts["create"] ?? 0} · inchangés=${counts["unchanged"] ?? 0} · conflits=${counts["conflict"] ?? 0}`;
+    const output = result.error ?? translate("cli.skills.summary", {
+      total: formatNumber(result.skills.length),
+      created: formatNumber(counts["create"] ?? 0),
+      unchanged: formatNumber(counts["unchanged"] ?? 0),
+      conflicts: formatNumber(counts["conflict"] ?? 0),
+    });
     return Promise.resolve({ code: result.code, output });
   }
 }

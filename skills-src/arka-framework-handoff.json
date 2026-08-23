@@ -1,38 +1,70 @@
 {
   "name": "arka-framework-handoff",
-  "titre_h1_repo": "Arka — arka-framework-handoff",
-  "titre_h1_global": "Skill Framework Handoff — Arka Labs",
-  "description_courte": "Rédige un document de passation (type handoff, validé par le framework méthodologique {{FRAMEWORK_NAME}}) entre agents ou providers différents (Claude Code, Codex CLI, Antigravity, humain) sur une feature suivie par ce framework.",
-  "description_do_use": "Use when tu termines une session de travail sur une feature et qu'un autre agent — potentiellement un autre provider, potentiellement toi-même dans une session future — doit reprendre sans relire toute la conversation.",
-  "description_do_not_use": "Do NOT use pour une simple note de progression interne à une étape encore en cours (le champ etat_actuel du document d'étape suffit alors) ni comme substitut à la mise à jour du document d'étape lui-même.",
-  "declencheurs_globaux": "Déclencher quand une session de travail sur une feature se termine et qu'un autre agent — potentiellement un autre provider, potentiellement le même agent dans une session future — doit reprendre sans relire toute la conversation, ou sur \"arka-framework-handoff\". Ne PAS déclencher pour une simple note de progression interne à une étape encore en cours (le champ etat_actuel du document d'étape suffit alors) ni comme substitut à la mise à jour du document d'étape lui-même. Ne s'applique que si la commande `{{FRAMEWORK_NAME}}` est disponible dans le PATH ; sinon ce skill ne s'applique pas.",
-  "allowed_tools": ["Read", "Write", "Bash", "Grep", "Glob"],
-  "quand_utiliser": [
-    "fin de session de travail sur une feature, avant qu'un autre agent ou provider reprenne",
-    "transmission d'un blocage qui nécessite une décision humaine ou d'un autre agent",
-    "accusé de réception ou verdict après une recette QA menée par un autre agent"
+  "repoTitle": "Agent handoff",
+  "globalTitle": "Skill - Agent handoff",
+  "summary": "Produce a bounded, signed handoff for another Agent.",
+  "useWhen": "Use when the verified Pipeline action or Product handoff assigns the transversal.handoff responsibility.",
+  "doNotUseWhen": "Do not use for a different calculated phase, an unverified Agent scope, or to bypass schema and business validation.",
+  "triggers": "Use when the verified Pipeline action or Product handoff assigns the transversal.handoff responsibility. English triggers include \"continue the Feature\" and \"run the next phase\". French triggers include \"continuer la Feature\" and \"exécuter la prochaine étape\". Resolve locale, Project, Feature, Agent and phase through the CLI before acting.",
+  "interface": {
+    "displayName": "Agent handoff",
+    "shortDescription": "Produce a bounded, signed handoff for another Agent.",
+    "defaultPrompt": "Use $arka-framework-handoff to execute only the currently calculated phase."
+  },
+  "allowedTools": [
+    "Read",
+    "Bash",
+    "Grep",
+    "Glob"
   ],
-  "quand_ne_pas_utiliser": [
-    "pour une note de progression mineure interne à une étape encore en cours de rédaction par le même agent",
-    "comme substitut à la mise à jour réelle du document d'étape (`cr_dev`, `recette_qa`, etc.) — le handoff s'ajoute à ces documents, il ne les remplace pas"
+  "whenToUse": [
+    "Use when the verified Pipeline action or Product handoff assigns the transversal.handoff responsibility.",
+    "The work must produce one signed and mechanically validated artifact."
+  ],
+  "whenNotToUse": [
+    "Do not use for a different calculated phase, an unverified Agent scope, or to bypass schema and business validation.",
+    "The current Agent identity or session cannot be verified."
   ],
   "inputs": [
-    { "obligatoire": true, "nom": "sujet", "description": "objet du handoff en une phrase" },
-    { "obligatoire": true, "nom": "etape_pipeline_concernee", "description": "l'étape du pipeline à laquelle ce handoff se rattache" },
-    { "obligatoire": true, "nom": "agent_destinataire", "description": "nom et provider du destinataire (le provider peut valoir `any`)" },
-    { "obligatoire": false, "nom": "blocages", "description": "blocages en cours, s'il y en a" }
+    {
+      "required": true,
+      "name": "feature",
+      "description": "Exact managed Feature identifier."
+    },
+    {
+      "required": true,
+      "name": "session_id",
+      "description": "Specialized Agent session supplied by Product control."
+    },
+    {
+      "required": false,
+      "name": "agent_id",
+      "description": "Explicit active identity; otherwise use the Project session binding."
+    }
   ],
-  "note_inputs": "",
-  "referentiel_extra": [
-    "`{{FRAMEWORK_DIR}}/schemas/handoff.schema.json` — le contrat exact du document de passation",
-    "`{{FRAMEWORK_DIR}}/docs/agent-orchestration.md` — reprise du Product principal et sessions spécialisées"
+  "inputNotes": "Never infer the phase from filenames. Machine-readable CLI data is the source of truth.",
+  "references": [
+    "`{{FRAMEWORK_DIR}}/docs/agent-guide.md` - Agent protocol and locale behavior",
+    "`{{FRAMEWORK_DIR}}/schemas/` - canonical v5 document contracts",
+    "`{{FRAMEWORK_DIR}}/pipelines/catalog.json` - canonical workflow catalog"
   ],
   "procedure": [
-    { "titre": "Vérifier la présence de la commande", "contenu": "Confirmer que `{{FRAMEWORK_NAME}}` est disponible : `command -v {{FRAMEWORK_NAME}}`. Si absente, arrêter et le signaler — ce skill ne s'applique pas tant que {{FRAMEWORK_NAME}} n'est pas installé et lié globalement (voir `{{FRAMEWORK_DIR}}`, `npm link`)." },
-    { "titre": "Générer le squelette handoff", "contenu": "```bash\narka-norn scaffold handoff <fichier_sortie>\n```" },
-    { "titre": "Rédiger chaque champ fidèlement", "contenu": "Renseigner `agent_emetteur` (soi-même : nom et provider), `agent_destinataire`, `type_message` (`handoff`, `verdict`, `ack`, `question` ou `blocage` selon le cas), `travail_effectue` et `travail_restant` comme deux listes factuelles et vérifiables, `blocages` avec la décision exacte requise pour chacun — jamais un blocage formulé de façon vague." },
-    { "titre": "Valider avant de transmettre", "contenu": "Enchaîner systématiquement avec `arka-framework-valider` sur le fichier handoff produit avant de considérer la passation faite." },
-    { "titre": "Ajouter le prompt de reprise Product", "contenu": "Si la passation vise le même Agent Product principal dans une nouvelle conversation, lancer aussi `arka-norn agent handoff-prompt --project <project-id> [--feature <feature-id>]`. Transmettre ce prompt intégralement : il réutilise la même identité Product et la session `main` au lieu de créer un nouvel Agent." }
+    {
+      "title": "Resolve locale and verified context",
+      "content": "Run `arka-norn locale show --json`, `feature show`, `agent current` and `agent sessions`. Reply in the active display locale. Keep contract keys in English and set `content_locale` to the prose locale."
+    },
+    {
+      "title": "Read one calculated action",
+      "content": "Run `arka-norn pipeline next <feature> --json`. Use its stable codes, parameters, expected artifact and suggested command without guessing from display prose. Stop if the action is null."
+    },
+    {
+      "title": "Produce the bounded artifact",
+      "content": "Execute only the proposed scaffold command. Replace every sentinel, preserve the specialized session, satisfy code, functional, UX and security evidence where applicable, and never modify another documentary phase."
+    },
+    {
+      "title": "Validate and stop",
+      "content": "Run `arka-norn pipeline validate <feature> --document <file> --json`, then rerun `arka-norn pipeline next <feature> --json` only to observe the transition. Report the next action without executing it."
+    }
   ],
-  "format_sortie": "```markdown\n## Handoff — <sujet>\nDe : <agent_emetteur> → À : <agent_destinataire>\nÉtape : <etape_pipeline_concernee>\n\n## Travail effectué\n## Travail restant\n## Blocages\n```"
+  "outputFormat": "Report the verified Project, Feature, Agent/session, locale, executed phase, signed document, validation result, evidence and observed next command. Do not execute a second phase in the same invocation."
 }

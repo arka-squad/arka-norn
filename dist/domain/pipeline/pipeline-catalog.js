@@ -16,7 +16,7 @@
 const PIPELINE_ID = /^[a-z0-9][a-z0-9._-]{0,127}$/;
 const SAFE_DEFINITION = /^(?:[a-zA-Z0-9._-]+\/)*[a-zA-Z0-9._-]+\.json$/;
 export function createPipelineCatalog(input) {
-    if (input.schemaVersion !== 1)
+    if (input.schemaVersion !== 1 && input.schemaVersion !== 2)
         throw new Error("Unsupported pipeline catalog schemaVersion.");
     if (input.pipelines.length === 0)
         throw new Error("Pipeline catalog must not be empty.");

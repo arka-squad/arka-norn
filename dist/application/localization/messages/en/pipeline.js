@@ -1,0 +1,19 @@
+export const PIPELINE_MESSAGES = {
+    "pipeline.requiredMissing": "Required step {step} has no valid document.",
+    "pipeline.completed": "All required steps and the latest review are conclusive.",
+    "pipeline.report.header": "=== Pipeline {pipeline} ===",
+    "pipeline.report.feature": "Feature: {feature}",
+    "pipeline.report.status": "Status: {status}",
+    "pipeline.report.latestReport": "Latest development report: {id}",
+    "pipeline.report.selectedQa": "Selected QA review: {id}",
+    "pipeline.report.selectedAudit": "Selected audit: {id}",
+    "pipeline.report.selectedValidation": "Selected validation: {id}",
+    "pipeline.report.errors": "Errors:",
+    "pipeline.report.warnings": "Warnings:",
+    "pipeline.report.next": "=== Next action ===",
+    "pipeline.report.command": "Command: {command}",
+    "pipeline.report.complete": "Pipeline complete.",
+    "pipeline.scaffold.fill": "TO_FILL",
+    "pipeline.scaffold.choosePrefix": "CHOOSE::",
+};
+//# sourceMappingURL=pipeline.js.map

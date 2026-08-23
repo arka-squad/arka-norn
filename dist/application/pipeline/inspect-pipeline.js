@@ -14,10 +14,16 @@
  * limitations under the License.
  */
 import { evaluatePipeline } from "../../domain/pipeline/evaluate-pipeline.js";
+import { canonicalDocumentType, canonicalEnumValue, compatibleFieldValue, isDocumentType, normalizeLegacyDocument, } from "../compatibility/legacy-french-contract.js";
 export function inspectPipelineUseCaseFactory(deps) {
     return async (input) => {
-        const definition = await deps.source.loadDefinition(input.pipelineId);
         const candidates = await deps.source.list(input.featureRoot);
+        const detectedContracts = new Set(candidates.flatMap((candidate) => {
+            const version = candidate.content?.["schema_version"];
+            return typeof version === "number" ? [version === 5 ? 5 : 3] : [];
+        }));
+        const contractVersion = input.documentContractVersion ?? (detectedContracts.has(3) ? 3 : 5);
+        const definition = await deps.source.loadDefinition(input.pipelineId, contractVersion);
         const knownSchemas = new Map([
             ...definition.steps.map((step) => [step.id, step.schemaPath]),
             ...definition.transversalDocuments.map((document) => [document.type, document.schemaPath]),
@@ -29,16 +35,22 @@ export function inspectPipelineUseCaseFactory(deps) {
                 sourceErrors.push(...candidate.readErrors.map((error) => `${candidate.filePath}: ${error}`));
                 continue;
             }
-            const type = stringField(candidate.content, "type");
-            if (type === undefined) {
+            const sourceType = stringField(candidate.content, "type");
+            if (sourceType === undefined) {
                 sourceErrors.push(`${candidate.filePath}: missing string field "type".`);
                 continue;
             }
+            const sourceContractVersion = candidate.content["schema_version"] === 5 ? 5 : 3;
+            const type = contractVersion === 3 ? sourceType : canonicalDocumentType(sourceType);
+            const content = contractVersion === 3 || candidate.content["schema_version"] === 5 ? candidate.content : normalizeLegacyDocument(candidate.content);
             const schemaPath = knownSchemas.get(type);
+            if (schemaPath !== undefined && sourceContractVersion !== contractVersion) {
+                sourceErrors.push(`${candidate.filePath}: mixed legacy and v5 document contracts are forbidden; run migrate for the whole Feature.`);
+            }
             const validation = schemaPath === undefined
                 ? { valid: false, errors: [`Unknown pipeline document type: ${type}.`] }
-                : await deps.validator.validate(schemaPath, candidate.content);
-            documents.push(toEvaluatedDocument(candidate.filePath, candidate.content, type, validation));
+                : await deps.validator.validate(schemaPath, content);
+            documents.push(toEvaluatedDocument(candidate.filePath, content, type, validation));
         }
         return evaluatePipeline({
             pipelineId: definition.pipelineId,
@@ -57,13 +69,13 @@ function toEvaluatedDocument(filePath, content, type, validation) {
     const featureId = stringField(content, "feature_id");
     const createdAt = stringField(content, "created_at") ?? stringField(content, "date");
     const sequence = numberField(content, "sequence");
-    const crDevId = stringField(content, "cr_dev_id");
-    const businessVerdict = type === "recette_qa" ? stringField(content, "statut_global")
-        : type === "cr_dev" ? stringField(content, "statut")
-            : type === "audit_rework" || type === "validation_fastdev" ? stringField(content, "verdict") : undefined;
+    const crDevId = stringField(content, "development_report_id");
+    const businessVerdict = isDocumentType(type, "qa_review") ? stringField(content, "overall_status")
+        : isDocumentType(type, "development_report") ? stringField(content, "status")
+            : isDocumentType(type, "delivery_audit") || isDocumentType(type, "delivery_validation") ? stringField(content, "verdict") : undefined;
     const dependencyDocumentIds = stringArrayField(content, "depends_on_document_ids");
-    const findings = recordArrayField(content, "constats");
-    const corrections = recordArrayField(content, "corrections_apportees");
+    const findings = recordArrayField(content, "findings");
+    const corrections = recordArrayField(content, "corrections_applied");
     return {
         filePath,
         type,
@@ -78,16 +90,16 @@ function toEvaluatedDocument(filePath, content, type, validation) {
         ...(crDevId !== undefined ? { crDevId } : {}),
         ...(businessVerdict !== undefined ? { businessVerdict } : {}),
         ...(stringField(content, "author_agent_id") === undefined ? {} : { authorAgentId: stringField(content, "author_agent_id") }),
-        ...(stringField(content, "commit_exact") === undefined ? {} : { exactCommit: stringField(content, "commit_exact") }),
+        ...(stringField(content, "exact_commit") === undefined ? {} : { exactCommit: stringField(content, "exact_commit") }),
         ...(findings === undefined ? {} : {
             findingCount: findings.length,
-            openFindingCount: findings.filter((finding) => finding["decision"] === "corriger").length,
+            openFindingCount: findings.filter((finding) => typeof finding["decision"] === "string" && canonicalEnumValue(finding["decision"]) === "fix").length,
         }),
         ...(corrections === undefined ? {} : { correctionCount: corrections.length }),
     };
 }
 function recordArrayField(content, field) {
-    const value = content[field];
+    const value = compatibleFieldValue(content, field);
     return Array.isArray(value) && value.every((item) => typeof item === "object" && item !== null && !Array.isArray(item))
         ? value
         : undefined;
@@ -97,7 +109,7 @@ function stringArrayField(content, field) {
     return Array.isArray(value) && value.every((item) => typeof item === "string") ? value : [];
 }
 function stringField(content, field) {
-    const value = content[field];
+    const value = compatibleFieldValue(content, field);
     return typeof value === "string" ? value : undefined;
 }
 function numberField(content, field) {

@@ -34,12 +34,13 @@ interface CatalogEntry {
 
 interface SkillDefinition {
   readonly name: string;
-  readonly description_courte: string;
-  readonly quand_utiliser: readonly string[];
-  readonly quand_ne_pas_utiliser: readonly string[];
+  readonly summary: string;
+  readonly triggers: string;
+  readonly whenToUse: readonly string[];
+  readonly whenNotToUse: readonly string[];
   readonly inputs: readonly unknown[];
-  readonly procedure: readonly { readonly contenu: string }[];
-  readonly format_sortie: string;
+  readonly procedure: readonly { readonly content: string }[];
+  readonly outputFormat: string;
 }
 
 const ROOT = resolve(import.meta.dirname, "..", "..");
@@ -52,11 +53,11 @@ test("le catalogue contient exactement les 21 skills requis et des checksums exa
     "arka-audit",
     "arka-product",
     "arka-fastdev",
-    "arka-essentiel",
-    "arka-framework-maitrise", "arka-framework-statut", "arka-framework-scaffold", "arka-framework-valider", "arka-framework-handoff",
-    "arka-framework-concept", "arka-framework-plan", "arka-framework-annexe-technique", "arka-framework-audit",
-    "arka-framework-invariants", "arka-framework-dettes", "arka-framework-taches", "arka-framework-spec-integration",
-    "arka-framework-dev", "arka-framework-recette-qa",
+    "arka-essential",
+    "arka-framework-mastery", "arka-framework-status", "arka-framework-scaffold", "arka-framework-validate", "arka-framework-handoff",
+    "arka-framework-concept", "arka-framework-plan", "arka-framework-technical-appendix", "arka-framework-audit",
+    "arka-framework-invariants", "arka-framework-debt-register", "arka-framework-tasks", "arka-framework-integration-specification",
+    "arka-framework-development", "arka-framework-qa-review",
     "arka-git-steward",
   ].sort();
   assert.deepEqual(catalog.skills.map((entry) => entry.name).sort(), required);
@@ -74,49 +75,32 @@ test("le catalogue contient exactement les 21 skills requis et des checksums exa
   });
 });
 
-test("chaque définition est complète et les skills audit/dev/QA imposent leurs gates", () => {
+test("every definition is English, locale-aware and constrained to one verified phase", () => {
   const files = readdirSync(SOURCE).filter((name) => name.endsWith(".json"));
   assert.equal(files.length, 21);
   const definitions = files.map((file) => JSON.parse(readFileSync(resolve(SOURCE, file), "utf8")) as SkillDefinition);
   for (const definition of definitions) {
-    assert.match(definition.name, /^(?:arka-norn|arka-audit|arka-product|arka-fastdev|arka-essentiel|arka-git-steward|arka-framework-[a-z-]+)$/);
-    assert.ok(definition.description_courte.length > 20);
-    assert.ok(definition.quand_utiliser.length > 0);
-    assert.ok(definition.quand_ne_pas_utiliser.length > 0);
+    assert.match(definition.name, /^(?:arka-norn|arka-audit|arka-product|arka-fastdev|arka-essential|arka-git-steward|arka-framework-[a-z-]+)$/);
+    assert.ok(definition.summary.length > 20);
+    assert.match(definition.triggers, /English triggers include/);
+    assert.match(definition.triggers, /French triggers include/);
+    assert.ok(definition.whenToUse.length > 0);
+    assert.ok(definition.whenNotToUse.length > 0);
     assert.ok(definition.inputs.length > 0);
     assert.ok(definition.procedure.length >= 3);
-    assert.ok(definition.format_sortie.length > 10);
+    assert.ok(definition.outputFormat.length > 10);
   }
   const byName = new Map(definitions.map((definition) => [definition.name, JSON.stringify(definition)]));
-  assert.match(byName.get("arka-norn") ?? "", /\/arka-norn.*\$arka-norn/);
-  assert.match(byName.get("arka-norn") ?? "", /skills doctor.*project scan.*agent register/);
-  assert.match(byName.get("arka-norn") ?? "", /Ne jamais créer|ne pas utiliser `--force`/i);
-  assert.match(byName.get("arka-norn") ?? "", /Product principal.*session `main`/i);
-  assert.match(byName.get("arka-product") ?? "", /agent advise.*agent prompt.*agent handoff-prompt/);
-  assert.match(byName.get("arka-product") ?? "", /ne produit pas lui-même.*architecture.*audit.*développement.*QA/i);
-  assert.match(byName.get("arka-product") ?? "", /demander explicitement.*assistant.*version.*aperçu.*confirmation/i);
-  assert.match(byName.get("arka-product") ?? "", /orchestration configure.*--provider.*--model.*orchestration preview.*orchestration start.*--preview/i);
-  assert.doesNotMatch(byName.get("arka-product") ?? "", /sélecteur Project le choisit de façon déterministe|ne demander ni provider libre/i);
-  assert.match(byName.get("arka-fastdev") ?? "", /fastdev next.*une seule action|exactement une action calculée/i);
-  assert.match(byName.get("arka-fastdev") ?? "", /corrections_apportees.*audit_rework.*validation_fastdev/);
-  assert.match(byName.get("arka-fastdev") ?? "", /agent current.*--session.*fastdev next.*--session.*suggestedCommand.*--session/);
-  assert.match(byName.get("arka-essentiel") ?? "", /essentiel next.*une seule action|exactement une action calculée/i);
-  assert.match(byName.get("arka-essentiel") ?? "", /cadrage_essentiel.*audit_livraison.*validation_livraison/);
-  assert.match(byName.get("arka-essentiel") ?? "", /escalader vers le pipeline standard/);
-  assert.match(byName.get("arka-framework-audit") ?? "", /preuves reproductibles|Vérifier directement/);
-  assert.match(byName.get("arka-framework-audit") ?? "", /correction silencieuse/);
-  assert.match(byName.get("arka-audit") ?? "", /sans Feature ni Pipeline|sans Pipeline/);
-  assert.match(byName.get("arka-audit") ?? "", /audit inspect.*proposer|Proposer les domaines/is);
-  assert.match(byName.get("arka-framework-audit") ?? "", /pipeline next.*audit_etat_reel/is);
-  assert.match(byName.get("arka-framework-dev") ?? "", /scope_fichiers/);
-  assert.match(byName.get("arka-framework-dev") ?? "", /CR de dev|cr_dev/);
-  assert.match(byName.get("arka-framework-recette-qa") ?? "", /dernier CR|cr_dev_id/);
-  assert.match(byName.get("arka-framework-recette-qa") ?? "", /partial|fail/);
-  assert.match(byName.get("arka-framework-maitrise") ?? "", /agent register/);
-  assert.match(byName.get("arka-framework-maitrise") ?? "", /Ne jamais déduire|ne pas.*deviner/i);
-  assert.match(byName.get("arka-framework-concept") ?? "", /ChatGPT.*Claude\.ai/);
-  assert.match(byName.get("arka-framework-concept") ?? "", /PROMPT À COPIER|kit prêt à transmettre/);
-  assert.match(byName.get("arka-framework-concept") ?? "", /proposition non fiable/);
+  for (const content of byName.values()) {
+    assert.match(content, /locale show --json/);
+    assert.match(content, /content_locale/);
+    assert.match(content, /(?:pipeline|essential|fastdev) next.*--json/);
+    assert.match(content, /Do not execute a second phase/);
+  }
+  assert.match(byName.get("arka-fastdev") ?? "", /rework_brief/);
+  assert.match(byName.get("arka-essential") ?? "", /feature_brief/);
+  assert.match(byName.get("arka-framework-development") ?? "", /development_report/);
+  assert.match(byName.get("arka-framework-qa-review") ?? "", /qa_review/);
 });
 
 test("le catalogue reste vérifiable après une conversion Git en CRLF", (context) => {
@@ -148,35 +132,30 @@ test("les rendus Agents ont un frontmatter YAML sûr et une description UI born�
     assert.match(JSON.parse(defaultLine.slice("  default_prompt: ".length)) as string, new RegExp(`\\$${definition.name}`));
     assert.match(runtime.renderGlobalSkillMd(definition), new RegExp(`version: ${definition.catalog.version.replaceAll(".", "\\.")}`));
   }
-  assert.match(runtime.renderOpenaiYaml(runtime.definitions.find((definition) => definition.name === "arka-norn")!), /Arka Norn — Démarrer/);
+  assert.match(runtime.renderOpenaiYaml(runtime.definitions.find((definition) => definition.name === "arka-norn")!), /Arka Norn bootstrap/);
 });
 
-test("le rendu global arka-norn porte la gate de mode et le contrôle des 21 skills", () => {
+test("the global arka-norn rendering uses the canonical locale-aware phase gate", () => {
   const runtime = createSkillCatalogRuntime(ROOT);
   const definition = runtime.definitions.find((item) => item.name === "arka-norn");
   assert.ok(definition);
   const rendered = runtime.renderGlobalSkillMd(definition);
 
-  assert.match(rendered, /mode_orchestration/);
-  assert.match(rendered, /`manual` ou `automatic`/);
-  assert.match(rendered, /Ne jamais créer, choisir un autre dossier ou déduire le mode silencieusement/);
-  assert.match(rendered, /project add <racine> --name <nom> --orchestration-mode <manual\|automatic>/);
-  assert.match(rendered, /skills doctor --target <racine> --profile all --global --json/);
-  assert.match(rendered, /skills install --target <racine> --profile all --global/);
-  assert.match(rendered, /les 21 skills/);
-  assert.match(rendered, /--force.*décision explicite de l’utilisateur/);
+  assert.match(rendered, /locale show --json/);
+  assert.match(rendered, /Machine-readable CLI data is the source of truth/);
+  assert.match(rendered, /pipeline next <feature> --json/);
+  assert.match(rendered, /signed and mechanically validated artifact/);
+  assert.match(rendered, /Do not execute a second phase/);
 });
 
-test("le rendu global arka-product demande assistant, modèle, aperçu et confirmation", () => {
+test("the global Product rendering keeps locale, evidence and one-phase constraints", () => {
   const runtime = createSkillCatalogRuntime(ROOT);
   const definition = runtime.definitions.find((item) => item.name === "arka-product");
   assert.ok(definition);
   const rendered = runtime.renderGlobalSkillMd(definition);
 
-  assert.match(rendered, /demander explicitement.*assistant.*version/i);
-  assert.match(rendered, /orchestration configure --project <project-id> --provider <claude\|codex\|kimi\|zai> --model <version>/);
-  assert.match(rendered, /orchestration preview --project <project-id> --feature <feature-id>/);
-  assert.match(rendered, /attendre la confirmation explicite de l'utilisateur/i);
-  assert.match(rendered, /orchestration start --project <project-id> --feature <feature-id> --provider <claude\|codex\|kimi\|zai> --model <version> --preview <empreinte>/);
-  assert.doesNotMatch(rendered, /sélecteur Project le choisit de façon déterministe|ne demander ni provider libre/i);
+  assert.match(rendered, /Reply in the active display locale/);
+  assert.match(rendered, /code, functional, UX and security evidence/);
+  assert.match(rendered, /preserve the specialized session/);
+  assert.match(rendered, /Do not execute a second phase/);
 });

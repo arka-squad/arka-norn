@@ -22,7 +22,7 @@ const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const distDir = resolve(projectRoot, "dist");
 
 if (distDir !== resolve(projectRoot, "dist") || dirname(distDir) !== projectRoot) {
-  throw new Error(`Refus de nettoyer une cible inattendue : ${distDir}`);
+  throw new Error(`Refusing to clean an unexpected target: ${distDir}`);
 }
 
 rmSync(distDir, { recursive: true, force: true });

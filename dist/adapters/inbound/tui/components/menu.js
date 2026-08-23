@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { translate } from "../../../../application/localization/locale.js";
 const ANGLE_RIGHT = String.fromCharCode(0x276f);
 const TRIANGLE_UP = String.fromCharCode(0x25b2);
 const TRIANGLE_DOWN = String.fromCharCode(0x25bc);
 const EM_DASH = String.fromCharCode(0x2014);
-const DEFAULT_HINT = "Flèches naviguer, Enter sélectionner, / filtrer, q quitter";
 export function filterItems(items, text, stripAnsi) {
     if (text === "")
         return items.map((item, i) => ({ ...item, _origIndex: i }));
@@ -165,10 +165,10 @@ export function createMenuScene(items, options) {
         const eMax = effectiveMax();
         const scroll = needsScroll();
         if (scroll)
-            lines.push(viewOffset > 0 ? `    ${theme.dim(`${TRIANGLE_UP} ${viewOffset} de plus`)}` : "");
+            lines.push(viewOffset > 0 ? `    ${theme.dim(`${TRIANGLE_UP} ${translate("tui.menu.moreAbove", { count: viewOffset })}`)}` : "");
         if (vis.length === 0) {
             for (let index = 0; index < Math.max(eMax, 1); index++)
-                lines.push(index === 0 ? `    ${theme.dim("(aucun résultat)")}` : "");
+                lines.push(index === 0 ? `    ${theme.dim(translate("tui.menu.noResults"))}` : "");
         }
         else {
             for (let index = 0; index < eMax; index++) {
@@ -187,9 +187,9 @@ export function createMenuScene(items, options) {
         }
         if (scroll) {
             const remaining = vis.length - viewOffset - eMax;
-            lines.push(remaining > 0 ? `    ${theme.dim(`${TRIANGLE_DOWN} ${remaining} de plus`)}` : "");
+            lines.push(remaining > 0 ? `    ${theme.dim(`${TRIANGLE_DOWN} ${translate("tui.menu.moreBelow", { count: remaining })}`)}` : "");
         }
-        lines.push("", `  ${theme.dim(options.hint ?? DEFAULT_HINT)}`);
+        lines.push("", `  ${theme.dim(options.hint ?? translate("tui.menu.defaultHint"))}`);
         if (filterMode)
             lines.push(`  ${theme.arkaAccent("/")} ${filterText}${theme.dim("_")}`);
         return lines;

@@ -17,6 +17,8 @@
 import { createHash } from "node:crypto";
 import { basename, resolve } from "node:path";
 
+import { translate } from "../../../application/localization/locale.js";
+
 import { DomainError } from "../../../domain/errors.js";
 import { FeatureId } from "../../../domain/feature/feature-id.js";
 import type { Feature } from "../../../domain/feature/feature.js";
@@ -26,6 +28,7 @@ import { createManagementRuntime } from "../../../composition/management-runtime
 import { createPipelineRuntime } from "../../../composition/pipeline-runtime.js";
 import type { CliExecution } from "./cli-execution.js";
 import { CliUsageError, parseStrictArguments, type StrictArguments, type StrictArgumentSpec } from "./strict-arguments.js";
+import { jsonEnvelope } from "./cli-envelope.js";
 
 export type { CliExecution } from "./cli-execution.js";
 
@@ -41,7 +44,7 @@ export async function runManagementCommand(argv: readonly string[], context: Man
   const resource = rawResource === "depot" ? "project" : rawResource;
   const action = argv[1];
   const command = `${resource ?? "unknown"}.${action ?? "unknown"}`;
-  const warnings = rawResource === "depot" ? ["L'alias 'depot' est déprécié ; utilise 'project'."] : [];
+  const warnings = rawResource === "depot" ? ["Alias 'depot' is deprecated; use 'project'."] : [];
   try {
     if (resource !== "project" && resource !== "feature") throw new UsageError("resource must be project or feature");
     if (action === undefined) throw new UsageError(`missing ${resource} action`);
@@ -252,10 +255,10 @@ function slugify(value: string): string {
 }
 
 function output(command: string, data: unknown, json: boolean, warnings: readonly string[]): CliExecution {
-  if (json) return { code: 0, stdout: `${JSON.stringify({ schemaVersion: 1, command, ok: true, data, errors: [], warnings })}\n`, stderr: "" };
+  if (json) return { code: 0, stdout: jsonEnvelope({ command, ok: true, data, warnings }), stderr: "" };
   const rows = Array.isArray(data) ? data : [data];
-  const body = rows.length === 0 ? "Aucun résultat." : rows.map(humanRow).join("\n");
-  return { code: 0, stdout: `${body}\n`, stderr: warnings.map((warning) => `AVERTISSEMENT — ${warning}\n`).join("") };
+  const body = rows.length === 0 ? "No results." : rows.map(humanRow).join("\n");
+  return { code: 0, stdout: `${body}\n`, stderr: warnings.map((warning) => `${translate("common.warning", { message: warning })}\n`).join("") };
 }
 
 function humanRow(value: unknown): string {
@@ -273,8 +276,8 @@ function scalar(value: unknown): string {
 function failure(command: string, error: unknown, json: boolean, warnings: readonly string[]): CliExecution {
   const message = error instanceof Error ? error.message : String(error);
   const code = errorCode(error);
-  if (json) return { code, stdout: `${JSON.stringify({ schemaVersion: 1, command, ok: false, data: null, errors: [message], warnings })}\n`, stderr: "" };
-  return { code, stdout: "", stderr: `ERREUR — ${message}\n` };
+  if (json) return { code, stdout: jsonEnvelope({ command, ok: false, data: null, errors: [message], warnings, errorCode: "management_command_failed" }), stderr: "" };
+  return { code, stdout: "", stderr: `${translate("common.error", { message })}\n` };
 }
 
 function errorCode(error: unknown): number {
