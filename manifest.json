@@ -2,8 +2,8 @@
   "$schema": "manifest.json",
   "schemaVersion": 2,
   "name": "arka-norn",
-  "version": "1.2.0",
-  "description": "Cockpit local et agent-agnostique pour gérer Project, Feature, Pipeline, documents, runs et handoffs.",
+  "version": "1.3.0",
+  "description": "Cockpit local et agent-agnostique pour gérer Project, Feature, Pipeline, documents, audits transverses, runs et handoffs.",
   "entryPoint": "bin/arka-norn.mjs",
   "domain": {
     "relation": "Project -> Feature -> Pipeline -> Document/Run",
@@ -15,12 +15,17 @@
   "contracts": {
     "pipeline": "pipeline.json",
     "pipelineCatalog": "pipelines/catalog.json",
+    "essentielPipeline": "pipelines/arka-norn-essentiel.json",
     "fastdevPipeline": "pipelines/arka-norn-fastdev.json",
     "schemas": "schemas/",
     "userManual": "docs/manuel-utilisateur.md",
     "developerGuide": "docs/guide-developpeur.md",
+    "essentielGuide": "docs/essentiel.md",
+    "essentielDesignBrief": "docs/design/brief-interface-web-essentiel.md",
     "agentBootstrapGuide": "docs/agent-bootstrap.md",
     "conceptBrainstormingGuide": "docs/concept-brainstorming-web.md",
+    "auditDomains": "docs/audit/domaines.md",
+    "auditSecurity": "docs/audit/securite.md",
     "adrs": [
       "docs/adr/ADR-001-project-canonique.md",
       "docs/adr/ADR-002-sources-de-verite.md",
@@ -37,7 +42,9 @@
     "agent": "arka-norn agent <list|register|show|current|use|sessions|advise|prompt|handoff-prompt|deactivate|replace>",
     "pipeline": "arka-norn pipeline <status|next|scaffold|validate>",
     "workflow": "arka-norn workflow <list|show>",
+    "essentiel": "arka-norn essentiel <start|status|next>",
     "fastdev": "arka-norn fastdev <start|status|next>",
+    "audit": "arka-norn audit <inspect|prepare|start|status|submit|finalize|cancel|resume|list|show|compare|kb|evidence|export|tools>",
     "skills": "arka-norn skills <list|install|doctor>",
     "agentBootstrap": "/arka-norn (Claude) | $arka-norn (Codex)",
     "doctor": "arka-norn doctor [--repair [--apply]]",
@@ -60,8 +67,10 @@
     "Agent replacement deactivates the old identity and preserves bidirectional lineage.",
     "A structurally valid document is not automatically business-complete.",
     "QA completion requires pass for the latest valid development report.",
+    "New Features default to Essentiel; existing and migrated markers keep their explicit pipeline.",
     "FastDev completion requires validation_fastdev pass for the latest delivered development report.",
     "The public arka-norn skill resolves the Project and active Agent before product work starts.",
-    "Generated skills are compiled from skills-src and never edited in place."
+    "Generated skills are compiled from skills-src and never edited in place.",
+    "Transverse audits never create a Feature or mutate pipeline.json."
   ]
 }

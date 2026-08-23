@@ -549,6 +549,7 @@ function fakePipeline(state: PipelineState): ForPipeline {
         pipelineId: input.pipelineId ?? "arka-norn-default",
         featureRoot: input.featureRoot,
         ...(input.featureId === undefined ? {} : { featureId: input.featureId }),
+        selectedDocuments: {},
         overallStatus: "incomplete",
         steps: state.step === "plan" ? [{
           id: "concept",
@@ -583,6 +584,7 @@ function fakePipeline(state: PipelineState): ForPipeline {
     async listSteps(_pipelineId) { return []; },
     async listWorkflows() { return []; },
     async showWorkflow(_pipelineId) { throw new Error("not used"); },
+    async defaultWorkflowId() { return "arka-norn-essentiel"; },
   };
 }
 

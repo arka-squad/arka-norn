@@ -29,6 +29,18 @@ Sont non fiables : roots fournis, markers, symlinks, noms, JSON, environnement, 
   spéciaux et liens matériels, tourne à 2 Mio et conserve au plus cinq archives.
 - Aucun shell n’est utilisé pour piloter la TUI ou les cas d’usage.
 
+## Découverte et audit transverses
+
+- `audit inspect` ne lance ni build, ni hook, ni script du dépôt, ni scanner, ni réseau et ne crée aucun store.
+- Les commandes de collecte sont cataloguées avec arguments structurés; les chaînes shell libres et les paramètres de contrôle du conteneur sont refusés.
+- Git est exécuté avec configuration globale et système neutralisée, protocole externe refusé, buffer et timeout bornés.
+- Les outils tiers utilisent exclusivement des images officielles référencées par digest. Sans Docker/Podman, aucune exécution dynamique ne retombe sur l’hôte.
+- Les conteneurs utilisent source en lecture seule, filesystem racine read-only, réseau `none`, capacités supprimées, `no-new-privileges`, limites CPU, mémoire, PID, sortie et timeout. Un outil connecté reste partiel tant qu’un egress à allowlist sûr n’est pas disponible.
+- Les connecteurs HTTP/GitHub/npm natifs exigent un hôte présent dans le plan confirmé, résolvent le DNS avant chaque requête et redirection, et refusent localhost, metadata, IP privées, link-local, CGNAT et multicast. Les corps sont bornés et seulement résumés/empreintés.
+- Les credentials sont désignés par nom de variable d’environnement; leur valeur n’entre ni dans le plan, ni dans le store, ni dans les preuves, ni dans les exports.
+- Les sorties d’outils ne sont jamais persistées brutes. Les preuves conservent un résumé borné, une empreinte et l’état de redaction; tout payload ressemblant à un secret est rejeté.
+- `.arka-norn/audits/.gitignore` ignore le store complet. Les écritures sont atomiques, privées et les index sont protégés par lock. L’export omet les preuves sensibles.
+
 ## Pilote assisté et workers
 
 - `<project>/.arka-norn/orchestration.json` v2 ne conserve que la politique

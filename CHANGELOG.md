@@ -4,6 +4,24 @@ Toutes les modifications notables d’arka.norn sont consignées ici. Le projet
 utilise le versionnement sémantique ; les artefacts sont produits à partir des
 tags `vX.Y.Z`.
 
+## 1.3.0 — 2026-08-23
+
+- nouveau pipeline `arka-norn-essentiel` (alias `essentiel`) devenant le défaut pour toute nouvelle Feature : cadrage fusionné (intention, lots, critères prouvables), annexe technique optionnelle, `cr_dev`, `audit_livraison` et `validation_livraison`, avec boucle corrective vérifiée mécaniquement ;
+- schémas d'audit et de validation mutualisés entre FastDev et Essentiel (`audit-livraison.schema.json`, `validation-livraison.schema.json`) via un enum de type partagé, sans duplication de contrat ;
+- le scaffold résout désormais les refs `#/$defs/*` locales et injecte `type = stepId`, ce qui corrige au passage la génération de `validation_fastdev` (bug latent) ; `validate` et `scaffold` sans pipeline cherchent l'étape dans tout le catalogue ;
+- moteur guidé unique : `guided-next` et `guided-feature-cli` partagés entre `fastdev` et le nouveau `essentiel` (start/status/next), phases et instructions étendues aux étapes essentiel ;
+- le défaut vient du catalogue (`defaultPipelineId`) injecté dans `create-feature` et la CLI ; `DEFAULT_PIPELINE_ID` reste réservé aux migrations de markers anciens ; sélecteur de workflow dynamique en TUI avec essentiel préselectionné ;
+- reporting de sélection généralisé (`selectedDocuments` piloté par les policies) en conservant les champs historiques ;
+- skill `$arka-essentiel` (une phase par invocation, escalade vers standard si le cadrage révèle une incertitude ou une migration critique) ; catalogue v1.10.0 porté à 21 skills ;
+- documentation utilisateur, Agent et développeur alignée sur Essentiel par défaut, exemple complet `examples/feature-essentiel/` avec boucle corrective et selftest couvrant le scaffold et les exemples des trois pipelines.
+
+- nouveau moteur transversal de découverte et d’audit, indépendant des Features et de la Pipeline, avec cycle `inspect → prepare → start → submit → finalize` ;
+- skill `$arka-audit` interactive et adaptative couvrant douze domaines M00–M11, tandis que `arka-framework-audit` reste strictement réservé à l’étape Pipeline `audit_etat_reel` ;
+- stockage privé sous `.arka-norn/audits`, rapports Markdown, audit canonique, preuves réduites, KB filtrable, reprise, comparaison et export ;
+- collecteurs locaux déterministes, connecteurs HTTP/GitHub/npm durcis et catalogue d’images officielles épinglées pour les outils sandboxés Docker/Podman ;
+- schémas dédiés hors `pipeline.json`, enveloppes JSON CLI stables et codes de sortie indépendants des verdicts métier ;
+- catalogue porté à 21 skills et documentation des domaines, permissions, limites et reprises.
+
 ## 1.2.4 — 2026-08-22
 
 - tests : stabilise le scénario TUI d’armement du Pilote assisté sous Windows/Node 22 en donnant plus de budget aux attentes asynchrones de démarrage et de synchronisation Project.
@@ -28,7 +46,7 @@ tags `vX.Y.Z`.
 
 - marker Project porté en v4 avec le mode persistant `manual|automatic`, tandis que les markers Feature restent en v3 ; les migrations Project v1/v2/v3 choisissent `manual` sans mutation lors d'une lecture ;
 - politique d’exécution et registre de missions séparés sous `.arka-norn/`, sans secret, token, PID ni état de processus portable ;
-- orchestration Mastra locale contrôlée par Arka Norn : ordres de mission immuables, assistants Claude, Codex, Kimi Platform et Z.AI Coding Plan évalués par politique, permissions deny-by-default, suspension vérifiable et absence de fallback après démarrage ;
+- orchestration Mastra locale contrôlée par arka.norn : ordres de mission immuables, assistants Claude, Codex, Kimi Platform et Z.AI Coding Plan évalués par politique, permissions deny-by-default, suspension vérifiable et absence de fallback après démarrage ;
 - mode `automatic` présenté comme un **Pilote assisté** : pour chaque mission, l’utilisateur choisit explicitement l’assistant et sa version, relit un aperçu borné puis le confirme ; aucune mission suivante n’est enchaînée silencieusement ;
 - commandes et cockpit d’orchestration pour armer, consulter, annuler, approuver et relancer une mission sans exposer le worker interne ;
 - Codex ACP documenté en annulation/relance contrôlée, sans promesse de reprise générique d’une exécution interrompue ;

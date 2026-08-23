@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "defaultPipelineId": "arka-norn-default",
+  "defaultPipelineId": "arka-norn-essentiel",
   "pipelines": [
     {
       "id": "arka-norn-default",
@@ -15,6 +15,13 @@
       "name": "FastDev rework",
       "description": "Cycle court et contrôlé pour une correction, un refactor ou une amélioration UX bornée.",
       "definition": "pipelines/arka-norn-fastdev.json"
+    },
+    {
+      "id": "arka-norn-essentiel",
+      "aliases": ["essentiel"],
+      "name": "Pipeline essentiel",
+      "description": "Cycle orienté Feature à cinq étapes pour un périmètre connu : cadrage fusionné, livraison, audit et validation.",
+      "definition": "pipelines/arka-norn-essentiel.json"
     }
   ]
 }

@@ -4,13 +4,13 @@ La commande `arka-norn` ouvre un cockpit interactif uniquement dans un TTY.
 
 Pour un parcours accompagné sans prérequis technique, commencez par le [manuel utilisateur](manuel-utilisateur.md).
 
-- Accueil : portfolio Projects, action recommandée, démarrage guidé, scan, création/import, écran de santé détaillé et installation/réparation des 19 skills.
-- Project : conseil du Product principal, choix de niveau de délégation manuel/Pilote assisté, entrées séparées pour rework FastDev, Feature standard et import, puis registre Agents et métriques.
+- Accueil : portfolio Projects, action recommandée, démarrage guidé, scan, création/import, écran de santé détaillé et installation/réparation des 21 skills.
+- Project : conseil du Product principal, choix de niveau de délégation manuel/Pilote assisté, sélecteur dynamique Essentiel (défaut)/standard/FastDev et import, puis registre Agents et métriques.
 - Feature : identité et session auteur, badge de workflow, phase, progression, prochaine action expliquée, timeline et runs.
 - Actions : statut, scaffold confiné à la Feature, validation et confirmations de retrait.
 
 L’accueil distingue la santé des skills du **Project** de celle des points
-d’entrée **globaux Claude/Codex** : chaque compteur porte sur 19 skills. Si une
+d’entrée **globaux Claude/Codex** : chaque compteur porte sur 21 skills. Si une
 copie globale est absente ou divergente, l’écran Santé le signale séparément.
 L’action de réparation globale montre ce diagnostic, puis demande une seconde
 confirmation avant toute sauvegarde ou tout remplacement ; elle ne remplace
@@ -39,6 +39,8 @@ peut être approuvée ; une demande opaque est refusée et demande une inspectio
 Un écart de scope reste suspendu jusqu’à une décision explicite. Revenir au
 mode manuel empêche la planification suivante sans annuler silencieusement la
 mission active. Le cockpit n’affiche ni secrets ni PID du worker.
+
+Essentiel affiche un badge `ESSENTIEL`, la phase réelle, la progression et l'itération corrective éventuelle. Le cockpit relie cadrage, livraisons, audit et validation ; un audit bloquant revient en développement et une validation obsolète reste visible sans pouvoir terminer la Feature.
 
 FastDev affiche une confirmation avant création, un badge `FASTDEV`, la phase réelle et l’itération. « Continuer le rework » ouvre le travail, sa raison, les preuves, le document et la commande. Le cockpit montre constats ouverts, corrections fermées, commit audité et validation ; diagnostic, scaffold manuel et validation restent secondaires.
 

@@ -32,6 +32,7 @@ export type { CliExecution } from "./cli-execution.js";
 export interface ManagementCliContext {
   readonly homeDir: string;
   readonly cwd: string;
+  readonly frameworkRoot?: string;
 }
 
 export async function runManagementCommand(argv: readonly string[], context: ManagementCliContext): Promise<CliExecution> {
@@ -45,7 +46,10 @@ export async function runManagementCommand(argv: readonly string[], context: Man
     if (resource !== "project" && resource !== "feature") throw new UsageError("resource must be project or feature");
     if (action === undefined) throw new UsageError(`missing ${resource} action`);
     const parsed = parseStrictArguments(argv.slice(2), argumentSpec(resource, action));
-    const runtime = createManagementRuntime({ homeDir: context.homeDir });
+    const runtime = createManagementRuntime({
+      homeDir: context.homeDir,
+      ...(context.frameworkRoot === undefined ? {} : { frameworkRoot: context.frameworkRoot }),
+    });
     const data = resource === "project"
       ? await executeProject(action, parsed, runtime, context)
       : await executeFeature(action, parsed, runtime, context);
@@ -291,6 +295,6 @@ const FRAMEWORK_ROOT = resolve(import.meta.dirname, "..", "..", "..", "..");
 
 async function resolveWorkflowId(workflow: string | undefined): Promise<string> {
   return workflow === undefined
-    ? (await createPipelineRuntime(FRAMEWORK_ROOT).showWorkflow("standard")).id
+    ? await createPipelineRuntime(FRAMEWORK_ROOT).defaultWorkflowId()
     : (await createPipelineRuntime(FRAMEWORK_ROOT).showWorkflow(workflow)).id;
 }

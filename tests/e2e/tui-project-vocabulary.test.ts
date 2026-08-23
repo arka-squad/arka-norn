@@ -44,7 +44,7 @@ test("la vraie vue d'accueil expose uniquement le vocabulaire Project", () => {
     scan: { scan: async () => [] },
     cwd: "/workspace",
     contextRoot: "/workspace",
-    skillHealth: "19/19 sains · 0 absents · 0 divergents",
+    skillHealth: "21/21 sains · 0 absents · 0 divergents",
     redraw: () => {},
   });
 
@@ -54,15 +54,15 @@ test("la vraie vue d'accueil expose uniquement le vocabulaire Project", () => {
   assert.doesNotMatch(output, /Dépôt|dépôt/);
   assert.match(output, /Santé du système/);
   assert.match(output, /Installer \/ réparer les skills/);
-  assert.match(output, /19\/19 sains/);
+  assert.match(output, /21\/21 sains/);
 });
 
 test("la composition TUI et le runtime CLI consomment le même PipelineReport", async () => {
   const root = resolve(import.meta.dirname, "..", "..");
   const featureRoot = resolve(root, "examples", "feature-notion-linear");
   const container = createContainer(readEnv({ ARKA_NORN_HOME: resolve(root, ".input", "test-home") }, root));
-  const tuiReport = await container.pipeline.inspect({ featureRoot });
-  const cliReport = await createPipelineRuntime(root).inspect({ featureRoot });
+  const tuiReport = await container.pipeline.inspect({ featureRoot, pipelineId: "standard" });
+  const cliReport = await createPipelineRuntime(root).inspect({ featureRoot, pipelineId: "standard" });
   assert.deepEqual(tuiReport, cliReport);
   assert.equal(tuiReport.overallStatus, "failed");
 });

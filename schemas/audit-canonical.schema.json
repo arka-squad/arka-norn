@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "audit-canonical.schema.json",
+  "title": "Synthèse canonique d'un audit arka.norn",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "auditId", "projectId", "commitExact", "mode", "status", "generatedAt", "coverage", "moduleResults", "findings", "strengths", "limitations", "recommendations", "decisionsRequired"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "auditId": { "type": "string", "pattern": "^audit-" },
+    "projectId": { "type": "string", "minLength": 1 },
+    "commitExact": { "type": ["string", "null"], "pattern": "^[a-fA-F0-9]{7,64}$" },
+    "mode": { "enum": ["decouverte", "audit", "mixte"] },
+    "status": { "enum": ["completed", "partial"] },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "coverage": { "type": "object", "additionalProperties": false, "required": ["complete", "partial", "skipped", "total"], "properties": { "complete": { "type": "integer", "minimum": 0 }, "partial": { "type": "integer", "minimum": 0 }, "skipped": { "type": "integer", "minimum": 0 }, "total": { "type": "integer", "minimum": 1 } } },
+    "moduleResults": { "type": "array", "minItems": 1, "items": { "$ref": "audit-module-result.schema.json" } },
+    "findings": { "type": "array", "items": { "$ref": "audit-module-result.schema.json#/$defs/finding" } },
+    "strengths": { "type": "array", "items": { "type": "string" } },
+    "limitations": { "type": "array", "items": { "type": "string" } },
+    "recommendations": { "type": "array", "items": { "type": "string" } },
+    "decisionsRequired": { "type": "array", "items": { "type": "string" } }
+  }
+}

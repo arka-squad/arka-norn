@@ -34,18 +34,21 @@ import type { ForFeatures } from "../../src/ports/inbound/for-features.ts";
 const ROOT = resolve(import.meta.dirname, "..", "..");
 const theme = createTheme({ NO_COLOR: "1" }, false);
 
-test("l'espace Project sépare FastDev, standard et import puis confirme FastDev au clavier", () => {
+test("l'espace Project sépare Essentiel, standard, FastDev et import puis confirme FastDev au clavier", () => {
   const project = projectAt("/workspace/project");
   const features = emptyFeatures();
   let output = "";
   const renderer = createRenderer({ write: (chunk) => { output += chunk; }, isTTY: false, columns: 140 });
   const view = createProjectDetailView({ project, initialFeatures: [], features, scan: { scan: async () => [] }, redraw() {}, onBack() {} });
   view.render(renderer, theme);
-  assert.match(output, /Démarrer un rework FastDev/);
-  assert.match(output, /Créer une Feature standard/);
+  assert.match(output, /Créer une Feature — Pipeline essentiel \(défaut\)/);
+  assert.match(output, /Créer une Feature — Pipeline standard/);
+  assert.match(output, /Créer une Feature — FastDev rework/);
   assert.match(output, /Importer une Feature existante/);
 
   output = "";
+  view.onKey({ kind: "down" });
+  view.onKey({ kind: "down" });
   view.onKey({ kind: "down" });
   view.onKey({ kind: "enter" });
   view.render(renderer, theme);
@@ -55,8 +58,8 @@ test("l'espace Project sépare FastDev, standard et import puis confirme FastDev
   output = "";
   view.onKey({ kind: "enter" });
   view.render(renderer, theme);
-  assert.match(output, /Dossier du rework FastDev/);
-  assert.match(output, /Workflow : FastDev/);
+  assert.match(output, /Créer une Feature — FastDev rework/);
+  assert.match(output, /Workflow : FastDev rework/);
 });
 
 test("le cockpit FastDev affiche le badge et ouvre l'action guidée principale", async (context) => {

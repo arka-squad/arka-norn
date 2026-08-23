@@ -33,7 +33,7 @@ test("workflow et FastDev offrent un parcours CLI humain et JSON sans décision 
 
   const workflows = run<readonly { readonly id: string }[]>(["workflow", "list", "--json"], home, projectRoot);
   assert.equal(workflows.status, 0, workflows.stderr);
-  assert.deepEqual(workflows.json.data.map((workflow) => workflow.id), ["arka-norn-default", "arka-norn-fastdev"]);
+  assert.deepEqual(workflows.json.data.map((workflow) => workflow.id), ["arka-norn-default", "arka-norn-fastdev", "arka-norn-essentiel"]);
   const shown = run<{ readonly id: string; readonly steps: readonly { readonly id: string }[] }>(["workflow", "show", "fastdev", "--json"], home, projectRoot);
   assert.equal(shown.json.data.id, "arka-norn-fastdev");
   assert.deepEqual(shown.json.data.steps.map((step) => step.id), ["cadrage_rework", "cr_dev", "audit_rework", "validation_fastdev"]);

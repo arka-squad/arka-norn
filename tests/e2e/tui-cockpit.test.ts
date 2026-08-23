@@ -31,6 +31,7 @@ test("le cockpit Feature rend état, prochaine action, timeline, runs, dettes et
   const featureRoot = resolve(root, "examples", "feature-notion-linear");
   const report = await createPipelineRuntime(root).inspect({
     featureRoot, featureId: "connecteurs-notion-linear", authorRegistry: [{ id: "Codex_dev_20260819", active: true, authorized: true }],
+    pipelineId: "standard",
   });
   const at = new Date("2026-08-19T10:00:00.000Z");
   const feature = Feature.create({
@@ -54,6 +55,7 @@ test("le cockpit Feature affiche une erreur asynchrone et reste utilisable", asy
   const featureRoot = resolve(root, "examples", "feature-notion-linear");
   const report = await createPipelineRuntime(root).inspect({
     featureRoot, featureId: "connecteurs-notion-linear", authorRegistry: [{ id: "Codex_dev_20260819", active: true, authorized: true }],
+    pipelineId: "standard",
   });
   const at = new Date("2026-08-19T10:00:00.000Z");
   const feature = Feature.create({

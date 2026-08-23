@@ -85,6 +85,7 @@ export interface PipelineReport {
   readonly pipelineId: string;
   readonly featureRoot: string;
   readonly featureId?: string;
+  readonly selectedDocuments: Readonly<Record<string, string>>;
   readonly overallStatus: PipelineOverallStatus;
   readonly latestCrDevId?: string;
   readonly selectedQaId?: string;

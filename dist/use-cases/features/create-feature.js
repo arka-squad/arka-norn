@@ -67,13 +67,16 @@ export function createFeatureUseCaseFactory(deps) {
             }
             return existing;
         }
+        const defaultPipelineId = deps.resolveDefaultPipelineId === undefined
+            ? DEFAULT_PIPELINE_ID
+            : await deps.resolveDefaultPipelineId();
         const now = clock.now();
         const feature = Feature.create({
             id: input.id,
             projectId: input.projectId,
             name: input.name,
             root: confined.child,
-            pipelineId: input.pipelineId ?? DEFAULT_PIPELINE_ID,
+            pipelineId: input.pipelineId ?? defaultPipelineId,
             schemaVersion: 3,
             createdAt: now,
             updatedAt: now,

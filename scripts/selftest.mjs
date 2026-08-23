@@ -45,58 +45,93 @@ export async function runSelftest() {
     }
   }
 
-  const examples = path.join(FRAMEWORK_ROOT, "examples", "feature-notion-linear");
-  const exampleByType = {
-    concept: "01-concept.json",
-    plan: "02-plan.json",
-    annexe_contrat_technique: "03-annexe.json",
-    audit_etat_reel: "04-audit-etat-reel.json",
-    invariants_figes: "05-invariants-figes.json",
-    registre_dettes: "06-registre-dettes.json",
-    tache_agent: "07-tache-agent.json",
-    spec_integration_technique: "08-spec-integration-technique.json",
-    cr_dev: "09-cr-dev.json",
-    recette_qa: "10-recette-qa.json",
-    handoff: "11-handoff.json",
-  };
   const sandbox = mkdtempSync(path.join(tmpdir(), "arka-norn-selftest-"));
   const pipeline = createPipelineRuntime(FRAMEWORK_ROOT, { homeDir: path.join(sandbox, "audit-home") });
-  const typeIds = (await pipeline.listSteps()).map((step) => step.id);
+  const workflows = await pipeline.listWorkflows();
+  const exampleSets = {
+    "arka-norn-default": {
+      directory: path.join(FRAMEWORK_ROOT, "examples", "feature-notion-linear"),
+      exampleByType: {
+        concept: "01-concept.json",
+        plan: "02-plan.json",
+        annexe_contrat_technique: "03-annexe.json",
+        audit_etat_reel: "04-audit-etat-reel.json",
+        invariants_figes: "05-invariants-figes.json",
+        registre_dettes: "06-registre-dettes.json",
+        tache_agent: "07-tache-agent.json",
+        spec_integration_technique: "08-spec-integration-technique.json",
+        cr_dev: "09-cr-dev.json",
+        recette_qa: "10-recette-qa.json",
+        handoff: "11-handoff.json",
+      },
+    },
+    "arka-norn-fastdev": {
+      directory: path.join(FRAMEWORK_ROOT, "examples", "feature-fastdev"),
+      exampleByType: {
+        cadrage_rework: "01-cadrage-rework.json",
+        cr_dev: "02-cr-dev.json",
+        audit_rework: "03-audit-rework.json",
+        validation_fastdev: "05-validation-fastdev.json",
+      },
+    },
+    "arka-norn-essentiel": {
+      directory: path.join(FRAMEWORK_ROOT, "examples", "feature-essentiel"),
+      exampleByType: {
+        cadrage_essentiel: "01-cadrage-essentiel.json",
+        cr_dev: "02-cr-dev.json",
+        audit_livraison: "03-audit-livraison.json",
+        validation_livraison: "05-validation-livraison.json",
+      },
+    },
+  };
 
   try {
-    console.log("=== 1+2. scaffold pour chaque type : génération + échec attendu uniquement sur sentinelles ===");
-    for (const typeId of typeIds) {
-      const output = path.join(sandbox, `${typeId}.json`);
-      try {
-        await pipeline.scaffold({ stepId: typeId, outputPath: output, authorAgentId: "Selftest_validation_20260819" });
-        check(`scaffold(${typeId}) ne lève pas d'exception`, true);
-      } catch (error) {
-        check(`scaffold(${typeId}) ne lève pas d'exception`, false, error instanceof Error ? error.message : String(error));
-        continue;
+    console.log("=== 1+2. scaffold pour chaque étape de chaque pipeline : génération + échec attendu uniquement sur sentinelles ===");
+    for (const workflow of workflows) {
+      const steps = await pipeline.listSteps(workflow.id);
+      for (const step of steps) {
+        const output = path.join(sandbox, `${workflow.id}-${step.id}.json`);
+        try {
+          await pipeline.scaffold({ stepId: step.id, outputPath: output, authorAgentId: "Selftest_validation_20260819", pipelineId: workflow.id });
+          check(`scaffold(${workflow.id}/${step.id}) ne lève pas d'exception`, true);
+        } catch (error) {
+          check(`scaffold(${workflow.id}/${step.id}) ne lève pas d'exception`, false, error instanceof Error ? error.message : String(error));
+          continue;
+        }
+        const result = await pipeline.validate({ filePath: output, pipelineId: workflow.id });
+        const noStructuralErrors = result.errors.every((error) => !/required property|additional propert/i.test(error));
+        check(`scaffold(${workflow.id}/${step.id}) échoue uniquement sur ses sentinelles`, !result.valid && noStructuralErrors, JSON.stringify(result.errors));
       }
-      const result = await pipeline.validate({ filePath: output });
-      const noStructuralErrors = result.errors.every((error) => !/required property|additional propert/i.test(error));
-      check(`scaffold(${typeId}) échoue uniquement sur ses sentinelles`, !result.valid && noStructuralErrors, JSON.stringify(result.errors));
     }
 
     console.log("\n=== 3. Chaque exemple réel valide contre le moteur de production ===");
-    for (const typeId of typeIds) {
-      const filename = exampleByType[typeId];
-      if (filename === undefined) {
-        check(`exemple déclaré pour ${typeId}`, false, "mapping absent");
+    for (const workflow of workflows) {
+      const exampleSet = exampleSets[workflow.id];
+      if (exampleSet === undefined) {
+        check(`exemples déclarés pour ${workflow.id}`, false, "jeu d'exemples absent");
         continue;
       }
-      const result = await pipeline.validate({ filePath: path.join(examples, filename) });
-      check(`${filename} (type ${typeId}) valide`, result.valid, JSON.stringify(result.errors));
+      for (const [typeId, filename] of Object.entries(exampleSet.exampleByType)) {
+        const result = await pipeline.validate({ filePath: path.join(exampleSet.directory, filename), pipelineId: workflow.id });
+        check(`${workflow.id} : ${filename} (type ${typeId}) valide`, result.valid, JSON.stringify(result.errors));
+      }
     }
 
     console.log("\n=== 4. Une rupture de contrat est rejetée explicitement ===");
+    const examples = exampleSets["arka-norn-default"].directory;
     const concept = loadJson(path.join(examples, "01-concept.json"));
     delete concept.objectif;
     const invalidConcept = path.join(sandbox, "invalid-concept.json");
     writeFileSync(invalidConcept, `${JSON.stringify(concept)}\n`);
     const conceptResult = await pipeline.validate({ filePath: invalidConcept });
     check("retirer 'objectif' du concept échoue en nommant le champ", !conceptResult.valid && conceptResult.errors.some((error) => error.includes("objectif")), JSON.stringify(conceptResult.errors));
+
+    const cadrage = loadJson(path.join(exampleSets["arka-norn-essentiel"].directory, "01-cadrage-essentiel.json"));
+    delete cadrage.objectif;
+    const invalidCadrage = path.join(sandbox, "invalid-cadrage-essentiel.json");
+    writeFileSync(invalidCadrage, `${JSON.stringify(cadrage)}\n`);
+    const cadrageResult = await pipeline.validate({ filePath: invalidCadrage });
+    check("retirer 'objectif' du cadrage essentiel échoue en nommant le champ", !cadrageResult.valid && cadrageResult.errors.some((error) => error.includes("objectif")), JSON.stringify(cadrageResult.errors));
 
     const developmentReport = loadJson(path.join(examples, "09-cr-dev.json"));
     developmentReport.fichiers_livres[0].action = "valeur_inventee";
@@ -110,7 +145,7 @@ export async function runSelftest() {
 
   console.log("\n=== 5. status applique le verdict métier de la recette QA ===");
   {
-    const result = spawnSync(process.execPath, [BIN, "status", examples], { encoding: "utf8" });
+    const result = spawnSync(process.execPath, [BIN, "status", exampleSets["arka-norn-default"].directory], { encoding: "utf8" });
     const output = `${result.stdout ?? ""}${result.stderr ?? ""}`;
     check("status sort avec le code 2 pour une recette QA non concluante", result.status === 2, output);
     check("status n'annonce jamais 'Pipeline complet' pour une recette QA fail", !output.includes("Pipeline complet"), output);
@@ -125,7 +160,7 @@ export async function runSelftest() {
     check("TUI hors TTY : message explicite sur stderr", (result.stderr ?? "").includes("nécessite un terminal interactif"), result.stderr ?? "");
   }
 
-  console.log("\n=== 7. Catalogue partagé : skills cohérents, dont Product/FastDev/maîtrise/audit/dev/QA ===");
+  console.log("\n=== 7. Catalogue partagé : skills cohérents, dont Product/Essentiel/FastDev/maîtrise/audit/dev/QA ===");
   {
     const catalog = loadJson(path.join(FRAMEWORK_ROOT, "skills-src", "catalog", "skills.json"));
     const names = catalog.skills.map((skill) => skill.name);
@@ -134,6 +169,7 @@ export async function runSelftest() {
     check("catalogue couvre chaque définition de skill", names.length === definitions.length, `catalogue ${names.length} vs définitions ${definitions.length}`);
     check("catalogue contient le bootstrap arka-norn", names.includes("arka-norn"), names.join(", "));
     check("catalogue contient le pilotage Product", names.includes("arka-product"), names.join(", "));
+    check("catalogue contient Essentiel", names.includes("arka-essentiel"), names.join(", "));
     check("catalogue contient FastDev", names.includes("arka-fastdev"), names.join(", "));
     check("catalogue contient maîtrise", names.includes("arka-framework-maitrise"), names.join(", "));
     check("catalogue contient audit", names.includes("arka-framework-audit"), names.join(", "));

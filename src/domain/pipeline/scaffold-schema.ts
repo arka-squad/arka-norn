@@ -17,7 +17,7 @@
 const SENTINEL_PATTERN = /^(À_REMPLIR|À_CHOISIR::)/;
 
 export function scaffoldFromSchema(schema: Readonly<Record<string, unknown>>, fieldName = "document"): Readonly<Record<string, unknown>> {
-  const value = scaffoldValue(schema, fieldName);
+  const value = scaffoldValue(schema, fieldName, schema);
   if (!isRecord(value)) throw new Error("Root scaffold schema must describe an object.");
   return value;
 }
@@ -29,8 +29,8 @@ export function findScaffoldSentinels(value: unknown, path = ""): readonly strin
   return [];
 }
 
-function scaffoldValue(schema: Readonly<Record<string, unknown>>, fieldName: string): unknown {
-  if ("$ref" in schema) throw new Error(`Cannot scaffold unresolved $ref at ${fieldName}.`);
+function scaffoldValue(schema: Readonly<Record<string, unknown>>, fieldName: string, root: Readonly<Record<string, unknown>>): unknown {
+  if ("$ref" in schema) return scaffoldValue(resolveRef(schema["$ref"], root, fieldName), fieldName, root);
   if ("const" in schema) return schema["const"];
   if ("default" in schema) return schema["default"];
   const choices = schema["enum"];
@@ -41,10 +41,10 @@ function scaffoldValue(schema: Readonly<Record<string, unknown>>, fieldName: str
   if (type === "boolean") return false;
   if (type === "array") {
     const minItems = typeof schema["minItems"] === "number" ? schema["minItems"] : 0;
-    const items = schema["items"];
     if (minItems <= 0) return [];
+    const items = schema["items"];
     if (!isRecord(items)) throw new Error(`Array items missing at ${fieldName}.`);
-    return Array.from({ length: minItems }, (_, index) => scaffoldValue(items, `${fieldName}[${index}]`));
+    return Array.from({ length: minItems }, (_, index) => scaffoldValue(items, `${fieldName}[${index}]`, root));
   }
   if (type === "object") {
     const properties = schema["properties"];
@@ -56,11 +56,23 @@ function scaffoldValue(schema: Readonly<Record<string, unknown>>, fieldName: str
     for (const key of required) {
       const child = properties[key];
       if (!isRecord(child)) throw new Error(`Required property ${fieldName}.${key} has no schema.`);
-      output[key] = scaffoldValue(child, `${fieldName}.${key}`);
+      output[key] = scaffoldValue(child, `${fieldName}.${key}`, root);
     }
     return output;
   }
   throw new Error(`Unsupported schema type at ${fieldName}: ${String(type)}.`);
+}
+
+function resolveRef(ref: unknown, root: Readonly<Record<string, unknown>>, fieldName: string): Readonly<Record<string, unknown>> {
+  const remainder = typeof ref === "string" && ref.startsWith("#/$defs/") ? ref.slice("#/$defs/".length) : undefined;
+  if (remainder === undefined || remainder.length === 0 || remainder.includes("/")) {
+    throw new Error(`Cannot scaffold unresolved $ref at ${fieldName}: ${String(ref)}`);
+  }
+  const defs = root["$defs"];
+  const name = remainder;
+  const definition = isRecord(defs) ? defs[name] : undefined;
+  if (!isRecord(definition)) throw new Error(`Cannot scaffold unresolved $ref at ${fieldName}: ${String(ref)}`);
+  return definition;
 }
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {

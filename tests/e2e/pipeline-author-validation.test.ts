@@ -212,7 +212,7 @@ function createManagedFeature(context: { after(callback: () => void): void }): M
 
   assert.equal(run(["project", "add", projectRoot, "--id", "product", "--name", "Product", "--orchestration-mode", "manual", "--json"], home, workspace).status, 0);
   assert.equal(run([
-    "feature", "create", "Feature", "--project", "product", "--id", "feature", "--path", featureRoot, "--json",
+    "feature", "create", "Feature", "--project", "product", "--id", "feature", "--path", featureRoot, "--workflow", "standard", "--json",
   ], home, workspace).status, 0);
   const author = runJson<{ readonly id: string }>([
     "agent", "register", "--project", "product", "--provider", "Codex", "--role", "dev",

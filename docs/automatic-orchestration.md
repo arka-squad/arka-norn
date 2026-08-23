@@ -1,12 +1,12 @@
 # Pilote assisté et orchestration contrôlée
 
 Le mode `automatic` n’est pas une option technique ni une délégation aveugle.
-Dans l’interface Arka Norn, il s’appelle le **Pilote assisté** : Arka reste le
+Dans l’interface arka.norn, il s’appelle le **Pilote assisté** : arka.norn reste le
 plan de contrôle, explique ce qui va se passer, puis attend le choix et la
 confirmation de l’utilisateur avant de lancer chaque mission.
 
 Mastra est un worker local durable par Project. Il exécute uniquement un ordre
-de mission déjà validé par Arka Norn ; il ne choisit jamais une étape de
+de mission déjà validé par arka.norn ; il ne choisit jamais une étape de
 Pipeline, un assistant, une version, une permission ou un périmètre.
 
 ## Ce que vous choisissez

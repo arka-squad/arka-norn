@@ -14,16 +14,19 @@ arka-norn feature list|create|import|scan|show|use|forget|reconcile
 arka-norn agent list|register|show|current|use|sessions|advise|prompt|handoff-prompt|deactivate|replace
 arka-norn pipeline status|next|scaffold|validate
 arka-norn workflow list|show
+arka-norn essentiel start|status|next
 arka-norn fastdev start|status|next
 arka-norn orchestration configure|preview|start|status|cancel|approve|retry
 arka-norn skills list|install|doctor [--global]
+arka-norn audit inspect|prepare|start|status|submit|finalize|cancel|resume|list|show|compare|export
+arka-norn audit kb search|evidence show|tools doctor
 arka-norn doctor [--repair [--apply]]
 arka-norn migrate [--target <path>] [--dry-run|--apply]
 ```
 
-`arka-norn skills install --target <repo> --profile all --global` installe les 19 skills du catalogue dans `~/.claude/skills/` et `~/.codex/skills`, en plus des copies locales au Project. Une copie existante qui diffère du checksum attendu n’est jamais remplacée par cette commande : elle retourne le code 5.
+`arka-norn skills install --target <repo> --profile all --global` installe les 21 skills du catalogue dans `~/.claude/skills/` et `~/.codex/skills`, en plus des copies locales au Project. Une copie existante qui diffère du checksum attendu n’est jamais remplacée par cette commande : elle retourne le code 5.
 
-`arka-norn skills doctor --target <repo> --profile all --global --json` vérifie dans un même rapport les trois artefacts locaux et les trois artefacts globaux attendus pour chacune des 19 skills. Le résultat compare le contenu SHA-256 rendu, et non seulement un numéro de version. Sans `--global`, le contrôle reste strictement local. Utilisez d'abord `skills install ... --dry-run`; `--force` ne remplace une divergence qu'après décision explicite et crée un backup.
+`arka-norn skills doctor --target <repo> --profile all --global --json` vérifie dans un même rapport les trois artefacts locaux et les trois artefacts globaux attendus pour chacune des 21 skills. Le résultat compare le contenu SHA-256 rendu, et non seulement un numéro de version. Sans `--global`, le contrôle reste strictement local. Utilisez d'abord `skills install ... --dry-run`; `--force` ne remplace une divergence qu'après décision explicite et crée un backup.
 
 Le même rapport liste les entrées `arka-*` non gérées (`orphans`) trouvées dans les emplacements locaux et globaux scannés. Ces entrées, potentiellement héritées d'un autre produit Arka, sont signalées en `WARN` sans faire échouer le diagnostic et sans jamais être modifiées par l'installateur.
 
@@ -39,6 +42,29 @@ arka-norn agent handoff-prompt --project product --feature secure-cockpit
 ```
 
 `agent advise` retourne la phase, la responsabilité Product et les rôles à lancer maintenant ou en préparation. `agent prompt` rend un prompt autonome avec session, profil de skills, périmètre et permissions ; un rôle ne peut pas exécuter une étape qui ne lui appartient pas. `agent handoff-prompt` prépare une nouvelle conversation Product en réutilisant la même identité. Voir [`agent-orchestration.md`](agent-orchestration.md).
+
+## Découverte et audit transverses
+
+Cette famille est indépendante de `pipeline` et ne crée ni Feature, ni Agent, ni document `audit_etat_reel` :
+
+```text
+arka-norn audit inspect --project <id> [--feature <id>] [--path <relatif>] --json
+arka-norn audit prepare --project <id> --request <audit-request.json> --json
+arka-norn audit start <audit-id> --project <id> --confirm <empreinte> --json
+arka-norn audit status|show|cancel|resume <audit-id> --project <id> --json
+arka-norn audit submit <audit-id> --project <id> --module <M00..M11> --input <result.json> --json
+arka-norn audit finalize <audit-id> --project <id> --json
+arka-norn audit list --project <id> --json
+arka-norn audit compare <audit-id> --baseline <audit-id> --project <id> --json
+arka-norn audit kb search --project <id> [--domain <Mxx>] [--severity <niveau>] [--status <état>] --json
+arka-norn audit evidence show <evidence-id> --audit <audit-id> --project <id> --json
+arka-norn audit export <audit-id> --project <id> --to <dossier> [--include-evidence] --json
+arka-norn audit tools doctor --project <id> --json
+```
+
+`inspect` est strictement non mutant et sans réseau, scanner, build ni script du dépôt. `prepare` crée un plan local et une empreinte portant le scope, le commit, les images épinglées, les hôtes, les références de credentials, les commandes logiques et les timeouts. `start` refuse une autre empreinte ou un workspace modifié. Les verdicts métier n’influencent pas le code shell : une commande exécutée correctement retourne `0`, même si un domaine contient un `fail`.
+
+Les états sont `planned → collecting → analyzing → completed|partial`, avec sorties `blocked|failed|cancelled|interrupted`. `resume` conserve l’identifiant uniquement sur le même commit, scope et fingerprint. Les données restent sous `.arka-norn/audits`; `export` sort par défaut seulement le rapport et l’audit canonique. Voir le [référentiel des domaines](audit/domaines.md).
 
 ## Pilote assisté
 
@@ -67,7 +93,7 @@ non mutante : il expose ce qui sera fait, le rôle, le scope, les permissions,
 les candidats et une empreinte. `start` exige cette empreinte ainsi que le même
 assistant et la même version ; il arme alors le Pilote assisté (mode
 `automatic`) et ne soumet
-qu’un ordre recalculé et validé par Arka Norn. Toute modification entre aperçu
+qu’un ordre recalculé et validé par arka.norn. Toute modification entre aperçu
 et lancement oblige à refaire `preview`.
 
 Les identifiants de CLI correspondent à ces libellés : `claude` = **Claude**,
@@ -122,6 +148,18 @@ sentinelles de scaffold. Utilisez `pipeline status <feature>` pour la vérificat
 du registre d’auteur, des relations et du verdict métier d’une Feature. Pour un
 audit Project v4, `validate` confirme donc le contrat JSON, pas l’état courant
 du registre ou du Project : cette autorisation est garantie au scaffold.
+
+## Essentiel
+
+```text
+arka-norn workflow show essentiel
+arka-norn feature create "Nom" --project <id>              # défaut : arka-norn-essentiel
+arka-norn essentiel start "Nom" --project <id> [--path <dossier>]
+arka-norn essentiel status <feature>
+arka-norn essentiel next <feature> [--session <session-id>] [--json]
+```
+
+`essentiel next` expose la même enveloppe guidée que `fastdev next` (`phase`, `iteration`, `prerequisites`, `reason`, `instructions`, `expectedArtifact`, `suggestedCommand`) avec la session propagée jusqu'au scaffold. Voir [`essentiel.md`](essentiel.md).
 
 ## FastDev
 

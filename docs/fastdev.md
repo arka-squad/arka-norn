@@ -33,3 +33,5 @@ Le choix devient immuable au premier document reconnu.
 - Seul `validation_fastdev: pass` visant le dernier CR termine le workflow.
 
 La commande `fastdev next` donne phase, itération, prérequis, raison, instructions, livrable et commande exacte. Elle propage `--session` jusque dans le scaffold afin que `author_agent_id` soit celui du rôle spécialisé, pas celui du Product `main`. La skill `$arka-fastdev` exécute une seule de ces actions puis valide le document produit.
+
+Pour une Feature neuve au périmètre connu (et non un simple rework), préférez [Essentiel](essentiel.md), le workflow par défaut ; les schémas d'audit et de validation sont partagés entre les deux pipelines.

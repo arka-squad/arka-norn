@@ -12,7 +12,9 @@ artefacts internes.
 3. Exécuter `npm run release:verify`. Cette commande inclut les gates qualité,
    la couverture globale et la couverture dédiée au code CLI
    (`npm run test:coverage:cli`), le benchmark, l'audit des dépendances et le
-   contrôle du contenu du tarball.
+   contrôle du contenu du tarball. L’audit des dépendances utilise la même
+   allowlist documentée que la CI dans `scripts/audit-gate.mjs` ; toute
+   vulnérabilité non explicitement justifiée bloque la release.
 4. Vérifier la compatibilité Node.js `>=22.13` et les matrices CI Node 22/24.
 5. Créer et pousser le tag signé ou protégé `vX.Y.Z` depuis un commit vert.
 

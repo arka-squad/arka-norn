@@ -1,0 +1,91 @@
+{
+  "$id": "pipelines/arka-norn-essentiel.json",
+  "schemaVersion": 1,
+  "pipelineId": "arka-norn-essentiel",
+  "version": "1.0.0",
+  "description": "Pipeline orienté Feature : cadrage fusionné (intention + lots + critères), livraison, audit et validation vérifiés mécaniquement, pour un périmètre connu qui ne justifie pas le cycle complet.",
+  "steps": [
+    {
+      "id": "cadrage_essentiel",
+      "ordre": 1,
+      "schema": "schemas/cadrage-essentiel.schema.json",
+      "obligatoire": true,
+      "multiple": false,
+      "depend_de": []
+    },
+    {
+      "id": "annexe_contrat_technique",
+      "ordre": 2,
+      "schema": "schemas/annexe-contrat-technique.schema.json",
+      "obligatoire": false,
+      "multiple": false,
+      "depend_de": ["cadrage_essentiel"]
+    },
+    {
+      "id": "cr_dev",
+      "ordre": 3,
+      "schema": "schemas/cr-dev.schema.json",
+      "obligatoire": true,
+      "multiple": true,
+      "depend_de": ["cadrage_essentiel"],
+      "business_policy": {
+        "type": "delivery",
+        "verdict_field": "statut",
+        "pass_values": ["livre"],
+        "in_progress_values": ["partiel"]
+      }
+    },
+    {
+      "id": "audit_livraison",
+      "ordre": 4,
+      "schema": "schemas/audit-livraison.schema.json",
+      "obligatoire": true,
+      "multiple": true,
+      "depend_de": ["cr_dev"],
+      "peut_boucler_vers": "cr_dev",
+      "business_policy": {
+        "type": "audit_then_fix",
+        "target_step": "cr_dev",
+        "target_document_field": "cr_dev_id",
+        "verdict_field": "verdict",
+        "pass_values": ["pass"],
+        "fail_values": ["corrections_requises", "bloque"],
+        "retry_step": "cr_dev"
+      }
+    },
+    {
+      "id": "validation_livraison",
+      "ordre": 5,
+      "schema": "schemas/validation-livraison.schema.json",
+      "obligatoire": true,
+      "multiple": true,
+      "depend_de": ["cr_dev", "audit_livraison"],
+      "peut_boucler_vers": "cr_dev",
+      "business_policy": {
+        "type": "review_latest",
+        "target_step": "cr_dev",
+        "target_document_field": "cr_dev_id",
+        "verdict_field": "verdict",
+        "pass_values": ["pass"],
+        "fail_values": ["fail"],
+        "in_progress_values": ["partial"],
+        "retry_step": "cr_dev"
+      }
+    }
+  ],
+  "transversal": {
+    "handoff": {
+      "schema": "schemas/handoff.schema.json",
+      "description": "Passation optionnelle entre agents ou providers."
+    }
+  },
+  "definition_of_done": {
+    "regle": "Le cadrage fixe l'objectif, les lots et les critères prouvables ; le dernier CR livré est audité (ou corrige entièrement un audit), puis une validation_livraison pass cible exactement ce dernier CR.",
+    "interdits": [
+      "utiliser Essentiel pour une architecture nouvelle, une migration critique ou un périmètre incertain : escalader vers le pipeline standard",
+      "livrer un lot sans critère d'acceptation associé",
+      "ignorer un constat d'audit dont la décision vaut corriger",
+      "réutiliser une validation portant sur un ancien CR"
+    ]
+  }
+}

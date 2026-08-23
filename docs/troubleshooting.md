@@ -74,7 +74,7 @@ arka-norn skills doctor --target <repo> --profile all --global --json
 arka-norn skills install --target <repo> --profile all --global --dry-run
 ```
 
-Il inspecte les 19 skills et indique précisément si l’écart est dans le Project,
+Il inspecte les 21 skills et indique précisément si l’écart est dans le Project,
 dans `~/.claude/skills/` ou dans `~/.codex/skills/`. Un même numéro de version
 ne suffit pas : le diagnostic compare le rendu attendu. Conservez la
 personnalisation si elle est voulue. Sinon, après décision explicite, exécutez

@@ -1,10 +1,10 @@
-# Guide développeur Arka Norn
+# Guide développeur arka.norn
 
-Ce guide est la référence pratique pour comprendre, modifier, tester et livrer Arka Norn. Il complète la [documentation d’architecture](architecture.md), qui décrit les décisions structurelles, et la [référence CLI](cli.md), qui décrit le contrat public.
+Ce guide est la référence pratique pour comprendre, modifier, tester et livrer arka.norn. Il complète la [documentation d’architecture](architecture.md), qui décrit les décisions structurelles, et la [référence CLI](cli.md), qui décrit le contrat public.
 
 ## 1. Ce que vous développez
 
-Arka Norn est un plan de contrôle local-first. Il ne réalise pas le travail métier à la place des humains ou des Agents : il organise les ressources, calcule la prochaine étape autorisée, valide les preuves et conserve la traçabilité.
+arka.norn est un plan de contrôle local-first. Il ne réalise pas le travail métier à la place des humains ou des Agents : il organise les ressources, calcule la prochaine étape autorisée, valide les preuves et conserve la traçabilité.
 
 Les interfaces suivantes partagent le même moteur :
 
@@ -78,6 +78,7 @@ Project
 ├── Sessions spécialisées
 ├── Politique d’exécution
 ├── Registre d’exécutions
+├── Audits transverses
 └── Feature
     ├── pipelineId
     ├── Documents signés
@@ -98,6 +99,7 @@ Les termes canoniques sont définis dans le [vocabulaire du domaine](domain/voca
 7. Une lecture ou une commande de diagnostic ne répare jamais silencieusement l’état.
 8. Le marker Project v4 porte `manual|automatic`; le marker Feature reste v3.
 9. Une mission du Pilote assisté ne peut partir que d’une évaluation fraîche du Pipeline, d’un aperçu confirmé et d’une cible assistant/modèle immuable.
+10. Un audit transverse reste hors Pipeline, ne crée aucune Feature et sépare toujours exécution, couverture et verdict.
 
 ## 4. Architecture du code
 
@@ -124,6 +126,8 @@ flowchart LR
 |---|---|
 | `src/domain/` | Entités, value objects, invariants et politiques Pipeline pures. |
 | `src/application/` | Orchestration métier sans dépendance à la présentation. |
+| `src/domain/audit/` | Contrats, domaines, profondeurs, statuts et catalogue d’outils de l’audit transverse. |
+| `src/application/audit/` | Cycle `inspect → prepare → start → submit → finalize`, reprise et comparaison. |
 | `src/use-cases/` | Cas d’usage Project, Feature et Agent. |
 | `src/ports/inbound/` | Contrats offerts à la CLI et à la TUI. |
 | `src/ports/outbound/` | Contrats du stockage, de la validation et du système. |
@@ -133,7 +137,7 @@ flowchart LR
 | `src/composition/` | Câblage des adapters, runtimes et contrôleurs TUI. |
 | `schemas/` | Contrats JSON des marqueurs et documents. |
 | `pipelines/` et `pipeline.json` | Catalogue fermé et définitions des workflows. |
-| `skills-src/` | Sources canoniques des 19 skills. |
+| `skills-src/` | Sources canoniques des 21 skills. |
 | `tests/` | Tests unitaires, intégration et E2E. |
 | `dist/` | JavaScript compilé et source maps, régénérés par `npm run build`. |
 
@@ -153,13 +157,22 @@ Si une classe du domaine commence à importer `node:fs`, `process`, un renderer 
 | Session courante | `~/.arka-norn/context/agents.json` | privée à la machine |
 | Politique du Pilote assisté | `<project>/.arka-norn/orchestration.json` | v2, assistants/modèles/capacités/permissions, sans secret |
 | Registre d’exécutions | `<project>/.arka-norn/executions.json` | v2, ordres, cibles immuables, tentatives et preuves |
+| Audits transverses | `<project>/.arka-norn/audits/` | privé, ignoré par Git, rapports, preuves réduites et KB |
 | Documents | JSON présents sous la Feature | preuves métier |
 | Index | `~/.arka-norn/index/*.json` | cache reconstructible |
-| Audit | `~/.arka-norn/logs/audit.jsonl` | journal privé et rotatif |
+| Journal technique | `~/.arka-norn/logs/audit.jsonl` | journal privé et rotatif |
 
 Les écritures persistantes passent par les helpers atomiques et les locks existants. Ne remplacez pas ces adapters par un `writeFile` direct dans un nouveau cas d’usage.
 
 Les marqueurs v3 ne stockent aucun chemin absolu. Leur racine runtime est dérivée après canonicalisation du dossier qui les contient. Toute modification de format nécessite une lecture compatible, une migration avec backup et des tests de déplacement.
+
+### Moteur d’audit transverse
+
+Le moteur sous `src/application/audit/` est indépendant de `pipeline.json`. `inspect` reste strictement non mutant ; `prepare` valide la requête, développe les dépendances M00–M11 et fige les capacités dans une empreinte ; `start` exécute uniquement les collecteurs autorisés ; `submit` reçoit l’analyse structurée du même Agent ; `finalize` produit l’audit canonique, le rapport Markdown et la KB.
+
+Les commandes et résultats passent par les ports `AuditCollector`, `AuditToolRunner` et `AuditStore`. Git et les inventaires internes peuvent fonctionner sur l’hôte avec un environnement durci. Tout outil tiers ou code du dépôt passe par Docker/Podman, sans fallback hôte. Les sorties brutes sont bornées, réduites et redactées avant persistance.
+
+Les schémas `audit-request`, `audit-run`, `audit-module-result`, `audit-canonical` et `audit-kb-record` restent hors des workflows Feature. Une évolution de ces contrats doit conserver la séparation `execution.status` / `assessment.status`, les fingerprints de findings, l’absence de score global et les règles de reprise sur commit/scope/workspace identiques. Voir [les domaines](audit/domaines.md), [la sécurité](audit/securite.md) et [la reprise](audit/reprise-et-comparaison.md).
 
 ## 6. Moteur Pipeline
 
@@ -186,7 +199,9 @@ Les politiques métier disponibles sont :
 | `audit_then_fix` | Audite le dernier CR et exige une correction complète si nécessaire. |
 | `review_latest` | Rend une ancienne validation obsolète après un nouveau CR. |
 
-Le pipeline standard se trouve dans `pipeline.json`. FastDev se trouve dans `pipelines/arka-norn-fastdev.json`.
+Le pipeline standard se trouve dans `pipeline.json`, Essentiel dans `pipelines/arka-norn-essentiel.json` et FastDev dans `pipelines/arka-norn-fastdev.json`. Le catalogue désigne `arka-norn-essentiel` comme défaut des nouvelles Features ; les markers existants et migrés conservent toujours leur `pipelineId` explicite.
+
+Les commandes `essentiel` et `fastdev` partagent `application/guided/guided-next` et l'adapter `guided-feature-cli`. Les fichiers `essentiel-cli` et `fastdev-cli` ne portent que leur configuration. Toute évolution commune de `start|status|next`, des itérations ou de la propagation de session doit rester dans cette source partagée.
 
 Une inspection avec `featureId` représente une Feature gérée : elle reçoit
 obligatoirement le registre Agent du Project. Une absence ou corruption de
@@ -239,7 +254,7 @@ Le runtime charge Project, Feature, registre, sessions et rapport Pipeline. Les 
 ### Worker Mastra et Pilote assisté
 
 Le worker Mastra est un adapter derrière un port d’exécution. Il n’est pas un
-second orchestrateur : Arka Norn crée un aperçu non mutante, exige sa
+second orchestrateur : arka.norn crée un aperçu non mutant, exige sa
 confirmation, transforme l’évaluation fraîche en `MissionOrder` immuable et
 conserve les preuves dans le registre séparé. Le marker Project v4 porte
 seulement `manual|automatic`; `automatic` est présenté comme le **Pilote
@@ -401,6 +416,7 @@ Une skill doit dire quand l’utiliser, quand ne pas l’utiliser, quels inputs 
 - Distribution : installation du tarball dans un consumer vierge.
 - Orchestration : providers fake en CI pour sélection, refus, annulation,
   interruption, retry, verrou et audit trail.
+- Audit transverse : tests unitaires des invariants et schémas, intégration du store/runner fake, puis E2E des enveloppes JSON et du cycle complet.
 
 Les smoke tests réels Claude, Codex, Kimi et Z.AI sont opt-in. Ils exigent des
 identifiants et une configuration d’assistant fournis explicitement par
@@ -435,6 +451,7 @@ arka-norn doctor --repair --json
 arka-norn skills doctor --target . --profile all --global --json
 arka-norn project scan . --json
 arka-norn feature scan --project <project-id> --path . --json
+arka-norn audit tools doctor --project <project-id> --json
 ```
 
 `doctor --repair` produit uniquement un plan. `--repair --apply` est nécessaire pour l’appliquer. Ne transformez jamais un diagnostic en mutation implicite.

@@ -233,19 +233,19 @@ export function createGuidedAction(
 }
 
 function phaseFor(stepId: string): string {
-  if (stepId === "cadrage_rework") return "Cadrage";
+  if (stepId === "cadrage_rework" || stepId === "cadrage_essentiel") return "Cadrage";
   if (stepId === "cr_dev") return "Développement";
-  if (stepId === "audit_rework") return "Audit";
-  if (stepId === "validation_fastdev") return "Validation";
+  if (stepId === "audit_rework" || stepId === "audit_livraison") return "Audit";
+  if (stepId === "validation_fastdev" || stepId === "validation_livraison") return "Validation";
   if (stepId === "recette_qa") return "Recette QA";
   return stepId;
 }
 
 function instructionsFor(stepId: string): readonly string[] {
-  if (stepId === "cadrage_rework") return ["Borner le problème et les exclusions.", "Définir des critères code, fonctionnels, UX et sécurité."];
+  if (stepId === "cadrage_rework" || stepId === "cadrage_essentiel") return ["Borner le problème et les exclusions.", "Définir des critères code, fonctionnels, UX et sécurité."];
   if (stepId === "cr_dev") return ["Livrer un lot borné avec ses tests.", "Référencer et fermer chaque constat obligatoire lors d'une correction."];
-  if (stepId === "audit_rework") return ["Auditer le dernier CR et son commit exact.", "Fournir une preuve pour chaque constat."];
-  if (stepId === "validation_fastdev") return ["Contrôler le dernier CR uniquement.", "Vérifier critères, corrections, gates et preuves UX/fonctionnelles."];
+  if (stepId === "audit_rework" || stepId === "audit_livraison") return ["Auditer le dernier CR et son commit exact.", "Fournir une preuve pour chaque constat."];
+  if (stepId === "validation_fastdev" || stepId === "validation_livraison") return ["Contrôler le dernier CR uniquement.", "Vérifier critères, corrections, gates et preuves UX/fonctionnelles."];
   return ["Produire le document attendu avec des preuves reproductibles."];
 }
 

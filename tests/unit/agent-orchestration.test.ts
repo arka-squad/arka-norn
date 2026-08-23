@@ -32,6 +32,7 @@ const PROJECT_ID = ProjectId.of("arka-norn");
 const FEATURE_ID = FeatureId.of("navigation-tui");
 const PROJECT = Project.create({ id: PROJECT_ID, name: "Arka Norn", root: "/workspace/arka-norn", schemaVersion: 3, createdAt: AT, updatedAt: AT });
 const FASTDEV = Feature.create({ id: FEATURE_ID, projectId: PROJECT_ID, name: "Navigation TUI", root: "/workspace/arka-norn/features/navigation-tui", pipelineId: "arka-norn-fastdev", schemaVersion: 3, createdAt: AT, updatedAt: AT });
+const ESSENTIEL = Feature.create({ id: FEATURE_ID, projectId: PROJECT_ID, name: "Navigation TUI", root: "/workspace/arka-norn/features/navigation-tui", pipelineId: "arka-norn-essentiel", schemaVersion: 3, createdAt: AT, updatedAt: AT });
 const PRODUCT = agent("Codex_product_20260820", "product");
 
 test("le conseil FastDev lance l'audit et autorise seulement une préparation Dev parallèle", () => {
@@ -43,6 +44,15 @@ test("le conseil FastDev lance l'audit et autorise seulement une préparation De
   assert.deepEqual(advice.recommendations.map(({ role, mode, skillProfile, skill }) => ({ role, mode, skillProfile, skill })), [
     { role: "audit", mode: "execute", skillProfile: "audit", skill: "arka-fastdev" },
     { role: "dev", mode: "prepare", skillProfile: "dev", skill: "arka-fastdev" },
+  ]);
+});
+
+test("le conseil Essentiel dérive le rôle de l'action et route vers la skill guidée", () => {
+  const essentialReport = { ...report("audit_livraison", "Audit · 4/5"), pipelineId: ESSENTIEL.pipelineId };
+  const advice = createAgentAdvice({ ...stateFor(essentialReport), feature: ESSENTIEL });
+  assert.deepEqual(advice.recommendations.map(({ role, skill }) => ({ role, skill })), [
+    { role: "audit", skill: "arka-essentiel" },
+    { role: "dev", skill: "arka-essentiel" },
   ]);
 });
 
@@ -112,6 +122,7 @@ function report(stepId: string, phase: string): PipelineReport {
     pipelineId: "arka-norn-fastdev",
     featureRoot: FASTDEV.root,
     featureId: FASTDEV.id.value,
+    selectedDocuments: {},
     overallStatus: "incomplete",
     steps: [],
     transversalDocuments: [],

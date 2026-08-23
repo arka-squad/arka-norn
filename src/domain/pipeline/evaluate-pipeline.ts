@@ -103,6 +103,7 @@ export function evaluatePipeline(input: PipelineEvaluationInput): PipelineReport
     pipelineId: input.pipelineId,
     featureRoot: input.featureRoot,
     ...(input.featureId === undefined ? {} : { featureId: input.featureId }),
+    selectedDocuments: Object.fromEntries(steps.filter((step) => step.selectedDocumentId !== undefined).map((step) => [step.id, step.selectedDocumentId!])),
     overallStatus,
     ...(latestCr?.id === undefined ? {} : { latestCrDevId: latestCr.id }),
     ...(selectedQa?.id === undefined ? {} : { selectedQaId: selectedQa.id }),

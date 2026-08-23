@@ -46,11 +46,13 @@ const ROOT = resolve(import.meta.dirname, "..", "..");
 const SOURCE = resolve(ROOT, "skills-src");
 const catalog = JSON.parse(readFileSync(resolve(SOURCE, "catalog", "skills.json"), "utf8")) as { readonly skills: readonly CatalogEntry[] };
 
-test("le catalogue contient exactement les 19 skills requis et des checksums exacts", () => {
+test("le catalogue contient exactement les 21 skills requis et des checksums exacts", () => {
   const required = [
     "arka-norn",
+    "arka-audit",
     "arka-product",
     "arka-fastdev",
+    "arka-essentiel",
     "arka-framework-maitrise", "arka-framework-statut", "arka-framework-scaffold", "arka-framework-valider", "arka-framework-handoff",
     "arka-framework-concept", "arka-framework-plan", "arka-framework-annexe-technique", "arka-framework-audit",
     "arka-framework-invariants", "arka-framework-dettes", "arka-framework-taches", "arka-framework-spec-integration",
@@ -58,26 +60,26 @@ test("le catalogue contient exactement les 19 skills requis et des checksums exa
     "arka-git-steward",
   ].sort();
   assert.deepEqual(catalog.skills.map((entry) => entry.name).sort(), required);
-  assert.equal(new Set(catalog.skills.map((entry) => entry.name)).size, 19);
+  assert.equal(new Set(catalog.skills.map((entry) => entry.name)).size, 21);
   for (const entry of catalog.skills) {
     const raw = readFileSync(resolve(SOURCE, entry.source), "utf8").replace(/\r\n?/g, "\n");
     assert.equal(createHash("sha256").update(raw, "utf8").digest("hex"), entry.checksum, entry.name);
     assert.ok(entry.profiles.includes("all"));
     assert.ok(entry.step.length > 0);
   }
-  assert.equal(catalog.skills.filter((entry) => entry.profiles.includes("core")).length, 8);
-  assert.equal(catalog.skills.filter((entry) => entry.profiles.includes("delivery")).length, 17);
+  assert.equal(catalog.skills.filter((entry) => entry.profiles.includes("core")).length, 10);
+  assert.equal(catalog.skills.filter((entry) => entry.profiles.includes("delivery")).length, 18);
   assert.deepEqual(Object.fromEntries(["product", "architecture", "audit", "dev", "qa"].map((profile) => [profile, catalog.skills.filter((entry) => entry.profiles.includes(profile)).length])), {
-    product: 11, architecture: 10, audit: 9, dev: 10, qa: 9,
+    product: 13, architecture: 12, audit: 11, dev: 11, qa: 10,
   });
 });
 
 test("chaque définition est complète et les skills audit/dev/QA imposent leurs gates", () => {
   const files = readdirSync(SOURCE).filter((name) => name.endsWith(".json"));
-  assert.equal(files.length, 19);
+  assert.equal(files.length, 21);
   const definitions = files.map((file) => JSON.parse(readFileSync(resolve(SOURCE, file), "utf8")) as SkillDefinition);
   for (const definition of definitions) {
-    assert.match(definition.name, /^(?:arka-norn|arka-product|arka-fastdev|arka-git-steward|arka-framework-[a-z-]+)$/);
+    assert.match(definition.name, /^(?:arka-norn|arka-audit|arka-product|arka-fastdev|arka-essentiel|arka-git-steward|arka-framework-[a-z-]+)$/);
     assert.ok(definition.description_courte.length > 20);
     assert.ok(definition.quand_utiliser.length > 0);
     assert.ok(definition.quand_ne_pas_utiliser.length > 0);
@@ -98,8 +100,14 @@ test("chaque définition est complète et les skills audit/dev/QA imposent leurs
   assert.match(byName.get("arka-fastdev") ?? "", /fastdev next.*une seule action|exactement une action calculée/i);
   assert.match(byName.get("arka-fastdev") ?? "", /corrections_apportees.*audit_rework.*validation_fastdev/);
   assert.match(byName.get("arka-fastdev") ?? "", /agent current.*--session.*fastdev next.*--session.*suggestedCommand.*--session/);
+  assert.match(byName.get("arka-essentiel") ?? "", /essentiel next.*une seule action|exactement une action calculée/i);
+  assert.match(byName.get("arka-essentiel") ?? "", /cadrage_essentiel.*audit_livraison.*validation_livraison/);
+  assert.match(byName.get("arka-essentiel") ?? "", /escalader vers le pipeline standard/);
   assert.match(byName.get("arka-framework-audit") ?? "", /preuves reproductibles|Vérifier directement/);
   assert.match(byName.get("arka-framework-audit") ?? "", /correction silencieuse/);
+  assert.match(byName.get("arka-audit") ?? "", /sans Feature ni Pipeline|sans Pipeline/);
+  assert.match(byName.get("arka-audit") ?? "", /audit inspect.*proposer|Proposer les domaines/is);
+  assert.match(byName.get("arka-framework-audit") ?? "", /pipeline next.*audit_etat_reel/is);
   assert.match(byName.get("arka-framework-dev") ?? "", /scope_fichiers/);
   assert.match(byName.get("arka-framework-dev") ?? "", /CR de dev|cr_dev/);
   assert.match(byName.get("arka-framework-recette-qa") ?? "", /dernier CR|cr_dev_id/);
@@ -120,7 +128,7 @@ test("le catalogue reste vérifiable après une conversion Git en CRLF", (contex
     const crlf = readFileSync(sourcePath, "utf8").replace(/\r\n?/g, "\n").replace(/\n/g, "\r\n");
     writeFileSync(sourcePath, crlf);
   }
-  assert.equal(createSkillCatalogRuntime(frameworkRoot).definitions.length, 19);
+  assert.equal(createSkillCatalogRuntime(frameworkRoot).definitions.length, 21);
 });
 
 test("les rendus Agents ont un frontmatter YAML sûr et une description UI bornée", () => {
@@ -143,7 +151,7 @@ test("les rendus Agents ont un frontmatter YAML sûr et une description UI born�
   assert.match(runtime.renderOpenaiYaml(runtime.definitions.find((definition) => definition.name === "arka-norn")!), /Arka Norn — Démarrer/);
 });
 
-test("le rendu global arka-norn porte la gate de mode et le contrôle des 19 skills", () => {
+test("le rendu global arka-norn porte la gate de mode et le contrôle des 21 skills", () => {
   const runtime = createSkillCatalogRuntime(ROOT);
   const definition = runtime.definitions.find((item) => item.name === "arka-norn");
   assert.ok(definition);
@@ -155,7 +163,7 @@ test("le rendu global arka-norn porte la gate de mode et le contrôle des 19 ski
   assert.match(rendered, /project add <racine> --name <nom> --orchestration-mode <manual\|automatic>/);
   assert.match(rendered, /skills doctor --target <racine> --profile all --global --json/);
   assert.match(rendered, /skills install --target <racine> --profile all --global/);
-  assert.match(rendered, /les 19 skills/);
+  assert.match(rendered, /les 21 skills/);
   assert.match(rendered, /--force.*décision explicite de l’utilisateur/);
 });
 

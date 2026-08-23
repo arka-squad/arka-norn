@@ -26,8 +26,15 @@ export function scaffoldPipelineDocumentUseCaseFactory(deps) {
             throw new Error("Project-scoped scaffolds are supported only for audit_etat_reel.");
         }
         const definition = await deps.source.loadDefinition(input.pipelineId);
-        const schemaPath = definition.steps.find((step) => step.id === input.stepId)?.schemaPath
-            ?? definition.transversalDocuments.find((document) => document.type === input.stepId)?.schemaPath;
+        let schemaPath = schemaFor(definition, input.stepId);
+        if (schemaPath === undefined && input.pipelineId === undefined) {
+            const catalog = await deps.source.loadCatalog();
+            for (const entry of catalog.pipelines) {
+                schemaPath = schemaFor(await deps.source.loadDefinition(entry.id), input.stepId);
+                if (schemaPath !== undefined)
+                    break;
+            }
+        }
         if (schemaPath === undefined)
             throw new Error(`Unknown pipeline step: ${input.stepId}.`);
         const [schema, envelope] = await Promise.all([
@@ -41,6 +48,7 @@ export function scaffoldPipelineDocumentUseCaseFactory(deps) {
             ...generated,
             schema_version: input.projectId === undefined ? 3 : 4,
             author_agent_id: authorAgentId,
+            type: input.stepId,
             ...(input.featureId === undefined ? {} : { feature_id: input.featureId }),
             ...(input.projectId === undefined ? {} : { project_id: ProjectId.of(input.projectId).value }),
         };
@@ -51,6 +59,10 @@ export function scaffoldPipelineDocumentUseCaseFactory(deps) {
         return { stepId: input.stepId, outputPath: input.outputPath, sentinelPaths: findScaffoldSentinels(scaffold) };
     };
 }
+function schemaFor(definition, stepId) {
+    return definition.steps.find((step) => step.id === stepId)?.schemaPath
+        ?? definition.transversalDocuments.find((document) => document.type === stepId)?.schemaPath;
+}
 function mergeObjectSchemas(envelope, document) {
     const envelopeProperties = recordField(envelope, "properties");
     const documentProperties = recordField(document, "properties");
@@ -58,7 +70,18 @@ function mergeObjectSchemas(envelope, document) {
         type: "object",
         required: [...stringArrayField(envelope, "required"), ...stringArrayField(document, "required")].filter((value, index, values) => values.indexOf(value) === index),
         properties: { ...envelopeProperties, ...documentProperties },
+        ...(hasDefs(document) || hasDefs(envelope) ? { $defs: { ...defsOf(envelope), ...defsOf(document) } } : {}),
     };
+}
+function hasDefs(value) {
+    return isRecord(value["$defs"]);
+}
+function defsOf(value) {
+    const defs = value["$defs"];
+    return isRecord(defs) ? defs : {};
+}
+function isRecord(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function recordField(value, key) {
     const field = value[key];

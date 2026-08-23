@@ -34,7 +34,20 @@ import type { Renderer } from "../runtime/render.js";
 import type { Theme } from "../runtime/theme.js";
 import type { Scene } from "../runtime/tui-app.js";
 
-type ProjectAction = "action:product" | "action:fastdev" | "action:standard" | "action:import" | "action:agents" | "action:orchestration" | "action:orchestration-dashboard" | "action:scan" | "action:forget" | "action:back" | `feature:${string}`;
+type ProjectAction = "action:product" | "action:import" | "action:agents" | "action:orchestration" | "action:orchestration-dashboard" | "action:scan" | "action:forget" | "action:back" | `action:create:${string}` | `feature:${string}`;
+
+export interface WorkflowOption {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
+  readonly isDefault: boolean;
+}
+
+const FALLBACK_WORKFLOWS: readonly WorkflowOption[] = [
+  { id: "arka-norn-essentiel", name: "Pipeline essentiel", description: "Cycle orienté Feature à cinq étapes pour un périmètre connu : cadrage fusionné, livraison, audit et validation.", isDefault: true },
+  { id: "arka-norn-default", name: "Pipeline standard", description: "Cycle complet à dix étapes pour une Feature structurante ou incertaine.", isDefault: false },
+  { id: "arka-norn-fastdev", name: "FastDev rework", description: "Cycle court et contrôlé pour une correction, un refactor ou une amélioration UX bornée.", isDefault: false },
+];
 
 export interface ProjectDetailViewDeps {
   readonly project: Project;
@@ -45,6 +58,7 @@ export interface ProjectDetailViewDeps {
   readonly currentAgentId?: string;
   readonly sessionId?: string;
   readonly features: ForFeatures;
+  readonly workflows?: readonly WorkflowOption[];
   readonly projects?: ForProjects;
   readonly scan: ForScan;
   readonly redraw: () => void;
@@ -80,6 +94,7 @@ export interface ProjectDetailView extends Scene {
 }
 
 export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDetailView {
+  const workflows = deps.workflows ?? FALLBACK_WORKFLOWS;
   let project = deps.project;
   let features = [...deps.initialFeatures];
   let statuses = new Map(deps.initialStatuses ?? []);
@@ -87,7 +102,7 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
   let agents = [...(deps.initialAgents ?? [])];
   let currentAgentId = deps.currentAgentId;
   let mode: "menu" | "create" | "confirm-fastdev" | "orchestration-mode" = "menu";
-  let createKind: "fastdev" | "standard" | "import" = "standard";
+  let createKind: string = "arka-norn-essentiel";
   let createPath = `${project.root}/`;
   let selectedOrchestrationMode = project.orchestrationMode;
   let orchestrationModeDirty = false;
@@ -103,12 +118,15 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
     });
     return [
       { label: "Conseil Product — organiser la suite", value: "action:product", description: "prochaine décision, profils parallèles et prompt de reprise" },
-      { label: "Démarrer un rework FastDev", value: "action:fastdev", description: "4 documents · audit bloquant · correction conditionnelle" },
-      { label: "Créer une Feature standard", value: "action:standard", description: "cycle complet à dix étapes" },
+      ...workflows.map((workflow) => ({
+        label: `Créer une Feature — ${workflow.name}${workflow.isDefault ? " (défaut)" : ""}`,
+        value: `action:create:${workflow.id}` as const,
+        description: workflow.description,
+      })),
       { label: "Importer une Feature existante", value: "action:import", description: "utilise son marqueur et son workflow" },
       ...groupedFeatures.map((feature) => {
         const featureMetrics = metrics.get(feature.id.value);
-        const badge = feature.pipelineId === "arka-norn-fastdev" ? "[FASTDEV] " : "";
+        const badge = feature.pipelineId === "arka-norn-fastdev" ? "[FASTDEV] " : feature.pipelineId === "arka-norn-essentiel" ? "[ESSENTIEL] " : "";
         const progress = featureMetrics === undefined ? "" : ` · ${featureMetrics.phase} · ${featureMetrics.progress}${featureMetrics.phase === "Développement" && featureMetrics.iteration > 1 ? ` · itération ${featureMetrics.iteration}` : ""}`;
         return { label: `● ${badge}[${statuses.get(feature.id.value) ?? "inconnu"}] ${feature.name}${progress}`, value: `feature:${feature.id.value}` as const, description: feature.root };
       }),
@@ -147,13 +165,9 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
       });
     } else if (value === "action:product") {
       await run(async () => { await deps.onShowProductAdvice?.(project); });
-    } else if (value === "action:fastdev") {
-      createKind = "fastdev";
-      mode = "confirm-fastdev";
-      deps.redraw();
-    } else if (value === "action:standard") {
-      createKind = "standard";
-      mode = "create";
+    } else if (value.startsWith("action:create:")) {
+      createKind = value.slice("action:create:".length);
+      mode = createKind === "arka-norn-fastdev" ? "confirm-fastdev" : "create";
       deps.redraw();
     } else if (value === "action:import") {
       createKind = "import";
@@ -199,7 +213,7 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
           projectId: project.id,
           name,
           root,
-          pipelineId: createKind === "fastdev" ? "arka-norn-fastdev" : "arka-norn-default",
+          pipelineId: createKind,
         });
       }
       mode = "menu";
@@ -342,10 +356,10 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
           return;
         }
         if (mode === "create") {
-          const title = createKind === "import" ? "Importer une Feature existante" : createKind === "fastdev" ? "Dossier du rework FastDev" : "Créer une Feature standard";
+          const title = createKind === "import" ? "Importer une Feature existante" : `Créer une Feature — ${workflowName(createKind, workflows)}`;
           const explanation = createKind === "import"
             ? "Indiquez un dossier enfant qui contient déjà .arka-norn/feature.json."
-            : `Indiquez le nouveau dossier enfant. Workflow : ${createKind === "fastdev" ? "FastDev" : "standard"}.`;
+            : `Indiquez le nouveau dossier enfant. Workflow : ${workflowName(createKind, workflows)}.`;
           for (const value of titledBox(title, [
             explanation,
             `Racine autorisée : ${project.root}`,
@@ -388,7 +402,7 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
         ], theme, { border: theme.arkaRed }).split("\n")) line(value);
         line("");
         line(nextActionLine(
-          currentAgentId === undefined ? "Enregistrer le Product principal" : features.length === 0 ? "Choisir FastDev, standard ou import" : "Demander le conseil Product",
+          currentAgentId === undefined ? "Enregistrer le Product principal" : features.length === 0 ? "Choisir un workflow ou importer" : "Demander le conseil Product",
           currentAgentId === undefined ? "la session main doit porter l’organisation du Project" : features.length === 0 ? "aucun pipeline n’est encore piloté" : "la prochaine phase et les rôles seront calculés",
           theme,
         ));
@@ -417,6 +431,10 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
 function isContained(projectRoot: string, featureRoot: string): boolean {
   const relation = relative(resolve(projectRoot), resolve(featureRoot));
   return relation.length > 0 && !relation.startsWith("..") && !relation.startsWith("/");
+}
+
+function workflowName(pipelineId: string, workflows: readonly WorkflowOption[]): string {
+  return workflows.find((workflow) => workflow.id === pipelineId)?.name ?? pipelineId;
 }
 
 function deriveFeatureId(root: string, code: string): FeatureId {

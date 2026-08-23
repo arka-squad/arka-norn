@@ -1,0 +1,22 @@
+{
+  "schema_version": 3,
+  "author_agent_id": "Codex_audit_20260823",
+  "id": "audit-filtre-etats-1",
+  "feature_id": "filtre-features-etat",
+  "type": "audit_livraison",
+  "sequence": 1,
+  "created_at": "2026-08-23T11:00:00.000Z",
+  "depends_on_document_ids": ["cr-filtre-etats-1"],
+  "cr_dev_id": "cr-filtre-etats-1",
+  "commit_exact": "abcdef1234567890",
+  "commandes_executees": [
+    { "commande": "npm run test:unit", "resultat": "pass", "preuve": "suite unitaire verte" }
+  ],
+  "dimensions_controlees": ["code", "fonctionnel", "ux", "securite"],
+  "constats": [
+    { "id": "F-CODE-1", "type": "code", "priorite": "haute", "description": "Le filtre contourne le composant de menu avec une liste parallèle.", "preuve": "lecture du diff, double liste construite", "decision": "corriger" },
+    { "id": "F-SEC-1", "type": "securite", "priorite": "basse", "description": "Aucune interprétation de la saisie hors filtrage.", "preuve": "revue du chemin de données", "decision": "aucune" }
+  ],
+  "limites": ["terminaux de moins de 60 colonnes non contrôlés"],
+  "verdict": "corrections_requises"
+}

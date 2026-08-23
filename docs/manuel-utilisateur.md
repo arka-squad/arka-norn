@@ -1,14 +1,14 @@
-# Manuel utilisateur Arka Norn
+# Manuel utilisateur arka.norn
 
-Ce manuel explique Arka Norn sans supposer que vous savez programmer. Il s’adresse aux responsables produit, chefs de projet, fondateurs et utilisateurs qui veulent organiser le travail d’un ou plusieurs Agents IA sans perdre le fil.
+Ce manuel explique arka.norn sans supposer que vous savez programmer. Il s’adresse aux responsables produit, chefs de projet, fondateurs et utilisateurs qui veulent organiser le travail d’un ou plusieurs Agents IA sans perdre le fil.
 
-Vous n’avez pas besoin de connaître le format des documents internes. Arka Norn vous indique où vous êtes, ce qui manque et quelle action effectuer ensuite.
+Vous n’avez pas besoin de connaître le format des documents internes. arka.norn vous indique où vous êtes, ce qui manque et quelle action effectuer ensuite.
 
-## 1. À quoi sert Arka Norn ?
+## 1. À quoi sert arka.norn ?
 
 Un projet conduit avec plusieurs Agents peut vite devenir difficile à suivre : décisions dispersées, responsabilités floues, correction non vérifiée ou nouvelle conversation qui repart de zéro.
 
-Arka Norn crée un espace de pilotage local pour éviter ces situations. Il permet de :
+arka.norn crée un espace de pilotage local pour éviter ces situations. Il permet de :
 
 - retrouver tous les Projects et toutes les Features suivies ;
 - donner une identité et un périmètre à chaque Agent ;
@@ -32,14 +32,14 @@ Les informations restent sur votre machine et dans les dossiers que vous avez ch
 
 ## 3. Avant de commencer
 
-Arka Norn doit être installé sur la machine. Si ce n’est pas le cas, demandez à la personne qui administre votre environnement d’installer l’artefact interne puis de vérifier :
+arka.norn doit être installé sur la machine. Si ce n’est pas le cas, demandez à la personne qui administre votre environnement d’installer l’artefact interne puis de vérifier :
 
 ```bash
 arka-norn selftest
 arka-norn doctor
 ```
 
-Si ces deux commandes réussissent, vous pouvez utiliser Arka Norn de deux façons :
+Si ces deux commandes réussissent, vous pouvez utiliser arka.norn de deux façons :
 
 1. **Depuis le cockpit** : lancez `arka-norn` dans le terminal et suivez les écrans.
 2. **Depuis votre Agent** : envoyez `/arka-norn` dans Claude Code, ou `$arka-norn` dans Codex.
@@ -60,7 +60,7 @@ Le cockpit propose de retrouver un Project existant, d’en créer un ou d’imp
 
 ### Étape 2 — Déclarer le Project
 
-Choisissez **Créer un Project** si ce travail n’a jamais été suivi par Arka Norn. Choisissez **Importer** si le dossier contient déjà un Project ou une Feature à retrouver.
+Choisissez **Créer un Project** si ce travail n’a jamais été suivi par arka.norn. Choisissez **Importer** si le dossier contient déjà un Project ou une Feature à retrouver.
 
 Le Project reçoit un identifiant stable. Vous continuerez à voir son nom lisible dans l’interface.
 
@@ -89,12 +89,12 @@ Une Feature doit exprimer un résultat observable, par exemple :
 
 | Votre situation | Workflow conseillé |
 |---|---|
-| Le besoin est nouveau, incertain ou structurant | **Standard** |
+| La Feature est nouvelle, son résultat et son périmètre sont connus | **Essentiel** (défaut) |
+| Le besoin est incertain ou fortement structurant | **Standard** |
 | L’architecture ou une migration critique est concernée | **Standard** |
-| Le problème est connu et le périmètre est borné | **FastDev** |
 | Il s’agit d’une correction, d’un refactor ciblé ou d’une amélioration UX précise | **FastDev** |
 
-En cas de doute, choisissez Standard. FastDev fait gagner des étapes de préparation, pas des contrôles de qualité.
+Choisissez Essentiel dans le cas général. Si son cadrage révèle une incertitude forte, une architecture nouvelle ou une migration critique, basculez vers Standard avant le développement. FastDev fait gagner des étapes de préparation pour un rework déjà borné, pas des contrôles de qualité.
 
 ### Étape 6 — Suivre l’action recommandée
 
@@ -109,6 +109,12 @@ L’écran guidé doit toujours répondre à cinq questions :
 5. Quelle commande ou quel Agent utiliser ?
 
 Si l’une de ces réponses manque, ouvrez l’aide avec `?` ou demandez au Product principal de recalculer la prochaine action.
+
+### Découvrir ou auditer sans créer de Feature
+
+Pour comprendre un dépôt existant, dites simplement « découvre ce dépôt », « analyse le code, l’architecture et le produit » ou invoquez `$arka-audit`. L’Agent examine d’abord les sources disponibles sans rien exécuter, puis vous propose toutes les dimensions utiles avec une présélection expliquée. Vous pouvez ajouter ou retirer des sujets en langage naturel.
+
+Une découverte locale ne demande pas de confirmation supplémentaire. Un scanner, un accès GitHub/npm, un téléchargement d’image ou l’exécution de tests est présenté dans un aperçu unique avant lancement. Le rapport reste privé dans le Project et peut être exporté ensuite. Cette opération n’ouvre ni Feature, ni Pipeline, ni nouvelle session Agent.
 
 ## 5. Se repérer dans le cockpit
 
@@ -126,7 +132,8 @@ Il rassemble :
 
 Pour une nouvelle Feature, choisissez explicitement entre :
 
-- **Créer une Feature standard** ;
+- **Créer une Feature Essentiel**, le choix par défaut ;
+- **Créer une Feature standard** pour un chantier incertain ou structurant ;
 - **Démarrer un rework FastDev** ;
 - **Importer une Feature existante**.
 
@@ -135,6 +142,10 @@ Pour une nouvelle Feature, choisissez explicitement entre :
 Le badge indique le workflow. La phase et la progression décrivent l’état réel, par exemple `Audit · 3/4` ou `Corrections · itération 2`.
 
 L’action principale poursuit le parcours. Les outils de diagnostic, le scaffold manuel et la validation restent disponibles comme actions secondaires.
+
+### Cockpit Essentiel
+
+Il montre le cadrage fusionné, les lots, la dernière livraison, son audit et la validation courante. Lorsqu’un audit demande des corrections, le cockpit revient en développement et affiche une nouvelle itération avec les constats ouverts et fermés. Une validation visant une ancienne livraison est marquée obsolète et ne peut jamais terminer la Feature.
 
 ### Cockpit FastDev
 
@@ -196,7 +207,7 @@ Le Project possède aussi un mode d’organisation, distinct de `prepare` et
 
 - **manuel** : vous transmettez vous-même les prompts aux Agents ;
 - **Pilote assisté** : la valeur technique persistée est `automatic`, mais
-  Arka Norn reste à vos côtés et ne lance jamais une mission sans vous.
+  arka.norn reste à vos côtés et ne lance jamais une mission sans vous.
 
 Le Pilote assisté vous accompagne toujours dans le même ordre :
 
@@ -257,9 +268,21 @@ Le parcours Standard sert aux travaux qui nécessitent une conception et des con
 9. **Développement** — réaliser et documenter les changements.
 10. **Recette QA** — vérifier le résultat avant clôture.
 
-Chaque étape dépend des précédentes. Arka Norn refuse une conclusion prématurée ou un document incomplet.
+Chaque étape dépend des précédentes. arka.norn refuse une conclusion prématurée ou un document incomplet.
 
-## 8. Comprendre FastDev
+## 8. Comprendre Essentiel
+
+Essentiel est le parcours par défaut pour une Feature neuve au périmètre connu :
+
+```text
+Cadrage fusionné → [Contrat technique] → Développement → Audit → [Correction] → Validation
+```
+
+Le cadrage réunit le problème, l'objectif, les lots, les risques, les tests et les critères code, fonctionnement, UX et sécurité. Le contrat technique reste optionnel. L'audit vérifie la dernière livraison et peut demander une nouvelle itération corrective. Seule une validation réussie visant la livraison la plus récente termine la Feature.
+
+Consultez le [guide Essentiel](essentiel.md) pour le parcours détaillé et les commandes.
+
+## 9. Comprendre FastDev
 
 FastDev est le parcours court pour un rework bien délimité :
 
@@ -277,9 +300,9 @@ Chaque correction obligatoire doit citer le constat d’origine et fournir une p
 
 Consultez le [guide FastDev](fastdev.md) pour les commandes et formats détaillés.
 
-## 9. Brainstorming avec ChatGPT ou Claude.ai
+## 10. Brainstorming avec ChatGPT ou Claude.ai
 
-Pendant la phase Concept, Arka Norn peut préparer un kit à transmettre à un chat web. Cette option économise le contexte de l’Agent de travail tout en séparant l’exploration de la décision.
+Pendant la phase Concept, arka.norn peut préparer un kit à transmettre à un chat web. Cette option économise le contexte de l’Agent de travail tout en séparant l’exploration de la décision.
 
 Le déroulé recommandé est :
 
@@ -292,7 +315,7 @@ Le déroulé recommandé est :
 
 La réponse du chat web est une matière de réflexion, jamais une preuve ni une décision automatique. Le mode d’emploi complet se trouve dans [Brainstorming Concept avec un chat web](concept-brainstorming-web.md).
 
-## 10. Lire les états sans jargon
+## 11. Lire les états sans jargon
 
 | État | Ce qu’il signifie | Votre action |
 |---|---|---|
@@ -305,7 +328,7 @@ La réponse du chat web est une matière de réflexion, jamais une preuve ni une
 
 Un échec de `doctor` ne signifie pas forcément que votre code produit est cassé. Il indique qu’un élément de l’espace de gestion demande une correction. Le détail nomme le contrôle concerné.
 
-## 11. Les routines utiles
+## 12. Les routines utiles
 
 ### Au début d’une session
 
@@ -334,7 +357,7 @@ Vérifiez ensuite le Project, la Feature, l’Agent actif et l’action recomman
 
 Générez un handoff Product. Ne vous contentez pas d’un résumé libre : la passation doit conserver les identifiants et l’état vérifiable.
 
-## 12. Actions sensibles et sécurité
+## 13. Actions sensibles et sécurité
 
 - `doctor` observe ; il ne modifie rien.
 - `doctor --repair` prépare un plan de réparation ; seul `--repair --apply` l’applique.
@@ -343,9 +366,9 @@ Générez un handoff Product. Ne vous contentez pas d’un résumé libre : la p
 - Ne copiez pas de secrets, données personnelles ou code confidentiel dans un chat web public.
 - Vérifiez toujours le Project et la Feature affichés avant de lancer une mutation.
 
-Les fichiers de travail d’Arka Norn ne doivent pas être modifiés à la main sauf procédure documentée. Utilisez le cockpit, la CLI ou les skills pour préserver la cohérence et la trace d’audit.
+Les fichiers de travail d’arka.norn ne doivent pas être modifiés à la main sauf procédure documentée. Utilisez le cockpit, la CLI ou les skills pour préserver la cohérence et la trace d’audit.
 
-## 13. Dépannage rapide
+## 14. Dépannage rapide
 
 ### « Le Project ou la Feature est introuvable »
 
@@ -365,11 +388,11 @@ Lancez le diagnostic des skills. Une divergence signifie qu’une copie install�
 
 ### « Le cockpit est difficile à lire »
 
-Agrandissez la fenêtre du terminal. Sous la largeur minimale, Arka Norn affiche un mode dégradé et indique les informations qui ne peuvent pas être rendues correctement.
+Agrandissez la fenêtre du terminal. Sous la largeur minimale, arka.norn affiche un mode dégradé et indique les informations qui ne peuvent pas être rendues correctement.
 
 Pour les messages détaillés et les procédures de réparation, consultez le [guide de dépannage](troubleshooting.md).
 
-## 14. Aide-mémoire
+## 15. Aide-mémoire
 
 ```bash
 arka-norn                                      # ouvrir le cockpit
@@ -378,6 +401,7 @@ arka-norn doctor                               # contrôler la santé
 arka-norn project list                         # lister les Projects
 arka-norn feature list --project <project-id>  # lister les Features
 arka-norn workflow list                        # comparer les workflows
+arka-norn essentiel status <feature-id>        # état d’une Feature Essentiel
 arka-norn fastdev status <feature-id>          # état d’un rework
 arka-norn pipeline next <feature-id>            # prochaine action calculée
 ```
@@ -389,4 +413,4 @@ Depuis un Agent :
 $arka-norn   dans Codex
 ```
 
-Pour aller plus loin : [cockpit TUI](tui.md), [orchestration des Agents](agent-orchestration.md), [référence CLI](cli.md) et [guide développeur](guide-developpeur.md).
+Pour aller plus loin : [workflow Essentiel](essentiel.md), [cockpit TUI](tui.md), [orchestration des Agents](agent-orchestration.md), [référence CLI](cli.md) et [guide développeur](guide-developpeur.md).

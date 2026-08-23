@@ -79,7 +79,11 @@ test("un consumer vierge installe le tarball sans node_modules du worktree", asy
   assert.ok(packagedPaths.includes("skills-src/catalog/skills.json"));
   assert.ok(packagedPaths.includes("skills-src/arka-norn.json"));
   assert.ok(packagedPaths.includes("skills-src/arka-fastdev.json"));
+  assert.ok(packagedPaths.includes("skills-src/arka-essentiel.json"));
   assert.ok(packagedPaths.includes("pipelines/arka-norn-fastdev.json"));
+  assert.ok(packagedPaths.includes("pipelines/arka-norn-essentiel.json"));
+  assert.ok(packagedPaths.includes("schemas/cadrage-essentiel.schema.json"));
+  assert.ok(packagedPaths.includes("docs/essentiel.md"));
   assert.ok(packagedPaths.includes("docs/guide-developpeur.md"));
   assert.ok(packagedPaths.includes("docs/manuel-utilisateur.md"));
   assert.equal(packagedPaths.some((file) => file.startsWith("tests/") || file.startsWith(".input/") || file.startsWith("src/")), false);

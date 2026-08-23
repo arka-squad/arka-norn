@@ -26,12 +26,24 @@ export function validatePipelineDocumentUseCaseFactory(deps: { readonly source: 
     const type = candidate.content["type"];
     if (typeof type !== "string") return { valid: false, errors: ['missing string field "type"'] };
     const definition = await deps.source.loadDefinition(input.pipelineId);
-    const schemaPath = definition.steps.find((step) => step.id === type)?.schemaPath
-      ?? definition.transversalDocuments.find((document) => document.type === type)?.schemaPath;
+    let schemaPath = schemaFor(definition, type);
+    if (schemaPath === undefined && input.pipelineId === undefined) {
+      const catalog = await deps.source.loadCatalog();
+      for (const entry of catalog.pipelines) {
+        const candidate = await deps.source.loadDefinition(entry.id);
+        schemaPath = schemaFor(candidate, type);
+        if (schemaPath !== undefined) break;
+      }
+    }
     if (schemaPath === undefined) return { valid: false, type, errors: [`unknown pipeline document type: ${type}`] };
     const schemaResult = await deps.validator.validate(schemaPath, candidate.content);
     const sentinels = findScaffoldSentinels(candidate.content);
     const errors = [...schemaResult.errors, ...sentinels.map((path) => `${path} contains an unresolved scaffold sentinel`)];
     return { valid: errors.length === 0, type, schemaPath, errors };
   };
+}
+
+function schemaFor(definition: Awaited<ReturnType<PipelineDocumentSource["loadDefinition"]>>, type: string): string | undefined {
+  return definition.steps.find((step) => step.id === type)?.schemaPath
+    ?? definition.transversalDocuments.find((document) => document.type === type)?.schemaPath;
 }

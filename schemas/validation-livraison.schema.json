@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "validation-fastdev.schema.json",
-  "title": "Validation finale FastDev",
+  "$id": "validation-livraison.schema.json",
+  "title": "Validation finale d'une livraison (FastDev ou Essentiel)",
   "type": "object",
   "allOf": [{ "$ref": "document-envelope.schema.json" }],
   "unevaluatedProperties": false,
   "required": [
     "schema_version", "author_agent_id", "id", "feature_id", "type", "sequence", "created_at", "depends_on_document_ids",
-    "cr_dev_id", "audit_rework_id", "criteres_verifies", "corrections_controlees", "gates_techniques",
+    "cr_dev_id", "criteres_verifies", "corrections_controlees", "gates_techniques",
     "preuves_fonctionnelles", "preuves_ux", "verdict"
   ],
   "properties": {
@@ -15,12 +15,13 @@
     "author_agent_id": { "type": "string" },
     "id": { "type": "string" },
     "feature_id": { "type": "string" },
-    "type": { "const": "validation_fastdev" },
+    "type": { "enum": ["validation_fastdev", "validation_livraison"] },
     "sequence": { "type": "integer", "minimum": 1 },
     "created_at": { "type": "string", "format": "date-time" },
     "depends_on_document_ids": { "type": "array", "minItems": 2, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
     "cr_dev_id": { "type": "string", "minLength": 1 },
     "audit_rework_id": { "type": "string", "minLength": 1 },
+    "audit_id": { "type": "string", "minLength": 1 },
     "criteres_verifies": { "$ref": "#/$defs/controles" },
     "corrections_controlees": { "type": "array", "items": { "$ref": "#/$defs/controle" } },
     "gates_techniques": { "$ref": "#/$defs/controles" },

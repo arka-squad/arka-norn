@@ -30,6 +30,8 @@ import { runPipelineCommand, runScaffoldCommand, runStatusCommand, runValidateCo
 import { runSkillsCommand } from "./skills-cli.js";
 import { runWorkflowCommand } from "./workflow-cli.js";
 import { runFastDevCommand } from "./fastdev-cli.js";
+import { runEssentielCommand } from "./essentiel-cli.js";
+import { runAuditCommand } from "./audit-cli.js";
 
 const FRAMEWORK_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
 
@@ -46,7 +48,10 @@ Gestion :
   agent <list|register|show|current|use|sessions|advise|prompt|handoff-prompt|deactivate|replace>
   pipeline <status|next|scaffold|validate> Statut : identité, relations et verdict métier.
   workflow <list|show>
+  essentiel <start|status|next>       Workflow Feature par défaut.
   fastdev <start|status|next>
+  audit <inspect|prepare|start|status|submit|finalize|cancel|resume|list|show|compare|kb|evidence|export|tools>
+                                        Découverte et audit assistés hors Pipeline.
 
 Récupération d’un marker disparu :
   project forget <id> --yes --force
@@ -60,6 +65,13 @@ Rework FastDev :
   fastdev status <feature>
   fastdev next <feature> [--session <id>] [--json]
                                         Donne une action exacte, signée dans la bonne session.
+
+Feature Essentiel (défaut) :
+  feature create "Nom" --project <id> [--workflow essentiel]
+  essentiel start "Nom" --project <id> [--path <dossier>]
+  essentiel status <feature>
+  essentiel next <feature> [--session <id>] [--json]
+                                        Cadrage fusionné, livraison, audit, validation.
 
 Documents et santé :
   status [feature-root]                 État complet et prochaine action.
@@ -149,7 +161,7 @@ export async function runCli(argv: readonly string[]): Promise<number> {
       case "project":
       case "depot":
       case "feature":
-        result = await runManagementCommand([command, ...rest], { homeDir, cwd: env.cwd });
+        result = await runManagementCommand([command, ...rest], { homeDir, cwd: env.cwd, frameworkRoot: FRAMEWORK_ROOT });
         break;
       case "agent":
         result = await runAgentCommand(rest, { homeDir, cwd: env.cwd, frameworkRoot: FRAMEWORK_ROOT, sessionId: env.agentSessionId });
@@ -165,6 +177,12 @@ export async function runCli(argv: readonly string[]): Promise<number> {
         break;
       case "fastdev":
         result = await runFastDevCommand(rest, pipelineContext);
+        break;
+      case "essentiel":
+        result = await runEssentielCommand(rest, pipelineContext);
+        break;
+      case "audit":
+        result = await runAuditCommand(rest, { homeDir, cwd: env.cwd });
         break;
       case "status":
         result = await runStatusCommand(rest, pipelineContext);

@@ -12,7 +12,7 @@ arka-norn skills install --target <racine-existante> --profile all --global --dr
 arka-norn skills install --target <racine-existante> --profile all --global
 ```
 
-L'option `--global` installe les skills dans `~/.claude/skills/` et `~/.codex/skills/`. Le même lancement installe aussi les copies locales dans `<racine>/.claude/skills/` et `<racine>/.agents/skills/` afin que le Project reste autonome. Le profil `all` est volontaire : le point d'entrée et les 18 autres skills sont contrôlés ensemble, soit les 19 rendus Claude/Codex attendus.
+L'option `--global` installe les skills dans `~/.claude/skills/` et `~/.codex/skills/`. Le même lancement installe aussi les copies locales dans `<racine>/.claude/skills/` et `<racine>/.agents/skills/` afin que le Project reste autonome. Le profil `all` est volontaire : le point d'entrée et les 20 autres skills sont contrôlés ensemble, soit les 21 rendus Claude/Codex attendus.
 
 Si le diagnostic trouve une divergence, il indique la skill et la copie locale ou globale concernée. L’installation standard s’arrête alors sans écrire. Après lecture du plan, seul un choix explicite de l’utilisateur autorise `--force`, qui sauvegarde la copie remplacée ; ne masquez jamais cette décision dans le démarrage.
 
@@ -29,7 +29,7 @@ La variante explicite reste préférable : elle indique sans ambiguïté que l'a
 L'agent :
 
 1. confirme l'activation du mode arka-norn et lit l'aide du produit ;
-2. vérifie une racine existante et la distribution complète des 19 skills, localement et dans les points d'entrée globaux Claude/Codex ;
+2. vérifie une racine existante et la distribution complète des 21 skills, localement et dans les points d'entrée globaux Claude/Codex ;
 3. découvre, importe ou crée le Project avec une décision explicite de l'utilisateur, y compris son mode d’orchestration `manual` ou `automatic` ;
 4. sélectionne ou enregistre l’unique identité Product principale `Provider_product_YYYYMMDD` dans la session `main` ;
 5. lance `agent advise` pour expliquer la prochaine décision et les rôles mobilisables ;
@@ -42,6 +42,10 @@ La sortie attendue commence par `Mode arka-norn activé` et se termine par un bl
 
 La skill ne doit jamais créer silencieusement un Project, choisir une Feature à la place de l'utilisateur, élargir le périmètre de l'agent ou réparer une divergence avec `--force` sans décision explicite. Une skill absente peut être installée ; une skill divergente doit d'abord être expliquée.
 
-Une nouvelle conversation ne crée pas un nouvel identifiant Product : `arka-norn agent handoff-prompt --project <id> [--feature <id>]` fournit le prompt de reprise qui sélectionne la même identité dans `main`. Le Pilote assisté reste borné : Arka Norn valide chaque mission, demande le choix explicite d’un assistant et de sa version, explique l’aperçu puis suspend toute permission ou preuve non prévue. La politique Project peut recommander un candidat éligible, sans remplacer cette confirmation. Voir [le Pilote assisté et l’orchestration contrôlée](automatic-orchestration.md).
+Une nouvelle conversation ne crée pas un nouvel identifiant Product : `arka-norn agent handoff-prompt --project <id> [--feature <id>]` fournit le prompt de reprise qui sélectionne la même identité dans `main`. Le Pilote assisté reste borné : arka.norn valide chaque mission, demande le choix explicite d’un assistant et de sa version, explique l’aperçu puis suspend toute permission ou preuve non prévue. La politique Project peut recommander un candidat éligible, sans remplacer cette confirmation. Voir [le Pilote assisté et l’orchestration contrôlée](automatic-orchestration.md).
 
-Après l'initialisation, `arka-product` organise le Project. Les Agents spécialisés utilisent une session dédiée et `arka-framework-maitrise` ou `arka-fastdev` selon le workflow. Voir [`agent-orchestration.md`](agent-orchestration.md).
+## Découverte et audit transverses
+
+Une demande comme « découvre ce dépôt », « analyse le code, l’architecture et le produit » ou `$arka-audit` reste dans l’Agent et la session courants. La skill `arka-audit` lance d’abord un pré-inventaire sans build, scanner ni réseau, propose les domaines utiles, puis demande une confirmation proportionnée aux capacités sensibles. Elle ne crée ni Feature, ni document Pipeline, ni session spécialisée. `arka-framework-audit` ne s’applique que lorsque `pipeline next` attend réellement `audit_etat_reel`.
+
+Après l'initialisation, `arka-product` organise le Project. Les Agents spécialisés utilisent une session dédiée : `arka-essentiel` pour une Feature Essentiel, `arka-fastdev` pour un rework FastDev, ou la skill de phase pilotée par `arka-framework-maitrise` pour le workflow standard. Voir [`agent-orchestration.md`](agent-orchestration.md).

@@ -34,12 +34,12 @@ test("la CLI isole les sessions et livre des prompts Product/spécialistes direc
   context.after(() => rmSync(sandbox, { recursive: true, force: true }));
 
   assert.equal(run(["project", "add", projectRoot, "--id", "product", "--name", "Product", "--orchestration-mode", "manual", "--json"], home, workspace).status, 0);
-  assert.equal(run(["feature", "create", "Navigation", "--project", "product", "--id", "navigation", "--path", featureRoot, "--json"], home, workspace).status, 0);
+  assert.equal(run(["feature", "create", "Navigation", "--project", "product", "--id", "navigation", "--path", featureRoot, "--workflow", "standard", "--json"], home, workspace).status, 0);
   const otherProjectRoot = resolve(workspace, "other-product");
   const orphanRoot = resolve(otherProjectRoot, "norn-test");
   mkdirSync(otherProjectRoot, { recursive: true });
   assert.equal(run(["project", "add", otherProjectRoot, "--id", "other-product", "--name", "Other Product", "--orchestration-mode", "manual", "--json"], home, workspace).status, 0);
-  assert.equal(run(["feature", "create", "norn-test", "--project", "other-product", "--id", "norn-test", "--path", orphanRoot, "--json"], home, workspace).status, 0);
+  assert.equal(run(["feature", "create", "norn-test", "--project", "other-product", "--id", "norn-test", "--path", orphanRoot, "--workflow", "standard", "--json"], home, workspace).status, 0);
   rmSync(resolve(orphanRoot, ".arka-norn"), { recursive: true, force: true });
 
   const bootstrap = json<{ readonly id: string }>(run([

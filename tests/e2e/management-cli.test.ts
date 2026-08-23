@@ -58,7 +58,7 @@ test("la CLI couvre le cycle Project/Feature et reconstruit les index", (context
   assert.match(legacy.json.warnings[0] ?? "", /déprécié/);
 
   const featureRoot = resolve(projectRoot, "secure-cockpit");
-  const feature = run<{ readonly projectId: string }>(["feature", "create", "Secure cockpit", "--project", "product", "--id", "secure-cockpit", "--path", featureRoot, "--json"], home, workspace);
+  const feature = run<{ readonly projectId: string }>(["feature", "create", "Secure cockpit", "--project", "product", "--id", "secure-cockpit", "--path", featureRoot, "--workflow", "standard", "--json"], home, workspace);
   assert.equal(feature.status, 0, feature.stderr);
   assert.equal(feature.json.data.projectId, "product");
   assert.equal(run<{ readonly root: string }>(["feature", "show", "secure-cockpit", "--json"], home, workspace).json.data.root, realpathSync.native(featureRoot));

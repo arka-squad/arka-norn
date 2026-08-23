@@ -231,7 +231,7 @@ test("le Pilote assisté confirme une prévisualisation puis actualise le détai
     },
   });
 
-  for (let index = 0; index < 7; index += 1) detail.onKey({ kind: "down" });
+  for (let index = 0; index < 8; index += 1) detail.onKey({ kind: "down" });
   detail.onKey({ kind: "enter" });
   await waitUntil(() => dashboard !== undefined, "ouverture du cockpit d’orchestration");
   dashboard?.onKey({ kind: "enter" });
@@ -281,7 +281,7 @@ test("le détail Project refuse de confirmer une sélection manuelle devenue obs
 
   // This scene still holds its initial manual Project. Confirming the default
   // selection must refresh it instead of persisting manual over automatic.
-  for (let index = 0; index < 5; index += 1) detail.onKey({ kind: "down" });
+  for (let index = 0; index < 6; index += 1) detail.onKey({ kind: "down" });
   detail.onKey({ kind: "enter" });
   detail.onKey({ kind: "enter" });
   let output = "";
@@ -332,7 +332,7 @@ test("l’accueil TUI actualise Santé après l’installation des skills", asyn
   output = "";
   home.render(renderer, theme);
   assert.match(output, /Santé\s+: .*0 FAIL/);
-  assert.match(output, /Projet 19\/19 · Global 0\/19/);
+  assert.match(output, /Projet 21\/21 · Global 0\/21/);
 });
 
 test("la composition TUI pilote Home → Project → Feature → scaffold réel", async (context) => {
@@ -366,6 +366,7 @@ test("la composition TUI pilote Home → Project → Feature → scaffold réel"
   const projectScene = container.app.topScene();
   assert.ok(projectScene);
 
+  input.send({ kind: "down" });
   input.send({ kind: "down" });
   input.send({ kind: "down" });
   input.send({ kind: "down" });
@@ -455,6 +456,7 @@ test("la TUI enregistre et sélectionne une identité Agent sans connaissance im
   await waitUntil(() => container.app.topScene() !== home, "ouverture Project pour registre Agent");
   const projectScene = container.app.topScene();
   assert.ok(projectScene);
+  input.send({ kind: "down" });
   input.send({ kind: "down" });
   input.send({ kind: "down" });
   input.send({ kind: "down" });

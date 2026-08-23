@@ -24,6 +24,7 @@ const ROLE_POLICIES = {
 };
 const STEP_ROLES = {
     concept: "product",
+    cadrage_essentiel: "product",
     cadrage_rework: "product",
     plan: "product",
     registre_dettes: "product",
@@ -39,7 +40,7 @@ const STEP_ROLES = {
 };
 export function createAgentAdvice(state) {
     const next = state.report?.nextActions[0];
-    const requiredRole = next === undefined ? undefined : roleForStep(next.stepId);
+    const requiredRole = next === undefined ? undefined : roleForAction(next);
     const product = resolveProductPrincipal(state);
     const featureId = state.feature?.id.value;
     const recommendations = featureId === undefined || next === undefined || requiredRole === undefined
@@ -70,7 +71,7 @@ export function createInitializationPrompt(state, input) {
     if (input.role !== "product" && feature === undefined)
         throw new InvalidAgentOptionError("feature", `le rôle ${input.role} exige une Feature explicite`);
     const next = state.report?.nextActions[0];
-    const requiredRole = next === undefined ? undefined : roleForStep(next.stepId);
+    const requiredRole = next === undefined ? undefined : roleForAction(next);
     const advised = feature === undefined || next === undefined || requiredRole === undefined
         ? undefined
         : recommendationsFor(requiredRole, next.stepId, feature).find((item) => item.role === input.role);
@@ -222,8 +223,11 @@ function recommendation(role, mode, stepId, feature) {
     };
 }
 function policyFor(role, feature) {
-    if (feature?.pipelineId === "arka-norn-fastdev" && ["audit", "dev", "qa"].includes(role)) {
-        return { role, skill: "arka-fastdev", profile: role };
+    const guidedSkill = feature?.pipelineId === "arka-norn-fastdev"
+        ? "arka-fastdev"
+        : feature?.pipelineId === "arka-norn-essentiel" ? "arka-essentiel" : undefined;
+    if (guidedSkill !== undefined && ["audit", "dev", "qa"].includes(role)) {
+        return { role, skill: guidedSkill, profile: role };
     }
     return ROLE_POLICIES[role];
 }
@@ -310,6 +314,16 @@ function normalizePath(value) {
 /** Stable routing used by the control plane before it prepares a bounded mission. */
 export function roleForStep(stepId) {
     return STEP_ROLES[stepId];
+}
+/** Business actions carry the stable role signal across pipeline-specific step names. */
+export function roleForAction(action) {
+    if (action.kind === "run_audit")
+        return "audit";
+    if (action.kind === "continue_development" || action.kind === "return_to_development")
+        return "dev";
+    if (action.kind === "run_qa" || action.kind === "run_validation" || action.kind === "resolve_qa")
+        return "qa";
+    return roleForStep(action.stepId);
 }
 function roleCategory(role) {
     const normalized = role.trim().toLowerCase();

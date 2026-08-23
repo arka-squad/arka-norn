@@ -30,7 +30,7 @@
     "`{{FRAMEWORK_DIR}}/docs/agent-registry.md` — identité, scope, activité et remplacement",
     "`{{FRAMEWORK_DIR}}/docs/cli.md` — contrat CLI et codes de sortie",
     "`{{FRAMEWORK_DIR}}/docs/tui.md` — parcours interactif et aide contextuelle",
-    "`{{FRAMEWORK_DIR}}/pipelines/catalog.json` — profils standard et FastDev",
+    "`{{FRAMEWORK_DIR}}/pipelines/catalog.json` — profils Essentiel (défaut), standard et FastDev",
     "`{{FRAMEWORK_DIR}}/pipeline.json` — ordre documentaire standard et dépendances"
   ],
   "procedure": [

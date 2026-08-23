@@ -23,17 +23,18 @@ Il fonctionne localement, depuis une interface terminal guidée, une CLI scripta
 | 🤖 | **[Guide de démarrage Agent](docs/agent-bootstrap.md)** | L’initialisation avec `/arka-norn` ou `$arka-norn`, l’identité, le périmètre et la prochaine action. |
 | ⌨️ | **[Référence CLI](docs/cli.md)** | Les commandes scriptables, options, sorties JSON et codes de retour. |
 
-Accès directs : [cockpit TUI](docs/tui.md) · [orchestration multi-Agent](docs/agent-orchestration.md) · [orchestration automatique](docs/automatic-orchestration.md) · [workflow FastDev](docs/fastdev.md) · [catalogue des skills](docs/skills.md) · [dépannage](docs/troubleshooting.md)
+Accès directs : [cockpit TUI](docs/tui.md) · [orchestration multi-Agent](docs/agent-orchestration.md) · [orchestration automatique](docs/automatic-orchestration.md) · [workflow Essentiel](docs/essentiel.md) · [workflow FastDev](docs/fastdev.md) · [catalogue des skills](docs/skills.md) · [dépannage](docs/troubleshooting.md)
 
 ## Ce qu’arka.norn apporte
 
 - **Une prochaine action explicite** : la CLI, la TUI et les Agents consultent le même état réel.
-- **Deux workflows adaptés** : un parcours complet pour les Features structurantes et FastDev pour les reworks bornés.
+- **Trois workflows adaptés** : Essentiel par défaut pour livrer une Feature, un parcours complet pour les chantiers structurants ou incertains, et FastDev pour les reworks bornés.
 - **Un Product principal stable** : il reste dans la session `main`, organise le Project et prépare les autres Agents.
 - **Une session par Agent spécialisé** : architecture, audit, développement et QA travaillent sans écraser leur identité respective.
 - **Un pilote assisté, jamais une boîte noire** : le Project choisit explicitement `manual` ou `automatic` ; dans ce dernier mode, Arka explique chaque mission, vous laisse choisir l’assistant et sa version, puis attend votre confirmation.
 - **Des livrables signés et vérifiables** : chaque nouveau document nomme son auteur, ses dépendances et ses preuves.
 - **Des audits au bon scope** : une Feature utilise son document v3 ; un audit de Project sans Feature utilise l’enveloppe v4 explicite.
+- **Une découverte transverse à la demande** : `$arka-audit` propose code, architecture, sécurité, produit, UX, opérations et risques selon ce qu’il détecte, sans créer de Feature ni consommer une Pipeline documentaire.
 - **Des boucles de correction réelles** : une QA ou une validation obsolète ne peut pas terminer la Feature.
 - **Une base locale robuste** : marqueurs portables, index réparables, écritures atomiques, locks et journal d’audit.
 
@@ -76,6 +77,19 @@ Le premier Agent devient le **Product principal**. Il vérifie le Project, reste
 - un prompt de reprise du Product avant saturation du contexte.
 
 Voir [l’orchestration Product et les sessions Agent](docs/agent-orchestration.md).
+
+### Découvrir ou auditer un dépôt
+
+Demandez naturellement « découvre ce dépôt », « analyse le code, l’architecture et le produit » ou invoquez `$arka-audit`. Le même Agent pré-inventorie le Project en lecture seule, recommande les domaines utiles, vous laisse ajuster la sélection et confirme une seule fois les capacités sensibles.
+
+```bash
+arka-norn audit inspect --project <project-id> --json
+arka-norn audit prepare --project <project-id> --request audit-request.json --json
+arka-norn audit start <audit-id> --project <project-id> --confirm <empreinte>
+arka-norn audit finalize <audit-id> --project <project-id>
+```
+
+Le rapport principal et la KB restent privés sous `.arka-norn/audits/`. Aucun build, scanner, réseau ou téléchargement n’est lancé pendant `inspect`; le code et les outils tiers ne s’exécutent qu’en sandbox Docker/Podman après confirmation. Voir les [douze domaines](docs/audit/domaines.md), la [sécurité d’exécution](docs/audit/securite.md) et la [référence CLI](docs/cli.md#découverte-et-audit-transverses).
 
 ### Déléguer avec le Pilote assisté
 
@@ -120,16 +134,31 @@ les limites, les actions de reprise et les smoke tests réels opt-in.
 
 Les marqueurs présents dans les dossiers sont les sources de vérité. Les index sous `~/.arka-norn/` ne sont que des caches locaux reconstructibles.
 
-## Deux workflows, un même moteur
+## Trois workflows, un même moteur
 
 ### Standard — pour construire ou transformer
 
-Le workflow standard est le choix par défaut lorsqu’un besoin reste incertain, touche l’architecture ou exige une préparation complète.
+Le workflow standard sert lorsqu’un besoin reste incertain, touche l’architecture ou exige une préparation complète.
 
 ```text
 Concept → Plan → Contrats → Audit réel → Invariants → Dettes
         → Tâches → Spécification → Développement → Recette QA
 ```
+
+### Essentiel — pour livrer une Feature sans bureaucratie
+
+Essentiel est le choix par défaut : un cadrage fusionné (intention, lots, critères prouvables), une annexe technique optionnelle, la livraison, un audit bloquant et une validation à jour. Quatre documents obligatoires signés, environ 5 à 7 Ko.
+
+```text
+Cadrage fusionné → [Annexe technique] → Développement → Audit → [Correction] → Validation
+```
+
+```bash
+arka-norn essentiel start "Filtrer les Features par état" --project <project-id>
+arka-norn essentiel next <feature-id> --session <session-id>
+```
+
+Voir le [guide Essentiel](docs/essentiel.md) et son [exemple complet](examples/feature-essentiel/).
 
 ### FastDev — pour corriger rapidement sans perdre le contrôle
 
@@ -162,6 +191,7 @@ arka-norn pipeline status <feature-id>
 arka-norn pipeline next <feature-id>
 arka-norn workflow list
 arka-norn skills doctor --target . --global
+arka-norn audit inspect --project <project-id>
 ```
 
 Toutes les commandes scriptables acceptent une sortie `--json` lorsqu’elle est documentée. Les commandes complètes et codes de sortie figurent dans la [référence CLI](docs/cli.md).
@@ -173,6 +203,7 @@ Toutes les commandes scriptables acceptent une sortie `--json` lorsqu’elle est
 <project>/.arka-norn/agents.json        registre partagé des Agents
 <project>/.arka-norn/orchestration.json politique d'exécution portable, sans secret
 <project>/.arka-norn/executions.json    registre des missions et de leurs preuves
+<project>/.arka-norn/audits/             audits privés, rapports, preuves réduites et KB
 <feature>/.arka-norn/feature.json       identité et workflow de la Feature (marker v3)
 <feature>/*.json                         documents et preuves du workflow
 
@@ -194,6 +225,7 @@ $ARKA_NORN_HOME/.arka-norn/workers/...    état privé et reconstructible du wor
 - [Orchestration Product et sessions Agent](docs/agent-orchestration.md)
 - [Orchestration automatique contrôlée](docs/automatic-orchestration.md)
 - [Brainstorming Concept avec ChatGPT ou Claude.ai](docs/concept-brainstorming-web.md)
+- [Features Essentiel](docs/essentiel.md)
 - [Reworks FastDev](docs/fastdev.md)
 - [Dépannage](docs/troubleshooting.md)
 

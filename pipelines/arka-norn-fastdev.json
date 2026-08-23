@@ -30,7 +30,7 @@
     {
       "id": "audit_rework",
       "ordre": 3,
-      "schema": "schemas/audit-rework.schema.json",
+      "schema": "schemas/audit-livraison.schema.json",
       "obligatoire": true,
       "multiple": true,
       "depend_de": ["cr_dev"],
@@ -48,7 +48,7 @@
     {
       "id": "validation_fastdev",
       "ordre": 4,
-      "schema": "schemas/validation-fastdev.schema.json",
+      "schema": "schemas/validation-livraison.schema.json",
       "obligatoire": true,
       "multiple": true,
       "depend_de": ["cr_dev", "audit_rework"],

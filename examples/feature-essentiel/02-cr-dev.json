@@ -1,0 +1,22 @@
+{
+  "schema_version": 3,
+  "author_agent_id": "Codex_dev_20260823",
+  "id": "cr-filtre-etats-1",
+  "feature_id": "filtre-features-etat",
+  "type": "cr_dev",
+  "sequence": 1,
+  "created_at": "2026-08-23T10:00:00.000Z",
+  "depends_on_document_ids": ["cadrage-filtre-etats-1"],
+  "ref": "CR-FILTRE-01",
+  "date": "2026-08-23",
+  "agent": { "nom": "Codex dev", "provider": "OpenAI Codex" },
+  "spec_source": ["cadrage-filtre-etats-1"],
+  "statut": "livre",
+  "fichiers_livres": [
+    { "chemin": "src/adapters/inbound/tui/views/project-detail-view.ts", "action": "modifie", "lignes": 18, "role": "filtre d'état" }
+  ],
+  "exigences_couvertes": [
+    { "id": "C-FONC", "exigence": "Filtrer par état", "couvert": true, "preuve": "test de navigation" },
+    { "id": "C-UX", "exigence": "Filtre visible", "couvert": true, "preuve": "assertion de rendu" }
+  ]
+}

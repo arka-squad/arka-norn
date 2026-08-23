@@ -49,11 +49,14 @@ export function createPipelineRuntime(frameworkRoot, options = {}) {
         },
         async showWorkflow(pipelineId) {
             const catalog = await source.loadCatalog();
-            const definition = await source.loadDefinition(pipelineId);
+            const definition = await source.loadDefinition(pipelineId ?? catalog.defaultPipelineId);
             const entry = catalog.pipelines.find((candidate) => candidate.id === definition.pipelineId);
             if (entry === undefined)
                 throw new Error(`Pipeline ${definition.pipelineId} is absent from the catalog.`);
             return workflowFrom(entry, definition);
+        },
+        async defaultWorkflowId() {
+            return (await source.loadCatalog()).defaultPipelineId;
         },
     };
 }

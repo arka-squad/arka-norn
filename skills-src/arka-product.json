@@ -14,7 +14,7 @@
   "allowed_tools": ["Read", "Bash", "Grep", "Glob"],
   "quand_utiliser": [
     "première décision après l'initialisation d'un Project arka-norn",
-    "choix du prochain rôle à lancer sur une Feature standard ou FastDev",
+    "choix du prochain rôle à lancer sur une Feature Essentiel, standard ou FastDev",
     "préparation d'un prompt autonome pour un Agent architecture, audit, dev ou QA",
     "lecture du mode `manual|automatic`, du statut d'une mission et de l'action humaine attendue",
     "reprise de l'Agent Product principal dans une nouvelle conversation ou après saturation du contexte"
@@ -37,7 +37,7 @@
     "`{{FRAMEWORK_DIR}}/docs/automatic-orchestration.md` — mode Project, choix explicite assistant/modèle, permissions et relance",
     "`{{FRAMEWORK_DIR}}/docs/agent-registry.md` — identité active, périmètre et remplacement",
     "`{{FRAMEWORK_DIR}}/docs/cli.md` — commandes Agent et `orchestration start|status|cancel|approve|retry`",
-    "`{{FRAMEWORK_DIR}}/pipelines/catalog.json` — workflows standard et FastDev"
+    "`{{FRAMEWORK_DIR}}/pipelines/catalog.json` — workflows Essentiel (défaut), standard et FastDev"
   ],
   "procedure": [
     { "titre": "Stabiliser l'Agent Product principal", "contenu": "Utiliser la session `main`. Lancer `arka-norn agent current --project <project-id> --session main`. Réutiliser l'Agent Product actif déjà lié ; ne pas créer un nouvel identifiant à chaque phase ou reprise de contexte. S'il n'existe pas, enregistrer une seule identité avec `arka-norn agent register --project <project-id> --provider <provider> --role product --session main --responsibilities 'organisation produit;priorisation;coordination des Agents;validation des décisions utilisateur'`." },

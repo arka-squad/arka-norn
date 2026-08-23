@@ -196,7 +196,12 @@ export function createContainer(env: Env, ui: ContainerUiOptions = {}): Containe
 
   async function openProjectDetail(project: Project): Promise<void> {
     uiState.currentProject = project;
-    const [initialAgents, currentAgent] = await Promise.all([management.agents.list(project), management.agents.current(project)]);
+    const [initialAgents, currentAgent, workflows, defaultWorkflowId] = await Promise.all([
+      management.agents.list(project),
+      management.agents.current(project),
+      pipeline.listWorkflows(),
+      pipeline.defaultWorkflowId(),
+    ]);
     const initialFeatures = await features.list(project.id);
     const initialMetrics = await loadProjectMetrics(initialFeatures, pipeline, authorRegistryForFeature);
     const initialStatuses = new Map([...initialMetrics].map(([id, metrics]) => [id, metrics.status] as const));
@@ -211,6 +216,10 @@ export function createContainer(env: Env, ui: ContainerUiOptions = {}): Containe
         sessionId: env.agentSessionId.value,
         projects,
         features,
+        workflows: [
+          ...workflows.filter((workflow) => workflow.id === defaultWorkflowId).map((workflow) => ({ id: workflow.id, name: workflow.name, description: workflow.description, isDefault: true })),
+          ...workflows.filter((workflow) => workflow.id !== defaultWorkflowId).map((workflow) => ({ id: workflow.id, name: workflow.name, description: workflow.description, isDefault: false })),
+        ],
         scan,
         redraw: () => app.redraw(),
         onBack: () => app.pop(),

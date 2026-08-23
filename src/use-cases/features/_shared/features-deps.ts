@@ -38,4 +38,5 @@ export interface FeaturesDeps {
   readonly pathPolicy: PathPolicy;
   readonly projectIndexStore: ProjectIndexStore;
   readonly projectStore: ProjectStore;
+  readonly resolveDefaultPipelineId?: () => Promise<string>;
 }

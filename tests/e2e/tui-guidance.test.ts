@@ -64,19 +64,19 @@ test("l’accueil reflète un nouveau résumé de santé sans recréation", () =
     scan: { scan: async () => [] },
     cwd: "/workspace",
     contextRoot: "/workspace",
-    skillHealth: "0/19 sains · 19 absents · 0 divergents",
+    skillHealth: "0/21 sains · 21 absents · 0 divergents",
     systemHealth: "9 PASS · 0 WARN · 1 FAIL",
     redraw() {},
   });
 
   view.setHealth({
-    skillHealth: "19/19 sains · 0 absents · 0 divergents",
+    skillHealth: "21/21 sains · 0 absents · 0 divergents",
     systemHealth: "10 PASS · 0 WARN · 0 FAIL",
   });
   view.render(renderer, theme);
 
   assert.match(output, /Santé\s+: 10 PASS · 0 WARN · 0 FAIL/);
-  assert.match(output, /19\/19 sains · 0 absents · 0 divergents/);
+  assert.match(output, /21\/21 sains · 0 absents · 0 divergents/);
 });
 
 test("le cockpit Feature expose l’auteur, la raison et l’aide opératoire", async () => {
@@ -84,6 +84,7 @@ test("le cockpit Feature expose l’auteur, la raison et l’aide opératoire", 
   const featureRoot = resolve(root, "examples", "feature-notion-linear");
   const report = await createPipelineRuntime(root).inspect({
     featureRoot, featureId: "connecteurs-notion-linear", authorRegistry: [{ id: "Codex_dev_20260819", active: true, authorized: true }],
+    pipelineId: "standard",
   });
   const at = new Date("2026-08-19T10:00:00.000Z");
   const feature = Feature.create({

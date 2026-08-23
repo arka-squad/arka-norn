@@ -27,12 +27,14 @@ Pour installer l’environnement, étendre un contrat et choisir les bons tests,
 - État jetable du worker : `$ARKA_NORN_HOME/.arka-norn/workers/<project>/<execution>.json`, privé et reconstructible.
 - Documents : JSON de la Feature, validés par les schémas et le graphe Pipeline.
 - Index : `~/.arka-norn/index/*.json`, caches privés reconstructibles.
-- Catalogue pipelines : `pipelines/catalog.json`, résolu sans chemin fourni par l’utilisateur.
-- Catalogue skills : `skills-src/catalog/skills.json` et les 19 sources JSON référencées.
+- Catalogue pipelines : `pipelines/catalog.json`, résolu sans chemin fourni par l’utilisateur ; il contient Standard, Essentiel et FastDev et désigne Essentiel comme défaut de création.
+- Catalogue skills : `skills-src/catalog/skills.json` et les 21 sources JSON référencées.
+- Audit transverse : `application/audit` orchestre les états et invariants, `domain/audit` porte les douze domaines, `LocalAuditCollector` réduit les observations et `FsAuditStore` persiste rapports, preuves et KB hors Pipeline.
+- Exécution d’audit : le port `AuditToolRunner` est distinct des workers provider et des ordres Pipeline ; son adapter Docker/Podman n’accepte que le catalogue d’images épinglées et des arguments structurés.
 
 Le marker Project v4 porte `orchestrationMode: manual | automatic`; le marker Feature reste v3. Aucun de ces markers ne stocke un chemin machine. Les adapters dérivent la racine runtime du dossier canonique qui contient le marker ; seuls les index locaux enregistrent des chemins absolus et restent des caches non fiables. Toute entrée indexée est rechargée puis comparée au marker avant lecture ou écriture. Un clone ou un déplacement conserve ainsi sa source de vérité, puis un scan reconstruit le cache de la machine courante. Si l'ancien emplacement indexé n'est plus lisible, le cache est relocalisé atomiquement ; si les deux emplacements portent encore la même identité, le doublon actif est refusé.
 
-Le `PipelineReport` sépare présence, conformité de schéma, verdict métier, dépendances, complétude et prochaines actions. Les politiques déclaratives `delivery`, `audit_then_fix` et `review_latest` sélectionnent le dernier CR, imposent les corrections et rendent les anciennes validations obsolètes. CLI, TUI et skills consomment la même résolution `Feature.pipelineId`.
+Le `PipelineReport` sépare présence, conformité de schéma, verdict métier, dépendances, complétude, documents sélectionnés et prochaines actions. Les politiques déclaratives `delivery`, `audit_then_fix` et `review_latest` sélectionnent le dernier CR, imposent les corrections et rendent les anciennes validations obsolètes. CLI, TUI et skills consomment la même résolution `Feature.pipelineId`. Essentiel et FastDev partagent le moteur guidé `guided-next` et `guided-feature-cli` ; leurs adapters ne portent que la configuration propre au workflow.
 
 Les documents historiques utilisent l’enveloppe v2. Les documents de Feature
 nouvellement scaffoldés utilisent la v3 commune : `id`, `feature_id`,
@@ -50,7 +52,7 @@ La politique pure `application/agents/agent-orchestration` mappe la prochaine é
 
 ## Pilote assisté
 
-Arka Norn reste le plan de contrôle. Il transforme une évaluation fraîche du
+arka.norn reste le plan de contrôle. Il transforme une évaluation fraîche du
 Pipeline en aperçu non mutante puis en `MissionOrder` immuable, et vérifie à
 nouveau Project, Feature, chemins, Pipeline et prochaine étape avant le
 dispatch. Mastra est un worker local derrière un port d’exécution : il n’a pas

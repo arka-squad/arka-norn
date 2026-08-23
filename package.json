@@ -1,6 +1,6 @@
 {
   "name": "arka-norn",
-  "version": "1.2.4",
+  "version": "1.3.0",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -31,7 +31,7 @@
     "pipeline.json"
   ],
   "type": "module",
-  "description": "Framework agent-agnostique et multiprovider : schémas JSON + CLI Node pour piloter le cycle concept -> plan -> audit -> invariants -> dettes -> tâches -> spec -> CR-dev -> recette QA, et déployer les skills locaux ou globaux pour Claude et Codex.",
+  "description": "Cockpit local multiprovider pour découvrir et auditer un dépôt, puis piloter Projects, Features, Agents, preuves et workflows vérifiables avec Claude ou Codex.",
   "bin": {
     "arka-norn": "bin/arka-norn.mjs"
   },
@@ -58,7 +58,7 @@
     "selftest": "node bin/arka-norn.mjs selftest",
     "doctor": "node bin/arka-norn.mjs doctor",
     "skills": "node bin/arka-norn.mjs skills list",
-    "audit:dependencies": "npm audit --omit=dev",
+    "audit:dependencies": "node scripts/audit-gate.mjs --omit=dev && node scripts/audit-gate.mjs",
     "release:verify": "npm run check && npm run test:coverage && npm run test:coverage:cli && npm run benchmark && npm run audit:dependencies && npm pack --dry-run --ignore-scripts"
   },
   "dependencies": {

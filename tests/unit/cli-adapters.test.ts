@@ -15,12 +15,13 @@
  */
 
 import assert from "node:assert/strict";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
 
 import { runAgentCommand } from "../../src/adapters/inbound/cli/agent-cli.ts";
+import { runAuditCommand } from "../../src/adapters/inbound/cli/audit-cli.ts";
 import type { CliExecution } from "../../src/adapters/inbound/cli/cli-execution.ts";
 import { runDoctorCommand } from "../../src/adapters/inbound/cli/doctor-cli.ts";
 import { runFastDevCommand } from "../../src/adapters/inbound/cli/fastdev-cli.ts";
@@ -98,6 +99,57 @@ test("les adaptateurs CLI de catalogue, skills, doctor et migration sont appelé
   assert.equal((await runMigrateCommand(["--target", legacy], { cwd: fixture.cwd })).code, 0);
   assert.equal((await runMigrateCommand(["--apply", "--dry-run", "--json"], { cwd: fixture.cwd })).code, 64);
   assert.throws(() => findMarkers(join(fixture.cwd, "missing"), 1), /inexistante/);
+});
+
+test("l'adaptateur CLI d'audit couvre le cycle local et ses sorties spécialisées", async (context) => {
+  const fixture = createFixture(context);
+  const management = { cwd: fixture.cwd, homeDir: fixture.home };
+  const auditContext = { cwd: fixture.cwd, homeDir: fixture.home };
+  writeFileSync(join(fixture.projectRoot, "README.md"), "# Produit à auditer\n");
+
+  assert.equal((await runManagementCommand([
+    "project", "add", fixture.projectRoot, "--id", "audit-project", "--name", "Audit Project", "--orchestration-mode", "manual", "--json",
+  ], management)).code, 0);
+
+  assert.equal((await runAuditCommand(["help"], auditContext)).code, 0);
+  assert.equal((await runAuditCommand(["inspect", "--project", "audit-project", "--json"], auditContext)).code, 0);
+  assert.equal((await runAuditCommand(["inspect", "--project", "audit-project"], auditContext)).code, 0);
+
+  const requestPath = join(fixture.cwd, "audit-request.json");
+  writeFileSync(requestPath, JSON.stringify({
+    objective: "Découvrir le produit",
+    mode: "decouverte",
+    paths: ["."],
+    modules: [{ moduleId: "M09", intent: "discover", depth: "inventaire", criteria: [] }],
+    sources: { paths: [], urls: [] },
+    capabilities: { allowImagePulls: false, allowedHosts: [], credentialRefs: [], dynamicTargets: [] },
+  }));
+  const prepared = json<{ readonly id: string; readonly fingerprint: string }>(await runAuditCommand([
+    "prepare", "--project", "audit-project", "--request", requestPath, "--json",
+  ], auditContext));
+  assert.equal((await runAuditCommand(["prepare", "--project", "audit-project", "--request", requestPath], auditContext)).code, 0);
+  assert.equal((await runAuditCommand(["status", prepared.data.id, "--project", "audit-project", "--json"], auditContext)).code, 0);
+  assert.equal((await runAuditCommand(["show", prepared.data.id, "--project", "audit-project"], auditContext)).code, 0);
+
+  assert.equal((await runAuditCommand([
+    "start", prepared.data.id, "--project", "audit-project", "--confirm", prepared.data.fingerprint, "--json",
+  ], auditContext)).code, 0);
+  assert.equal((await runAuditCommand(["list", "--project", "audit-project"], auditContext)).code, 0);
+  assert.equal((await runAuditCommand(["finalize", prepared.data.id, "--project", "audit-project", "--json"], auditContext)).code, 0);
+  assert.equal((await runAuditCommand(["show", prepared.data.id, "--project", "audit-project", "--json"], auditContext)).code, 0);
+  assert.equal((await runAuditCommand([
+    "compare", prepared.data.id, "--baseline", prepared.data.id, "--project", "audit-project",
+  ], auditContext)).code, 0);
+  assert.equal((await runAuditCommand([
+    "export", prepared.data.id, "--project", "audit-project", "--to", join(fixture.cwd, "export"), "--json",
+  ], auditContext)).code, 0);
+  assert.equal((await runAuditCommand(["kb", "search", "--project", "audit-project", "--domain", "M09"], auditContext)).code, 0);
+  assert.equal((await runAuditCommand(["tools", "doctor", "--project", "audit-project", "--json"], auditContext)).code, 0);
+
+  assert.equal((await runAuditCommand(["submit", prepared.data.id, "--project", "audit-project", "--module", "M99", "--input", requestPath, "--json"], auditContext)).code, 64);
+  assert.equal((await runAuditCommand(["evidence", "show", "missing", "--audit", prepared.data.id, "--project", "audit-project", "--json"], auditContext)).code, 4);
+  assert.equal((await runAuditCommand(["kb", "unknown", "--json"], auditContext)).code, 64);
+  assert.equal((await runAuditCommand(["unknown", "--project", "audit-project", "--json"], auditContext)).code, 64);
 });
 
 test("les adaptateurs CLI Project, Feature, Agent, Pipeline et FastDev couvrent les routes métier", async (context) => {

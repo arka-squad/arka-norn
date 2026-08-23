@@ -35,7 +35,10 @@ export async function runManagementCommand(argv, context) {
         if (action === undefined)
             throw new UsageError(`missing ${resource} action`);
         const parsed = parseStrictArguments(argv.slice(2), argumentSpec(resource, action));
-        const runtime = createManagementRuntime({ homeDir: context.homeDir });
+        const runtime = createManagementRuntime({
+            homeDir: context.homeDir,
+            ...(context.frameworkRoot === undefined ? {} : { frameworkRoot: context.frameworkRoot }),
+        });
         const data = resource === "project"
             ? await executeProject(action, parsed, runtime, context)
             : await executeFeature(action, parsed, runtime, context);
@@ -277,7 +280,7 @@ class UsageError extends Error {
 const FRAMEWORK_ROOT = resolve(import.meta.dirname, "..", "..", "..", "..");
 async function resolveWorkflowId(workflow) {
     return workflow === undefined
-        ? (await createPipelineRuntime(FRAMEWORK_ROOT).showWorkflow("standard")).id
+        ? await createPipelineRuntime(FRAMEWORK_ROOT).defaultWorkflowId()
         : (await createPipelineRuntime(FRAMEWORK_ROOT).showWorkflow(workflow)).id;
 }
 //# sourceMappingURL=management-cli.js.map

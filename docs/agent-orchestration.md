@@ -38,13 +38,13 @@ arka-norn agent prompt audit --project product --feature navigation --provider "
 arka-norn agent prompt dev --project product --feature navigation --provider "Codex" --mode prepare
 ```
 
-Le prompt rendu contient la racine, le workflow, le rôle, la session isolée, le profil de skills, l’étape attendue, les permissions, les commandes d’enregistrement et les preuves de fin. Un mode `execute` incohérent avec `pipeline next` est refusé. En FastDev, les rôles audit/dev/QA invoquent `arka-fastdev`, qui exécute une seule phase calculée.
+Le prompt rendu contient la racine, le workflow, le rôle, la session isolée, le profil de skills, l’étape attendue, les permissions, les commandes d’enregistrement et les preuves de fin. Un mode `execute` incohérent avec `pipeline next` est refusé. Pour Essentiel et FastDev, les rôles audit/dev/QA invoquent respectivement `arka-essentiel` ou `arka-fastdev`, qui exécutent une seule phase calculée. Le workflow standard conserve les skills spécialisées par phase.
 
 La sortie sépare un **préflight Product** et le **prompt à transmettre**. Le Product installe d’abord le profil de skills indiqué, puis ouvre la nouvelle session provider : une skill absente n’est ainsi jamais invoquée avant son installation. Le `provider` est obligatoire lors de la création d’une nouvelle identité ; si la session est déjà liée à un Agent compatible, la commande générée réutilise directement son identifiant exact.
 
 Le Product transmet ensuite le prompt tel quel. Un Agent spécialisé démarre avec `arka-framework-maitrise`, jamais avec `/arka-norn` qui reste réservé au Product principal. Son enregistrement est borné à la Feature et, lorsque sa racine est interne au Project, à son chemin relatif. L’Agent destinataire vérifie toutes les valeurs avec la CLI avant d’écrire.
 
-En FastDev, `fastdev next <feature> --session <session-id>` injecte la session dans la commande de scaffold. La skill exige la même session pour `agent current`, `fastdev next` et la production du document afin d’empêcher une signature accidentelle par le Product `main`.
+En Essentiel et FastDev, `essentiel next <feature> --session <session-id>` ou `fastdev next <feature> --session <session-id>` injecte la session dans la commande de scaffold. La skill guidée exige la même session pour `agent current`, `next` et la production du document afin d’empêcher une signature accidentelle par le Product `main`.
 
 ## Reprise du Product principal
 

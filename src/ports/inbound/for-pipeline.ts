@@ -40,7 +40,8 @@ export interface ForPipeline {
   scaffold(input: { readonly stepId: string; readonly outputPath: string; readonly authorAgentId: string; readonly featureId?: string; readonly projectId?: string; readonly pipelineId?: string; readonly force?: boolean; readonly allowedRoot?: string }): Promise<PipelineScaffoldResult>;
   listSteps(pipelineId?: string): Promise<readonly PipelineStepOption[]>;
   listWorkflows(): Promise<readonly PipelineWorkflow[]>;
-  showWorkflow(pipelineId: string): Promise<PipelineWorkflow>;
+  showWorkflow(pipelineId?: string): Promise<PipelineWorkflow>;
+  defaultWorkflowId(): Promise<string>;
 }
 
 export interface PipelineStepOption {

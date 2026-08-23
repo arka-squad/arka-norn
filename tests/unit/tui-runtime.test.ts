@@ -65,7 +65,7 @@ test("la Santé TUI délègue son verdict au rapport doctor", () => {
     schemaVersion: 1,
     ok: true,
     mode: "inspect",
-    checks: [{ id: "skills.installation", status: "warn", message: "8/8 core healthy; 11 optional missing; 0 divergent", repairable: true }],
+    checks: [{ id: "skills.installation", status: "warn", message: "10/10 core healthy; 11 optional missing; 0 divergent", repairable: true }],
     repairs: [],
     summary: { pass: 0, warn: 1, fail: 0 },
   };
@@ -80,15 +80,15 @@ test("la Santé TUI délègue son verdict au rapport doctor", () => {
   showHealthReport(
     app,
     warningReport,
-    { total: 18, healthy: 8, missing: 10, divergent: 0 },
-    { total: 18, healthy: 18, missing: 0, divergent: 0 },
+    { total: 21, healthy: 10, missing: 11, divergent: 0 },
+    { total: 21, healthy: 21, missing: 0, divergent: 0 },
   );
   app.topScene()?.render(renderer, theme);
 
   assert.match(output, /Statut : OK/);
   assert.doesNotMatch(output, /ÉCHEC/);
-  assert.match(output, /10 absents/);
-  assert.match(output, /Global Claude\/Codex 18\/18 sains/);
+  assert.match(output, /11 absents/);
+  assert.match(output, /Global Claude\/Codex 21\/21 sains/);
 
   output = "";
   showHealthReport(app, {
@@ -96,7 +96,7 @@ test("la Santé TUI délègue son verdict au rapport doctor", () => {
     ok: false,
     checks: [{ id: "audit.trail", status: "fail", message: "audit unavailable", repairable: false }],
     summary: { pass: 0, warn: 0, fail: 1 },
-  }, { total: 18, healthy: 18, missing: 0, divergent: 0 }, { total: 18, healthy: 18, missing: 0, divergent: 0 });
+  }, { total: 21, healthy: 21, missing: 0, divergent: 0 }, { total: 21, healthy: 21, missing: 0, divergent: 0 });
   app.topScene()?.render(renderer, theme);
 
   assert.match(output, /Statut : ÉCHEC \(code 3\)/);
@@ -105,13 +105,13 @@ test("la Santé TUI délègue son verdict au rapport doctor", () => {
   showHealthReport(
     app,
     warningReport,
-    { total: 18, healthy: 18, missing: 0, divergent: 0 },
-    { total: 18, healthy: 17, missing: 0, divergent: 1 },
+    { total: 21, healthy: 21, missing: 0, divergent: 0 },
+    { total: 21, healthy: 20, missing: 0, divergent: 1 },
   );
   app.topScene()?.render(renderer, theme);
 
   assert.match(output, /Statut : ÉCHEC \(code 3\)/);
-  assert.match(output, /Global Claude\/Codex 17\/18 sains/);
+  assert.match(output, /Global Claude\/Codex 20\/21 sains/);
   assert.match(output, /diagnostic global sera affiché/);
 });
 

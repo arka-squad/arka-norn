@@ -24,6 +24,7 @@ import { FsProjectIndexStore } from "../adapters/outbound/filesystem/fs-project-
 import { FsProjectStore } from "../adapters/outbound/filesystem/fs-project-store.js";
 import { ConsoleLogger } from "../adapters/outbound/system/console-logger.js";
 import { SystemClock } from "../adapters/outbound/system/system-clock.js";
+import { createPipelineRuntime } from "./pipeline-runtime.js";
 import { AuditUnavailableError } from "../domain/errors.js";
 import { AgentSessionId } from "../domain/agent/agent-session-id.js";
 import { createFeatureUseCaseFactory } from "../use-cases/features/create-feature.js";
@@ -44,6 +45,7 @@ import { switchToProjectUseCaseFactory } from "../use-cases/projects/switch-to-p
 import { setProjectOrchestrationModeUseCaseFactory } from "../use-cases/projects/set-project-orchestration-mode.js";
 import { manageAgentsUseCaseFactory } from "../use-cases/agents/manage-agents.js";
 export function createManagementRuntime(options) {
+    const frameworkRoot = options.frameworkRoot;
     const logger = options.logger ?? new ConsoleLogger({ threshold: options.logLevel ?? "warn" });
     const filesystem = new FsFilesystem();
     const clock = options.clock ?? new SystemClock();
@@ -57,7 +59,23 @@ export function createManagementRuntime(options) {
     const agentSession = new FsAgentSessionStore(options.homeDir);
     const sessionId = options.sessionId ?? AgentSessionId.MAIN;
     const projectsDeps = { projectStore, indexStore: projectIndexStore, filesystem, clock, logger, pathPolicy };
-    const featuresDeps = { featureStore, indexStore: featureIndexStore, projectIndexStore, projectStore, filesystem, clock, logger, pathPolicy };
+    let cachedDefaultPipelineId;
+    const featuresDeps = {
+        featureStore,
+        indexStore: featureIndexStore,
+        projectIndexStore,
+        projectStore,
+        filesystem,
+        clock,
+        logger,
+        pathPolicy,
+        ...(frameworkRoot === undefined ? {} : {
+            resolveDefaultPipelineId: async () => {
+                cachedDefaultPipelineId = await createPipelineRuntime(frameworkRoot, { homeDir: options.homeDir }).defaultWorkflowId();
+                return cachedDefaultPipelineId;
+            },
+        }),
+    };
     const rawProjects = {
         list: listProjectsUseCaseFactory(projectsDeps),
         create: createProjectUseCaseFactory(projectsDeps),

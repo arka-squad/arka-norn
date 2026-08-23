@@ -31,7 +31,7 @@ export async function runWorkflowCommand(argv: readonly string[], frameworkRoot:
     }
     if (action === "show") {
       const parsed = parseStrictArguments(rest, { options: { json: "boolean" }, minPositionals: 1, maxPositionals: 1 });
-      return success("workflow.show", await runtime.showWorkflow(parsed.positionals[0]!), json);
+      return success("workflow.show", await runtime.showWorkflow(parsed.positionals[0]), json);
     }
     throw new CliUsageError("workflow action must be list or show");
   } catch (error) {

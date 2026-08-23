@@ -52,6 +52,24 @@ test("le scaffold produit toutes les clés requises et conserve les const", () =
 
 test("un $ref non résolu est refusé explicitement", () => {
   assert.throws(() => scaffoldFromSchema({ type: "object", required: ["value"], properties: { value: { $ref: "#/$defs/value" } } }), /Cannot scaffold unresolved \$ref/);
+  assert.throws(() => scaffoldFromSchema({ type: "object", required: ["value"], properties: { value: { $ref: "other.schema.json#/$defs/value" } } }), /Cannot scaffold unresolved \$ref/);
+});
+
+test("un $ref local vers $defs est résolu récursivement", () => {
+  const result = scaffoldFromSchema({
+    type: "object",
+    required: ["checks"],
+    properties: { checks: { $ref: "#/$defs/checks" } },
+    $defs: {
+      checks: { type: "array", minItems: 1, items: { $ref: "#/$defs/check" } },
+      check: {
+        type: "object",
+        required: ["id", "status"],
+        properties: { id: { type: "string" }, status: { enum: ["pass", "fail"] } },
+      },
+    },
+  });
+  assert.deepEqual(result, { checks: [{ id: "À_REMPLIR", status: "À_CHOISIR::pass|fail" }] });
 });
 
 test("le scaffold respecte un minimum numérique et un exemple de tableau fourni par le schéma", () => {
