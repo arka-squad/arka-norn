@@ -12,7 +12,7 @@ const allowedPrefixes = [
   `src${sep}application${sep}compatibility${sep}`,
   `schemas${sep}legacy${sep}fr${sep}`,
   `pipelines${sep}legacy${sep}fr${sep}`,
-  `web${sep}src${sep}generated${sep}catalogs.ts`,
+  `web${sep}src${sep}generated${sep}locales${sep}fr.ts`,
 ];
 
 const frenchSignals = [

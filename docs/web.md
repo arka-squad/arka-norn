@@ -45,9 +45,11 @@ Feature views show the selected workflow, required-step completion, next step, s
 
 ## Documents
 
-Every canonical v5 and supported legacy document is available in a human view. A single schema-driven renderer presents a signed-document cover, contract facts, editorial sections, checklists, structured records, criteria, risks, tests, findings and dependencies. Contract labels follow the active application locale while the document prose remains in its declared `content_locale`.
+Every canonical v5 and supported legacy document is available in a human view. The document index groups productions by Feature and Pipeline order. Search and category filters operate on the displayed data, and superseded documents remain visible with their revision and replaced state.
 
-Metadata and provenance are collapsed by default. Technical JSON is available as a separate view. Markdown raw HTML is ignored. A missing dependency remains visible as an anomaly rather than disappearing.
+A single schema-driven renderer presents a signed-document cover, a contract-derived reading header, bounded editorial prose, checklists, structured collections, criteria, risks, tests and findings. Contract labels follow the active application locale while the document prose remains in its declared `content_locale`.
+
+The document footer presents resolved dependencies as navigation and metadata or provenance as an expanded human table. Technical JSON is available only in the read-only technical view, with an explicit copy action. Markdown raw HTML is ignored. A missing dependency remains visible as an anomaly rather than disappearing.
 
 Signed framework documents are immutable in the Web interface. Corrections create governance history and wait for a new signed production or an explicit resolution.
 

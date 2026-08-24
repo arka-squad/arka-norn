@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type PropsWith
 import { catalogs } from "../generated/catalogs";
 
 export type WebLocale = "en" | "fr";
-type MessageKey = keyof typeof catalogs.en;
+export type MessageKey = keyof typeof catalogs.en;
 
 interface I18nValue {
   readonly locale: WebLocale;

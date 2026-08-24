@@ -2,7 +2,7 @@
   "$schema": "manifest.json",
   "schemaVersion": 3,
   "name": "arka-norn",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "Local Project tracking for Features, Pipelines, signed documents, human governance, audits and observed orchestration runs.",
   "locales": {
     "canonical": "en",

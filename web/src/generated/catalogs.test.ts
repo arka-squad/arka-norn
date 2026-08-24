@@ -9,6 +9,7 @@ describe("generated Web contracts", () => {
   });
 
   it("ships the three canonical workflows with Essential as default", () => {
+    expect(contracts.appVersion).toBe("2.2.1");
     expect(contracts.defaultPipelineId).toBe("arka-norn-essential");
     expect(contracts.pipelines.map((pipeline) => pipeline.id)).toEqual([
       "arka-norn-complete",

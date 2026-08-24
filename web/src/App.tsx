@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useState } from "react";
 
 import type { LiveInvalidation, NornBridge, ProjectOverview, WebPreferences } from "../../src/application/web/contracts";
-import { useRoute } from "./app/router";
+import { documentRoute, useRoute } from "./app/router";
 import { BridgeContext, useBridge } from "./bridge/context";
 import { DocumentRenderer } from "./components/document-renderer";
 import { ErrorState, LoadingState } from "./components/ui";
@@ -45,7 +45,7 @@ function NornApp({ preferences, refreshPreferences }: { readonly preferences: We
       : project.error !== undefined || project.data === undefined
         ? <ErrorState retry={project.reload} />
         : <ProjectContent projectId={route.projectId} section={route.section} {...(route.featureId === undefined ? {} : { featureId: route.featureId })} {...(route.documentId === undefined ? {} : { documentId: route.documentId })} project={project.data} revision={liveRevision} navigate={navigate} reloadProject={project.reload} preferences={preferences} refreshPreferences={refreshPreferences} />;
-  return <AppShell route={route} {...(project.data?.name === undefined ? {} : { projectName: project.data.name })} live={live} navigate={navigate}>{content}{preferences.humanProfile === undefined ? <ProfileDialog onSaved={refreshPreferences} /> : null}</AppShell>;
+  return <AppShell route={route} {...(project.data === undefined ? {} : { project: project.data })} live={live} navigate={navigate}>{content}{preferences.humanProfile === undefined ? <ProfileDialog onSaved={refreshPreferences} /> : null}</AppShell>;
 }
 
 function ProjectContent(props: {
@@ -80,7 +80,7 @@ function FeatureContent({ projectId, featureId, documentId, revision, navigate }
   return dataView(feature, (data) => {
     if (documentId === undefined) return <FeatureView feature={data} navigate={navigate} />;
     const document = data.documents.find((item) => item.id === documentId);
-    return document === undefined ? <ErrorState /> : <div className="page"><DocumentRenderer document={document} /></div>;
+    return document === undefined ? <ErrorState /> : <div className="page"><DocumentRenderer document={document} onOpenDependency={(id) => navigate(documentRoute(projectId, featureId, id))} /></div>;
   });
 }
 

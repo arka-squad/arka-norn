@@ -1,24 +1,35 @@
-import {
-  AlertTriangle, CheckCircle2, FileText, FlaskConical, ShieldCheck, Target,
-} from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 import type { HumanDocumentSection } from "../../../src/application/web/contracts";
 import { useI18n } from "../i18n/i18n";
 
 export function DocumentContent({ sections }: { readonly sections: readonly HumanDocumentSection[] }) {
-  return <div className="document-content">{sections.map((section, index) => <DocumentSection key={section.id} section={section} index={index} />)}</div>;
+  return <div className="document-content">
+    {sections.map((section) => <DocumentSection key={section.id} section={section} />)}
+  </div>;
 }
 
-function DocumentSection({ section, index }: { readonly section: HumanDocumentSection; readonly index: number }) {
+export function DocumentIdentity({ sections }: { readonly sections: readonly HumanDocumentSection[] }) {
   const { contractLabel } = useI18n();
-  const tone = sectionTone(section.id);
-  const Icon = sectionIcon(tone);
-  return <section className={`document-section document-section-${tone}`}>
-    <div className="document-section-title">
-      <span><Icon size={15} /></span>
-      <div><p>{String(index + 1).padStart(2, "0")}</p><h2>{contractLabel(section.id)}</h2></div>
-    </div>
+  return <dl className="document-identity">{sections.map((section) => <div key={section.id}><dt>{contractLabel(section.id)}</dt><dd><IdentityValue value={section.value} /></dd></div>)}</dl>;
+}
+
+export function splitDocumentSections(sections: readonly HumanDocumentSection[]): {
+  readonly identity: readonly HumanDocumentSection[];
+  readonly content: readonly HumanDocumentSection[];
+} {
+  return {
+    identity: sections.filter(isIdentitySection),
+    content: sections.filter((section) => !isIdentitySection(section)),
+  };
+}
+
+function DocumentSection({ section }: { readonly section: HumanDocumentSection }) {
+  const { contractLabel } = useI18n();
+  const principle = /principle|golden_rule|directive|principe_directeur/.test(section.id);
+  return <section className={principle ? "document-section document-principle" : "document-section"}>
+    <div className="document-section-title"><h2>{contractLabel(section.id)}</h2>{Array.isArray(section.value) ? <small>{section.value.length}</small> : null}</div>
     <SectionValue value={section.value} kind={section.kind} />
   </section>;
 }
@@ -41,12 +52,14 @@ function RecordCollection({ rows, compact }: { readonly rows: readonly Readonly<
 
 function RecordCard({ row, index }: { readonly row: Readonly<Record<string, unknown>>; readonly index: number }) {
   const { contractLabel } = useI18n();
-  const titleKey = ["title", "titre", "name", "subject", "criterion", "id"].find((key) => typeof row[key] === "string");
+  const titleKey = ["title", "titre", "name", "subject", "criterion"].find((key) => typeof row[key] === "string");
   const title = titleKey === undefined ? undefined : String(row[titleKey]);
-  const badge = titleKey === "id" ? undefined : primitiveString(row["id"] ?? row["dimension"]);
+  const badge = primitiveString(row["id"] ?? row["dimension"]);
   const entries = Object.entries(row).filter(([key]) => key !== titleKey && !(badge !== undefined && (key === "id" || key === "dimension")));
-  return <article className="record-card">
-    <header><span className="record-number">{String(index + 1).padStart(2, "0")}</span><div>{badge === undefined ? null : <small>{badge.replaceAll("_", " ")}</small>}{title === undefined ? <strong>{contractLabel("result")}</strong> : <strong>{title}</strong>}</div></header>
+  const state = primitiveString(row["status"] ?? row["statut"] ?? row["verdict"]);
+  const attention = state !== undefined && /discover|partial|fail|block|reject|invalid|warning/i.test(state);
+  return <article className={attention ? "record-card attention" : "record-card"}>
+    <header>{badge === undefined ? <span className="record-number">{String(index + 1).padStart(2, "0")}</span> : <span className="record-code">{badge.replaceAll("_", " ")}</span>}<div>{title === undefined ? null : <strong>{title}</strong>}</div>{state === undefined ? null : <em>{state.replaceAll("_", " ")}</em>}</header>
     {entries.length === 0 ? null : <dl>{entries.map(([key, item]) => <div key={key}><dt>{contractLabel(key)}</dt><dd><SectionValue value={item} kind="fields" /></dd></div>)}</dl>}
   </article>;
 }
@@ -56,20 +69,19 @@ function FieldGroup({ value }: { readonly value: Readonly<Record<string, unknown
   return <dl className="document-field-group">{Object.entries(value).map(([key, item]) => <div key={key}><dt>{contractLabel(key)}</dt><dd><SectionValue value={item} kind="fields" /></dd></div>)}</dl>;
 }
 
-function sectionTone(id: string): "key" | "risk" | "proof" | "governance" | "neutral" {
-  if (/summary|objective|outcome|principle|recommendation|definition_of_done|result_expected/.test(id)) return "key";
-  if (/risk|debt|finding|anomal|block|ecart/.test(id)) return "risk";
-  if (/test|evidence|proof|validation|acceptance|criteria|critere/.test(id)) return "proof";
-  if (/decision|invariant|correction|scope|perimetre/.test(id)) return "governance";
-  return "neutral";
+function isIdentitySection(section: HumanDocumentSection): boolean {
+  if (!isCompactIdentityValue(section.value)) return false;
+  return /^(target|source_concepts|concept_sources|task_id|task|tache|audited_repository|audited_reference|audit_date|date_audit|repository|reference|method|scope_model|technical_stack|appendix_of|assigned_agent)$/.test(section.id);
 }
 
-function sectionIcon(tone: ReturnType<typeof sectionTone>) {
-  if (tone === "key") return Target;
-  if (tone === "risk") return AlertTriangle;
-  if (tone === "proof") return FlaskConical;
-  if (tone === "governance") return ShieldCheck;
-  return FileText;
+function IdentityValue({ value }: { readonly value: unknown }) {
+  if (Array.isArray(value)) return <span>{value.map(String).join(", ")}</span>;
+  return <span>{displayPrimitive(value as string | number | boolean | null)}</span>;
+}
+
+function isCompactIdentityValue(value: unknown): boolean {
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean" || value === null) return true;
+  return Array.isArray(value) && value.length <= 4 && value.every((item) => typeof item === "string" || typeof item === "number");
 }
 
 function displayPrimitive(value: string | number | boolean | null): string {

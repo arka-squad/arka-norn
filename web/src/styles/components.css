@@ -47,6 +47,7 @@
 .text-link:hover { color: var(--tx1); }
 .modal-backdrop { position: fixed; z-index: 100; inset: 0; display: flex; align-items: center; justify-content: center; padding: 40px 24px; overflow-y: auto; background: rgba(0, 0, 0, .55); backdrop-filter: blur(2px); animation: overlay-in var(--dur-fast) ease both; }
 .modal { width: min(620px, 100%); max-height: min(88vh, 820px); overflow: hidden; border: 1px solid rgba(var(--w), .1); border-radius: 16px; background: var(--elevated); box-shadow: var(--shadow-panel); animation: modal-in 200ms var(--ease-standard) both; }
+.modal-wide { width: min(860px, 100%); }
 .modal > header { display: flex; align-items: center; gap: 11px; min-height: 63px; padding: 14px 18px; border-bottom: 1px solid rgba(var(--w), .06); }
 .modal-heading { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 2px; }
 .modal-heading h2 { margin: 0; font-size: 14px; font-weight: 700; color: var(--tx1); }
@@ -55,12 +56,15 @@
 .modal-icon { display: grid; width: 32px; height: 32px; flex: 0 0 32px; place-items: center; border-radius: 8px; background: rgba(var(--w), .05); color: var(--tx-soft); }
 .modal-content { max-height: calc(min(88vh, 820px) - 128px); overflow-y: auto; padding: 16px 18px; }
 .modal > footer { display: flex; align-items: center; justify-content: flex-end; gap: 9px; min-height: 65px; padding: 13px 18px; border-top: 1px solid rgba(var(--w), .06); }
+.modal-footer-copy { margin-right: auto; color: var(--tx4); font-size: 10.5px; line-height: 1.4; }
 .modal-backdrop.is-required { background: rgba(0, 0, 0, .68); }
 .modal-intro { display: flex; align-items: flex-start; gap: 9px; margin-bottom: 16px; padding: 11px 13px; border: 1px solid rgba(var(--w), .07); border-radius: 9px; background: rgba(var(--w), .03); color: var(--tx-soft); font-size: 11.5px; line-height: 1.55; }
 .modal-intro svg { flex: 0 0 auto; margin-top: 1px; color: var(--tx-inactive); }
 .field-hint { margin: 0; color: var(--tx3); font-size: 10.5px; font-weight: 400; line-height: 1.5; }
 .form-error { display: flex; grid-column: 1 / -1; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 12px; border: 1px solid rgba(220, 38, 38, .3); border-radius: 9px; background: var(--red-soft); color: var(--red); font-size: 11.5px; line-height: 1.45; }
 .form-error svg { flex: 0 0 auto; margin-top: 1px; }
+.form-error span { display: flex; flex-direction: column; gap: 3px; }
+.form-error small { color: var(--tx3); font-size: 10px; font-weight: 400; }
 .form-advanced { grid-column: 1 / -1; border-top: 1px solid rgba(var(--w), .06); padding-top: 11px; }
 .form-advanced summary { color: var(--tx-inactive); cursor: pointer; font-size: 11px; font-weight: 600; }
 .form-advanced-body { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding-top: 13px; }

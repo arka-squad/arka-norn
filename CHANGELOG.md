@@ -2,6 +2,24 @@
 
 Notable changes to arka-norn are recorded here. The project follows semantic versioning.
 
+## 2.2.1 - 2026-08-24
+
+### Changed
+
+- Project navigation now uses the compact Arka Labs rail with derived Project counters, release identity, live freshness and integrated EN/FR and theme controls.
+- Documents are grouped by Feature and Pipeline order with working search, category filters, explicit revisions and visible replaced productions.
+- The shared human document renderer now uses bounded editorial prose, a contract-derived reading header, semantic collection grids and distinct audit finding states without numbered decorative sections.
+- Document footers expose navigable dependencies and human-readable provenance; raw contracts remain isolated in a consistent read-only JSON window with an explicit copy action.
+
+### Fixed
+
+- Light mode keeps sand on layout chrome while document and Project working surfaces remain white; dark mode preserves the corresponding Deck surface hierarchy.
+- Legacy and canonical document lists no longer hide superseded revisions or conflate a completed collection with a business verdict.
+
+### Distribution
+
+- Package, manifest and generated Web contract versions are 2.2.1.
+
 ## 2.2.0 - 2026-08-24
 
 ### Added

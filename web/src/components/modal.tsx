@@ -10,9 +10,10 @@ interface ModalProps {
   readonly footer?: ReactNode;
   readonly onClose: () => void;
   readonly required?: boolean;
+  readonly size?: "default" | "wide";
 }
 
-export function Modal({ title, description, icon, children, footer, onClose, required = false }: PropsWithChildren<ModalProps>) {
+export function Modal({ title, description, icon, children, footer, onClose, required = false, size = "default" }: PropsWithChildren<ModalProps>) {
   const dialog = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
@@ -39,7 +40,7 @@ export function Modal({ title, description, icon, children, footer, onClose, req
   }, [onClose, required]);
   return createPortal(<div className={`modal-backdrop${required ? " is-required" : ""}`} role="presentation" onMouseDown={(event) => {
     if (!required && event.target === event.currentTarget) onClose();
-  }}><div ref={dialog} className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" {...(description === undefined ? {} : { "aria-describedby": "modal-description" })}>
+  }}><div ref={dialog} className={`modal modal-${size}`} role="dialog" aria-modal="true" aria-labelledby="modal-title" {...(description === undefined ? {} : { "aria-describedby": "modal-description" })}>
     <header>{icon === undefined ? null : <span className="modal-icon">{icon}</span>}<div className="modal-heading"><h2 id="modal-title">{title}</h2>{description === undefined ? null : <p id="modal-description">{description}</p>}</div>{required ? null : <CloseButton onClick={onClose} />}</header>
     <div className="modal-content">{children}</div>{footer === undefined ? null : <footer>{footer}</footer>}
   </div></div>, document.body);

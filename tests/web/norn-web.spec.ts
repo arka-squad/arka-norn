@@ -83,7 +83,7 @@ test("Project manager creates a profile, Project and Essential Feature in EN and
   await projectDialog.getByRole("button", { name: "Register Project" }).click();
   await expect(page.getByRole("heading", { name: "Demo Project" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Features", exact: true }).click();
+  await page.getByRole("button", { name: /^Features(?:\s+\d+)?$/ }).click();
   await page.getByRole("button", { name: "Create Feature" }).click();
   const featureDialog = page.getByRole("dialog", { name: "Create Feature" });
   await featureDialog.getByRole("textbox", { name: /^Name/ }).fill("Customer export");
