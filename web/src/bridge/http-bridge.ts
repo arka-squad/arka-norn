@@ -46,6 +46,7 @@ export class HttpNornBridge implements NornBridge {
   public getOrchestrations(projectId: string): Promise<readonly OrchestrationTrackingView[]> { return this.request(`/api/v1/projects/${encode(projectId)}/orchestrations`); }
   public getPreferences(): Promise<WebPreferences> { return this.request("/api/v1/preferences"); }
   public savePreferences(input: { readonly locale?: "auto" | "en" | "fr"; readonly name?: string; readonly email?: string }): Promise<WebPreferences> { return this.request("/api/v1/preferences", "PUT", input); }
+  public pickFolder(input: { readonly purpose: "project" | "feature"; readonly defaultPath?: string }): Promise<string | null> { return this.request("/api/v1/folder-picker", "POST", input); }
   public createProject(input: { readonly id: string; readonly name: string; readonly root: string }): Promise<ProjectOverview> { return this.request("/api/v1/projects", "POST", input); }
   public createFeature(projectId: string, input: { readonly id: string; readonly name: string; readonly root: string; readonly pipelineId?: string }): Promise<FeatureTrackingView> { return this.request(`/api/v1/projects/${encode(projectId)}/features`, "POST", input); }
   public appendGovernance(projectId: string, input: CreateGovernanceEventInput): Promise<GovernanceView> { return this.request(`/api/v1/projects/${encode(projectId)}/governance`, "POST", input); }

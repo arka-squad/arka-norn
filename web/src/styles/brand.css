@@ -40,16 +40,25 @@
   --tx2: #e5e7eb;
   --tx3: #9ca3af;
   --tx4: #6b7280;
+  --tx5: #5b6470;
   --tx-soft: #c9ccd2;
   --tx-inactive: #8b929c;
   --shadow-float: 0 4px 14px rgba(0, 0, 0, .4);
   --shadow-pop: 0 16px 44px rgba(0, 0, 0, .45);
+  --shadow-panel: 0 22px 55px rgba(0, 0, 0, .5);
   --glow-red: 0 0 8px rgba(199, 15, 67, .5);
   --glow-green: 0 0 8px rgba(0, 210, 135, .5);
   --scrollbar-thumb: #3f3f46;
+  --dur-fast: 160ms;
+  --dur-base: 260ms;
+  --dur-slow: 340ms;
+  --ease-standard: cubic-bezier(.22, 1, .36, 1);
+  --ease-emphasized: cubic-bezier(.2, .8, .2, 1);
+  --ease-spring: cubic-bezier(.34, 1.4, .64, 1);
+  --ease-exit: cubic-bezier(.4, 0, 1, 1);
 
   /* Existing view semantics mapped to the canonical brand system. */
-  --canvas: var(--surface);
+  --canvas: var(--zone);
   --surface-raised: var(--surface-card);
   --border: var(--app-border);
   --border-strong: var(--app-border-strong);
@@ -91,10 +100,12 @@
   --tx2: #33302b;
   --tx3: #57524b;
   --tx4: #857e74;
+  --tx5: #a39a8c;
   --tx-soft: #45403a;
   --tx-inactive: #6e675e;
   --shadow-float: 0 2px 10px rgba(0, 0, 0, .06);
   --shadow-pop: 0 10px 30px rgba(0, 0, 0, .09);
+  --shadow-panel: 0 16px 40px rgba(0, 0, 0, .11);
   --accent-hover: #a80c38;
   --green: #087c56;
   --amber: #945800;

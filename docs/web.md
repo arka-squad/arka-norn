@@ -27,6 +27,8 @@ Every command accepts `--json`. Private state is stored with mode `0600` under `
 
 The first screen asks for a human name and optional email. This creates a stable local identity for governance events. It does not create an online account.
 
+Creating a Project or Feature is a guided flow for non-developers. Choose locations with the operating system's native folder picker; paths are not entered in free-form fields. Norn suggests stable identifiers and a Feature location, then keeps those technical values under progressive disclosure. Workflow choices explain when to use Essential, Complete or FastDev before creation.
+
 ## Project tracking
 
 The Project overview aggregates every registered Feature and reports:
@@ -84,7 +86,9 @@ Stable routes use real identifiers and English route segments independently of l
 
 ## Visual identity
 
-Norn Web uses the official Arka Labs product system: the canonical Arka mark, Poppins for interface text, JetBrains Mono for metadata, dark `bar` and `zone` surfaces, Arka red for brand and primary actions, and Arka green for active or verified state. The official dark theme is the default; the sand theme is an opt-in display preference.
+Norn Web uses the official Arka Labs product system from the shared Deck sources: the canonical Arka mark, compact product wordmark, Lucide icon language, Poppins for interface text and JetBrains Mono for metadata. Arka red identifies the product, neutral black or white controls carry primary commands, and Arka green communicates active or verified state.
+
+Dark mode separates the `bar`, `zone` and elevated working surfaces. Light mode reserves sand for the application chrome and layout rails while the working zone remains white. Dialog geometry, overlays, focus behavior, navigation motion and page transitions follow the same source patterns in both themes.
 
 All fonts and brand assets are local. The application loads no visual resource from the network.
 

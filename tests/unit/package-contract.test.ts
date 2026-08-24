@@ -19,11 +19,25 @@ import { resolve } from "node:path";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
+import { renderArkaBanner, renderArkaHeader } from "../../src/adapters/inbound/tui/components/banner.ts";
+import { createTheme } from "../../src/adapters/inbound/tui/runtime/theme.ts";
+import { PRODUCT_VERSION } from "../../src/application/product-metadata.ts";
+
 interface PackageJson {
+  readonly version?: string;
   readonly scripts?: Readonly<Record<string, string>>;
 }
 
 const ROOT = resolve(import.meta.dirname, "..", "..");
+
+test("product banners derive their version from package.json", () => {
+  const packageJson = JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8")) as PackageJson;
+  const theme = createTheme({ NO_COLOR: "1" }, false);
+
+  assert.equal(PRODUCT_VERSION, packageJson.version);
+  assert.match(renderArkaHeader(theme).join("\n"), new RegExp(`arka-norn v${PRODUCT_VERSION.replaceAll(".", "\\.")}`));
+  assert.match(renderArkaBanner(theme).join("\n"), new RegExp(`arka-norn v${PRODUCT_VERSION.replaceAll(".", "\\.")}`));
+});
 
 test("package.json expose tous les quality gates L0", () => {
   const packageJson = JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8")) as PackageJson;

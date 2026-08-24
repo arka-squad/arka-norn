@@ -2,7 +2,7 @@
 
 arka-norn is a local Project tracking and delivery framework for Features, signed documents, human decisions, evidence and auditable workflows. It provides a Project manager Web interface, an interactive TUI and a scriptable CLI without making an external SaaS the source of truth.
 
-Version 2.1 adds the EN/FR Project Web interface. English remains canonical for contracts and machine data.
+Version 2.2 aligns the EN/FR Project Web interface with the official Arka Labs product system and adds guided Project and Feature creation with native folder selection. English remains canonical for contracts and machine data.
 
 ## Requirements
 
@@ -40,7 +40,9 @@ From a source checkout, the equivalent shortcuts are `npm run web:start`, `npm r
 
 The Web interface presents Project health, Feature paths, every signed document in a human layout, decisions, audits, registered Agents and live Norn orchestration state. It never starts, stops, retries or configures an Agent; control stays in each provider's native application.
 
-Its dark-first interface uses the official Arka Labs mark, product colors, Poppins and JetBrains Mono. Signed documents receive an editorial EN/FR reading view; technical JSON and provenance remain available through progressive disclosure.
+Its interface uses the official Arka Labs mark, product surfaces, Poppins and JetBrains Mono in both dark and light themes. Light sand is reserved for layout chrome while working content remains white; primary commands stay neutral and Arka red identifies the product. Signed documents receive an editorial EN/FR reading view; technical JSON and provenance remain available through progressive disclosure.
+
+Project and Feature creation are guided for non-developers. Folder locations use the operating system's native picker instead of editable path fields, while generated identifiers and advanced technical values stay out of the primary flow.
 
 Install the generated Agent skills:
 

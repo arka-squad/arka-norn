@@ -9,4 +9,4 @@
 7. inspect `npm pack --dry-run --ignore-scripts`
 8. verify `.input/` is absent from the tarball
 
-Version 2.1 ships the local Project Web assets under `dist/web/`. `.input/` remains private and excluded. Legacy French data remains supported for all 2.x releases.
+All 2.x releases ship the local Project Web assets under `dist/web/`. `.input/` remains private and excluded. Legacy French data remains supported throughout the 2.x line.

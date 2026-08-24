@@ -17,4 +17,6 @@ The Project Web interface may display an Agent's manifest identity, declared pro
 
 When an Agent needs the Project tracking surface, use `arka-norn web status --json` first. Start it with `arka-norn web start --no-open --json` only when stopped, and report the returned URL to the human. Do not launch a second foreground server or treat Web server lifecycle as Agent orchestration control.
 
+Project and Feature location selection belongs to the human Web flow and uses a native folder picker. An Agent must not emulate that interaction by inventing or entering a path. For scripted creation, use the canonical CLI contract with an explicitly verified path supplied by the human or the current Project context.
+
 Use `$arka-norn` only for the main Product context. Specialized sessions use the calculated role skill. `author_agent_id` must match the active session binding.

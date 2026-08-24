@@ -10,7 +10,7 @@ import { readJson } from "../../adapters/outbound/filesystem/_shared/atomic-json
 import { FsAuditStore } from "../../adapters/outbound/filesystem/fs-audit-store.js";
 import { LocalAuditCollector } from "../../adapters/outbound/audit/local-audit-collector.js";
 import { AuditService } from "../audit/audit-service.js";
-import { resolveLocale } from "../localization/locale.js";
+import { resolveLocale, translate } from "../localization/locale.js";
 import { createGovernanceEvent } from "../../domain/governance/governance-event.js";
 import { reduceGovernance } from "../../domain/governance/governance-ledger.js";
 import { FeatureId } from "../../domain/feature/feature-id.js";
@@ -223,6 +223,18 @@ export class ProjectTrackingService {
         if (input.name !== undefined)
             await this.options.preferences.saveHumanProfile({ name: input.name, ...(input.email === undefined ? {} : { email: input.email }) });
         return this.getPreferences();
+    }
+    async pickFolder(input) {
+        if (input.purpose !== "project" && input.purpose !== "feature")
+            throw new Error("A valid folder picker purpose is required.");
+        if (input.defaultPath !== undefined && (typeof input.defaultPath !== "string" || input.defaultPath.length > 4_096)) {
+            throw new Error("The folder picker default path is invalid.");
+        }
+        const preferences = await this.getPreferences();
+        return this.options.folderPicker.pick({
+            title: translate(input.purpose === "project" ? "web.folderPicker.projectTitle" : "web.folderPicker.featureTitle", {}, preferences.resolvedLocale),
+            ...(input.defaultPath === undefined ? {} : { defaultPath: input.defaultPath }),
+        });
     }
     async createProject(input) {
         const project = await this.options.management.projects.create({ id: ProjectId.of(input.id), name: input.name, root: input.root });

@@ -1,9 +1,9 @@
-import { AlertTriangle, ArrowRight, CheckCircle2, FileWarning, GitPullRequest, Radio } from "lucide-react";
+import { AlertTriangle, ArrowRight, Boxes, CheckCircle2, FileWarning, GitPullRequest, Radio } from "lucide-react";
 
 import type { ProjectOverview } from "../../../src/application/web/contracts";
 import { featureRoute, projectRoute } from "../app/router";
 import { MetricStrip } from "../components/metric-strip";
-import { PageTitle, StatusBadge } from "../components/ui";
+import { EmptyState, PageTitle, StatusBadge } from "../components/ui";
 import { useI18n } from "../i18n/i18n";
 
 export function ProjectOverviewView({ project, navigate }: { readonly project: ProjectOverview; readonly navigate: (path: string) => void }) {
@@ -40,5 +40,6 @@ export function ProjectOverviewView({ project, navigate }: { readonly project: P
 
 export function FeatureTable({ project, navigate }: { readonly project: ProjectOverview; readonly navigate: (path: string) => void }) {
   const { t } = useI18n();
+  if (project.features.length === 0) return <EmptyState title={t("web.feature.empty")} description={t("web.feature.emptyDetail")} icon={<Boxes size={16} />} />;
   return <div className="data-table"><div className="data-row data-head"><span>{t("web.table.feature")}</span><span>{t("web.table.workflow")}</span><span>{t("web.table.status")}</span><span>{t("web.table.progress")}</span><span>{t("web.table.next")}</span></div>{project.features.map((feature) => <button className="data-row" key={feature.id} onClick={() => navigate(featureRoute(project.id, feature.id))}><span><strong>{feature.name}</strong><small>{feature.id}</small></span><span>{feature.pipelineId.replace("arka-norn-", "")}</span><span><StatusBadge health={feature.health} /></span><span>{feature.progress.completed}/{feature.progress.required}</span><span>{feature.nextStepId?.replaceAll("_", " ") ?? "—"}</span></button>)}</div>;
 }

@@ -1,7 +1,7 @@
 .project-list, .document-index, .document-list, .attention-list { border-top: 1px solid var(--border); }
 .project-row { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 13px; width: 100%; min-height: 74px; padding: 12px 10px; border: 0; border-bottom: 1px solid var(--border); background: transparent; cursor: pointer; text-align: left; }
 .project-row:hover { background: var(--surface-hover); }
-.project-icon { display: grid; width: 38px; height: 38px; place-items: center; border-radius: var(--radius-lg); background: var(--arka-red); color: #fff; box-shadow: var(--glow-red); }
+.project-icon { display: grid; width: 38px; height: 38px; place-items: center; border: 1px solid rgba(199, 15, 67, .3); border-radius: var(--radius-lg); background: var(--accent-soft); color: var(--arka-red); }
 .project-main, .project-meta { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .project-main strong { font-size: 14px; }
 .project-main small { color: var(--text-muted); font-family: var(--font-mono); font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -48,13 +48,13 @@ button.data-row:hover { background: var(--surface-hover); }
 .document-heading { display: flex; align-items: flex-start; gap: 13px; min-width: 0; }
 .document-mark { display: grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; border: 1px solid rgba(199, 15, 67, .3); border-radius: var(--radius-lg); background: var(--accent-soft); color: var(--tx1); }
 .document-heading-copy { min-width: 0; }
-.document-heading h1 { margin: 3px 0 5px; font-size: 20px; overflow-wrap: anywhere; }
+.document-heading h1 { margin: 3px 0 5px; font-size: 19px; overflow-wrap: anywhere; }
 .document-kicker { display: flex; align-items: center; gap: 7px; color: var(--text-muted); font-family: var(--font-mono); font-size: 8px; font-weight: 600; text-transform: uppercase; }
 .document-kicker span { color: var(--tx2); }
 .document-kicker i { width: 4px; height: 4px; border-radius: 50%; background: var(--arka-red); box-shadow: var(--glow-red); }
 .document-byline { margin: 0; color: var(--text-muted); font-size: 10px; }
 .document-byline strong { color: var(--tx2); font-weight: 500; }
-.document-facts { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; margin-bottom: 28px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--surface-card); }
+.document-facts { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; margin-bottom: 28px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-xl); background: rgba(var(--w), .018); }
 .document-fact { display: flex; min-height: 24px; align-items: center; gap: 7px; padding: 3px 8px; border-left: 1px solid var(--border); }
 .document-fact small { color: var(--text-muted); font-family: var(--font-mono); font-size: 8px; text-transform: uppercase; }
 .document-fact strong { color: var(--tx2); font-family: var(--font-mono); font-size: 9px; font-weight: 600; text-transform: uppercase; }
@@ -81,7 +81,7 @@ button.data-row:hover { background: var(--surface-hover); }
 .document-check-list p { margin: 0; }
 .record-collection { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .record-collection.compact { grid-template-columns: 1fr; }
-.record-card { min-width: 0; border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--surface-card); overflow: hidden; }
+.record-card { min-width: 0; border: 1px solid var(--border); border-radius: var(--radius-xl); background: rgba(var(--w), .018); overflow: hidden; }
 .record-card > header { display: flex; align-items: flex-start; gap: 10px; padding: 13px 14px; border-bottom: 1px solid var(--app-border-subtle); }
 .record-number { display: grid; min-width: 25px; height: 25px; place-items: center; border-radius: var(--radius-md); background: var(--surface-hover); color: var(--text-muted); font-family: var(--font-mono); font-size: 8px; }
 .record-card > header > div { display: flex; min-width: 0; flex-direction: column; gap: 2px; }

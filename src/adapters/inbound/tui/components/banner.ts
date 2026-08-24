@@ -16,6 +16,7 @@
 
 import type { Theme } from "../runtime/theme.js";
 import { translate } from "../../../../application/localization/locale.js";
+import { PRODUCT_VERSION } from "../../../../application/product-metadata.js";
 import { titledBox } from "./box.js";
 
 const HORIZONTAL = String.fromCharCode(0x2500);
@@ -64,7 +65,7 @@ export interface ArkaHeaderOptions {
 }
 
 export function renderArkaHeader(theme: Theme, opts: ArkaHeaderOptions = {}): readonly string[] {
-  const version = opts.version ?? "1.2.0";
+  const version = opts.version ?? PRODUCT_VERSION;
   const tagline = opts.tagline ?? translate("tui.brand.tagline");
   const runtimeLabel = opts.runtimeLabel ?? "";
   const runtimePart = runtimeLabel ? ` ${theme.dim("-")} ${theme.arkaAccent(runtimeLabel)}` : "";
@@ -83,7 +84,7 @@ export interface ArkaBannerOptions {
 }
 
 export function renderArkaBanner(theme: Theme, opts: ArkaBannerOptions = {}): readonly string[] {
-  const version = opts.version ?? "1.2.0";
+  const version = opts.version ?? PRODUCT_VERSION;
   const sectionPart = opts.section ? ` ${theme.dim(">")} ${theme.bold(opts.section)}` : "";
   const line = `  ${theme.dim("arkalabs")} ${theme.dim("-")} ${theme.bold("arka-norn")} ${theme.gray(`v${version}`)}${sectionPart}`;
   const rule = `  ${theme.dim(HORIZONTAL.repeat(40))}`;

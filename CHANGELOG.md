@@ -2,6 +2,30 @@
 
 Notable changes to arka-norn are recorded here. The project follows semantic versioning.
 
+## 2.2.0 - 2026-08-24
+
+### Added
+
+- Guided Project and Feature creation for non-developers, with workflow explanations, generated technical defaults and progressive disclosure.
+- Native operating-system folder selection behind the reusable `NornBridge` boundary and authenticated loopback API.
+- Localized empty-state guidance and legacy document labels in English and French.
+
+### Changed
+
+- Web layout, official mark, icon sizing, typography, surfaces, modals and page transitions now follow the real Arka Labs Deck source contracts.
+- Light sand is reserved for application chrome while working content remains white; primary commands use neutral controls and Arka red remains a product signal.
+- Responsive navigation now follows the compact 56-pixel Deck rail at intermediate widths.
+
+### Fixed
+
+- Modal focus trapping, focus restoration, scroll locking and accessible descriptions are consistent across creation, profile, governance and audit flows.
+- Meaningful microcopy meets contrast requirements in both themes.
+- The TUI header derives its displayed version from the installed package manifest instead of a stale hard-coded value.
+
+### Distribution
+
+- Package and manifest versions are 2.2.0.
+
 ## 2.1.0 - 2026-08-24
 
 ### Added

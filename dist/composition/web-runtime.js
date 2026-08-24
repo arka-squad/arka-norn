@@ -5,6 +5,7 @@
 import { resolve } from "node:path";
 import { FsGovernanceStore } from "../adapters/outbound/filesystem/fs-governance-store.js";
 import { FsLocalePreferenceStore } from "../adapters/outbound/filesystem/fs-locale-preference-store.js";
+import { NativeFolderPicker } from "../adapters/outbound/filesystem/native-folder-picker.js";
 import { startWebServer } from "../adapters/inbound/web/web-server.js";
 import { ProjectTrackingService } from "../application/web/project-tracking-service.js";
 import { createDoctorRuntime } from "./doctor-runtime.js";
@@ -23,6 +24,7 @@ export async function createWebRuntime(options) {
         pipeline,
         governance: new FsGovernanceStore(),
         preferences,
+        folderPicker: options.folderPicker ?? new NativeFolderPicker(),
         doctor: createDoctorRuntime(options.homeDir, options.cwd),
         homeDir: options.homeDir,
         ...(options.environment === undefined ? {} : { environment: options.environment }),

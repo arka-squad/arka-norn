@@ -67,6 +67,7 @@ async function dispatchGet(segments: readonly string[], url: URL, service: Proje
 }
 
 async function dispatchPost(request: IncomingMessage, segments: readonly string[], service: ProjectTrackingService) {
+  if (same(segments, ["folder-picker"])) return ok(await service.pickFolder(await body(request)));
   if (same(segments, ["projects"])) return created(await service.createProject(await body(request)));
   if (segments.length === 3 && segments[0] === "projects" && segments[2] === "features") {
     return created(await service.createFeature(id(segments[1]), await body(request)));

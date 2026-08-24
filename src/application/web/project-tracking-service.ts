@@ -13,7 +13,7 @@ import { FsAuditStore } from "../../adapters/outbound/filesystem/fs-audit-store.
 import { LocalAuditCollector } from "../../adapters/outbound/audit/local-audit-collector.js";
 import { AuditService, type AuditProjectContext } from "../audit/audit-service.js";
 import type { FsLocalePreferenceStore } from "../../adapters/outbound/filesystem/fs-locale-preference-store.js";
-import { resolveLocale } from "../localization/locale.js";
+import { resolveLocale, translate } from "../localization/locale.js";
 import { createGovernanceEvent } from "../../domain/governance/governance-event.js";
 import { reduceGovernance } from "../../domain/governance/governance-ledger.js";
 import { FeatureId } from "../../domain/feature/feature-id.js";
@@ -23,6 +23,7 @@ import type { Project } from "../../domain/project/project.js";
 import type { ForDoctor } from "../../ports/inbound/for-doctor.js";
 import type { ForPipeline, PipelineAuthorAuthorization } from "../../ports/inbound/for-pipeline.js";
 import type { GovernanceStore } from "../../ports/outbound/governance-store.js";
+import type { FolderPicker } from "../../ports/outbound/folder-picker.js";
 import type { ManagementRuntime } from "../../composition/management-runtime.js";
 import type {
   AgentTrackingView,
@@ -51,6 +52,7 @@ interface TrackingServiceOptions {
   readonly governance: GovernanceStore;
   readonly preferences: FsLocalePreferenceStore;
   readonly doctor: ForDoctor;
+  readonly folderPicker: FolderPicker;
   readonly homeDir: string;
   readonly environment?: Readonly<Record<string, string | undefined>>;
   readonly now?: () => Date;
@@ -275,6 +277,22 @@ export class ProjectTrackingService {
     if (input.locale !== undefined) await this.options.preferences.save(input.locale);
     if (input.name !== undefined) await this.options.preferences.saveHumanProfile({ name: input.name, ...(input.email === undefined ? {} : { email: input.email }) });
     return this.getPreferences();
+  }
+
+  public async pickFolder(input: { readonly purpose?: "project" | "feature"; readonly defaultPath?: string }): Promise<string | null> {
+    if (input.purpose !== "project" && input.purpose !== "feature") throw new Error("A valid folder picker purpose is required.");
+    if (input.defaultPath !== undefined && (typeof input.defaultPath !== "string" || input.defaultPath.length > 4_096)) {
+      throw new Error("The folder picker default path is invalid.");
+    }
+    const preferences = await this.getPreferences();
+    return this.options.folderPicker.pick({
+      title: translate(
+        input.purpose === "project" ? "web.folderPicker.projectTitle" : "web.folderPicker.featureTitle",
+        {},
+        preferences.resolvedLocale,
+      ),
+      ...(input.defaultPath === undefined ? {} : { defaultPath: input.defaultPath }),
+    });
   }
 
   public async createProject(input: { readonly id: string; readonly name: string; readonly root: string }): Promise<ProjectOverview> {

@@ -20,6 +20,7 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams, type SpawnSyncOptionsWithStringEncoding, type SpawnSyncReturns } from "node:child_process";
 import { test } from "node:test";
+import { pathToFileURL } from "node:url";
 
 const ROOT = resolve(import.meta.dirname, "..", "..");
 const LOCAL_NPM_REGISTRY = resolve(import.meta.dirname, "..", "helpers", "local-npm-registry.mjs");
@@ -90,7 +91,7 @@ test("un consumer vierge installe le tarball sans node_modules du worktree", asy
   assert.ok(packagedPaths.includes("docs/developer-guide.md"));
   assert.ok(packagedPaths.includes("docs/web.md"));
   assert.ok(packagedPaths.includes("docs/user-guide.md"));
-  assert.equal(packagedPaths.some((file) => file.startsWith("tests/") || file.startsWith(".input/") || file.startsWith("src/")), false);
+  assert.equal(packagedPaths.some((file) => file.startsWith("tests/") || file.startsWith(".input/") || file.startsWith("src/") || file.endsWith(".docx")), false);
 
   const productionTree = runNpm(["ls", "--omit=dev", "--all", "--parseable"], { cwd: ROOT, encoding: "utf8" });
   assert.equal(productionTree.status, 0, productionTree.stderr);
@@ -140,6 +141,13 @@ test("un consumer vierge installe le tarball sans node_modules du worktree", asy
   assert.doesNotMatch(readFileSync(resolve(packageRoot, "skills-src", "arka-framework-development.json"), "utf8"), /\/Users\//);
 
   const command = resolve(packageRoot, "bin", "arka-norn.mjs");
+  const banner = spawnSync(process.execPath, ["--input-type=module", "--eval", [
+    `import { renderArkaHeader } from ${JSON.stringify(pathToFileURL(resolve(packageRoot, "dist", "adapters", "inbound", "tui", "components", "banner.js")).href)};`,
+    `import { createTheme } from ${JSON.stringify(pathToFileURL(resolve(packageRoot, "dist", "adapters", "inbound", "tui", "runtime", "theme.js")).href)};`,
+    "process.stdout.write(renderArkaHeader(createTheme({ NO_COLOR: '1' }, false)).join('\\n'));",
+  ].join("\n")], { cwd: consumer, encoding: "utf8" });
+  assert.equal(banner.status, 0, `${banner.stdout}\n${banner.stderr}`);
+  assert.match(banner.stdout, new RegExp(`arka-norn v${String(stagingManifest["version"]).replaceAll(".", "\\.")}`));
   const help = spawnSync(process.execPath, [command, "help"], { cwd: consumer, encoding: "utf8" });
   assert.equal(help.status, 0, `${help.stdout}\n${help.stderr}`);
   assert.match(help.stdout, /project <list\|add\|import/);

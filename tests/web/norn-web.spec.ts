@@ -29,6 +29,7 @@ test.beforeAll(async () => {
     sessionId: AgentSessionId.MAIN,
     environment: { LANG: "en_US.UTF-8" },
     token: "e2e-fixed-session-token-0123456789",
+    folderPicker: { pick: async () => projectRoot },
   });
 });
 
@@ -74,18 +75,19 @@ test("Project manager creates a profile, Project and Essential Feature in EN and
 
   await page.getByRole("button", { name: "Create Project" }).click();
   const projectDialog = page.getByRole("dialog", { name: "Create Project" });
-  await expect(projectDialog.getByLabel("Name", { exact: true })).toBeFocused();
-  await projectDialog.getByLabel("Name", { exact: true }).fill("Demo Project");
-  await projectDialog.getByLabel("Identifier").fill("demo-project");
-  await projectDialog.getByLabel("Folder").fill(projectRoot);
-  await projectDialog.getByRole("button", { name: "Confirm" }).click();
+  const projectName = projectDialog.getByRole("textbox", { name: /^Name/ });
+  await expect(projectName).toBeFocused();
+  await projectName.fill("Demo Project");
+  await projectDialog.getByRole("button", { name: "Choose folder" }).click();
+  await expect(projectDialog.getByText(projectRoot)).toBeVisible();
+  await projectDialog.getByRole("button", { name: "Register Project" }).click();
   await expect(page.getByRole("heading", { name: "Demo Project" })).toBeVisible();
 
   await page.getByRole("button", { name: "Features", exact: true }).click();
   await page.getByRole("button", { name: "Create Feature" }).click();
   const featureDialog = page.getByRole("dialog", { name: "Create Feature" });
-  await featureDialog.getByLabel("Name", { exact: true }).fill("Customer export");
-  await featureDialog.getByRole("button", { name: "Confirm" }).click();
+  await featureDialog.getByRole("textbox", { name: /^Name/ }).fill("Customer export");
+  await featureDialog.getByRole("button", { name: "Add Feature" }).click();
   await expect(page.getByRole("heading", { name: "Customer export" })).toBeVisible();
   await expect(page.getByText("essential", { exact: true })).toBeVisible();
 

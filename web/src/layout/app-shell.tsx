@@ -41,15 +41,15 @@ export function AppShell({ route, projectName, live, navigate, children }: Props
   };
   return <div className="app-shell">
     <aside className="sidebar">
-      <button className="wordmark" onClick={() => navigate("/projects")}>
-        <img className="wordmark-mark" src="/assets/brand/arka-logo-mark.svg?v=2.1.0" alt="" />
+      <button className="wordmark" title={t("web.nav.projects")} onClick={() => navigate("/projects")}>
+        <img className="wordmark-mark" src="/assets/brand/arka-logo-mark.svg" alt="" />
         <span><strong>arka<span>.</span><b>norn</b></strong><small>arkalabs</small></span>
       </button>
       <nav aria-label={t("web.common.primaryNavigation")}>
-        <button className={route.section === "projects" ? "nav-item active" : "nav-item"} onClick={() => navigate("/projects")}><FolderKanban size={16} />{t("web.nav.projects")}</button>
+        <button className={route.section === "projects" ? "nav-item active" : "nav-item"} title={t("web.nav.projects")} onClick={() => navigate("/projects")}><FolderKanban size={15} />{t("web.nav.projects")}</button>
         {route.projectId === undefined ? null : <div className="project-navigation">
           <p className="nav-project-name" title={projectName}>{projectName ?? route.projectId}</p>
-          {NAVIGATION.map(([section, Icon, label]) => <button key={section} className={route.section === section ? "nav-item active" : "nav-item"} onClick={() => navigate(projectRoute(route.projectId!, section))}><Icon size={16} />{t(label)}</button>)}
+          {NAVIGATION.map(([section, Icon, label]) => <button key={section} className={route.section === section ? "nav-item active" : "nav-item"} title={t(label)} onClick={() => navigate(projectRoute(route.projectId!, section))}><Icon size={15} />{t(label)}</button>)}
         </div>}
       </nav>
       <div className="sidebar-footer"><StatusBadge health={live ? "healthy" : "attention"} label={t(live ? "web.status.connected" : "web.status.disconnected")} /></div>
@@ -62,11 +62,15 @@ export function AppShell({ route, projectName, live, navigate, children }: Props
             const next = locale === "en" ? "fr" : "en";
             setLocale(next);
             void bridge.savePreferences({ locale: next });
-          }}><Languages size={17} /></IconButton>
-          <IconButton label={t("web.theme.toggle")} onClick={toggleTheme}>{theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</IconButton>
+          }}><Languages size={15} /></IconButton>
+          <IconButton label={t("web.theme.toggle")} onClick={toggleTheme}>{theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}</IconButton>
         </div>
       </header>
-      <main>{children}</main>
+      <main><div className="route-stage" key={routeKey(route)}>{children}</div></main>
     </div>
   </div>;
+}
+
+function routeKey(route: AppRoute): string {
+  return [route.projectId ?? "projects", route.section, route.featureId ?? "", route.documentId ?? ""].join(":");
 }

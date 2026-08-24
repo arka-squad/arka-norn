@@ -99,13 +99,15 @@ The shipped React/Vite source lives under `web/` and builds to `dist/web/`. `.in
 
 Application contracts in `src/application/web/contracts.ts` define `NornBridge` and the Project tracking read models. The browser uses the HTTP bridge; a future Tauri adapter can implement the same interface without changing view components. Do not add Tauri code in the Web phase.
 
+Folder selection follows the same boundary. Views call `NornBridge.pickFolder`; the loopback adapter delegates to the operating system picker and validates the selected real directory before returning it. Keep platform process handling in `native-folder-picker.ts`, never in React components. A phase-two Tauri adapter will replace this port implementation without changing the guided forms.
+
 The server adapter binds to loopback, authenticates API and SSE requests, serves only packaged assets and emits invalidations rather than duplicated business events. View components reload complete read models after an invalidation. Orchestration APIs remain read-only.
 
 The CLI lifecycle is split between `web-cli.ts`, the reusable `WebProcessManager` and `FsWebServerStateStore`. `web start` spawns the package entrypoint as a detached process; state and logs stay under `$ARKA_NORN_HOME/.arka-norn/web/`. Status and stop validate the authenticated health endpoint before trusting or signalling the recorded PID. State writes are atomic, private and serialized with the shared file-lock helper. Keep lifecycle behavior in these shared modules rather than adding shell-specific launch scripts.
 
 Web catalogs are generated from the typed localization source, while Pipeline metadata is generated from the canonical catalog. Add new human text to both typed catalogs and regenerate; do not copy translation or contract objects into the frontend.
 
-The frontend consumes the official Arka Labs tokens and local brand assets from `web/src/styles/brand.css` and `web/public/assets/`. Keep dark mode canonical, use the Arka mark without substitute monograms, and preserve Poppins/JetBrains Mono roles. New views must compose the shared button, status, navigation, card and document patterns instead of introducing a parallel dashboard theme.
+The frontend consumes the official Arka Labs tokens and local brand assets from `web/src/styles/brand.css` and `web/public/assets/`. Use the Arka mark without substitute monograms, preserve Poppins/JetBrains Mono roles, keep sand on light layout chrome rather than working surfaces, and use neutral primary controls. New views must compose the shared button, status, navigation, modal, form and document patterns instead of introducing a parallel dashboard theme.
 
 Document pages use one structural renderer. Extend contract labels or structural presentations in the shared renderer; never create a copied renderer for a specific document type.
 

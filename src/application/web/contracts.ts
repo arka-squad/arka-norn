@@ -256,6 +256,7 @@ export interface NornBridge {
   getOrchestrations(projectId: string): Promise<readonly OrchestrationTrackingView[]>;
   getPreferences(): Promise<WebPreferences>;
   savePreferences(input: { readonly locale?: "auto" | "en" | "fr"; readonly name?: string; readonly email?: string }): Promise<WebPreferences>;
+  pickFolder(input: { readonly purpose: "project" | "feature"; readonly defaultPath?: string }): Promise<string | null>;
   createProject(input: { readonly id: string; readonly name: string; readonly root: string }): Promise<ProjectOverview>;
   createFeature(projectId: string, input: { readonly id: string; readonly name: string; readonly root: string; readonly pipelineId?: string }): Promise<FeatureTrackingView>;
   appendGovernance(projectId: string, input: CreateGovernanceEventInput): Promise<GovernanceView>;

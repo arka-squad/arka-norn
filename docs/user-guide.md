@@ -69,6 +69,8 @@ The Web interface is designed for Project managers rather than Agent operators. 
 
 Create Projects and Features, record governance decisions, run verified audits and apply Doctor repairs after reviewing a dry run. Framework documents remain immutable. Agent start, cancel, approval, retry, provider configuration and prompts are intentionally absent; use the provider's native application for those actions.
 
+Use **New Project** or **New Feature** for a guided creation flow. Select folders with the native system picker rather than typing filesystem paths. Norn proposes the technical identifier and Feature location automatically; expand technical details only when those defaults must change. Each workflow option explains its intended scope before you confirm.
+
 On first launch, enter a human name. Norn stores a stable local profile and snapshots it into governance events so decisions remain understandable when the Project moves to another computer.
 
 ## Work on one step

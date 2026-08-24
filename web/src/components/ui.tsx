@@ -22,8 +22,12 @@ export function PageTitle({ title, summary, actions }: { readonly title: string;
   return <header className="page-title"><div><h1>{title}</h1>{summary === undefined ? null : <p>{summary}</p>}</div>{actions === undefined ? null : <div className="page-actions">{actions}</div>}</header>;
 }
 
-export function EmptyState({ children }: PropsWithChildren) {
-  return <div className="empty-state"><Circle size={24} aria-hidden="true" /><p>{children}</p></div>;
+export function EmptyState({ title, description, icon, action }: { readonly title: string; readonly description?: string; readonly icon?: ReactNode; readonly action?: ReactNode }) {
+  return <div className="empty-state">
+    <span className="empty-state-icon">{icon ?? <Circle size={15} aria-hidden="true" />}</span>
+    <div><strong>{title}</strong>{description === undefined ? null : <p>{description}</p>}</div>
+    {action === undefined ? null : <span className="empty-state-action">{action}</span>}
+  </div>;
 }
 
 export function LoadingState() {

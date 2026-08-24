@@ -106,7 +106,7 @@ export async function runSelftest() {
       return createHash("sha256").update(source, "utf8").digest("hex") === skill.checksum;
     }));
 
-    const tui = spawnSync(process.execPath, [BIN], { cwd: FRAMEWORK_ROOT, encoding: "utf8" });
+    const tui = spawnSync(process.execPath, [BIN, "--locale", "en"], { cwd: FRAMEWORK_ROOT, encoding: "utf8" });
     check("non-interactive TUI exits with code 1", tui.status === 1, `${tui.stdout}${tui.stderr}`);
     check("non-interactive TUI writes only to stderr", tui.stdout === "" && tui.stderr.includes("requires an interactive terminal"), `${tui.stdout}${tui.stderr}`);
   } finally {

@@ -64,6 +64,8 @@ async function dispatchGet(segments, url, service) {
     throw new ClientRequestError(404, "not_found");
 }
 async function dispatchPost(request, segments, service) {
+    if (same(segments, ["folder-picker"]))
+        return ok(await service.pickFolder(await body(request)));
     if (same(segments, ["projects"]))
         return created(await service.createProject(await body(request)));
     if (segments.length === 3 && segments[0] === "projects" && segments[2] === "features") {

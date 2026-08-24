@@ -7,12 +7,14 @@ import { resolve } from "node:path";
 
 import { FsGovernanceStore } from "../adapters/outbound/filesystem/fs-governance-store.js";
 import { FsLocalePreferenceStore } from "../adapters/outbound/filesystem/fs-locale-preference-store.js";
+import { NativeFolderPicker } from "../adapters/outbound/filesystem/native-folder-picker.js";
 import { startWebServer, type RunningWebServer } from "../adapters/inbound/web/web-server.js";
 import { ProjectTrackingService } from "../application/web/project-tracking-service.js";
 import type { AgentSessionId } from "../domain/agent/agent-session-id.js";
 import { createDoctorRuntime } from "./doctor-runtime.js";
 import { createManagementRuntime } from "./management-runtime.js";
 import { createPipelineRuntime } from "./pipeline-runtime.js";
+import type { FolderPicker } from "../ports/outbound/folder-picker.js";
 
 export interface WebRuntimeOptions {
   readonly frameworkRoot: string;
@@ -22,6 +24,7 @@ export interface WebRuntimeOptions {
   readonly port?: number;
   readonly environment?: Readonly<Record<string, string | undefined>>;
   readonly token?: string;
+  readonly folderPicker?: FolderPicker;
 }
 
 export async function createWebRuntime(options: WebRuntimeOptions): Promise<RunningWebServer> {
@@ -37,6 +40,7 @@ export async function createWebRuntime(options: WebRuntimeOptions): Promise<Runn
     pipeline,
     governance: new FsGovernanceStore(),
     preferences,
+    folderPicker: options.folderPicker ?? new NativeFolderPicker(),
     doctor: createDoctorRuntime(options.homeDir, options.cwd),
     homeDir: options.homeDir,
     ...(options.environment === undefined ? {} : { environment: options.environment }),
