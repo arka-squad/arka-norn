@@ -1,7 +1,7 @@
 import { useState, type PropsWithChildren } from "react";
 import {
   Activity, Bot, Boxes, ClipboardCheck, FileText, FolderKanban, GitBranch, Languages,
-  LayoutDashboard, Moon, Settings, Sun, Waypoints,
+  Github, LayoutDashboard, Moon, Settings, Star, Sun, Waypoints,
 } from "lucide-react";
 
 import type { ProjectOverview } from "../../../src/application/web/contracts";
@@ -61,6 +61,10 @@ export function AppShell({ route, project, live, navigate, children }: PropsWith
         <div className="rail-preferences">
           <button aria-label={locale === "en" ? "FR" : "EN"} onClick={() => { const next = locale === "en" ? "fr" : "en"; setLocale(next); void bridge.savePreferences({ locale: next }); }}><Languages size={13} />{locale.toUpperCase()}</button>
           <button aria-label={t("web.theme.toggle")} onClick={toggleTheme}>{theme === "dark" ? <Sun size={13} /> : <Moon size={13} />}<span>{t(theme === "dark" ? "web.theme.light" : "web.theme.dark")}</span></button>
+        </div>
+        <div className="rail-github">
+          <a className="rail-github-repository" href="https://github.com/arka-squad/arka-norn" target="_blank" rel="noreferrer" title={t("web.github.openRepository")}><Github size={16} /><span>GitHub</span></a>
+          <a className="rail-github-star" href="https://github.com/arka-squad/arka-norn" target="_blank" rel="noreferrer" aria-label={t("web.github.starRepository")} title={t("web.github.starRepository")}><Star size={15} /></a>
         </div>
       </div>
     </aside>

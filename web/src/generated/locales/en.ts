@@ -418,6 +418,8 @@ export const enCatalog = {
   "web.error.generic": "Norn rejected the request. Refresh after checking the local Project state.",
   "web.error.actionRejected": "Norn could not complete this action. Check the selected folder and identifiers, then try again.",
   "web.theme.toggle": "Switch theme",
+  "web.github.openRepository": "Open the arka-norn repository on GitHub",
+  "web.github.starRepository": "Star arka-norn on GitHub",
   "web.theme.light": "Light",
   "web.theme.dark": "Dark"
 } as const;

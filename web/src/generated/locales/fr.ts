@@ -418,6 +418,8 @@ export const frCatalog = {
   "web.error.generic": "Norn a refusé la requête. Actualisez après avoir vérifié l'état local du Projet.",
   "web.error.actionRejected": "Norn n'a pas pu terminer cette action. Vérifiez le dossier et les identifiants choisis, puis réessayez.",
   "web.theme.toggle": "Changer de thème",
+  "web.github.openRepository": "Ouvrir le dépôt arka-norn sur GitHub",
+  "web.github.starRepository": "Mettre une étoile à arka-norn sur GitHub",
   "web.theme.light": "Clair",
   "web.theme.dark": "Sombre"
 } as const;

@@ -2,6 +2,20 @@
 
 Notable changes to arka-norn are recorded here. The project follows semantic versioning.
 
+## 2.2.4 - 2026-08-24
+
+### Added
+
+- Added an accessible GitHub repository and star action to the bottom of the Web navigation rail.
+
+### Changed
+
+- Stacked document field labels above their values for a more natural human reading order.
+
+### Distribution
+
+- Package and manifest versions are 2.2.4.
+
 ## 2.2.3 - 2026-08-24
 
 ### Fixed

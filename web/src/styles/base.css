@@ -46,6 +46,13 @@ code, pre, .mono { font-family: var(--font-mono); }
 .rail-preferences { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
 .rail-preferences button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 28px; border: 1px solid var(--border); border-radius: 7px; background: transparent; color: var(--tx3); cursor: pointer; font-size: 9px; }
 .rail-preferences button:hover { border-color: var(--border-strong); background: var(--surface-hover); }
+.rail-github { display: flex; align-items: center; min-height: 32px; padding-top: 3px; border-top: 1px solid var(--app-border-subtle); }
+.rail-github a { color: var(--tx3); text-decoration: none; transition: border-color var(--dur-fast) ease, background var(--dur-fast) ease, color var(--dur-fast) ease; }
+.rail-github-repository { display: inline-flex; min-width: 0; flex: 1; align-items: center; gap: 8px; font-size: 10px; }
+.rail-github-repository:hover { color: var(--tx1); }
+.rail-github-star { display: grid; width: 30px; height: 30px; flex: 0 0 30px; place-items: center; border: 1px solid var(--border); border-radius: 50%; background: var(--surface-card); }
+.rail-github-star:hover { border-color: rgba(242, 169, 59, .5); background: var(--amber-soft); color: var(--amber); }
+.rail-github-star svg { fill: currentColor; }
 .workspace { min-width: 0; background: var(--zone); }
 .topbar { position: sticky; z-index: 10; top: 0; display: flex; align-items: center; justify-content: space-between; height: 52px; padding: 0 26px; border-bottom: 1px solid var(--app-border-subtle); background: var(--bar); }
 .breadcrumbs { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--tx3); font-family: var(--font-mono); font-size: 9px; text-transform: uppercase; }
@@ -77,6 +84,8 @@ code, pre, .mono { font-family: var(--font-mono); }
   .rail-live { display: flex; justify-content: center; }
   .rail-live strong, .rail-live span, .rail-preferences button span { display: none; }
   .rail-preferences { grid-template-columns: 1fr; }
+  .rail-github { justify-content: center; border-top: 0; }
+  .rail-github-repository { display: none; }
   .page { padding-inline: 24px; }
 }
 

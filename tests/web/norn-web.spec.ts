@@ -68,6 +68,8 @@ test("Project manager creates a profile, Project and Essential Feature in EN and
     typography: getComputedStyle(document.body).fontFamily,
   }));
   expect(brand).toEqual({ loaded: true, red: "#c70f43", theme: "dark", typography: expect.stringContaining("Poppins") });
+  await expect(page.getByRole("link", { name: "GitHub", exact: true })).toHaveAttribute("href", "https://github.com/arka-squad/arka-norn");
+  await expect(page.getByRole("link", { name: "Star arka-norn on GitHub" })).toBeVisible();
   await expect(page.getByRole("dialog", { name: "Identify the human decision maker" })).toBeVisible();
   await page.getByLabel("Name", { exact: true }).fill("Norn QA");
   await page.getByRole("button", { name: "Confirm" }).click();

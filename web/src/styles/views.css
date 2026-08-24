@@ -121,7 +121,7 @@ button.data-row:hover { background: var(--surface-hover); }
 .record-card.attention header em { color: var(--amber); }
 .record-card header strong { color: var(--tx1); font-size: 12px; font-weight: 600; overflow-wrap: anywhere; }
 .record-card dl { margin: 0; padding: 7px 14px 10px; }
-.record-card dl > div, .document-field-group > div { display: grid; grid-template-columns: minmax(110px, .35fr) minmax(0, 1fr); gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--app-border-subtle); }
+.record-card dl > div, .document-field-group > div { display: flex; flex-direction: column; gap: 5px; padding: 8px 0; border-bottom: 1px solid var(--app-border-subtle); }
 .record-card dl > div:last-child, .document-field-group > div:last-child { border-bottom: 0; }
 .record-card dt, .document-field-group dt { color: var(--text-muted); font-family: var(--font-mono); font-size: 8px; font-weight: 600; text-transform: uppercase; }
 .record-card dd, .document-field-group dd { min-width: 0; margin: 0; color: var(--tx2); font-size: 11px; line-height: 1.55; overflow-wrap: anywhere; }
@@ -311,7 +311,6 @@ button.data-row:hover { background: var(--surface-hover); }
   .document-identity > div { grid-template-columns: 1fr; gap: 4px; }
   .document-metadata-table > div { grid-template-columns: 1fr; gap: 5px; }
   .record-collection { grid-template-columns: 1fr; }
-  .record-card dl > div, .document-field-group > div { grid-template-columns: 1fr; gap: 4px; }
   .audit-purpose-options, .audit-domain-grid, .audit-plan-domains, .audit-plan-overview { grid-template-columns: 1fr; }
   .audit-plan-overview > div { border-right: 0; border-bottom: 1px solid rgba(var(--w), .07); }
   .audit-plan-overview > div:last-child { border-bottom: 0; }
