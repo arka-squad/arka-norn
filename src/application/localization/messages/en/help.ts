@@ -14,6 +14,8 @@ Management:
   fastdev <start|status|next>
   audit <inspect|prepare|start|status|submit|finalize|cancel|resume|list|show|compare|kb|evidence|export|tools>
   locale <show|set auto|en|fr>
+  web <start|stop|restart|status|foreground>
+                                      Manage the local Project Web server.
 
 Documents and health:
   status [feature-root]
@@ -42,6 +44,10 @@ export const CLI_GUIDE_EN = `arka-norn guided start
 2. Resolve the Project
    arka-norn project scan <root>
    arka-norn project list
+
+   Optional: start Project tracking
+   arka-norn web start
+   arka-norn web status
 
 3. Register the main Product identity
    arka-norn agent register --project <project-id> --provider "Codex CLI" --role product --session main

@@ -7,6 +7,7 @@ Notable changes to arka-norn are recorded here. The project follows semantic ver
 ### Added
 
 - Local EN/FR Project Web interface launched with `arka-norn web`.
+- Managed Web server lifecycle with background `start`, verified `status`, graceful `stop`, token-rotating `restart` and explicit `foreground` commands.
 - Official Arka Labs identity with the canonical mark, local Poppins and JetBrains Mono assets, dark-first surfaces and shared semantic components.
 - Editorial signed-document reader with localized contract labels, structured records, proofs, risks and progressive technical disclosure.
 - Human Project, Feature, Pipeline and document projections, including canonical v5 and legacy documents.

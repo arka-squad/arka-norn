@@ -1,0 +1,90 @@
+{
+  "schema_version": 5,
+  "id": "qa-review-norn-project-web-002",
+  "feature_id": "norn-project-web-2181d081",
+  "type": "qa_review",
+  "sequence": 2,
+  "created_at": "2026-08-24T08:21:16Z",
+  "depends_on_document_ids": [
+    "development-report-norn-project-web-002"
+  ],
+  "content_locale": "en",
+  "development_report_id": "development-report-norn-project-web-002",
+  "ref": "QA-NORN-WEB-2.1.0-LIFECYCLE",
+  "date": "2026-08-24",
+  "tester": {
+    "name": "Codex",
+    "provider": "OpenAI"
+  },
+  "environment": "macOS, Node.js 22.22.2, isolated ARKA_NORN_HOME directories, loopback HTTP servers and isolated npm consumer",
+  "version": "2.1.0",
+  "overall_status": "pass",
+  "scope": "Managed Web server lifecycle, process ownership, private state, CLI localization, documentation, release packaging and workflow regressions.",
+  "prerequisites": [
+    "development-report-norn-project-web-002 is schema-valid and selected as the latest development report.",
+    "The production package was rebuilt after moving the process manager into the composition layer."
+  ],
+  "test_cases": [
+    {
+      "id": "QA-LIFECYCLE-01",
+      "name": "Managed background lifecycle",
+      "steps": [
+        "Start Norn Web on a free loopback port.",
+        "Read status and probe authenticated health.",
+        "Restart without changing the requested port.",
+        "Stop twice."
+      ],
+      "expected_outcome": "The server runs detached, restart rotates PID and token, and stop is idempotent.",
+      "actual_result": "The dedicated E2E passed all lifecycle assertions in 4.2 seconds.",
+      "status": "pass"
+    },
+    {
+      "id": "QA-LIFECYCLE-02",
+      "name": "Private state and verified process ownership",
+      "steps": [
+        "Persist and reload a valid server state.",
+        "Reject malformed tokens and non-loopback URLs.",
+        "Attempt removal from a different PID."
+      ],
+      "expected_outcome": "State is mode 0600, invalid state is rejected and only the owner removes it.",
+      "actual_result": "All filesystem state tests passed; the manager probes authenticated health before signalling a PID.",
+      "status": "pass"
+    },
+    {
+      "id": "QA-LIFECYCLE-03",
+      "name": "CLI contracts and documentation",
+      "steps": [
+        "Exercise stopped status in human and JSON output.",
+        "Reject invalid actions, ports and option combinations.",
+        "Compare README, CLI and Web guides with package scripts."
+      ],
+      "expected_outcome": "The five lifecycle actions are stable, localized and consistently documented.",
+      "actual_result": "112 unit tests passed; CLI coverage reached 77.00% lines, 73.48% functions and 65.66% branches.",
+      "status": "pass"
+    },
+    {
+      "id": "QA-LIFECYCLE-04",
+      "name": "Workflow and package regression",
+      "steps": [
+        "Run the complete instrumented test suite.",
+        "Install the tarball in a consumer without worktree dependencies.",
+        "Inspect the npm package contents."
+      ],
+      "expected_outcome": "All workflows remain valid and the lifecycle runtime ships with dist/web.",
+      "actual_result": "253 tests passed; isolated installation passed; npm pack contains 648 files, is 1.8 MB compressed and includes dist/composition/web-process-manager.js.",
+      "status": "pass"
+    },
+    {
+      "id": "QA-LIFECYCLE-05",
+      "name": "Release health",
+      "steps": [
+        "Run typecheck, lint, language and max-lines checks.",
+        "Run benchmark and dependency audit."
+      ],
+      "expected_outcome": "Quality thresholds pass, performance stays within budget and no unexempted vulnerability remains.",
+      "actual_result": "All static gates passed; benchmark completed in 199.59 ms against 5000 ms; npm audit reported no unexempted vulnerabilities.",
+      "status": "pass"
+    }
+  ],
+  "author_agent_id": "OpenAI-Codex_dev-audit_20260819"
+}

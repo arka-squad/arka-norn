@@ -28,13 +28,18 @@ const ROOT = resolve(import.meta.dirname, "..", "..");
 test("package.json expose tous les quality gates L0", () => {
   const packageJson = JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8")) as PackageJson;
   const scripts = packageJson.scripts ?? {};
-  const required = ["build", "typecheck", "lint", "test", "test:unit", "test:integration", "test:e2e", "test:coverage", "test:coverage:cli", "selftest", "check", "release:verify"];
+  const required = [
+    "build", "typecheck", "lint", "test", "test:unit", "test:integration", "test:e2e", "test:coverage", "test:coverage:cli",
+    "web:start", "web:status", "web:restart", "web:stop", "selftest", "check", "release:verify",
+  ];
 
   assert.deepEqual(required.filter((name) => typeof scripts[name] !== "string"), []);
   assert.match(scripts["build"] ?? "", /clean-dist\.mjs.*tsc/);
   assert.match(scripts["test:coverage:cli"] ?? "", /adapters\/inbound\/cli/);
   assert.match(scripts["test:coverage:cli"] ?? "", /--lines 70.*--functions 70.*--branches 60/);
   assert.match(scripts["release:verify"] ?? "", /test:coverage:cli/);
+  assert.match(scripts["web:start"] ?? "", /web start/);
+  assert.match(scripts["web:stop"] ?? "", /web stop/);
 });
 
 test("the Complete definition of done requires a passing QA review", () => {

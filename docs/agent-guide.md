@@ -15,4 +15,6 @@ Skills are authored once in English. Their English and French triggers choose th
 
 The Project Web interface may display an Agent's manifest identity, declared provider, role, scope and signed productions. It does not infer connection state and does not control the Agent. Live orchestration views expose only Norn's durable execution state, heartbeat freshness and verified proof references; they never expose prompts, terminal logs, environment values or secrets.
 
+When an Agent needs the Project tracking surface, use `arka-norn web status --json` first. Start it with `arka-norn web start --no-open --json` only when stopped, and report the returned URL to the human. Do not launch a second foreground server or treat Web server lifecycle as Agent orchestration control.
+
 Use `$arka-norn` only for the main Product context. Specialized sessions use the calculated role skill. `author_agent_id` must match the active session binding.

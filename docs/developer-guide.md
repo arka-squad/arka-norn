@@ -101,6 +101,8 @@ Application contracts in `src/application/web/contracts.ts` define `NornBridge` 
 
 The server adapter binds to loopback, authenticates API and SSE requests, serves only packaged assets and emits invalidations rather than duplicated business events. View components reload complete read models after an invalidation. Orchestration APIs remain read-only.
 
+The CLI lifecycle is split between `web-cli.ts`, the reusable `WebProcessManager` and `FsWebServerStateStore`. `web start` spawns the package entrypoint as a detached process; state and logs stay under `$ARKA_NORN_HOME/.arka-norn/web/`. Status and stop validate the authenticated health endpoint before trusting or signalling the recorded PID. State writes are atomic, private and serialized with the shared file-lock helper. Keep lifecycle behavior in these shared modules rather than adding shell-specific launch scripts.
+
 Web catalogs are generated from the typed localization source, while Pipeline metadata is generated from the canonical catalog. Add new human text to both typed catalogs and regenerate; do not copy translation or contract objects into the frontend.
 
 The frontend consumes the official Arka Labs tokens and local brand assets from `web/src/styles/brand.css` and `web/public/assets/`. Keep dark mode canonical, use the Arka mark without substitute monograms, and preserve Poppins/JetBrains Mono roles. New views must compose the shared button, status, navigation, card and document patterns instead of introducing a parallel dashboard theme.
@@ -111,4 +113,5 @@ Document pages use one structural renderer. Extend contract labels or structural
 npm run build:web
 npm run dev:web
 npm run test:web:e2e
+node --import ./tests/register-typescript-loader.mjs --test tests/e2e/web-cli.test.ts
 ```

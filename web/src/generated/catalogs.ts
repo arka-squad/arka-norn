@@ -261,7 +261,7 @@ export const catalogs = {
     "web.pipeline.documents": "documents",
     "web.pipeline.optional": "optional",
     "web.error.title": "Unable to load this view",
-    "web.error.unauthorized": "The local Web session is no longer authorized. Restart `arka-norn web`.",
+    "web.error.unauthorized": "The local Web session is no longer authorized. Run `arka-norn web restart`.",
     "web.error.generic": "Norn rejected the request. Refresh after checking the local Project state.",
     "web.theme.toggle": "Switch theme"
   },
@@ -526,7 +526,7 @@ export const catalogs = {
     "web.pipeline.documents": "documents",
     "web.pipeline.optional": "facultatif",
     "web.error.title": "Impossible de charger cette vue",
-    "web.error.unauthorized": "La session Web locale n'est plus autorisée. Relancez `arka-norn web`.",
+    "web.error.unauthorized": "La session Web locale n'est plus autorisée. Exécutez `arka-norn web restart`.",
     "web.error.generic": "Norn a refusé la requête. Actualisez après avoir vérifié l'état local du Projet.",
     "web.theme.toggle": "Changer de thème"
   }

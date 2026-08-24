@@ -57,9 +57,13 @@ arka-norn fastdev start "Fix keyboard focus" --project product
 ## Track the Project in a browser
 
 ```bash
-arka-norn web
-arka-norn web --port 4317 --no-open
+arka-norn web start
+arka-norn web status
+arka-norn web restart --no-open
+arka-norn web stop
 ```
+
+The server runs in the background and survives the launching terminal. `arka-norn web` is the short form of `web start`; add `--port 4317` to select a port or use `web foreground` for a terminal-attached process. `status` returns the verified URL, PID, port, start time and log path. Restarting preserves the current port by default but rotates the session token.
 
 The Web interface is designed for Project managers rather than Agent operators. It shows aggregate Project state, Feature Pipelines, all signed and legacy documents in a human layout, linked evidence, open decisions, corrections, risks, audits, registered Agent identities and observed Norn orchestrations.
 

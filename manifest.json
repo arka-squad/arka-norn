@@ -58,7 +58,7 @@
     "migrate": "arka-norn migrate [--target <path>] [--dry-run|--apply]",
     "doctor": "arka-norn doctor [--repair [--apply]]",
     "selftest": "arka-norn selftest",
-    "web": "arka-norn web [--port <port>] [--no-open]"
+    "web": "arka-norn web <start|stop|restart|status|foreground> [--port <port>] [--no-open] [--json]"
   },
   "quality": {
     "gate": "npm run check",

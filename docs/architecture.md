@@ -8,9 +8,12 @@ The Project Web application is a renderer over application-layer read models. It
 React views -> NornBridge -> loopback HTTP API -> application projections
                                              -> canonical filesystem stores
 filesystem watcher -> authenticated SSE invalidation -> read-model reload
+CLI lifecycle -> verified health probe -> private PID/token state -> loopback server
 ```
 
 `NornBridge` is transport-neutral. HTTP is the 2.1 adapter; Tauri is reserved for a separate phase. The execution ledger remains the only orchestration source of truth, and the Web API exposes no orchestration mutation.
+
+The Web server is a single managed process per `ARKA_NORN_HOME`. Its transient state is not a Project database: it contains only the private local PID, port, bootstrap URL, start time and working directory needed by `web start|status|restart|stop`. PID signalling is gated by an authenticated health probe.
 
 arka-norn is local-first and follows a ports-and-adapters design. Portable markers and signed documents are durable truth; home indexes, skill installations and worker heartbeats are local operational state.
 

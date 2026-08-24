@@ -25,6 +25,8 @@ export async function routeApi(request, response, service, hub) {
 }
 async function dispatch(request, segments, url, service) {
     const method = request.method ?? "GET";
+    if (method === "GET" && same(segments, ["health"]))
+        return ok({ status: "ready" });
     if (method === "GET")
         return dispatchGet(segments, url, service);
     if (method === "POST")

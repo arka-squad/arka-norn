@@ -259,7 +259,7 @@ export const WEB_MESSAGES = {
     "web.pipeline.documents": "documents",
     "web.pipeline.optional": "optional",
     "web.error.title": "Unable to load this view",
-    "web.error.unauthorized": "The local Web session is no longer authorized. Restart `arka-norn web`.",
+    "web.error.unauthorized": "The local Web session is no longer authorized. Run `arka-norn web restart`.",
     "web.error.generic": "Norn rejected the request. Refresh after checking the local Project state.",
     "web.theme.toggle": "Switch theme",
 };

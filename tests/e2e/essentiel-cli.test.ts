@@ -39,24 +39,26 @@ test("Essential guides a complete cycle with a blocking audit and corrective rep
   assert.equal(started.status, 0, started.stderr);
   assert.equal(started.json.data.pipelineId, "arka-norn-essential");
 
+  const agentIds = new Map<string, string>();
   for (const role of ["dev", "audit", "qa"]) {
-    const registered = run([
+    const registered = run<{ readonly id: string }>([
       "agent", "register", "--project", "project", "--provider", "Codex", "--role", role,
       "--features", started.json.data.id, "--session", `${role}-filtre`, "--json",
     ], home, projectRoot);
     assert.equal(registered.status, 0, registered.stderr);
+    agentIds.set(role, registered.json.data.id);
   }
 
   assertNext(home, projectRoot, started.json.data.id, "feature_brief", 1);
-  installDocument("01-feature-brief.json", started.json.data.root, started.json.data.id);
+  installDocument("01-feature-brief.json", started.json.data.root, started.json.data.id, agentIds.get("dev")!);
   assertNext(home, projectRoot, started.json.data.id, "development_report", 1);
-  installDocument("02-development-report.json", started.json.data.root, started.json.data.id);
+  installDocument("02-development-report.json", started.json.data.root, started.json.data.id, agentIds.get("dev")!);
   assertNext(home, projectRoot, started.json.data.id, "delivery_audit", 1);
-  installDocument("03-delivery-audit.json", started.json.data.root, started.json.data.id);
+  installDocument("03-delivery-audit.json", started.json.data.root, started.json.data.id, agentIds.get("audit")!);
   assertNext(home, projectRoot, started.json.data.id, "development_report", 2);
-  installDocument("04-development-report.json", started.json.data.root, started.json.data.id);
+  installDocument("04-development-report.json", started.json.data.root, started.json.data.id, agentIds.get("dev")!);
   assertNext(home, projectRoot, started.json.data.id, "delivery_validation", 2);
-  installDocument("05-delivery-validation.json", started.json.data.root, started.json.data.id);
+  installDocument("05-delivery-validation.json", started.json.data.root, started.json.data.id, agentIds.get("qa")!);
 
   const completed = run<{
     readonly action: null;
@@ -76,13 +78,14 @@ function assertNext(home: string, cwd: string, featureId: string, stepId: string
   const next = run<{ readonly expectedArtifact: string; readonly iteration: number }>([
     "essential", "next", featureId, "--session", "dev-filtre", "--json",
   ], home, cwd);
-  assert.equal(next.status, 2, next.stderr);
+  assert.equal(next.status, 2, `${next.stderr}\n${JSON.stringify(next.json, null, 2)}`);
   assert.deepEqual([next.json.data.expectedArtifact, next.json.data.iteration], [`${stepId}.json`, iteration]);
 }
 
-function installDocument(file: string, featureRoot: string, featureId: string): void {
+function installDocument(file: string, featureRoot: string, featureId: string, authorAgentId: string): void {
   const document = JSON.parse(readFileSync(resolve(EXAMPLE, file), "utf8")) as Record<string, unknown>;
   document.feature_id = featureId;
+  document.author_agent_id = authorAgentId;
   writeFileSync(resolve(featureRoot, file), `${JSON.stringify(document, null, 2)}\n`, "utf8");
 }
 

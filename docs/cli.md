@@ -42,10 +42,16 @@ arka-norn fastdev start|status|next
 ## Project Web
 
 ```bash
-arka-norn web [--port <port>] [--no-open]
+arka-norn web [start] [--port <port>] [--no-open] [--json]
+arka-norn web status [--json]
+arka-norn web restart [--port <port>] [--no-open] [--json]
+arka-norn web stop [--json]
+arka-norn web foreground [--port <port>] [--no-open] [--json]
 ```
 
-The command starts an authenticated HTTP API and static Web application on `127.0.0.1` only. With no `--port`, Norn selects a free port. The default opens the secured session URL in the browser; `--no-open` prints it without launching a browser.
+`web` and `web start` launch one managed background server. It survives the launching terminal and records private runtime state under `$ARKA_NORN_HOME/.arka-norn/web/server.json`. With no `--port`, Norn selects a free port. The default opens the secured session URL; `--no-open` returns it without launching a browser.
+
+`status` verifies the authenticated `/api/v1/health` endpoint instead of trusting a PID alone. `restart` stops the verified process gracefully, preserves its port unless another is supplied and creates a new session token. `stop` is idempotent. `foreground` is the explicit terminal-attached mode. Logs are written to `$ARKA_NORN_HOME/.arka-norn/web/server.log`.
 
 The Web API is versioned under `/api/v1` and uses the public JSON envelope with `schemaVersion: 2`. Orchestration endpoints are read-only.
 

@@ -41,6 +41,7 @@ async function dispatch(
   service: ProjectTrackingService,
 ): Promise<{ readonly status: number; readonly value: unknown }> {
   const method = request.method ?? "GET";
+  if (method === "GET" && same(segments, ["health"])) return ok({ status: "ready" });
   if (method === "GET") return dispatchGet(segments, url, service);
   if (method === "POST") return dispatchPost(request, segments, service);
   if (method === "PUT" && same(segments, ["preferences"])) return ok(await service.savePreferences(await body(request)));

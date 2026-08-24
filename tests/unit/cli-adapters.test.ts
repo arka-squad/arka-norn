@@ -31,6 +31,7 @@ import { findMarkers, runMigrateCommand } from "../../src/adapters/inbound/cli/m
 import { runPipelineCommand, runScaffoldCommand, runStatusCommand, runValidateCommand } from "../../src/adapters/inbound/cli/pipeline-cli.ts";
 import { runSkillsCommand } from "../../src/adapters/inbound/cli/skills-cli.ts";
 import { CliUsageError, parseStrictArguments } from "../../src/adapters/inbound/cli/strict-arguments.ts";
+import { runWebCommand } from "../../src/adapters/inbound/cli/web-cli.ts";
 import { runWorkflowCommand } from "../../src/adapters/inbound/cli/workflow-cli.ts";
 import { AgentSessionId } from "../../src/domain/agent/agent-session-id.ts";
 
@@ -241,6 +242,27 @@ test("CLI help documents structural validation and the Project audit v5", () => 
   assert.match(CLI_HELP, /Validates schema and scaffold sentinels/);
   assert.match(CLI_HELP, /identity, relations and business verdict/);
   assert.match(CLI_HELP, /scaffold current_state_audit <output\.json> --project <id> --agent <id>/);
+  assert.match(CLI_HELP, /web <start\|stop\|restart\|status\|foreground>/);
+});
+
+test("the Web CLI reports an idle server and rejects invalid lifecycle arguments", async (context) => {
+  const fixture = createFixture(context);
+  const web = {
+    frameworkRoot: ROOT,
+    homeDir: fixture.home,
+    cwd: fixture.cwd,
+    sessionId: AgentSessionId.MAIN,
+    environment: {},
+  };
+
+  const status = await runWebCommand(["status", "--json"], web);
+  assert.equal(status.code, 0);
+  assert.equal(json<{ readonly status: string }>(status).data.status, "stopped");
+  assert.match((await runWebCommand(["stop"], web)).stdout, /stopped/i);
+  assert.equal((await runWebCommand(["status", "--no-open", "--json"], web)).code, 64);
+  assert.equal((await runWebCommand(["start", "--port", "invalid", "--json"], web)).code, 64);
+  assert.equal((await runWebCommand(["unknown", "--json"], web)).code, 64);
+  assert.equal((await runWebCommand(["__serve"], web)).code, 64);
 });
 
 test("un scaffold CLI signale l'indisponibilité du journal avant toute écriture", async (context) => {

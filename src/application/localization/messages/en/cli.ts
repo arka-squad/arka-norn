@@ -8,4 +8,9 @@ export const CLI_MESSAGES = {
   "cli.error.ttyRequired": "arka-norn requires an interactive terminal (TTY). Use a CLI subcommand in scripts.",
   "cli.error.noArguments": "{command} does not accept arguments.",
   "cli.error.invalidSelftest": "The selftest module is invalid.",
+  "cli.web.running": "Norn Web is running at {url}",
+  "cli.web.stopped": "Norn Web is stopped.",
+  "cli.web.unresponsive": "Norn Web is unresponsive. Inspect {logPath}.",
+  "cli.web.details": "PID: {pid}\nPort: {port}\nStarted: {startedAt}\nLog: {logPath}",
+  "cli.web.usage": "Usage: arka-norn web [start|stop|restart|status|foreground] [--port <port>] [--no-open] [--json]",
 } as const;

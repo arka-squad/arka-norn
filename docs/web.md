@@ -2,15 +2,28 @@
 
 Norn Web is a local Project tracking interface for Project managers. It presents verified framework state in a human layout. It is not an Agent control surface.
 
-## Start
+## Server lifecycle
 
 ```bash
-arka-norn web
-arka-norn web --port 4317
-arka-norn web --no-open
+arka-norn web start
+arka-norn web status
+arka-norn web restart
+arka-norn web stop
 ```
 
-Norn binds only to `127.0.0.1`. Without `--port`, it selects an available port. Keep the printed session URL private while the process is running.
+`arka-norn web` is an alias for `web start`. It launches one managed background server that survives the terminal used to start it. Norn binds only to `127.0.0.1`; without `--port`, it selects an available port. The secured session opens in the browser unless `--no-open` is provided.
+
+Use the complete command surface when operating or scripting the server:
+
+| Command | Behavior |
+| --- | --- |
+| `arka-norn web start [--port <port>] [--no-open]` | Start the managed server or return the verified running instance. |
+| `arka-norn web status` | Probe the authenticated health endpoint and report URL, PID, port, start time and log path. |
+| `arka-norn web restart [--port <port>] [--no-open]` | Stop gracefully, retain the current port by default and create a new session token. |
+| `arka-norn web stop` | Stop the verified process. Repeating the command is safe. |
+| `arka-norn web foreground [--port <port>] [--no-open]` | Keep the server attached to the current terminal. |
+
+Every command accepts `--json`. Private state is stored with mode `0600` under `$ARKA_NORN_HOME/.arka-norn/web/server.json`; detached output goes to `server.log` in the same directory. Keep the returned session URL private while the server is running.
 
 The first screen asks for a human name and optional email. This creates a stable local identity for governance events. It does not create an online account.
 
@@ -79,4 +92,4 @@ All fonts and brand assets are local. The application loads no visual resource f
 
 The session token starts in the URL fragment, is removed from browser history and is sent as a Bearer credential to the local API and SSE stream. The server checks loopback origin and applies a CSP without external resources.
 
-Stopping the `arka-norn web` process invalidates the session. Restart the command to receive a new URL and token.
+`web stop` invalidates the session. `web restart` creates a new URL token, so an older browser tab must use the newly returned session URL.

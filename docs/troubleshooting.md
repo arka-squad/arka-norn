@@ -20,6 +20,10 @@ Check `--locale`, `ARKA_NORN_LOCALE`, `locale show`, then system `LC_ALL`/`LANG`
 
 Run `arka-norn skills doctor` and reinstall from the generated catalog.
 
+## Project Web does not start or respond
+
+Run `arka-norn web status --json` and inspect the returned `logPath`. A healthy managed server can be replaced with `arka-norn web restart --no-open`. If status reports `unresponsive`, Norn deliberately refuses to signal an unverified PID; preserve `server.log` and inspect the private state under `$ARKA_NORN_HOME/.arka-norn/web/` before removing stale runtime data. Use `web foreground` when startup diagnostics must remain in the terminal.
+
 ## Index or marker problem
 
 Run `arka-norn doctor`. Repair actions are previewed and backed up before application.

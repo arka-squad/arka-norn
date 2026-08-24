@@ -1,0 +1,107 @@
+{
+  "schema_version": 5,
+  "id": "development-report-norn-project-web-002",
+  "feature_id": "norn-project-web-2181d081",
+  "type": "development_report",
+  "sequence": 2,
+  "created_at": "2026-08-24T08:19:45Z",
+  "depends_on_document_ids": [
+    "technical-integration-specification-norn-project-web-001",
+    "development-report-norn-project-web-001"
+  ],
+  "content_locale": "en",
+  "ref": "NORN-WEB-2.1.0-LIFECYCLE",
+  "date": "2026-08-24",
+  "agent": {
+    "name": "Codex",
+    "provider": "OpenAI"
+  },
+  "spec_sources": [
+    "technical-integration-specification-norn-project-web-001",
+    "agent-task-norn-project-web-001"
+  ],
+  "status": "delivered",
+  "delivered_files": [
+    {
+      "path": "src/composition/web-process-manager.ts",
+      "action": "created",
+      "lines": 235,
+      "role": "Managed background server lifecycle with authenticated health probes, PID ownership checks and bounded shutdown."
+    },
+    {
+      "path": "src/adapters/outbound/filesystem/fs-web-server-state-store.ts",
+      "action": "created",
+      "lines": 88,
+      "role": "Private atomic lifecycle state and log location under ARKA_NORN_HOME."
+    },
+    {
+      "path": "src/adapters/inbound/cli/web-cli.ts",
+      "action": "modified",
+      "lines": 135,
+      "role": "Public start, status, restart, stop and foreground commands with localized human and stable JSON output."
+    },
+    {
+      "path": "src/adapters/inbound/web/api-router.ts",
+      "action": "modified",
+      "lines": 172,
+      "role": "Authenticated loopback health endpoint used to verify process ownership before signalling."
+    },
+    {
+      "path": "tests/e2e/web-cli.test.ts",
+      "action": "created",
+      "lines": 83,
+      "role": "Real detached lifecycle coverage including PID and token rotation."
+    },
+    {
+      "path": "tests/unit/web-server-state.test.ts",
+      "action": "created",
+      "lines": 38,
+      "role": "Private state validation, permissions and ownership coverage."
+    },
+    {
+      "path": "README.md",
+      "action": "modified",
+      "lines": 186,
+      "role": "Current Web lifecycle quick start and npm script reference."
+    },
+    {
+      "path": "docs/web.md",
+      "action": "modified",
+      "lines": 95,
+      "role": "Complete lifecycle, security, state, log and token rotation documentation."
+    },
+    {
+      "path": "docs/cli.md",
+      "action": "modified",
+      "lines": 76,
+      "role": "Canonical CLI command surface for the managed Web server."
+    }
+  ],
+  "covered_requirements": [
+    {
+      "id": "WEB-LIFECYCLE",
+      "requirement": "Users can start, inspect, restart and stop the local Web server without managing a foreground terminal.",
+      "covered": true,
+      "evidence": "The lifecycle E2E verifies start, authenticated health, status, restart with PID and token rotation, stop and idempotent stop."
+    },
+    {
+      "id": "WEB-SECURITY",
+      "requirement": "Lifecycle control never signals an unverified process and keeps state, logs and tokens private.",
+      "covered": true,
+      "evidence": "The manager probes the token-protected loopback health endpoint before SIGTERM; state and logs are mode 0600 and state removal is PID-owned."
+    },
+    {
+      "id": "WEB-DOCS",
+      "requirement": "README and user, Agent, developer, CLI, security, architecture, release and troubleshooting guides document the shipped Web behavior.",
+      "covered": true,
+      "evidence": "The documentation and package manifest expose the same five public lifecycle actions and the four npm aliases."
+    },
+    {
+      "id": "WEB-RELEASE",
+      "requirement": "The managed server ships in the 2.1.0 package and preserves all quality gates.",
+      "covered": true,
+      "evidence": "253 full tests, 112 unit tests, CLI coverage at 77.00% lines and 73.48% functions, isolated tarball installation, benchmark, dependency audit and npm pack dry-run pass."
+    }
+  ],
+  "author_agent_id": "OpenAI-Codex_dev-audit_20260819"
+}

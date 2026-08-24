@@ -76,6 +76,9 @@ test("un consumer vierge installe le tarball sans node_modules du worktree", asy
   const packagedPaths = metadata[0]!.files.map((file) => file.path);
   assert.ok(packagedPaths.includes("dist/composition/pipeline-runtime.js"));
   assert.ok(packagedPaths.includes("dist/adapters/inbound/cli/main-cli.js"));
+  assert.ok(packagedPaths.includes("dist/composition/web-process-manager.js"));
+  assert.ok(packagedPaths.includes("dist/adapters/outbound/filesystem/fs-web-server-state-store.js"));
+  assert.ok(packagedPaths.includes("dist/web/index.html"));
   assert.ok(packagedPaths.includes("skills-src/catalog/skills.json"));
   assert.ok(packagedPaths.includes("skills-src/arka-norn.json"));
   assert.ok(packagedPaths.includes("skills-src/arka-fastdev.json"));
@@ -85,6 +88,7 @@ test("un consumer vierge installe le tarball sans node_modules du worktree", asy
   assert.ok(packagedPaths.includes("schemas/feature-brief.schema.json"));
   assert.ok(packagedPaths.includes("docs/essential.md"));
   assert.ok(packagedPaths.includes("docs/developer-guide.md"));
+  assert.ok(packagedPaths.includes("docs/web.md"));
   assert.ok(packagedPaths.includes("docs/user-guide.md"));
   assert.equal(packagedPaths.some((file) => file.startsWith("tests/") || file.startsWith(".input/") || file.startsWith("src/")), false);
 
@@ -131,6 +135,7 @@ test("un consumer vierge installe le tarball sans node_modules du worktree", asy
   assert.equal(existsSync(resolve(packageRoot, "dist", "composition", "pipeline-runtime.js")), true);
   assert.equal(existsSync(resolve(packageRoot, "docs", "developer-guide.md")), true);
   assert.equal(existsSync(resolve(packageRoot, "docs", "user-guide.md")), true);
+  assert.equal(existsSync(resolve(packageRoot, "dist", "web", "index.html")), true);
   assert.equal(existsSync(resolve(packageRoot, "src")), false);
   assert.doesNotMatch(readFileSync(resolve(packageRoot, "skills-src", "arka-framework-development.json"), "utf8"), /\/Users\//);
 

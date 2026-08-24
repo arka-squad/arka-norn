@@ -28,9 +28,15 @@ node bin/arka-norn.mjs
 Open Project tracking in the browser:
 
 ```bash
-node bin/arka-norn.mjs web
-node bin/arka-norn.mjs web --port 4317 --no-open
+node bin/arka-norn.mjs web start
+node bin/arka-norn.mjs web status
+node bin/arka-norn.mjs web restart
+node bin/arka-norn.mjs web stop
 ```
+
+`web` without an action is an alias for `web start`. The managed server runs in the background, survives the launching terminal and opens the secured browser session by default. Add `--port 4317`, `--no-open` or `--json` when needed. Use `web foreground` only when the server must remain attached to the current terminal.
+
+From a source checkout, the equivalent shortcuts are `npm run web:start`, `npm run web:status`, `npm run web:restart` and `npm run web:stop`.
 
 The Web interface presents Project health, Feature paths, every signed document in a human layout, decisions, audits, registered Agents and live Norn orchestration state. It never starts, stops, retries or configures an Agent; control stays in each provider's native application.
 
