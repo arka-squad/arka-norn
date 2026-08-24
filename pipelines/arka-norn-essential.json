@@ -8,6 +8,7 @@
   "steps": [
     {
       "id": "feature_brief",
+      "decisionGate": "human_decision",
       "order": 1,
       "schema": "schemas/feature-brief.schema.json",
       "required": true,
@@ -16,6 +17,7 @@
     },
     {
       "id": "technical_contract_appendix",
+      "decisionGate": "continue",
       "order": 2,
       "schema": "schemas/technical-contract-appendix.schema.json",
       "required": false,
@@ -26,6 +28,7 @@
     },
     {
       "id": "development_report",
+      "decisionGate": "continue",
       "order": 3,
       "schema": "schemas/development-report.schema.json",
       "required": true,
@@ -46,6 +49,7 @@
     },
     {
       "id": "delivery_audit",
+      "decisionGate": "continue",
       "order": 4,
       "schema": "schemas/delivery-audit.schema.json",
       "required": true,
@@ -71,6 +75,7 @@
     },
     {
       "id": "delivery_validation",
+      "decisionGate": "human_decision",
       "order": 5,
       "schema": "schemas/delivery-validation.schema.json",
       "required": true,

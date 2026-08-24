@@ -65,6 +65,26 @@ arka-norn agent advise|prompt|handoff-prompt
 arka-norn agent deactivate|replace
 ```
 
+## Automatic orchestration
+
+```bash
+arka-norn orchestration configure --project <project> --provider claude|codex --model <model> --workspace isolated|direct
+arka-norn orchestration preview --project <project> --feature <feature>
+arka-norn orchestration start --project <project> --feature <feature> --provider <provider> --model <model> --preview <fingerprint>
+arka-norn orchestration status --project <project>
+arka-norn orchestration pause <campaign-id> --project <project> --revision <n>
+arka-norn orchestration resume <campaign-id> --project <project> --revision <n>
+arka-norn orchestration decide <campaign-id> --project <project> --revision <n> --confirm <fingerprint> --actor <identity> --choice <choice>
+arka-norn orchestration changes <campaign-id> --project <project>
+arka-norn orchestration apply <campaign-id> --project <project> --revision <n> --confirm <diff-fingerprint>
+arka-norn orchestration retry <campaign-id> --project <project> --revision <n> --confirm <fingerprint>
+arka-norn orchestration retry <execution-id> --project <project> # manual/legacy execution only
+arka-norn orchestration cancel <campaign-id> --project <project> --revision <n>
+arka-norn orchestration abandon <campaign-id> --project <project> --revision <n>
+```
+
+All commands accept `--json`. Campaign mutations use optimistic revision checks; decisions and application also bind to the displayed fingerprint. `cancel` retains an isolated mirror for seven days, while `abandon` discards it. Legacy execution cancellation remains readable for historical automation. A completed command exits successfully even when a campaign is blocked or waiting for a Product decision; inspect the stable state/action fields.
+
 ## Migration and health
 
 ```bash

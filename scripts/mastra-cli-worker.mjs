@@ -17,10 +17,14 @@
  */
 
 import { spawn } from "node:child_process";
+import { mkdir, readdir } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { readWorkerRequest, writeWorkerResult } from "./mastra-worker-protocol.mjs";
 
 const MAX_PROVIDER_OUTPUT_BYTES = 512 * 1024;
+const TOOL_SERVER = fileURLToPath(new URL("./orchestration-tool-server.mjs", import.meta.url));
 const request = await readWorkerRequest(["claude-cli", "codex-cli"]);
 let providerProcess;
 let cancelled = false;
@@ -43,6 +47,7 @@ try {
     writeWorkerResult({
       status: "completed",
       output: request.provider === "claude-cli" ? claudeResult(result.stdout) : result.stdout.trim(),
+      receipts: result.receipts,
       ...(result.sessionId === undefined ? {} : { sessionId: result.sessionId }),
     });
   }
@@ -55,15 +60,29 @@ try {
   process.off("SIGINT", stop);
 }
 
-function runCli(input) {
+async function runCli(input) {
   const canWrite = input.permissionPolicy !== "deny-all" && input.permissionPolicy.permissions.includes("write_workspace");
+  const canRunRecipe = input.frameworkContext?.capabilities?.includes("run_commands") === true;
+  const scopePaths = input.permissionPolicy === "deny-all" ? ["."] : input.permissionPolicy.scopePaths;
+  const receiptDirectory = join(process.env.TMPDIR ?? process.env.TMP ?? dirname(input.workspace), "arka-norn-receipts", input.executionId);
+  const toolArguments = [
+    TOOL_SERVER,
+    "--workspace", input.workspace,
+    "--receipts", receiptDirectory,
+    "--execution", input.executionId,
+    "--scope", JSON.stringify(scopePaths),
+    "--write", canWrite ? "1" : "0",
+    "--recipes", canRunRecipe ? "1" : "0",
+    ...(input.frameworkContext === undefined ? [] : ["--framework", JSON.stringify(input.frameworkContext)]),
+  ];
   const args = input.provider === "claude-cli"
-    ? claudeArguments(input, canWrite)
-    : codexArguments(input, canWrite);
+    ? claudeArguments(input, canWrite, canRunRecipe, toolArguments)
+    : codexArguments(input, toolArguments);
+  await mkdir(receiptDirectory, { recursive: true, mode: 0o700 });
   return new Promise((resolve, reject) => {
     providerProcess = spawn(input.command, args, {
       cwd: input.workspace,
-      env: process.env,
+      env: providerEnvironment(input.provider),
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
     });
@@ -80,32 +99,53 @@ function runCli(input) {
     providerProcess.stdout.on("data", (chunk) => { stdout = append(stdout, chunk); });
     providerProcess.stderr.on("data", (chunk) => { stderr = append(stderr, chunk); });
     providerProcess.once("error", reject);
-    providerProcess.once("close", (code) => resolve({ code: code ?? 1, stdout, stderr }));
+    providerProcess.once("close", async (code) => resolve({ code: code ?? 1, stdout, stderr, receipts: await receiptIds(receiptDirectory) }));
     providerProcess.stdin.end(input.mission);
   });
 }
 
-function claudeArguments(input, canWrite) {
+function providerEnvironment(provider) {
+  const common = ["PATH", "HOME", "USERPROFILE", "TMPDIR", "TMP", "TEMP", "LANG", "LC_ALL", "LC_CTYPE", "TERM", "NO_COLOR", "TZ", "SystemRoot", "SYSTEMROOT"];
+  const specific = provider === "claude-cli" ? ["CLAUDE_CONFIG_DIR"] : ["CODEX_HOME"];
+  return Object.fromEntries([...common, ...specific]
+    .map((name) => [name, process.env[name]])
+    .filter((entry) => entry[1] !== undefined));
+}
+
+function claudeArguments(input, canWrite, canRunRecipe, toolArguments) {
+  const mcpConfig = JSON.stringify({ mcpServers: { norn: { command: process.execPath, args: toolArguments } } });
+  const writeTools = "mcp__norn__propose_change,mcp__norn__delete_path";
   return [
     "-p",
     "--safe-mode",
     "--output-format", "json",
     "--no-session-persistence",
     "--strict-mcp-config",
-    "--mcp-config", "{}",
+    "--mcp-config", mcpConfig,
     "--model", input.model,
-    "--permission-mode", canWrite ? "acceptEdits" : "plan",
-    "--tools", canWrite ? "Read,Glob,Grep,Edit,Write" : "Read,Glob,Grep",
-    "--disallowedTools", "Bash,Task,Agent,WebFetch,WebSearch,NotebookEdit",
+    "--permission-mode", "dontAsk",
+    "--tools", `mcp__norn__framework_state,mcp__norn__search,mcp__norn__read_file${canRunRecipe ? ",mcp__norn__run_recipe" : ""},mcp__norn__submit_evidence,mcp__norn__report_blocker,mcp__norn__request_decision${canWrite ? `,${writeTools}` : ""}`,
+    "--disallowedTools", "Bash,Task,Agent,Read,Glob,Grep,Edit,Write,WebFetch,WebSearch,NotebookEdit",
   ];
 }
 
-function codexArguments(input, canWrite) {
+function codexArguments(input, toolArguments) {
   return [
-    "--sandbox", canWrite ? "workspace-write" : "read-only",
+    "--sandbox", "read-only",
     "--ask-for-approval", "never",
     "--cd", input.workspace,
     "--model", input.model,
+    "--disable", "shell_tool",
+    "--disable", "unified_exec",
+    "--disable", "shell_snapshot",
+    "--disable", "shell_zsh_fork",
+    "--disable", "unified_exec_zsh_fork",
+    "--disable", "multi_agent",
+    "--disable", "browser_use",
+    "--disable", "computer_use",
+    "--disable", "apps",
+    "--config", `mcp_servers.norn.command=${JSON.stringify(process.execPath)}`,
+    "--config", `mcp_servers.norn.args=${JSON.stringify(toolArguments)}`,
     "exec",
     "--ephemeral",
     "--ignore-user-config",
@@ -113,6 +153,15 @@ function codexArguments(input, canWrite) {
     "--color", "never",
     "-",
   ];
+}
+
+async function receiptIds(directory) {
+  try {
+    const entries = await readdir(directory);
+    return entries.filter((name) => /^receipt-[A-Za-z0-9-]+\.json$/u.test(name)).map((name) => name.slice(0, -5)).sort().slice(0, 100);
+  } catch {
+    return [];
+  }
 }
 
 function claudeResult(stdout) {

@@ -16,7 +16,7 @@
 
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 
-import type { AgentExecutionPermissionPolicy, AgentExecutionProvider } from "../../../ports/outbound/agent-execution-port.js";
+import type { AgentExecutionFrameworkContext, AgentExecutionPermissionPolicy, AgentExecutionProvider } from "../../../ports/outbound/agent-execution-port.js";
 
 const MAX_WORKER_STDOUT_BYTES = 1024 * 1024;
 const FORCE_KILL_DELAY_MS = 2_000;
@@ -28,6 +28,7 @@ export interface MastraWorkerPayload {
   readonly mission: string;
   readonly workspace: string;
   readonly permissionPolicy: AgentExecutionPermissionPolicy;
+  readonly frameworkContext?: AgentExecutionFrameworkContext;
   readonly command?: string;
   readonly args?: readonly string[];
   readonly authMethodId?: string;
@@ -41,6 +42,7 @@ export interface MastraWorkerFailure {
 export interface MastraWorkerResult {
   readonly status: "completed" | "awaiting_approval" | "failed" | "cancelled" | "interrupted";
   readonly output?: string;
+  readonly receipts?: readonly string[];
   readonly sessionId?: string;
   readonly failure?: MastraWorkerFailure;
 }
@@ -204,14 +206,17 @@ function parseWorkerResult(stdout: string): MastraWorkerResult | undefined {
     const status = value["status"];
     if (status !== "completed" && status !== "awaiting_approval" && status !== "failed" && status !== "cancelled") return undefined;
     const output = value["output"];
+    const receipts = value["receipts"];
     const sessionId = value["sessionId"];
     const failure = value["failure"];
     if (output !== undefined && typeof output !== "string") return undefined;
+    if (receipts !== undefined && (!Array.isArray(receipts) || receipts.length > 100 || receipts.some((receipt) => typeof receipt !== "string" || !/^receipt-[A-Za-z0-9-]{1,160}$/u.test(receipt)))) return undefined;
     if (sessionId !== undefined && typeof sessionId !== "string") return undefined;
     if (failure !== undefined && (!isRecord(failure) || typeof failure["code"] !== "string")) return undefined;
     return {
       status,
       ...(output === undefined ? {} : { output }),
+      ...(receipts === undefined ? {} : { receipts: receipts as string[] }),
       ...(sessionId === undefined ? {} : { sessionId }),
       ...(failure === undefined ? {} : { failure: { code: failure["code"] as string } }),
     };

@@ -58,12 +58,16 @@ test("le contrôle Arka arme le mode automatique, garde le provider choisi et n'
   assert.equal(status.orchestrationMode, "manual");
   assert.equal(status.activeExecution, undefined);
   assert.equal(status.latestExecution?.status, "succeeded");
-  assert.deepEqual(status.latestExecution?.proofReferences, ["pipeline:next-step:plan", "document:concept.json"]);
+  assert.deepEqual(status.latestExecution?.proofReferences, ["pipeline:next-step:plan", "document:concept.json", "receipt:receipt-recipe-test-pass-fake"]);
   assert.equal(status.latestExecution?.providerSessionId, "fake-provider-session");
   const selection = planned.events.find((event) => event.type === "target_selected" && event.detail.includes("target=claude/claude-test"));
   assert.equal(selection?.detail.includes("target=claude/claude-test"), true);
   assert.equal(harness.port.missions.length, 1);
   assert.equal(harness.port.missions[0]?.provider, "claude-cli");
+  assert.equal(harness.port.missions[0]?.frameworkContext?.project.logicalRoot, harness.project.root);
+  assert.equal(harness.port.missions[0]?.frameworkContext?.expectedSkill, "arka-product");
+  assert.equal(harness.port.missions[0]?.frameworkContext?.workspace.realization, "domain_managed");
+  assert.match(harness.port.missions[0]?.frameworkContext?.integrityFingerprint ?? "", /^[a-f0-9]{64}$/u);
   assert.deepEqual(harness.port.missions[0]?.permissionPolicy, {
     mode: "preauthorized-workspace",
     scopePaths: ["."],
@@ -84,10 +88,10 @@ test("la préparation est strictement en lecture seule et une confirmation obsol
   assert.equal(beforeConfiguration.candidates.length, 0);
   assert.equal(existsSync(policyPath), false);
   assert.equal(existsSync(registryPath), false);
-  assert.equal((await harness.management.projects.show(harness.project.id)).orchestrationMode, "manual");
+  assert.equal((await harness.management.projects.show(harness.project.id)).orchestrationMode, "automatic");
   assert.equal(harness.launches.length, 0);
 
-  await harness.runtime.configure({ projectId: harness.project.id, selection: CLAUDE_SELECTION });
+  await harness.runtime.configure({ projectId: harness.project.id, selection: CLAUDE_SELECTION, workspaceMode: "isolated" });
   const preview = await harness.runtime.preview({ projectId: harness.project.id, featureId: harness.feature.id });
   harness.pipelineState.step = "plan";
   await assert.rejects(
@@ -100,7 +104,7 @@ test("la préparation est strictement en lecture seule et une confirmation obsol
     /preview changed/i,
   );
   assert.equal(existsSync(registryPath), false);
-  assert.equal((await harness.management.projects.show(harness.project.id)).orchestrationMode, "manual");
+  assert.equal((await harness.management.projects.show(harness.project.id)).orchestrationMode, "automatic");
   assert.equal(harness.launches.length, 0);
 });
 
@@ -109,7 +113,7 @@ test("une mission d’audit est préparée en lecture seule, y compris dans son 
     agentRole: "audit",
     initialStep: "audit_etat_reel",
   });
-  await harness.runtime.configure({ projectId: harness.project.id, selection: CLAUDE_SELECTION });
+  await harness.runtime.configure({ projectId: harness.project.id, selection: CLAUDE_SELECTION, workspaceMode: "isolated" });
 
   const preview = await harness.runtime.preview({ projectId: harness.project.id, featureId: harness.feature.id });
   assert.equal(preview.role, "audit");
@@ -131,7 +135,7 @@ test("une analyse lecture seule produit seulement un verdict sûr et attend la v
     agentRole: "audit",
     initialStep: "audit_etat_reel",
   });
-  await harness.runtime.configure({ projectId: harness.project.id, selection: CLAUDE_SELECTION });
+  await harness.runtime.configure({ projectId: harness.project.id, selection: CLAUDE_SELECTION, workspaceMode: "isolated" });
   const preview = await harness.runtime.preview({ projectId: harness.project.id, featureId: harness.feature.id });
   const planned = await harness.runtime.start({
     projectId: harness.project.id,
@@ -153,6 +157,8 @@ test("une analyse lecture seule produit seulement un verdict sûr et attend la v
     scopePaths: ["."],
     permissions: ["read_workspace"],
   });
+  assert.equal(harness.port.missions[0]?.frameworkContext?.allowedActions.includes("run_recipe"), false);
+  assert.equal(harness.port.missions[0]?.frameworkContext?.allowedActions.includes("propose_change"), false);
   assert.match(harness.port.missions[0]?.mission ?? "", /ARKA_NORN_ANALYSIS:<no_blocker\|findings_require_review\|scope_change_required\|inconclusive>/);
   assert.doesNotMatch(JSON.stringify(status), /PROVIDER_OUTPUT_MUST_NOT_PERSIST|test-secret/);
   await assert.rejects(
@@ -166,7 +172,7 @@ test("une analyse lecture seule sans verdict fermé est arrêtée sans persister
     agentRole: "audit",
     initialStep: "audit_etat_reel",
   });
-  await harness.runtime.configure({ projectId: harness.project.id, selection: CLAUDE_SELECTION });
+  await harness.runtime.configure({ projectId: harness.project.id, selection: CLAUDE_SELECTION, workspaceMode: "isolated" });
   const preview = await harness.runtime.preview({ projectId: harness.project.id, featureId: harness.feature.id });
   const planned = await harness.runtime.start({
     projectId: harness.project.id,
@@ -196,7 +202,7 @@ test("choisir un modèle ne peut pas élargir une politique Project restée en l
   );
   await store.save(harness.project, readOnlyClaude);
 
-  await harness.runtime.configure({ projectId: harness.project.id, selection: CLAUDE_SELECTION });
+  await harness.runtime.configure({ projectId: harness.project.id, selection: CLAUDE_SELECTION, workspaceMode: "isolated" });
   const configured = await store.load(harness.project);
   const claude = configured?.providers.find((provider) => provider.provider === "claude");
   assert.deepEqual(claude?.capabilities, READ_ONLY_CAPABILITIES);
@@ -204,7 +210,7 @@ test("choisir un modèle ne peut pas élargir une politique Project restée en l
   assert.equal(claude?.models.some((model) => model.id === "claude-test" && model.enabled), true);
 });
 
-test("le Pilote assisté n'enchaîne jamais une seconde mission sans une nouvelle préparation", async (context) => {
+test("la campagne attend une vraie décision avant la phase suivante", async (context) => {
   const harness = await createHarness(context, "completed");
   const planned = await startConfirmed(harness);
   await harness.runtime.runWorker({ projectId: harness.project.id.value, executionId: planned.id });
@@ -213,19 +219,65 @@ test("le Pilote assisté n'enchaîne jamais une seconde mission sans une nouvell
   assert.equal(status.orchestrationMode, "automatic");
   assert.equal(status.executions.length, 1);
   assert.equal(status.latestExecution?.status, "succeeded");
-  assert.equal(status.latestExecution?.events.some((event) => event.type === "next_preview_required"), true);
+  assert.equal(status.activeCampaign?.status, "awaiting_decision");
+  assert.equal(status.actionRequired?.kind, "business_decision");
   assert.equal(harness.launches.length, 1);
 });
 
-test("la relance garde exactement l'assistant et la version confirmés", async (context) => {
-  const harness = await createHarness(context, "awaiting_approval");
+test("une décision refuse de reprendre si le CLI confirmé a changé", async (context) => {
+  let runtimeFingerprint = "a".repeat(64);
+  const harness = await createHarness(context, "completed", {
+    providerHealth: () => [{ provider: "claude", healthy: true, capabilities: CAPABILITIES, runtimeVersion: "Claude 1.0", runtimeFingerprint }],
+  });
   const planned = await startConfirmed(harness);
   await harness.runtime.runWorker({ projectId: harness.project.id.value, executionId: planned.id });
-  const retry = await harness.runtime.retry({ projectId: harness.project.id, executionId: planned.id });
+  const campaign = (await harness.runtime.status({ projectId: harness.project.id })).activeCampaign;
+  if (campaign?.actionRequired === undefined) throw new Error("Expected a campaign decision gate.");
+  runtimeFingerprint = "b".repeat(64);
+  await assert.rejects(harness.runtime.decide!({
+    projectId: harness.project.id,
+    campaignId: campaign.id,
+    expectedRevision: campaign.revision,
+    fingerprint: campaign.actionRequired.fingerprint,
+    actor: "human-tester",
+    choice: "continue",
+  }), /CLI runtime changed/u);
+});
 
-  assert.deepEqual(retry.target, planned.target);
-  assert.equal(retry.target.model, "claude-test");
+test("une décision imprévue demandée par le worker arrête la mission et ouvre une décision Product", async (context) => {
+  const harness = await createHarness(context, "decision_required");
+  const planned = await startConfirmed(harness);
+  await harness.runtime.runWorker({ projectId: harness.project.id.value, executionId: planned.id });
+  const status = await harness.runtime.status({ projectId: harness.project.id });
+  assert.equal(status.latestExecution?.suspensionReason?.code, "decision_required");
+  assert.equal(status.activeCampaign?.status, "awaiting_decision");
+  assert.equal(status.activeCampaign?.actionRequired?.kind, "business_decision");
+});
+
+test("la relance de campagne garde la cible confirmée et consomme l'unique retry global", async (context) => {
+  const harness = await createHarness(context, "failed");
+  const planned = await startConfirmed(harness);
+  await harness.runtime.runWorker({ projectId: harness.project.id.value, executionId: planned.id });
+  const blocked = (await harness.runtime.status({ projectId: harness.project.id })).activeCampaign;
+  assert.equal(blocked?.actionRequired?.kind, "retry");
+  if (blocked?.actionRequired === undefined) throw new Error("Expected a confirmed campaign retry.");
+  await assert.rejects(harness.runtime.retry({ projectId: harness.project.id, executionId: planned.id }), /belongs to automatic campaign/u);
+  const retried = await harness.runtime.retryCampaign!({
+    projectId: harness.project.id,
+    campaignId: blocked.id,
+    expectedRevision: blocked.revision,
+    fingerprint: blocked.actionRequired.fingerprint,
+  });
+
+  assert.equal(retried.status, "running");
+  assert.equal(retried.retryCount, 1);
   assert.equal(harness.launches.length, 2);
+
+  await harness.runtime.runWorker({ projectId: harness.project.id.value, executionId: planned.id });
+  const exhausted = (await harness.runtime.status({ projectId: harness.project.id })).activeCampaign;
+  assert.equal(exhausted?.status, "blocked");
+  assert.equal(exhausted?.actionRequired?.kind, "inspect");
+  assert.match(exhausted?.actionRequired?.reason ?? "", /single campaign retry is exhausted/u);
 });
 
 test("Z.AI Coding Plan est routé par le worker Claude borné, tandis que Kimi ACP reste arrêté pour les écritures", async (context) => {
@@ -234,7 +286,7 @@ test("Z.AI Coding Plan est routé par le worker Claude borné, tandis que Kimi A
     agentProvider: "Z.AI Coding Plan",
     providerHealth: () => [{ provider: "zai", healthy: true, capabilities: CAPABILITIES }],
   });
-  await zai.runtime.configure({ projectId: zai.project.id, selection: zaiSelection });
+  await zai.runtime.configure({ projectId: zai.project.id, selection: zaiSelection, workspaceMode: "isolated" });
   const zaiPreview = await zai.runtime.preview({ projectId: zai.project.id, featureId: zai.feature.id });
   const zaiCandidate = zaiPreview.candidates.find((candidate) => candidate.target.provider === "zai");
   assert.equal(zaiCandidate?.eligible, true);
@@ -255,7 +307,7 @@ test("Z.AI Coding Plan est routé par le worker Claude borné, tandis que Kimi A
     agentProvider: "Kimi Platform",
     providerHealth: () => [{ provider: "kimi", healthy: true, capabilities: CAPABILITIES }],
   });
-  await kimi.runtime.configure({ projectId: kimi.project.id, selection: { provider: "kimi", model: "kimi-coding" } });
+  await kimi.runtime.configure({ projectId: kimi.project.id, selection: { provider: "kimi", model: "kimi-coding" }, workspaceMode: "isolated" });
   const kimiPreview = await kimi.runtime.preview({ projectId: kimi.project.id, featureId: kimi.feature.id });
   const kimiCandidate = kimiPreview.candidates.find((candidate) => candidate.target.provider === "kimi");
   assert.equal(kimiCandidate?.eligible, false);
@@ -275,7 +327,11 @@ test("une permission opaque est refusée sans boucle d'approbation", async (cont
   assert.equal(suspended.actionRequired?.kind, "inspect");
   await assert.rejects(
     harness.runtime.approve({ projectId: harness.project.id, executionId: planned.id }),
-    /expected awaiting_approval status/,
+    /generic approval is not an allowed campaign action/,
+  );
+  await assert.rejects(
+    harness.runtime.cancel({ projectId: harness.project.id, executionId: planned.id }),
+    /cancel the campaign with its current revision/,
   );
   assert.equal(harness.launches.length, 1);
 });
@@ -346,14 +402,13 @@ test("un worker sans heartbeat est récupéré comme interrompu sans signaler so
   const stale = await startConfirmed(harness);
   now = new Date(now.getTime() + 61_000);
 
-  const replacement = await startConfirmed(harness);
+  await assert.rejects(startConfirmed(harness), /Campaign .* already/);
   const status = await harness.runtime.status({ projectId: harness.project.id });
   const recovered = status.executions.find((execution) => execution.id === stale.id);
 
   assert.equal(recovered?.status, "rejected");
   assert.equal(recovered?.suspensionReason?.code, "worker_unavailable");
-  assert.notEqual(replacement.id, stale.id);
-  assert.equal(harness.launches.length, 2);
+  assert.equal(harness.launches.length, 1);
 });
 
 test("une panne avant dispatch rejette la mission et laisse une trace d’audit", async (context) => {
@@ -400,7 +455,7 @@ interface HarnessRuntimeOptions {
 }
 
 async function startConfirmed(harness: Harness) {
-  await harness.runtime.configure({ projectId: harness.project.id, selection: CLAUDE_SELECTION });
+  await harness.runtime.configure({ projectId: harness.project.id, selection: CLAUDE_SELECTION, workspaceMode: "isolated" });
   const preview = await harness.runtime.preview({ projectId: harness.project.id, featureId: harness.feature.id });
   return harness.runtime.start({
     projectId: harness.project.id,
@@ -412,7 +467,7 @@ async function startConfirmed(harness: Harness) {
 
 async function createHarness(
   context: { after(callback: () => void): void },
-  result: "completed" | "completed_without_proof" | "completed_invalid_read_only" | "awaiting_approval",
+  result: "completed" | "completed_without_proof" | "completed_invalid_read_only" | "decision_required" | "awaiting_approval" | "failed",
   runtimeOptions: HarnessRuntimeOptions = {},
 ): Promise<Harness> {
   const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-orchestration-runtime-"));
@@ -427,7 +482,7 @@ async function createHarness(
     id: ProjectId.of("project"),
     name: "Project",
     root: projectRoot,
-    orchestrationMode: "manual",
+    orchestrationMode: "automatic",
   });
   const feature = await management.features.create({
     id: FeatureId.of("feature"),
@@ -481,7 +536,7 @@ class FakeExecutionPort implements AgentExecutionPort {
   private readonly outcomes = new Map<string, AgentExecutionOutcome>();
 
   public constructor(
-    private readonly result: "completed" | "completed_without_proof" | "completed_invalid_read_only" | "awaiting_approval",
+    private readonly result: "completed" | "completed_without_proof" | "completed_invalid_read_only" | "decision_required" | "awaiting_approval" | "failed",
     private readonly pipelineState: PipelineState,
   ) {}
 
@@ -497,15 +552,18 @@ class FakeExecutionPort implements AgentExecutionPort {
       executionId: mission.executionId,
       provider: mission.provider,
       workspace: mission.workspace,
-      status: this.result === "awaiting_approval" ? "awaiting_approval" : "completed",
+      status: this.result === "awaiting_approval" ? "awaiting_approval" : this.result === "failed" ? "failed" : "completed",
       attempt: 1,
       retryStrategy: "new-run",
       startedAt: "2026-08-20T10:00:00.000Z",
       completedAt: "2026-08-20T10:00:01.000Z",
-      ...(this.result === "awaiting_approval" ? {
+      ...(this.result === "awaiting_approval" || this.result === "failed" ? {
         approval: { code: "permission_requested" as const, message: "Permission required.", retryStrategy: "new-run" as const },
-        failure: { code: "PERMISSION_REQUESTED", message: "Permission required.", retryable: true },
+        failure: this.result === "failed"
+          ? { code: "PROVIDER_FAILED", message: "Provider failed.", retryable: true }
+          : { code: "PERMISSION_REQUESTED", message: "Permission required.", retryable: true },
       } : {
+        receipts: this.result === "decision_required" ? ["receipt-decision-fake"] : readOnly ? [] : ["receipt-recipe-test-pass-fake"],
         output: this.result === "completed"
           ? readOnly
             ? `PROVIDER_OUTPUT_MUST_NOT_PERSIST test-secret\nARKA_NORN_ANALYSIS:findings_require_review\nARKA_NORN_PROOF:${mission.executionId}:${expectedStep}`

@@ -15,86 +15,57 @@
  */
 
 import { roleForStep } from "../application/agents/agent-orchestration.js";
+import { PRODUCT_VERSION } from "../application/product-metadata.js";
 import { FsExecutionRegistryStore } from "../adapters/outbound/filesystem/fs-orchestration-execution-registry-store.js";
 import { FsOrchestrationPolicyStore } from "../adapters/outbound/filesystem/fs-orchestration-policy-store.js";
 import { FsOrchestrationWorkerStateStore } from "../adapters/outbound/filesystem/fs-orchestration-worker-state-store.js";
+import { FsOrchestrationCampaignStore } from "../adapters/outbound/filesystem/fs-orchestration-campaign-store.js";
+import { FsOrchestrationWorkspaceManager } from "../adapters/outbound/filesystem/fs-orchestration-workspace.js";
 import { FsAuditTrail } from "../adapters/outbound/filesystem/fs-audit-trail.js";
 import { createMastraExecutionPort } from "../adapters/outbound/execution/mastra-agent-execution-adapter.js";
 import { SystemClock } from "../adapters/outbound/system/system-clock.js";
 import { createAgentOrchestrationRuntime } from "./agent-orchestration-runtime.js";
-import { AuditUnavailableError } from "../domain/errors.js";
 import type { Feature } from "../domain/feature/feature.js";
 import { MissionPreconditionError } from "../domain/orchestration/errors.js";
-import {
-  type ExecutionProviderHealth,
-} from "../domain/orchestration/execution-policy.js";
+import type { ExecutionProviderHealth } from "../domain/orchestration/execution-policy.js";
 import { ExecutionRecord, executionSuspensionReason } from "../domain/orchestration/execution-record.js";
+import { OrchestrationCampaign } from "../domain/orchestration/orchestration-campaign.js";
+import { projectOrchestration } from "../domain/orchestration/orchestration-projection.js";
 import { MissionOrder, type MissionOrderContext } from "../domain/orchestration/mission-order.js";
-import {
-  sameExecutionTarget,
-} from "../domain/orchestration/types.js";
+import { sameExecutionTarget } from "../domain/orchestration/types.js";
 import type { Project } from "../domain/project/project.js";
 import { ProjectId } from "../domain/project/project-id.js";
 import type { ForAgentOrchestration } from "../ports/inbound/for-agent-orchestration.js";
 import type { ForAgents } from "../ports/inbound/for-agents.js";
 import type { ForFeatures } from "../ports/inbound/for-features.js";
-import type {
-  ForOrchestration,
-  OrchestrationTargetSelection,
-} from "../ports/inbound/for-orchestration.js";
+import type { ForOrchestration, OrchestrationTargetSelection } from "../ports/inbound/for-orchestration.js";
 import type { ForPipeline } from "../ports/inbound/for-pipeline.js";
 import type { ForProjects } from "../ports/inbound/for-projects.js";
 import type { AgentExecutionMission, AgentExecutionOutcome, AgentExecutionPort } from "../ports/outbound/agent-execution-port.js";
-import type { AuditEvent, AuditTrail } from "../ports/outbound/audit-trail.js";
+import type { AuditTrail } from "../ports/outbound/audit-trail.js";
 import type { Clock } from "../ports/outbound/clock.js";
 import type { ExecutionRegistryStore } from "../ports/outbound/execution-registry-store.js";
 import type { OrchestrationPolicyStore } from "../ports/outbound/orchestration-policy-store.js";
-import {
-  providerCredentialsFrom,
-  providerLabel,
-  providerMission,
-  requirementsForExecution,
-} from "./orchestration-provider-configuration.js";
-import {
-  actionRequired,
-  boundedMissionPrompt,
-  isReadOnlyMission,
-  isSafeProviderSessionId,
-  proofReferencesFor,
-  readOnlyAnalysisVerdict,
-  validatePreparedPrompt,
-} from "./orchestration-proof-validation.js";
-import {
-  createOrchestrationMissionPlanner,
-  relativeFeatureScope,
-} from "./orchestration-mission-planner.js";
-import {
-  createNodeOrchestrationWorkerLauncher,
-  type OrchestrationWorkerLaunch,
-  type OrchestrationWorkerLauncher,
-} from "./orchestration-worker-launcher.js";
-import {
-  delay,
-  includesAll,
-  isActive,
-  nextExecutionId,
-  nextMissionId,
-  resolveBoundedAuthor,
-  type CurrentMissionContext,
-} from "./orchestration-runtime-support.js";
+import type { OrchestrationCampaignStore } from "../ports/outbound/orchestration-campaign-store.js";
+import type { OrchestrationWorkspaceManager } from "../ports/outbound/orchestration-workspace.js";
+import { providerCredentialsFrom, providerLabel, providerMission, requirementsForExecution } from "./orchestration-provider-configuration.js";
+import { actionRequired, boundedMissionPrompt, isReadOnlyMission, isSafeProviderSessionId, proofReferencesFor, readOnlyAnalysisVerdict, validatePreparedPrompt } from "./orchestration-proof-validation.js";
+import { createOrchestrationMissionPlanner } from "./orchestration-mission-planner.js";
+import { createCampaignRuntime } from "./orchestration-campaign-runtime.js";
+import { createOrchestrationLifecycle } from "./orchestration-runtime-lifecycle.js";
+import { createNodeOrchestrationWorkerLauncher, type OrchestrationWorkerLaunch, type OrchestrationWorkerLauncher } from "./orchestration-worker-launcher.js";
+import { delay, frameworkContextForMission, includesAll, isActive, nextExecutionId, nextCampaignId, nextMissionId, resolveBoundedAuthor, type CurrentMissionContext } from "./orchestration-runtime-support.js";
 
 export { configuredProviderHealth } from "./orchestration-provider-configuration.js";
 export { createNodeOrchestrationWorkerLauncher } from "./orchestration-worker-launcher.js";
 export type { OrchestrationWorkerLaunch, OrchestrationWorkerLauncher } from "./orchestration-worker-launcher.js";
-
 const POLL_INTERVAL_MS = 200;
-const STALE_WORKER_AFTER_MS = 60_000;
 
 export interface OrchestrationRuntime extends ForOrchestration {
   /** Internal entrypoint used only by `orchestration _worker`. */
   runWorker(input: OrchestrationWorkerLaunch): Promise<void>;
 }
-
+function requireCampaign(campaigns: readonly OrchestrationCampaign[], campaignId: string): OrchestrationCampaign { const campaign = campaigns.find((candidate) => candidate.id === campaignId); if (campaign === undefined) throw new Error(`Campaign ${campaignId} was not found.`); return campaign; }
 export interface OrchestrationRuntimeOptions {
   readonly homeDir: string;
   readonly frameworkRoot: string;
@@ -105,6 +76,8 @@ export interface OrchestrationRuntimeOptions {
   readonly agentOrchestration?: ForAgentOrchestration;
   readonly policyStore?: OrchestrationPolicyStore;
   readonly registryStore?: ExecutionRegistryStore;
+  readonly campaignStore?: OrchestrationCampaignStore;
+  readonly workspaceManager?: OrchestrationWorkspaceManager;
   readonly workerStateStore?: FsOrchestrationWorkerStateStore;
   readonly executionPort?: AgentExecutionPort;
   readonly workerLauncher?: OrchestrationWorkerLauncher;
@@ -114,7 +87,6 @@ export interface OrchestrationRuntimeOptions {
   readonly providerHealth?: (project: Project) => readonly ExecutionProviderHealth[] | Promise<readonly ExecutionProviderHealth[]>;
   readonly sleep?: (milliseconds: number) => Promise<void>;
 }
-
 /**
  * Arka's automatic control-plane. It owns all durable decisions and gives the
  * external Mastra worker only an already validated, immutable mission order.
@@ -123,9 +95,11 @@ export function createOrchestrationRuntime(options: OrchestrationRuntimeOptions)
   const clock = options.clock ?? new SystemClock();
   const policyStore = options.policyStore ?? new FsOrchestrationPolicyStore();
   const registryStore = options.registryStore ?? new FsExecutionRegistryStore();
+  const campaignStore = options.campaignStore ?? new FsOrchestrationCampaignStore();
+  const workspaceManager = options.workspaceManager ?? new FsOrchestrationWorkspaceManager(options.homeDir);
   const workerStateStore = options.workerStateStore ?? new FsOrchestrationWorkerStateStore(options.homeDir);
   const environment = options.environment ?? process.env;
-  const executionPort = options.executionPort ?? createMastraExecutionPort({ providerCredentials: providerCredentialsFrom(environment) });
+  const executionPort = options.executionPort ?? createMastraExecutionPort({ providerCredentials: providerCredentialsFrom(environment), localCliEnvironment: environment });
   const audit = options.auditTrail ?? new FsAuditTrail(options.homeDir);
   const agentOrchestration = options.agentOrchestration ?? createAgentOrchestrationRuntime({
     agents: options.agents,
@@ -150,21 +124,36 @@ export function createOrchestrationRuntime(options: OrchestrationRuntimeOptions)
     environment,
     ...(options.providerHealth === undefined ? {} : { providerHealth: options.providerHealth }),
   });
+  const lifecycle = createOrchestrationLifecycle({ projects: options.projects, registryStore, workerStateStore, launcher, audit, clock });
+  const campaignRuntime = createCampaignRuntime({
+    frameworkVersion: PRODUCT_VERSION,
+    projects: options.projects,
+    features: options.features,
+    policyStore,
+    registryStore,
+    campaignStore,
+    workspaceManager,
+    missionPlanner,
+    clock,
+    launch: (project, execution) => lifecycle.launchOrReject(project, execution, true),
+  });
   return {
     async configure(input) {
       const project = await options.projects.show(input.projectId);
-      await auditIntent(project, "orchestration.configure", input.selection.provider);
+      await lifecycle.auditIntent(project, "orchestration.configure", input.selection.provider);
       try {
         const current = await missionPlanner.loadPolicyForPreview(project);
-        const policy = missionPlanner.policyWithUserModel(current, input.selection, clock.now());
+        const selected = missionPlanner.policyWithUserModel(current, input.selection, clock.now());
+        const policy = input.workspaceMode === undefined ? selected : selected.withWorkspaceMode(input.workspaceMode, clock.now());
         await policyStore.save(project, policy);
-        await auditSuccess(project, "orchestration.configure", input.selection.provider, {
+        await lifecycle.auditSuccess(project, "orchestration.configure", input.selection.provider, {
           provider: input.selection.provider,
           model: input.selection.model,
+          workspaceMode: policy.workspaceMode,
         });
         return policy;
       } catch (error) {
-        await auditFailure(project, "orchestration.configure", input.selection.provider).catch(() => undefined);
+        await lifecycle.auditFailure(project, "orchestration.configure", input.selection.provider).catch(() => undefined);
         throw error;
       }
     },
@@ -176,33 +165,72 @@ export function createOrchestrationRuntime(options: OrchestrationRuntimeOptions)
 
     async start(input) {
       const project = await options.projects.show(input.projectId);
-      await auditIntent(project, "orchestration.start", input.featureId.value);
+      let campaignForCleanup: OrchestrationCampaign | undefined;
+      await lifecycle.auditIntent(project, "orchestration.start", input.featureId.value);
       try {
-        await recoverStaleExecutions(project);
-        const beforeArming = await missionPlanner.prepareMissionPreview(project, input.featureId);
-        missionPlanner.assertConfirmedPreview(beforeArming, input.selection, input.previewFingerprint);
         if (project.orchestrationMode !== "automatic") {
-          await options.projects.setOrchestrationMode({ id: project.id, orchestrationMode: "automatic" });
+          throw new Error("This Project is in manual mode. Change its orchestration mode explicitly before starting an automatic campaign.");
         }
-        const armedProject = await options.projects.show(project.id);
-        const execution = await scheduleNext(armedProject, input.featureId, input.selection, input.previewFingerprint);
-        await auditSuccess(armedProject, "orchestration.start", execution.id, {
+        await lifecycle.recoverStaleExecutions(project);
+        const beforeArming = await missionPlanner.prepareMissionPreview(project, input.featureId);
+        const target = missionPlanner.assertConfirmedPreview(beforeArming, input.selection, input.previewFingerprint);
+        const confirmedCandidate = beforeArming.preview.candidates.find((candidate) => sameExecutionTarget(candidate.target, target));
+        if (confirmedCandidate === undefined) throw new Error("The confirmed CLI runtime is absent from the current preview.");
+        const policy = await missionPlanner.loadPolicyForPreview(project);
+        if (policy.workspaceMode === "unconfigured") throw new Error("Choose isolated or direct workspace mode before starting an automatic campaign.");
+        const campaign = OrchestrationCampaign.planned({
+          id: nextCampaignId(),
+          projectId: project.id,
+          featureId: beforeArming.feature.id,
+          target,
+          workspaceMode: policy.workspaceMode,
+          scopePaths: beforeArming.scopePaths,
+          previewFingerprint: input.previewFingerprint,
+          frameworkVersion: PRODUCT_VERSION,
+          ...(confirmedCandidate.runtimeVersion === undefined ? {} : { runtimeVersion: confirmedCandidate.runtimeVersion }),
+          ...(confirmedCandidate.runtimeFingerprint === undefined ? {} : { runtimeFingerprint: confirmedCandidate.runtimeFingerprint }),
+          maxMissions: beforeArming.preview.maximumMissions ?? 1,
+          retryCount: 0,
+          currentStepId: beforeArming.nextStepId,
+        }, clock.now());
+        campaignForCleanup = campaign;
+        await campaignStore.update(project, (campaigns) => {
+          const active = campaigns.find((candidate) => !["completed", "cancelled", "abandoned"].includes(candidate.status));
+          if (active !== undefined) throw new Error(`Campaign ${active.id} is already ${active.status}; resolve it before starting another.`);
+          return [...campaigns, campaign];
+        });
+        await workspaceManager.prepare(project, campaign);
+        const execution = await scheduleNext(project, input.featureId, input.selection, input.previewFingerprint, async (planned) => {
+          await campaignRuntime.update(project, campaign.id, (current) => current.start(planned.id, clock.now()));
+        });
+        if (execution.status === "rejected") {
+          await campaignRuntime.update(project, campaign.id, (current) => current.requireAction("inspect", "The local worker could not start; inspect the runtime before retrying.", input.previewFingerprint, clock.now(), "blocked"));
+        }
+        await lifecycle.auditSuccess(project, "orchestration.start", execution.id, {
           provider: execution.target.provider,
           model: execution.target.model ?? "legacy",
+          campaignId: campaign.id,
+          workspaceMode: campaign.workspaceMode,
         });
         return execution;
       } catch (error) {
-        await auditFailure(project, "orchestration.start", input.featureId.value).catch(() => undefined);
+        if (campaignForCleanup !== undefined) await campaignRuntime.cleanupUnstarted(project, campaignForCleanup).catch(() => undefined);
+        await lifecycle.auditFailure(project, "orchestration.start", input.featureId.value).catch(() => undefined);
         throw error;
       }
     },
-
     async status(input) {
       const project = await options.projects.show(input.projectId);
-      const [policy, registry] = await Promise.all([policyStore.load(project), registryStore.load(project)]);
+      const [policy, registry, campaigns] = await Promise.all([policyStore.load(project), registryStore.load(project), campaignStore.load(project)]);
+      await workspaceManager.cleanupExpired(campaigns, clock.now());
       const active = registry.executions.find((record) => isActive(record));
       const latest = registry.executions.at(-1);
       const focus = active ?? latest;
+      const activeCampaign = campaigns.find((campaign) => !["completed", "cancelled", "abandoned"].includes(campaign.status));
+      const latestCampaign = campaigns.at(-1);
+      const campaignAction = activeCampaign?.actionRequired;
+      const pendingChanges = activeCampaign?.status === "awaiting_application" ? await workspaceManager.changes(project, activeCampaign).catch(() => undefined) : undefined;
+      const changed = pendingChanges?.changes.reduce((counts, change) => ({ ...counts, [change.kind]: counts[change.kind] + 1 }), { created: 0, modified: 0, deleted: 0, renamed: 0 });
       return {
         schemaVersion: 1,
         projectId: project.id.value,
@@ -211,52 +239,151 @@ export function createOrchestrationRuntime(options: OrchestrationRuntimeOptions)
         executions: registry.executions,
         activeExecution: active,
         latestExecution: latest,
-        actionRequired: actionRequired(focus),
+        ...(activeCampaign === undefined ? {} : { activeCampaign }),
+        ...(latestCampaign === undefined ? {} : { latestCampaign }),
+        projection: projectOrchestration({ projectId: project.id.value, ...(activeCampaign === undefined ? {} : { campaign: activeCampaign }), ...(focus === undefined ? {} : { execution: focus }), ...(changed === undefined ? {} : { changed }), now: clock.now() }),
+        actionRequired: campaignAction === undefined
+          ? actionRequired(focus)
+          : { kind: campaignAction.kind, executionId: focus?.id ?? "campaign", reason: campaignAction.reason },
       };
+    },
+    async pause(input) {
+      const project = await options.projects.show(input.projectId);
+      const campaign = requireCampaign(await campaignStore.load(project), input.campaignId);
+      campaign.assertRevision(input.expectedRevision);
+      const paused = await campaignRuntime.update(project, input.campaignId, (current) => current.pause(clock.now()));
+      const active = (await registryStore.load(project)).executions.find((record) => campaign.missionIds.includes(record.id) && isActive(record));
+      if (active !== undefined) {
+        if (active.status === "running") await executionPort.cancel({ executionId: active.id }).catch(() => undefined);
+        await lifecycle.updateExecution(project, active.id, (record, at) => record.interrupt(executionSuspensionReason("interrupted", "The campaign was paused by the user."), at));
+      }
+      return paused;
+    },
+    async resume(input) {
+      const project = await options.projects.show(input.projectId);
+      const campaign = requireCampaign(await campaignStore.load(project), input.campaignId);
+      campaign.assertRevision(input.expectedRevision);
+      await campaignRuntime.validateContinuation(project, campaign);
+      const resumed = await campaignRuntime.update(project, input.campaignId, (candidate) => candidate.resume(input.expectedRevision, clock.now()));
+      await campaignRuntime.continueOrBlock(project, resumed, resumed.currentStepId);
+      return requireCampaign(await campaignStore.load(project), resumed.id);
+    },
+    async decide(input) {
+      const project = await options.projects.show(input.projectId);
+      const campaign = requireCampaign(await campaignStore.load(project), input.campaignId);
+      campaign.assertRevision(input.expectedRevision);
+      await campaignRuntime.validateContinuation(project, campaign);
+      const decided = await campaignRuntime.update(project, input.campaignId, (candidate) => candidate.decide(input, clock.now()));
+      await campaignRuntime.continueOrBlock(project, decided, decided.currentStepId);
+      return requireCampaign(await campaignStore.load(project), decided.id);
+    },
+    async changes(input) {
+      const project = await options.projects.show(input.projectId);
+      const campaign = requireCampaign(await campaignStore.load(project), input.campaignId);
+      return workspaceManager.changes(project, campaign);
+    },
+
+    async apply(input) {
+      const project = await options.projects.show(input.projectId);
+      const campaign = requireCampaign(await campaignStore.load(project), input.campaignId);
+      campaign.assertRevision(input.expectedRevision);
+      if (campaign.actionRequired?.kind !== "apply_changes") throw new Error("This campaign is not waiting for change application.");
+      await workspaceManager.apply(project, campaign, input.fingerprint, async () => {
+        const currentProject = await options.projects.show(project.id);
+        const currentFeature = await options.features.show(campaign.featureId);
+        if (!currentFeature.belongsTo(currentProject.id)) throw new Error("Applied Feature no longer belongs to the Project.");
+        await missionPlanner.inspectFeature(currentFeature);
+      });
+      return campaignRuntime.update(project, campaign.id, (current) => current.complete(clock.now()));
+    },
+
+    async retryCampaign(input) {
+      const project = await options.projects.show(input.projectId);
+      const campaign = requireCampaign(await campaignStore.load(project), input.campaignId);
+      campaign.assertRevision(input.expectedRevision);
+      await campaignRuntime.validateContinuation(project, campaign);
+      const executionId = campaign.missionIds.at(-1);
+      if (executionId === undefined) throw new Error("The campaign has no mission to retry.");
+      const planned = await lifecycle.updateExecution(project, executionId, (record, at) => record.retry(at));
+      const resumed = await campaignRuntime.update(project, campaign.id, (current) => current.retry(input, clock.now()));
+      const launched = await lifecycle.launchOrReject(project, planned, true);
+      if (launched.status === "rejected") {
+        return campaignRuntime.update(project, resumed.id, (current) => current.requireAction("inspect", "The confirmed retry could not start; inspect the runtime and create a new preview.", input.fingerprint, clock.now(), "blocked"));
+      }
+      return resumed;
+    },
+
+    async abandon(input) {
+      const project = await options.projects.show(input.projectId);
+      const campaign = requireCampaign(await campaignStore.load(project), input.campaignId);
+      campaign.assertRevision(input.expectedRevision);
+      await workspaceManager.discard(project, campaign);
+      return campaignRuntime.update(project, campaign.id, (current) => current.abandon(clock.now()));
+    },
+
+    async cancelCampaign(input) {
+      const project = await options.projects.show(input.projectId);
+      const campaign = requireCampaign(await campaignStore.load(project), input.campaignId);
+      campaign.assertRevision(input.expectedRevision);
+      const cancelled = await campaignRuntime.update(project, campaign.id, (current) => current.cancel(clock.now()));
+      const active = (await registryStore.load(project)).executions.find((record) => campaign.missionIds.includes(record.id) && isActive(record));
+      if (active !== undefined) {
+        if (active.status === "running") await executionPort.cancel({ executionId: active.id }).catch(() => undefined);
+        await lifecycle.updateExecution(project, active.id, (record, at) => record.cancel(executionSuspensionReason("cancelled_by_user", "The campaign was cancelled by the user."), at));
+      }
+      // The private mirror is intentionally retained. `abandon` is the only
+      // explicit action that discards it before retention cleanup.
+      return cancelled;
     },
 
     async cancel(input) {
       const project = await options.projects.show(input.projectId);
-      await auditIntent(project, "orchestration.cancel", input.executionId);
+      await lifecycle.auditIntent(project, "orchestration.cancel", input.executionId);
       try {
-        const execution = await updateExecution(project, input.executionId, (record, at) => record.cancel(
+        const campaign = (await campaignStore.load(project)).find((candidate) => !["completed", "cancelled", "abandoned"].includes(candidate.status) && candidate.missionIds.includes(input.executionId));
+        if (campaign !== undefined) throw new Error(`Execution ${input.executionId} belongs to automatic campaign ${campaign.id}; cancel the campaign with its current revision instead.`);
+        const execution = await lifecycle.updateExecution(project, input.executionId, (record, at) => record.cancel(
           executionSuspensionReason("cancelled_by_user", "Cancellation requested explicitly by the user."),
           at,
         ));
-        await auditSuccess(project, "orchestration.cancel", execution.id, { status: execution.status });
+        await lifecycle.auditSuccess(project, "orchestration.cancel", execution.id, { status: execution.status });
         return execution;
       } catch (error) {
-        await auditFailure(project, "orchestration.cancel", input.executionId).catch(() => undefined);
+        await lifecycle.auditFailure(project, "orchestration.cancel", input.executionId).catch(() => undefined);
         throw error;
       }
     },
 
     async approve(input) {
       const project = await options.projects.show(input.projectId);
-      await auditIntent(project, "orchestration.approve", input.executionId);
+      await lifecycle.auditIntent(project, "orchestration.approve", input.executionId);
       try {
-        await recoverStaleExecutions(project);
-        const planned = await updateExecution(project, input.executionId, (record, at) => record.approve(at));
-        const execution = await launchOrReject(project, planned);
-        await auditSuccess(project, "orchestration.approve", execution.id, { provider: execution.provider, status: execution.status });
+        await lifecycle.recoverStaleExecutions(project);
+        const campaign = (await campaignStore.load(project)).find((candidate) => candidate.missionIds.includes(input.executionId));
+        if (campaign !== undefined) throw new Error(`Execution ${input.executionId} belongs to automatic campaign ${campaign.id}; generic approval is not an allowed campaign action.`);
+        const planned = await lifecycle.updateExecution(project, input.executionId, (record, at) => record.approve(at));
+        const execution = await lifecycle.launchOrReject(project, planned);
+        await lifecycle.auditSuccess(project, "orchestration.approve", execution.id, { provider: execution.provider, status: execution.status });
         return execution;
       } catch (error) {
-        await auditFailure(project, "orchestration.approve", input.executionId).catch(() => undefined);
+        await lifecycle.auditFailure(project, "orchestration.approve", input.executionId).catch(() => undefined);
         throw error;
       }
     },
 
     async retry(input) {
       const project = await options.projects.show(input.projectId);
-      await auditIntent(project, "orchestration.retry", input.executionId);
+      await lifecycle.auditIntent(project, "orchestration.retry", input.executionId);
       try {
-        await recoverStaleExecutions(project);
-        const planned = await updateExecution(project, input.executionId, (record, at) => record.retry(at));
-        const execution = await launchOrReject(project, planned);
-        await auditSuccess(project, "orchestration.retry", execution.id, { provider: execution.provider, status: execution.status });
+        await lifecycle.recoverStaleExecutions(project);
+        const campaign = (await campaignStore.load(project)).find((candidate) => !["completed", "cancelled", "abandoned"].includes(candidate.status) && candidate.missionIds.includes(input.executionId));
+        if (campaign !== undefined) throw new Error(`Execution ${input.executionId} belongs to automatic campaign ${campaign.id}; confirm the campaign retry instead.`);
+        const planned = await lifecycle.updateExecution(project, input.executionId, (record, at) => record.retry(at));
+        const execution = await lifecycle.launchOrReject(project, planned);
+        await lifecycle.auditSuccess(project, "orchestration.retry", execution.id, { provider: execution.provider, status: execution.status });
         return execution;
       } catch (error) {
-        await auditFailure(project, "orchestration.retry", input.executionId).catch(() => undefined);
+        await lifecycle.auditFailure(project, "orchestration.retry", input.executionId).catch(() => undefined);
         throw error;
       }
     },
@@ -282,9 +409,9 @@ export function createOrchestrationRuntime(options: OrchestrationRuntimeOptions)
         await settleOutcome(project, prepared.record.id, outcome, prepared.context);
       } catch {
         if (project !== undefined) {
-          if (ownsExecution) await safelyInterruptWorker(project, input.executionId);
-          else await safelyRejectWorkerStartup(project, input.executionId);
-          await auditFailure(project, "orchestration.worker", input.executionId).catch(() => undefined);
+          if (ownsExecution) await lifecycle.safelyInterruptWorker(project, input.executionId);
+          else await lifecycle.safelyRejectWorkerStartup(project, input.executionId);
+          await lifecycle.auditFailure(project, "orchestration.worker", input.executionId).catch(() => undefined);
         }
         // The detached CLI worker must not report a successful exit when it
         // could not even claim or dispatch its planned mission. The original
@@ -292,6 +419,7 @@ export function createOrchestrationRuntime(options: OrchestrationRuntimeOptions)
         // message fixed and persist only the bounded suspension reason.
         throw new Error("Orchestration worker terminated safely after an internal failure.");
       } finally {
+        if (project !== undefined) await campaignRuntime.reconcileFailure(project, input.executionId).catch(() => undefined);
         if (hasState && project !== undefined) await workerStateStore.clear(project.id, input.executionId).catch(() => undefined);
       }
     },
@@ -302,8 +430,9 @@ export function createOrchestrationRuntime(options: OrchestrationRuntimeOptions)
     requestedFeatureId: Parameters<ForFeatures["show"]>[0],
     selection: OrchestrationTargetSelection,
     previewFingerprint: string,
+    beforeLaunch?: (execution: ExecutionRecord) => Promise<void>,
   ): Promise<ExecutionRecord> {
-    let currentProject = await requireAutomaticProject(project);
+    let currentProject = await lifecycle.requireAutomaticProject(project);
     const registry = await registryStore.load(currentProject);
     const active = registry.executions.find((record) => isActive(record));
     if (active !== undefined) throw new Error(`Execution ${active.id} is already ${active.status}; resolve it before scheduling another mission.`);
@@ -318,7 +447,7 @@ export function createOrchestrationRuntime(options: OrchestrationRuntimeOptions)
     // A user may have returned to manual while the control plane was
     // inspecting the Pipeline. Re-check before making a planned record, and
     // once more in launchOrReject immediately before any process is spawned.
-    currentProject = await requireAutomaticProject(currentProject);
+    currentProject = await lifecycle.requireAutomaticProject(currentProject);
     const stored = await registryStore.update(currentProject, (currentRegistry) => {
       const currentActive = currentRegistry.executions.find((record) => isActive(record));
       if (currentActive !== undefined) {
@@ -343,30 +472,34 @@ export function createOrchestrationRuntime(options: OrchestrationRuntimeOptions)
     });
     const execution = stored.find(executionId);
     if (execution === undefined) throw new Error("Scheduled execution is missing from the registry.");
-    return launchOrReject(currentProject, execution, { requireAutomaticMode: true });
+    if (beforeLaunch !== undefined) await beforeLaunch(execution);
+    return lifecycle.launchOrReject(currentProject, execution, true);
   }
 
   async function loadCurrentMissionContext(project: Project, record: ExecutionRecord): Promise<CurrentMissionContext | undefined> {
     const featureId = record.order.scope.featureId;
     if (featureId === undefined) {
-      await rejectPlanned(project, record.id, "scope_changed", "A Feature scope is required for automatic execution.");
+      await lifecycle.rejectPlanned(project, record.id, "scope_changed", "A Feature scope is required for automatic execution.");
       return undefined;
     }
     let feature: Feature;
     try {
       feature = await options.features.show(featureId);
       if (!feature.belongsTo(project.id)) throw new Error("feature-project-mismatch");
-      const current = await missionPlanner.inspectFeature(feature);
+      const campaign = (await campaignStore.load(project)).find((candidate) => candidate.missionIds.includes(record.id));
+      if (campaign === undefined) throw new Error("campaign-missing");
+      const workspaceFeature = await campaignRuntime.featureInWorkspace(project, feature, campaign);
+      const current = await missionPlanner.inspectWorkspaceFeature(project, workspaceFeature);
       const next = current.report.nextActions[0];
       if (next === undefined) throw new MissionPreconditionError("Pipeline no longer has an actionable next step.");
       const context: MissionOrderContext = {
-        scope: { projectId: project.id, featureId: feature.id, paths: [relativeFeatureScope(project, feature)] },
+        scope: { projectId: project.id, featureId: feature.id, paths: record.order.scope.paths },
         pipelineId: feature.pipelineId,
         nextStepId: next.stepId,
       };
       record.order.assertCurrent(context);
       if (record.target.source !== "user" || record.target.model === undefined) {
-        await rejectPlanned(project, record.id, "policy_rejected", "This legacy mission has no confirmed model and cannot be dispatched or retried.");
+        await lifecycle.rejectPlanned(project, record.id, "policy_rejected", "This legacy mission has no confirmed model and cannot be dispatched or retried.");
         return undefined;
       }
       const policy = await policyStore.load(project);
@@ -374,18 +507,18 @@ export function createOrchestrationRuntime(options: OrchestrationRuntimeOptions)
         capabilities: record.order.requiredCapabilities,
         permissions: record.order.requiredPermissions,
       })) {
-        await rejectPlanned(project, record.id, "policy_rejected", "The Project policy no longer authorizes the confirmed assistant and version.");
+        await lifecycle.rejectPlanned(project, record.id, "policy_rejected", "The Project policy no longer authorizes the confirmed assistant and version.");
         return undefined;
       }
       const health = await missionPlanner.targetHealth(project, policy);
       const healthy = health.find((entry) => sameExecutionTarget(entry.target, record.target));
       if (healthy?.healthy !== true || !includesAll(healthy.capabilities, record.order.requiredCapabilities)) {
-        await rejectPlanned(project, record.id, "worker_unavailable", "The confirmed assistant and version are no longer available for this mission.");
+        await lifecycle.rejectPlanned(project, record.id, "worker_unavailable", "The confirmed assistant and version are no longer available for this mission.");
         return undefined;
       }
       const role = roleForStep(next.stepId);
       if (role === undefined) {
-        await rejectPlanned(project, record.id, "precondition_changed", "The current Pipeline step has no bounded execution role.");
+        await lifecycle.rejectPlanned(project, record.id, "precondition_changed", "The current Pipeline step has no bounded execution role.");
         return undefined;
       }
       return {
@@ -397,7 +530,7 @@ export function createOrchestrationRuntime(options: OrchestrationRuntimeOptions)
       };
     } catch (error) {
       const code = error instanceof MissionPreconditionError ? "precondition_changed" : "scope_changed";
-      await rejectPlanned(project, record.id, code, "The Project, Feature, scope, or Pipeline preconditions changed before dispatch.");
+      await lifecycle.rejectPlanned(project, record.id, code, "The Project, Feature, scope, or Pipeline preconditions changed before dispatch.");
       return undefined;
     }
   }
@@ -421,18 +554,24 @@ export function createOrchestrationRuntime(options: OrchestrationRuntimeOptions)
       const rechecked = await loadCurrentMissionContext(project, record);
       if (rechecked === undefined) return undefined;
       const authorAgentId = await resolveBoundedAuthor({ agents: options.agents, project, context: rechecked, prompt, record });
-      const begun = await updateExecution(project, executionId, (candidate, at) => candidate.begin({ at }));
-      const mission = providerMission(begun, boundedMissionPrompt(begun, prompt.skill, rechecked.role, authorAgentId), rechecked.feature.root, environment);
-      return { record: begun, mission, context: { ...rechecked, authorAgentId } };
+      const campaign = (await campaignStore.load(project)).find((candidate) => candidate.missionIds.includes(record.id));
+      if (campaign === undefined) throw new Error("The mission has no durable campaign envelope.");
+      const workspace = await workspaceManager.open(project, campaign);
+      const workspaceFeature = await campaignRuntime.featureInWorkspace(project, rechecked.feature, campaign);
+      const productAgentId = (await options.agents.sessions(project)).find((binding) => binding.sessionId.value === "main")?.agent.id.value;
+      const begun = await lifecycle.updateExecution(project, executionId, (candidate, at) => candidate.begin({ at }));
+      const frameworkContext = frameworkContextForMission({ frameworkVersion: PRODUCT_VERSION, project, campaign, context: rechecked, skill: prompt.skill, ...(productAgentId === undefined ? {} : { productAgentId }) });
+      const mission = providerMission(begun, boundedMissionPrompt(begun, prompt.skill, rechecked.role, authorAgentId), workspace.physicalRoot, environment, frameworkContext);
+      return { record: begun, mission, context: { ...rechecked, feature: workspaceFeature, authorAgentId } };
     } catch {
       const current = (await registryStore.load(project)).find(executionId);
       if (current?.status === "running") {
-        await updateExecution(project, executionId, (candidate, at) => candidate.fail(
+        await lifecycle.updateExecution(project, executionId, (candidate, at) => candidate.fail(
           executionSuspensionReason("worker_unavailable", "The bounded provider mission could not be prepared after dispatch began."),
           at,
         )).catch(() => undefined);
       } else {
-        await rejectPlanned(project, executionId, "precondition_changed", "The bounded provider mission could not be prepared from the current Pipeline state.");
+        await lifecycle.rejectPlanned(project, executionId, "precondition_changed", "The bounded provider mission could not be prepared from the current Pipeline state.");
       }
       return undefined;
     }
@@ -459,47 +598,55 @@ export function createOrchestrationRuntime(options: OrchestrationRuntimeOptions)
     let current = (await registryStore.load(project)).find(executionId);
     if (current === undefined || current.status !== "running") return;
     if (outcome.sessionId !== undefined && isSafeProviderSessionId(outcome.sessionId)) {
-      current = await updateExecution(project, executionId, (record, at) => record.recordProviderSession(outcome.sessionId!, at));
+      current = await lifecycle.updateExecution(project, executionId, (record, at) => record.recordProviderSession(outcome.sessionId!, at));
     }
     if (outcome.status === "awaiting_approval") {
       // ACP permission requests have no portable, trustworthy contract for a
       // command/path grant. Never make `approve` an opaque escalation loop.
-      await updateExecution(project, executionId, (record, at) => record.fail(
+      await lifecycle.updateExecution(project, executionId, (record, at) => record.fail(
         executionSuspensionReason("permission_not_preapproved", "The provider requested a permission that is not structurally provable inside the preauthorized Feature scope."),
         at,
       ));
       return;
     }
     if (outcome.status === "completed") {
+      if (outcome.receipts?.some((receipt) => receipt.startsWith("receipt-decision-")) === true) {
+        await lifecycle.updateExecution(project, executionId, (record, at) => record.fail(executionSuspensionReason("decision_required", "The worker requested a Product decision and was stopped before further work."), at));
+        const campaign = (await campaignStore.load(project)).find((candidate) => candidate.missionIds.includes(executionId));
+        if (campaign !== undefined) await campaignRuntime.requestDecision(project, campaign, "The worker found an unplanned Product decision that must be resolved before continuing.");
+        return;
+      }
       if (isReadOnlyMission(current)) {
         const verdict = readOnlyAnalysisVerdict(outcome.output, current);
         if (verdict === undefined) {
-          await updateExecution(project, executionId, (record, at) => record.fail(
+          await lifecycle.updateExecution(project, executionId, (record, at) => record.fail(
             executionSuspensionReason("missing_proof", "The read-only provider completion has no bounded analysis conclusion and execution proof."),
             at,
           ));
           return;
         }
-        const succeeded = await updateExecution(project, executionId, (record, at) => record.succeed([
+        const succeeded = await lifecycle.updateExecution(project, executionId, (record, at) => record.succeed([
           `analysis:verdict:${verdict}`,
         ], at));
-        await auditSuccess(project, "orchestration.succeed", succeeded.id, {
+        await lifecycle.auditSuccess(project, "orchestration.succeed", succeeded.id, {
           provider: succeeded.target.provider,
           model: succeeded.target.model ?? "legacy",
         });
         // Provider output remains ephemeral. The registry retains only a
         // closed conclusion and asks the human to validate the Pipeline
         // document separately, so it cannot become a secret-bearing log.
-        await updateExecution(project, executionId, (record, at) => record.appendEvent(
+        await lifecycle.updateExecution(project, executionId, (record, at) => record.appendEvent(
           "read_only_analysis_ready",
           "A bounded read-only analysis conclusion is ready for human review.",
           at,
         ));
-        await updateExecution(project, executionId, (record, at) => record.appendEvent(
+        await lifecycle.updateExecution(project, executionId, (record, at) => record.appendEvent(
           "manual_pipeline_validation_required",
           "The Pipeline remains unchanged until a human validates the official document.",
           at,
         ));
+        const campaign = (await campaignStore.load(project)).find((candidate) => candidate.missionIds.includes(executionId));
+        if (campaign !== undefined) await campaignRuntime.update(project, campaign.id, (candidate) => candidate.requireAction("inspect", "Review the bounded analysis before the campaign can continue.", campaign.previewFingerprint, clock.now()));
         return;
       }
       const proofReferences = await proofReferencesFor({
@@ -508,38 +655,39 @@ export function createOrchestrationRuntime(options: OrchestrationRuntimeOptions)
         expectedAuthorAgentId: context.authorAgentId,
         record: current,
         outcome,
-        inspect: async () => (await missionPlanner.inspectFeature(context.feature)).report,
+        inspect: async () => (await missionPlanner.inspectWorkspaceFeature(project, context.feature)).report,
       });
       if (proofReferences.length === 0) {
-        await updateExecution(project, executionId, (record, at) => record.fail(
+        await lifecycle.updateExecution(project, executionId, (record, at) => record.fail(
           executionSuspensionReason("missing_proof", "The provider completed without an execution-bound proof marker and a new valid Pipeline document."),
           at,
         ));
         return;
       }
-      const succeeded = await updateExecution(project, executionId, (record, at) => record.succeed(proofReferences, at));
-      await auditSuccess(project, "orchestration.succeed", succeeded.id, {
+      const succeeded = await lifecycle.updateExecution(project, executionId, (record, at) => record.succeed(proofReferences, at));
+      await lifecycle.auditSuccess(project, "orchestration.succeed", succeeded.id, {
         provider: succeeded.target.provider,
         model: succeeded.target.model ?? "legacy",
       });
-      // The next Pipeline step can be previewed, but is never chained or
-      // launched without a new explanation and explicit confirmation.
-      await updateExecution(project, executionId, (record, at) => record.appendEvent(
-        "next_preview_required",
-        "Arka validated this result. Prepare and confirm the next mission before another assistant is launched.",
+      await lifecycle.updateExecution(project, executionId, (record, at) => record.appendEvent(
+        "campaign_recalculated",
+        "Arka validated this result and recalculated the campaign from the mirrored Pipeline.",
         at,
       ));
+      const campaign = (await campaignStore.load(project)).find((candidate) => candidate.missionIds.includes(executionId));
+      if (campaign?.workspaceMode === "direct") await workspaceManager.snapshotDirectBaseline(project, campaign);
+      await campaignRuntime.advance(project, executionId, context.feature);
       return;
     }
     if (outcome.status === "cancelled") {
-      await updateExecution(project, executionId, (record, at) => record.interrupt(
+      await lifecycle.updateExecution(project, executionId, (record, at) => record.interrupt(
         executionSuspensionReason("interrupted", "The worker stopped before it returned verifiable proof."),
         at,
       ));
       return;
     }
     const reason = outcome.status === "interrupted" ? "interrupted" : "provider_error";
-    await updateExecution(project, executionId, (record, at) => record.fail(
+    await lifecycle.updateExecution(project, executionId, (record, at) => record.fail(
       executionSuspensionReason(reason, outcome.status === "interrupted"
         ? "The provider run was interrupted. Retry creates a fresh run."
         : "The provider failed before it returned verifiable proof."),
@@ -547,132 +695,4 @@ export function createOrchestrationRuntime(options: OrchestrationRuntimeOptions)
     ));
   }
 
-
-  async function updateExecution(project: Project, executionId: string, transition: (record: ExecutionRecord, at: Date) => ExecutionRecord): Promise<ExecutionRecord> {
-    const registry = await registryStore.update(project, (current) => {
-      const now = clock.now();
-      const record = current.find(executionId);
-      if (record === undefined) throw new Error(`Execution ${executionId} was not found.`);
-      return current.replace(transition(record, now), now);
-    });
-    const updated = registry.find(executionId);
-    if (updated === undefined) throw new Error(`Execution ${executionId} disappeared from the registry.`);
-    return updated;
-  }
-
-  async function requireAutomaticProject(project: Project): Promise<Project> {
-    const current = await options.projects.show(project.id);
-    if (current.orchestrationMode !== "automatic") {
-      throw new Error("Automatic orchestration is disabled for this Project; no new mission was scheduled.");
-    }
-    return current;
-  }
-
-  /**
-   * Recover only through a private heartbeat, never by signalling a stored
-   * PID. A reused PID must not become authority to kill an unrelated process.
-   * Status stays read-only; recovery happens on an explicit user mutation.
-   */
-  async function recoverStaleExecutions(project: Project): Promise<void> {
-    const registry = await registryStore.load(project);
-    const now = clock.now().getTime();
-    for (const record of registry.executions) {
-      if (!isActive(record)) continue;
-      let lastSeen = record.updatedAt;
-      try {
-        const worker = await workerStateStore.load(project.id, record.id);
-        if (worker !== undefined) lastSeen = worker.updatedAt;
-      } catch {
-        // A corrupt private heartbeat is treated like an unavailable worker,
-        // but only after the same bounded stale interval.
-      }
-      if (now - lastSeen.getTime() < STALE_WORKER_AFTER_MS) continue;
-      if (record.status === "planned") {
-        await updateExecution(project, record.id, (candidate, at) => candidate.reject(
-          executionSuspensionReason("worker_unavailable", "The local worker did not start before its bounded heartbeat window elapsed."),
-          at,
-        )).catch(() => undefined);
-      } else {
-        await updateExecution(project, record.id, (candidate, at) => candidate.interrupt(
-          executionSuspensionReason("interrupted", "The local worker heartbeat expired; retry starts a fresh provider run."),
-          at,
-        )).catch(() => undefined);
-      }
-    }
-  }
-
-  async function launchOrReject(
-    project: Project,
-    execution: ExecutionRecord,
-    launchOptions: { readonly requireAutomaticMode?: boolean } = {},
-  ): Promise<ExecutionRecord> {
-    if (launchOptions.requireAutomaticMode) {
-      const current = await options.projects.show(project.id);
-      if (current.orchestrationMode !== "automatic") {
-        return updateExecution(project, execution.id, (record, at) => record.reject(
-          executionSuspensionReason("automatic_disabled", "The Project returned to manual mode before the next worker was launched."),
-          at,
-        ));
-      }
-    }
-    try {
-      await launcher.launch({ projectId: project.id.value, executionId: execution.id });
-      return execution;
-    } catch {
-      return updateExecution(project, execution.id, (record, at) => record.reject(
-        executionSuspensionReason("worker_unavailable", "The local worker could not be launched."),
-        at,
-      ));
-    }
-  }
-
-  async function rejectPlanned(project: Project, executionId: string, code: "scope_changed" | "precondition_changed" | "policy_rejected" | "worker_unavailable", detail: string): Promise<void> {
-    await updateExecution(project, executionId, (record, at) => record.reject(executionSuspensionReason(code, detail), at)).catch(() => undefined);
-  }
-
-  async function safelyInterruptWorker(project: Project, executionId: string): Promise<void> {
-    const record = (await registryStore.load(project)).find(executionId);
-    if (record?.status !== "running") return;
-    await updateExecution(project, executionId, (candidate, at) => candidate.interrupt(
-      executionSuspensionReason("interrupted", "The local worker ended before it returned a terminal outcome."),
-      at,
-    )).catch(() => undefined);
-  }
-
-  async function safelyRejectWorkerStartup(project: Project, executionId: string): Promise<void> {
-    try {
-      const record = (await registryStore.load(project)).find(executionId);
-      if (record?.status === "planned") {
-        await updateExecution(project, executionId, (candidate, at) => candidate.reject(
-          executionSuspensionReason("worker_unavailable", "The local worker failed before it could dispatch the mission."),
-          at,
-        ));
-      } else if (record?.status === "running") {
-        await safelyInterruptWorker(project, executionId);
-      }
-    } catch {
-      // The outer handler still returns a non-zero worker result; never turn a
-      // failed registry write into an unbounded retry or expose its details.
-    }
-  }
-
-  async function auditIntent(project: Project, action: string, entityId?: string): Promise<void> {
-    await appendAudit({ occurredAt: clock.now(), action, outcome: "intent", entityType: "project", ...(entityId === undefined ? {} : { entityId }), root: project.root });
-  }
-
-  async function auditSuccess(project: Project, action: string, entityId: string, details: Readonly<Record<string, string | number | boolean>> = {}): Promise<void> {
-    await appendAudit({ occurredAt: clock.now(), action, outcome: "success", entityType: "project", entityId, root: project.root, details });
-  }
-
-  async function auditFailure(project: Project, action: string, entityId?: string): Promise<void> {
-    await appendAudit({ occurredAt: clock.now(), action, outcome: "failure", entityType: "project", ...(entityId === undefined ? {} : { entityId }), root: project.root });
-  }
-
-  async function appendAudit(event: AuditEvent): Promise<void> {
-    try {
-      await audit.append(event);
-    } catch (error) {
-      throw new AuditUnavailableError(event.action, error instanceof Error ? error.message : String(error));
-    }
-  }
 }

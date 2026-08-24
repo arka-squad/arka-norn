@@ -1,6 +1,6 @@
 # Project Web Guide
 
-Norn Web is a local Project tracking interface for Project managers. It presents verified framework state in a human layout. It is not an Agent control surface.
+Norn Web is the primary visual tracking interface for Project managers. It presents verified framework state in a human layout. It remains read-only for orchestration mutations.
 
 ## Server lifecycle
 
@@ -63,11 +63,13 @@ Each event records its targets, reason, timestamp and a snapshot of the human pr
 
 The Agents view reads the Project manifest and shows only declared identity, provider, role, scope and signed productions. It does not claim that an Agent is connected.
 
-Live activity observes executions registered by Norn. It may show durable status, Feature, step, provider session identifier when known, measured duration, last bounded event, heartbeat freshness, proof references and suspension reason.
+Live activity consumes the same durable `OrchestrationProjection` as Product, TUI and CLI. It shows campaign timeline, phase, provider and model, direct or isolated mode, measured consumption or an explicit “not supplied”, decision required, functional change summary, affected files and risk, captured test/build evidence, conflicts, interruption and heartbeat freshness.
 
 Heartbeat means only that a Norn worker recently reported life. It is not a progress percentage. Prompts, terminal logs, stderr, environment values and secrets are never exposed.
 
-Start, cancel, approval, retry, model selection and provider configuration remain in the native Agent or Norn CLI workflow. The Web API has no orchestration mutation endpoints.
+Empty, loading, offline, stale, interrupted, blocked, partial, conflict and completed states remain distinguishable without color alone. The live view is keyboard reachable and exposes textual status for assistive technology.
+
+Start, pause, cancel, decision, retry, application, model selection and provider configuration remain with the Product Agent, TUI or expert CLI. The Web API has no orchestration mutation endpoints.
 
 ## Audits and Doctor
 
@@ -82,7 +84,7 @@ Interrupted audits can be resumed and non-terminal audits can be cancelled. Doct
 
 ## Language
 
-Use the language button or Settings to switch between English and French immediately. The preference is persisted by the bridge. Display labels and human formatting change; Project IDs, routes, contracts, statuses and API data remain canonical.
+Use the language button or Settings to switch between English and French immediately. Settings also selects the preferred tracking surface: Web, TUI or expert CLI. The preference changes Product guidance, never rights. Preferences are persisted by the bridge; Project IDs, routes, contracts, statuses and API data remain canonical.
 
 Stable routes use real identifiers and English route segments independently of locale.
 

@@ -60,13 +60,13 @@ test("la CLI exige l'assistant, le modèle et l'aperçu avant de pouvoir lancer"
   const cliContext = { homeDir: home, cwd: projectRoot, frameworkRoot: ROOT, environment: {} };
 
   const configured = await runOrchestrationCommand([
-    "configure", "--project", "project", "--provider", "kimi", "--model", "kimi-coding", "--json",
+    "configure", "--project", "project", "--provider", "kimi", "--model", "kimi-coding", "--workspace", "isolated", "--json",
   ], cliContext);
   assert.equal(configured.code, 0, configured.stderr);
   const policy = JSON.parse(configured.stdout) as {
     readonly data: { readonly schemaVersion: number; readonly providers: readonly { readonly provider: string; readonly models: readonly { readonly id: string }[] }[] };
   };
-  assert.equal(policy.data.schemaVersion, 2);
+  assert.equal(policy.data.schemaVersion, 3);
   assert.deepEqual(policy.data.providers.find((provider) => provider.provider === "kimi")?.models, [{ id: "kimi-coding", enabled: true, priority: 1000 }]);
 
   const incompleteStart = await runOrchestrationCommand([

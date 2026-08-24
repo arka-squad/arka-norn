@@ -25,6 +25,7 @@ import { createAgentOrchestrationRuntime } from "../../../composition/agent-orch
 import { CliUsageError, parseStrictArguments } from "./strict-arguments.js";
 import { jsonEnvelope } from "./cli-envelope.js";
 import { translate } from "../../../application/localization/locale.js";
+import { FsLocalePreferenceStore } from "../../outbound/filesystem/fs-locale-preference-store.js";
 export const AGENT_HELP = `Manage Agents for a Project
 
   agent list --project <id> [--active]
@@ -60,6 +61,7 @@ export async function runAgentCommand(argv, context) {
         const sessionId = parseSession(args.values.get("session"), context.sessionId);
         const runtime = createManagementRuntime({ homeDir: context.homeDir, sessionId });
         const project = await runtime.projects.show(ProjectId.of(required(args.values, "project")));
+        assertPublicPromptAllowed(action, project.orchestrationMode);
         let data;
         switch (action) {
             case "list": {
@@ -144,6 +146,14 @@ export async function runAgentCommand(argv, context) {
     catch (error) {
         return failure(command, error, json);
     }
+}
+function assertPublicPromptAllowed(action, orchestrationMode) {
+    if (orchestrationMode !== "automatic")
+        return;
+    if (action === "prompt")
+        throw new CliUsageError("agent prompt is unavailable in automatic mode; use the verified orchestration campaign.");
+    if (action === "handoff-prompt" || action === "resume-prompt")
+        throw new CliUsageError("copy/paste handoffs are unavailable in automatic mode; resume the Product campaign instead.");
 }
 function specFor(action) {
     const jsonProject = { json: "boolean", project: "string", session: "string" };
@@ -266,7 +276,8 @@ function humanAdvice(value) {
     ].join("\n") + "\n";
 }
 function orchestrationRuntime(runtime, context) {
-    return createAgentOrchestrationRuntime({ ...runtime, pipeline: createPipelineRuntime(context.frameworkRoot, { homeDir: context.homeDir }) });
+    const preferences = new FsLocalePreferenceStore(context.homeDir);
+    return createAgentOrchestrationRuntime({ ...runtime, pipeline: createPipelineRuntime(context.frameworkRoot, { homeDir: context.homeDir }), preferredSurface: async () => (await preferences.loadPreferences()).preferredSurface });
 }
 function parseSession(value, fallback) {
     return value === undefined ? fallback : AgentSessionId.of(value);

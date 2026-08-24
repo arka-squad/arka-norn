@@ -43,7 +43,7 @@ export function createAgentOrchestrationSceneController(app: TuiApp, orchestrati
           value: `${item.delivery === "orchestrated" ? "orchestrate" : "prompt"}:${index}`,
           description: translate("tui.agentAdvice.description", { session: item.sessionId, access: translate(item.canWrite ? "tui.agentAdvice.write" : "tui.agentAdvice.read") }),
         })),
-        { label: translate("tui.agentAdvice.handoff"), value: "handoff", description: translate("tui.agentAdvice.handoffDescription") },
+        ...(advice.orchestrationMode === "manual" ? [{ label: translate("tui.agentAdvice.handoff"), value: "handoff", description: translate("tui.agentAdvice.handoffDescription") }] : []),
         { label: `<- ${translate("tui.agentAdvice.back")}`, value: "back" },
       ];
       app.push(createMenuScene(items, {
@@ -79,9 +79,9 @@ export function createAgentOrchestrationSceneController(app: TuiApp, orchestrati
           app.push(createResultView({
             title: translate("tui.agentAdvice.adviceTitle"),
             code: 0,
-            output: `${recommendation.reason}\n${recommendation.command}\n`,
+            output: `${recommendation.reason}\n`,
             onBack: () => {},
-            nextStep: recommendation.command,
+            nextStep: advice.productNextAction,
           }));
           return;
         }
@@ -114,15 +114,18 @@ export function createAgentOrchestrationSceneController(app: TuiApp, orchestrati
 }
 
 function adviceView(advice: Awaited<ReturnType<ForAgentOrchestration["advise"]>>) {
+  const handoff = advice.handoffPromptCommand ?? "";
   const recommendations = advice.recommendations.length === 0
     ? [translate("tui.agentAdvice.none")]
-    : advice.recommendations.map((item) => translate("tui.agentAdvice.recommendation", {
-        mode: translate(item.mode === "execute" ? "tui.agentAdvice.now" : "tui.agentAdvice.parallel"),
-        role: item.role,
-        session: item.sessionId,
-        reason: item.reason,
-        command: item.command,
-      }));
+    : advice.recommendations.map((item) => advice.orchestrationMode === "automatic"
+      ? `${translate(item.mode === "execute" ? "tui.agentAdvice.now" : "tui.agentAdvice.parallel")} · ${item.role} · ${item.reason}`
+      : translate("tui.agentAdvice.recommendation", {
+          mode: translate(item.mode === "execute" ? "tui.agentAdvice.now" : "tui.agentAdvice.parallel"),
+          role: item.role,
+          session: item.sessionId,
+          reason: item.reason,
+          command: item.command,
+        }));
   return createResultView({
     title: translate("tui.agentAdvice.adviceTitle"),
     code: advice.productPrincipal.status === "conflict" ? 3 : 0,
@@ -135,11 +138,11 @@ function adviceView(advice: Awaited<ReturnType<ForAgentOrchestration["advise"]>>
       translate("tui.agentAdvice.proposed"),
       ...recommendations,
       "",
-      translate("tui.agentAdvice.continuation", { command: advice.handoffPromptCommand }),
+      ...(advice.orchestrationMode === "manual" ? [translate("tui.agentAdvice.continuation", { command: handoff })] : []),
       ...advice.warnings.map((warning) => translate("tui.agentAdvice.warning", { warning })),
     ].join("\n") + "\n",
     onBack: () => {},
-    nextStep: advice.recommendations[0]?.command ?? advice.handoffPromptCommand,
+    nextStep: advice.orchestrationMode === "manual" ? advice.recommendations[0]?.command ?? handoff : advice.productNextAction,
   });
 }
 

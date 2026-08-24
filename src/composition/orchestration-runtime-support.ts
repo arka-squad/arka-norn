@@ -14,16 +14,18 @@
  * limitations under the License.
  */
 
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import type { Feature } from "../domain/feature/feature.js";
 import { MissionPreconditionError } from "../domain/orchestration/errors.js";
 import type { ExecutionRequirements } from "../domain/orchestration/execution-policy.js";
 import type { ExecutionRecord } from "../domain/orchestration/execution-record.js";
+import type { OrchestrationCampaign } from "../domain/orchestration/orchestration-campaign.js";
 import type { PipelineReport } from "../domain/pipeline/pipeline-report.js";
 import type { Project } from "../domain/project/project.js";
 import type { AgentInitializationPrompt, OrchestratedAgentRole } from "../ports/inbound/for-agent-orchestration.js";
 import type { ForAgents } from "../ports/inbound/for-agents.js";
+import type { AgentExecutionFrameworkContext } from "../ports/outbound/agent-execution-port.js";
 import { matchesExecutionProvider } from "./orchestration-provider-configuration.js";
 import { matchesOrchestrationRole } from "./orchestration-proof-validation.js";
 import { relativeFeatureScope } from "./orchestration-mission-planner.js";
@@ -35,6 +37,35 @@ export interface CurrentMissionContext {
   readonly requirements: ExecutionRequirements;
   readonly report: PipelineReport;
   readonly authorAgentId?: string;
+}
+
+export function frameworkContextForMission(input: {
+  readonly frameworkVersion: string;
+  readonly project: Project;
+  readonly campaign: OrchestrationCampaign;
+  readonly context: CurrentMissionContext;
+  readonly skill: string;
+  readonly productAgentId?: string;
+}): AgentExecutionFrameworkContext {
+  const canWrite = input.context.requirements.permissions.includes("write_workspace");
+  const canRunRecipe = input.context.requirements.capabilities.includes("run_commands");
+  const actions = ["framework_state", "search", "read_file", ...(canRunRecipe ? ["run_recipe"] : []), "submit_evidence", "report_blocker", "request_decision"];
+  const context: Omit<AgentExecutionFrameworkContext, "integrityFingerprint"> = {
+    contractVersion: 1,
+    frameworkVersion: input.frameworkVersion,
+    project: { id: input.project.id.value, logicalRoot: input.project.root, orchestrationMode: "automatic" },
+    productAgent: { sessionId: "main", ...(input.productAgentId === undefined ? {} : { agentId: input.productAgentId }) },
+    feature: { id: input.context.feature.id.value, pipelineId: input.context.feature.pipelineId },
+    pipelineState: { nextStepId: input.context.nextStepId },
+    expectedRole: input.context.role,
+    expectedSkill: input.skill,
+    workspace: { logicalRoot: input.project.root, realization: input.campaign.workspaceMode === "direct" ? "project" : "domain_managed" },
+    allowedActions: canWrite ? [...actions, "propose_change", "delete_path"] : actions,
+    forbiddenActions: ["shell", "network", "subagent", "publish", "deploy", "change_scope", "edit_framework_state", "manual_handoff"],
+    capabilities: [...input.context.requirements.capabilities],
+    decisionGate: input.context.report.nextActions[0]?.decisionGate ?? "human_decision",
+  };
+  return { ...context, integrityFingerprint: createHash("sha256").update(JSON.stringify(context)).digest("hex") };
 }
 
 export async function resolveBoundedAuthor(input: {
@@ -71,6 +102,10 @@ export function nextExecutionId(): string {
 
 export function nextMissionId(): string {
   return `mission-${randomUUID()}`;
+}
+
+export function nextCampaignId(): string {
+  return `campaign-${randomUUID()}`;
 }
 
 export function delay(milliseconds: number): Promise<void> {

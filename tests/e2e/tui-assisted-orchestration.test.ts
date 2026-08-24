@@ -97,7 +97,7 @@ test("le Pilote assisté demande une Feature, montre une préparation lisible et
   assert.match(prepared, /Étape : Cadrer la Feature/);
   assert.match(prepared, /Responsabilité : Pilotage produit/);
   assert.match(prepared, /Autorisations : Lire les fichiers du périmètre/);
-  assert.match(prepared, /Assistant à confirmer : Codex · gpt-5-codex/);
+  assert.match(prepared, /Assistant à confirmer : Codex CLI · gpt-5-codex/);
   assert.doesNotMatch(prepared, /feature-beta|concept|product|read_workspace|claude-sdk|preview-fingerprint/u);
   assert.equal(started, undefined, "la prévisualisation ne lance rien");
 
@@ -151,6 +151,8 @@ test("un choix assistant/modèle est enregistré explicitement puis relu avant c
   view.onKey({ kind: "enter" });
   assert.match(render(view), /Assistant : Kimi Platform/);
   for (const character of "kimi-latest") view.onKey({ kind: "char", value: character });
+  view.onKey({ kind: "enter" });
+  assert.match(render(view), /Choisissez l’espace de travail de la campagne/);
   view.onKey({ kind: "enter" });
   await waitUntil(() => configured !== undefined, "enregistrement du modèle");
   assert.deepEqual(configured?.selection, { provider: "kimi", model: "kimi-latest" });
@@ -263,7 +265,7 @@ test("la dernière mission validée indique que la prochaine doit être prépar�
 
   const output = render(view);
   assert.match(output, /Dernière mission : execution-assistee/);
-  assert.match(output, /Assistant : Claude · claude-sonnet/);
+  assert.match(output, /Assistant : Claude Code CLI · claude-sonnet/);
   assert.match(output, /Situation : Mission terminée/);
   assert.match(output, /Résultat reçu et vérifié par Arka/);
   assert.match(output, /La prochaine mission devra être préparée et confirmée/);

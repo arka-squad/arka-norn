@@ -31,6 +31,8 @@ export function createPipelineDefinition(input) {
             throw new Error(`Invalid or duplicate step order: ${step.order}`);
         ids.add(step.id);
         orders.add(step.order);
+        if (step.decisionGate !== undefined && step.decisionGate !== "continue" && step.decisionGate !== "human_decision")
+            throw new Error(`Invalid decision gate for ${step.id}`);
     }
     for (const document of input.transversalDocuments) {
         if (!/^[a-z0-9][a-z0-9_]{0,127}$/.test(document.type) || ids.has(document.type) || document.schemaPath.length === 0) {

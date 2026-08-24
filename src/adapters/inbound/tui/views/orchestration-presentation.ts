@@ -16,8 +16,9 @@
 
 import type { ExecutionRecord } from "../../../../domain/orchestration/execution-record.js";
 import type { ExecutionTarget } from "../../../../domain/orchestration/types.js";
+import type { OrchestrationPreview, OrchestrationPreviewCandidate, OrchestrationStatus } from "../../../../ports/inbound/for-orchestration.js";
 import { canonicalDocumentType } from "../../../../domain/compatibility/legacy-contract.js";
-import { translate, type MessageKey } from "../../../../application/localization/locale.js";
+import { formatNumber, translate, type MessageKey } from "../../../../application/localization/locale.js";
 
 export function displayTarget(target: ExecutionTarget): string {
   const provider = displayProvider(target.provider);
@@ -26,8 +27,8 @@ export function displayTarget(target: ExecutionTarget): string {
 
 export function displayProvider(provider: string): string {
   switch (provider) {
-    case "claude": return "Claude";
-    case "codex": return "Codex";
+    case "claude": return "Claude Code CLI";
+    case "codex": return "Codex CLI";
     case "kimi": return "Kimi Platform";
     case "zai": return "Z.AI Coding Plan";
     default: return translate("orchestration.provider.default");
@@ -154,7 +155,7 @@ export function displayMissionStatus(execution: ExecutionRecord | undefined): As
  */
 export function displayMissionAction(
   execution: ExecutionRecord,
-  actionRequired: { readonly kind: "approve" | "retry" | "inspect"; readonly reason: string } | undefined,
+  actionRequired: { readonly kind: "approve" | "business_decision" | "scope_expansion" | "capability_expansion" | "apply_changes" | "retry" | "inspect"; readonly reason: string } | undefined,
 ): AssistedMissionAction {
   const verdict = readOnlyAnalysisVerdict(execution);
   if (verdict !== undefined) {
@@ -164,7 +165,7 @@ export function displayMissionAction(
     };
   }
   const suspension = displaySuspension(execution.suspensionReason?.code);
-  if (actionRequired?.kind === "approve" || execution.status === "awaiting_approval") {
+  if (actionRequired?.kind === "approve" || actionRequired?.kind === "capability_expansion" || execution.status === "awaiting_approval") {
     return {
       title: translate("orchestration.action.approve.title"),
       detail: suspension,
@@ -307,4 +308,47 @@ export function translatePreparationError(error: unknown): string {
     return translate("orchestration.error.active");
   }
   return translate("orchestration.error.default");
+}
+
+export function renderMissionSummary(
+  execution: ExecutionRecord,
+  actionRequired: OrchestrationStatus["actionRequired"],
+  isActive: boolean,
+): readonly string[] {
+  const action = displayMissionAction(execution, actionRequired);
+  return [
+    translate("tui.orchestration.mission.id", { label: translate(isActive ? "tui.orchestration.mission.active" : "tui.orchestration.mission.latest"), id: execution.id }),
+    translate("tui.orchestration.mission.step", { step: displayStep(execution.order.preconditions.nextStepId) }),
+    translate("tui.orchestration.mission.assistant", { assistant: displayTarget(execution.target) }),
+    translate("tui.orchestration.mission.events"),
+    ...displayMissionEvents(execution).map((event) => `  * ${event}`),
+    translate("tui.orchestration.mission.expectedAction", { action: action.title }),
+    translate("tui.orchestration.mission.reason", { reason: action.detail }),
+  ];
+}
+
+export function renderPreviewSummary(preview: OrchestrationPreview, selectedCandidateIndex: number | undefined): readonly string[] {
+  const selected = selectedCandidateIndex === undefined ? undefined : preview.candidates[selectedCandidateIndex];
+  const compatible = selectableCandidates(preview);
+  const unavailable = preview.candidates.filter((candidate) => !candidate.eligible);
+  return [
+    translate("tui.orchestration.preview.done"),
+    `Feature : ${preview.featureName}`,
+    translate("tui.orchestration.preview.work", { summary: preview.summary }),
+    translate("tui.orchestration.mission.step", { step: displayStep(preview.stepId) }),
+    translate("tui.orchestration.preview.role", { role: displayRole(preview.role) }),
+    translate("tui.orchestration.preview.scope", { scope: preview.scopePaths.map(displayScopePath).join(" - ") }),
+    translate("tui.orchestration.preview.permissions", { permissions: preview.requiredPermissions.map(displayPermission).join(" - ") }),
+    translate("tui.orchestration.preview.target", { target: selected?.eligible === true && selected.target.model !== undefined ? displayTarget(selected.target) : translate("tui.orchestration.preview.target.none") }),
+    ...(compatible.length > 1 ? [translate("tui.orchestration.preview.other", { count: formatNumber(compatible.length - 1) })] : []),
+    ...(unavailable.length === 0 ? [] : [translate("tui.orchestration.preview.unavailable", { choices: unavailable.map((candidate) => `${displayTarget(candidate.target)} (${candidate.reasons.map(displayCandidateReason).join(", ")})`).join(" - ") })]),
+    translate("tui.orchestration.preview.recheck"),
+  ];
+}
+
+export function selectableCandidates(preview: OrchestrationPreview): readonly { readonly candidate: OrchestrationPreviewCandidate; readonly index: number }[] {
+  return preview.candidates
+    .map((candidate, index) => ({ candidate, index }))
+    .filter(({ candidate }) => candidate.eligible && candidate.target.model !== undefined)
+    .sort((left, right) => Number(right.candidate.recommended) - Number(left.candidate.recommended));
 }

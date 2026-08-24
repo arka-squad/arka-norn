@@ -45,7 +45,7 @@ test("la politique séparée est atomique, sans secrets, et une lecture absente 
   const policy = ExecutionPolicy.defaultFor(project.id, at);
   await store.save(project, policy);
   const raw = JSON.parse(readFileSync(policyPath, "utf8")) as Record<string, unknown>;
-  assert.equal(raw["schemaVersion"], 2);
+  assert.equal(raw["schemaVersion"], 3);
   assert.equal(raw["projectId"], "project");
   assert.equal("secret" in raw, false);
   if (process.platform !== "win32") assert.equal(lstatSync(policyPath).mode & 0o777, 0o600);
@@ -145,7 +145,7 @@ test("la lecture des fichiers v1 migre en mémoire sans réécriture et bloque l
   const policy = await policyStore.load(project);
   const registry = await registryStore.load(project);
 
-  assert.equal(policy?.schemaVersion, 2);
+  assert.equal(policy?.schemaVersion, 3);
   assert.equal(policy?.selectionMode, "assisted");
   assert.deepEqual(policy?.providers[0]?.models, []);
   assert.equal(registry.schemaVersion, 2);
@@ -159,11 +159,12 @@ test("la lecture des fichiers v1 migre en mémoire sans réécriture et bloque l
   assert.equal(readFileSync(registryPath, "utf8"), registryBefore);
 
   await policyStore.save(project, policy!);
+  assert.equal(readFileSync(`${policyPath}.v1.backup`, "utf8"), policyBefore);
   await registryStore.update(project, (current) => current.add(
     ExecutionRecord.planned("execution-v2", createOrder(2), userExecutionTarget("claude", "claude-test"), at),
     at,
   ));
-  assert.equal((JSON.parse(readFileSync(policyPath, "utf8")) as { schemaVersion: number }).schemaVersion, 2);
+  assert.equal((JSON.parse(readFileSync(policyPath, "utf8")) as { schemaVersion: number }).schemaVersion, 3);
   assert.equal((JSON.parse(readFileSync(registryPath, "utf8")) as { schemaVersion: number }).schemaVersion, 2);
 });
 

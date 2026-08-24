@@ -39,6 +39,7 @@ export interface NextAction {
   readonly phase?: string;
   readonly instructions?: readonly string[];
   readonly suggestedCommand?: string;
+  readonly decisionGate?: "continue" | "human_decision";
 }
 
 export interface DocumentSummary {
@@ -65,6 +66,7 @@ export interface StepState {
   readonly order: number;
   readonly required: boolean;
   readonly multiple: boolean;
+  readonly decisionGate?: "continue" | "human_decision";
   readonly presenceStatus: PresenceStatus;
   readonly schemaStatus: SchemaStatus;
   readonly businessStatus: BusinessStatus;
@@ -112,6 +114,7 @@ export interface PipelineEvaluationInput {
     readonly order: number;
     readonly required: boolean;
     readonly multiple: boolean;
+    readonly decisionGate?: "continue" | "human_decision";
     readonly dependsOn: readonly string[];
     readonly businessPolicy?: PipelineBusinessPolicy;
   }[];

@@ -71,9 +71,10 @@ test("le mode automatique ne propose jamais de prompt à copier ni de préparati
   assert.equal(advice.orchestrationMode, "automatic");
   assert.equal(advice.recommendations.length, 1);
   assert.equal(advice.recommendations[0]?.delivery, "orchestrated");
-  assert.match(advice.recommendations[0]?.command ?? "", /orchestration preview/);
+  assert.equal(advice.recommendations[0]?.command, "orchestration.preview");
   assert.doesNotMatch(JSON.stringify(advice.recommendations), /agent prompt|--mode prepare/);
-  assert.match(advice.productNextAction, /Do not generate or display an Agent prompt/);
+  assert.match(advice.productNextAction, /Norn Web/);
+  assert.doesNotMatch(advice.productNextAction, /prompt|command|arka-norn/iu);
 });
 
 test("un prompt spécialisé interdit d'exécuter une phase qui ne lui appartient pas", () => {

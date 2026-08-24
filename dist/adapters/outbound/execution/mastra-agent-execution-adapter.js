@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { existsSync } from "node:fs";
+import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createIsolatedExecutionRuntime, normalizeTimeout, resolveAcpExecutable, resolveExecutionWorkspace, validateAgentExecutionMission, } from "./secure-runtime.js";
 import { NodeMastraWorkerRunner, } from "./mastra-worker-runner.js";
@@ -156,6 +158,7 @@ function normalizeMission(source) {
         executionId: source.executionId,
         mission: source.mission,
         workspace,
+        ...(source.frameworkContext === undefined ? {} : { frameworkContext: structuredClone(source.frameworkContext) }),
         ...(source.permissionPolicy === undefined ? {} : { permissionPolicy: copyPermissionPolicy(source.permissionPolicy) }),
         ...(source.safeEnvironment === undefined ? {} : { safeEnvironment: { ...source.safeEnvironment } }),
         ...(source.timeoutMs === undefined ? {} : { timeoutMs: source.timeoutMs }),
@@ -194,6 +197,7 @@ function toWorkerPayload(mission) {
         mission: mission.mission,
         workspace: mission.workspace,
         permissionPolicy: copyPermissionPolicy(mission.permissionPolicy),
+        ...(mission.frameworkContext === undefined ? {} : { frameworkContext: structuredClone(mission.frameworkContext) }),
     };
     if (mission.provider === "claude-cli" || mission.provider === "codex-cli") {
         return {
@@ -226,6 +230,7 @@ function outcomeForResult(entry, result, completedAt) {
             ...base,
             status: "completed",
             output: result.output,
+            ...(result.receipts === undefined ? {} : { receipts: [...result.receipts] }),
             ...(result.sessionId === undefined ? {} : { sessionId: result.sessionId }),
         };
     }
@@ -278,6 +283,7 @@ function copyMissionWithNewId(mission, newExecutionId) {
         executionId: newExecutionId,
         mission: mission.mission,
         workspace: mission.workspace,
+        ...(mission.frameworkContext === undefined ? {} : { frameworkContext: structuredClone(mission.frameworkContext) }),
         ...(mission.permissionPolicy === undefined ? {} : { permissionPolicy: copyPermissionPolicy(mission.permissionPolicy) }),
         ...(mission.safeEnvironment === undefined ? {} : { safeEnvironment: { ...mission.safeEnvironment } }),
         ...(mission.timeoutMs === undefined ? {} : { timeoutMs: mission.timeoutMs }),
@@ -340,14 +346,16 @@ function copyCredential(value) {
 }
 function providerRuntimeFor(mission, credentials, localEnvironment) {
     if (mission.provider === "claude-cli" || mission.provider === "codex-cli") {
+        const home = localEnvironment["HOME"] ?? localEnvironment["USERPROFILE"];
+        const configuredHome = mission.provider === "claude-cli"
+            ? localEnvironment["CLAUDE_CONFIG_DIR"] ?? (home === undefined ? undefined : join(home, ".claude"))
+            : localEnvironment["CODEX_HOME"] ?? (home === undefined ? undefined : join(home, ".codex"));
         return {
             profile: {
                 kind: "local-cli",
-                ...(localEnvironment["HOME"] === undefined ? {} : { home: localEnvironment["HOME"] }),
-                ...(localEnvironment["USERPROFILE"] === undefined ? {} : { userProfile: localEnvironment["USERPROFILE"] }),
-                ...(localEnvironment["PATH"] === undefined ? {} : { path: localEnvironment["PATH"] }),
-                ...(localEnvironment["CODEX_HOME"] === undefined ? {} : { codexHome: localEnvironment["CODEX_HOME"] }),
-                ...(localEnvironment["CLAUDE_CONFIG_DIR"] === undefined ? {} : { claudeConfigDir: localEnvironment["CLAUDE_CONFIG_DIR"] }),
+                path: [...new Set([dirname(mission.command), dirname(process.execPath), "/usr/bin", "/bin"])].join(delimiter),
+                ...(mission.provider !== "codex-cli" || configuredHome === undefined || !existsSync(configuredHome) ? {} : { codexHome: configuredHome }),
+                ...(mission.provider !== "claude-cli" || configuredHome === undefined || !existsSync(configuredHome) ? {} : { claudeConfigDir: configuredHome }),
             },
         };
     }

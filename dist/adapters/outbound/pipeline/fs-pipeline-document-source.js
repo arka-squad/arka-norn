@@ -167,9 +167,13 @@ function parseStep(value, index) {
         required: requireBoolean(step["required"] ?? step["obligatoire"], `pipeline.steps[${index}].required`),
         multiple: requireBoolean(step["multiple"], `pipeline.steps[${index}].multiple`),
         dependsOn: dependencies,
+        decisionGate: parseDecisionGate(step["decisionGate"]),
         ...(typeof loopTo === "string" ? { loopTo } : {}),
         ...((step["businessPolicy"] ?? step["business_policy"]) === undefined ? {} : { businessPolicy: parseBusinessPolicy(step["businessPolicy"] ?? step["business_policy"], index) }),
     };
+}
+function parseDecisionGate(value) {
+    return value === "continue" ? "continue" : "human_decision";
 }
 function parseCatalogEntry(value, index) {
     const entry = requireRecord(value, `catalog.pipelines[${index}]`);

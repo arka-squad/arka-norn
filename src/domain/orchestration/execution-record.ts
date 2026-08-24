@@ -29,7 +29,9 @@ import {
 
 const EXECUTION_ID_PATTERN = /^[a-z][a-z0-9-]{0,95}$/;
 const EVENT_TYPE_PATTERN = /^[a-z][a-z0-9_]{0,63}$/;
-const MAX_EXECUTION_ATTEMPTS = 20;
+// One initial provider run plus one bounded retry for an automatic campaign.
+// A fresh preview is required instead of turning a failing mission into a loop.
+const MAX_EXECUTION_ATTEMPTS = 2;
 const MAX_EXECUTION_EVENTS = 100;
 const MAX_PROOF_REFERENCES = 50;
 
@@ -40,6 +42,7 @@ export const EXECUTION_SUSPENSION_CODES = [
   "scope_changed",
   "precondition_changed",
   "missing_proof",
+  "decision_required",
   "provider_error",
   "worker_unavailable",
   "cancelled_by_user",

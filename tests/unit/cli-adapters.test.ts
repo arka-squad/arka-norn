@@ -173,9 +173,12 @@ test("les adaptateurs CLI Project, Feature, Agent, Pipeline et FastDev couvrent 
   ], management)).code, 0);
   assert.equal((await runManagementCommand(["feature", "list", "--project", "quality-project", "--json"], management)).code, 0);
   assert.equal((await runManagementCommand(["feature", "show", "quality-feature", "--json"], management)).code, 0);
-  assert.equal((await runManagementCommand(["feature", "use", "quality-feature", "--json"], management)).code, 0);
-  assert.equal((await runManagementCommand(["feature", "set-workflow", "quality-feature", "--workflow", "standard", "--json"], management)).code, 0);
-  assert.equal((await runManagementCommand(["feature", "scan", "--project", "quality-project", "--path", fixture.projectRoot, "--json"], management)).code, 0);
+  const featureUse = await runManagementCommand(["feature", "use", "quality-feature", "--json"], management);
+  if (featureUse.code !== 0) throw new Error(featureUse.stdout || featureUse.stderr);
+  const setWorkflow = await runManagementCommand(["feature", "set-workflow", "quality-feature", "--workflow", "standard", "--json"], management);
+  if (setWorkflow.code !== 0) throw new Error(setWorkflow.stdout || setWorkflow.stderr);
+  const featureScan = await runManagementCommand(["feature", "scan", "--project", "quality-project", "--path", fixture.projectRoot, "--json"], management);
+  if (featureScan.code !== 0) throw new Error(featureScan.stdout || featureScan.stderr);
   const reconciled = await runManagementCommand(["feature", "reconcile", "--project", "quality-project", "--json"], management);
   if (reconciled.code !== 0) throw new Error(JSON.stringify(reconciled));
   assert.equal((await runManagementCommand(["feature", "forget", "quality-feature", "--json"], management)).code, 64);
@@ -201,9 +204,9 @@ test("les adaptateurs CLI Project, Feature, Agent, Pipeline et FastDev couvrent 
   assert.equal((await runAgentCommand(["sessions", "--project", "quality-project", "--json"], agent)).code, 0);
   assert.equal((await runAgentCommand(["use", AUTHOR, "--project", "quality-project", "--json"], agent)).code, 0);
   assert.equal((await runAgentCommand(["advise", "--project", "quality-project", "--feature", "quality-feature", "--json"], agent)).code, 0);
-  assert.equal((await runAgentCommand(["prompt", "product", "--project", "quality-project", "--feature", "quality-feature", "--provider", "Codex", "--mode", "execute", "--json"], agent)).code, 0);
-  assert.equal((await runAgentCommand(["prompt", "audit", "--project", "quality-project", "--feature", "quality-feature", "--session", "audit-quality", "--mode", "prepare", "--json"], agent)).code, 0);
-  assert.equal((await runAgentCommand(["handoff-prompt", "--project", "quality-project", "--feature", "quality-feature", "--agent", AUTHOR, "--json"], agent)).code, 0);
+  assert.equal((await runAgentCommand(["prompt", "product", "--project", "quality-project", "--feature", "quality-feature", "--provider", "Codex", "--mode", "execute", "--json"], agent)).code, 64);
+  assert.equal((await runAgentCommand(["prompt", "audit", "--project", "quality-project", "--feature", "quality-feature", "--session", "audit-quality", "--mode", "prepare", "--json"], agent)).code, 64);
+  assert.equal((await runAgentCommand(["handoff-prompt", "--project", "quality-project", "--feature", "quality-feature", "--agent", AUTHOR, "--json"], agent)).code, 64);
   assert.equal((await runAgentCommand([
     "replace", "Claude_audit_20260820", "--project", "quality-project", "--provider", "OpenAI", "--role", "audit", "--id", "OpenAI_audit_20260820", "--json",
   ], agent)).code, 0);

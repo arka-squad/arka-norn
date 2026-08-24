@@ -21,8 +21,10 @@ import {
   EXECUTION_POLICY_SCHEMA_VERSION,
   ExecutionPolicy,
   isExecutionSelectionMode,
+  isOrchestrationWorkspaceMode,
   type ExecutionPolicyProps,
   type ExecutionSelectionMode,
+  type OrchestrationWorkspaceMode,
 } from "../../../domain/orchestration/execution-policy.js";
 import { InvalidExecutionPolicyError } from "../../../domain/orchestration/errors.js";
 import {
@@ -56,9 +58,19 @@ interface OrchestrationPolicyFileV1 {
 }
 
 export interface OrchestrationPolicyFileV2 {
+  readonly schemaVersion: 2;
+  readonly projectId: string;
+  readonly selectionMode: ExecutionSelectionMode;
+  readonly providers: readonly ProviderExecutionPolicyRawV2[];
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface OrchestrationPolicyFileV3 {
   readonly schemaVersion: typeof EXECUTION_POLICY_SCHEMA_VERSION;
   readonly projectId: string;
   readonly selectionMode: ExecutionSelectionMode;
+  readonly workspaceMode: OrchestrationWorkspaceMode;
   readonly providers: readonly ProviderExecutionPolicyRawV2[];
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -88,7 +100,7 @@ export interface ExecutionModelPolicyRaw {
   readonly priority: number;
 }
 
-type OrchestrationPolicyFile = OrchestrationPolicyFileV1 | OrchestrationPolicyFileV2;
+type OrchestrationPolicyFile = OrchestrationPolicyFileV1 | OrchestrationPolicyFileV2 | OrchestrationPolicyFileV3;
 
 export class FsOrchestrationPolicyStore implements OrchestrationPolicyStore {
   private readonly paths: PathPolicy;
@@ -117,12 +129,13 @@ export class FsOrchestrationPolicyStore implements OrchestrationPolicyStore {
     }
   }
 
-  /** Every explicit save writes the current v2 representation. */
+  /** Every explicit save writes v3 and preserves one private legacy backup. */
   public async save(project: Project, policy: ExecutionPolicy): Promise<void> {
     await this.assertProjectRoot(project);
     if (!policy.projectId.equals(project.id)) throw new InvalidExecutionPolicyError("policy projectId must match the Project");
     const path = orchestrationPolicyPath(project.root);
     await withFileLock(path, async () => {
+      await backupLegacyFile(path);
       await writeJsonAtomic(path, serialize(policy), { mode: 0o600 });
     });
   }
@@ -133,11 +146,23 @@ export class FsOrchestrationPolicyStore implements OrchestrationPolicyStore {
   }
 }
 
+async function backupLegacyFile(path: string): Promise<void> {
+  const value = await readJson<unknown>(path);
+  if (!isRecord(value) || (value["schemaVersion"] !== 1 && value["schemaVersion"] !== 2)) return;
+  const backup = `${path}.v${String(value["schemaVersion"])}.backup`;
+  try {
+    await fs.copyFile(path, backup, fs.constants.COPYFILE_EXCL);
+    await fs.chmod(backup, 0o600);
+  } catch (error) {
+    if (!isNodeError(error, "EEXIST")) throw error;
+  }
+}
+
 export function orchestrationPolicyPath(projectRoot: string): string {
   return join(projectRoot, ".arka-norn", "orchestration.json");
 }
 
-export function serializeOrchestrationPolicy(policy: ExecutionPolicy): OrchestrationPolicyFileV2 {
+export function serializeOrchestrationPolicy(policy: ExecutionPolicy): OrchestrationPolicyFileV3 {
   return serialize(policy);
 }
 
@@ -145,12 +170,13 @@ export function deserializeOrchestrationPolicy(value: unknown): ExecutionPolicy 
   return deserialize(value);
 }
 
-function serialize(policy: ExecutionPolicy): OrchestrationPolicyFileV2 {
+function serialize(policy: ExecutionPolicy): OrchestrationPolicyFileV3 {
   const props = policy.toProps();
   return {
     schemaVersion: props.schemaVersion,
     projectId: props.projectId.value,
     selectionMode: props.selectionMode,
+    workspaceMode: props.workspaceMode,
     providers: props.providers.map((provider) => ({
       provider: provider.provider,
       adapter: provider.adapter,
@@ -172,6 +198,7 @@ function deserialize(value: unknown): ExecutionPolicy {
       schemaVersion: EXECUTION_POLICY_SCHEMA_VERSION,
       projectId: ProjectId.of(value.projectId),
       selectionMode: "assisted",
+      workspaceMode: "unconfigured",
       providers: value.providers.map((provider) => ({
         provider: provider.provider,
         adapter: canonicalExecutionAdapter(provider.provider),
@@ -185,9 +212,10 @@ function deserialize(value: unknown): ExecutionPolicy {
       updatedAt: parseDate(value.updatedAt, "updatedAt"),
     }
     : {
-      schemaVersion: value.schemaVersion,
+      schemaVersion: EXECUTION_POLICY_SCHEMA_VERSION,
       projectId: ProjectId.of(value.projectId),
       selectionMode: value.selectionMode,
+      workspaceMode: value.schemaVersion === 3 ? value.workspaceMode : "unconfigured",
       providers: value.providers.map((provider) => ({
         provider: provider.provider,
         adapter: canonicalExecutionAdapter(provider.provider),
@@ -204,7 +232,7 @@ function deserialize(value: unknown): ExecutionPolicy {
 }
 
 function isPolicyFile(value: unknown): value is OrchestrationPolicyFile {
-  return isPolicyFileV1(value) || isPolicyFileV2(value);
+  return isPolicyFileV1(value) || isPolicyFileV2(value) || isPolicyFileV3(value);
 }
 
 function isPolicyFileV1(value: unknown): value is OrchestrationPolicyFileV1 {
@@ -223,9 +251,23 @@ function isPolicyFileV1(value: unknown): value is OrchestrationPolicyFileV1 {
 
 function isPolicyFileV2(value: unknown): value is OrchestrationPolicyFileV2 {
   if (!isRecord(value) || !hasExactKeys(value, ["schemaVersion", "projectId", "selectionMode", "providers", "createdAt", "updatedAt"])) return false;
+  return value["schemaVersion"] === 2
+    && typeof value["projectId"] === "string"
+    && isExecutionSelectionMode(value["selectionMode"])
+    && Array.isArray(value["providers"])
+    && value["providers"].every(isProviderPolicyRawV2)
+    && typeof value["createdAt"] === "string"
+    && isIsoDate(value["createdAt"])
+    && typeof value["updatedAt"] === "string"
+    && isIsoDate(value["updatedAt"]);
+}
+
+function isPolicyFileV3(value: unknown): value is OrchestrationPolicyFileV3 {
+  if (!isRecord(value) || !hasExactKeys(value, ["schemaVersion", "projectId", "selectionMode", "workspaceMode", "providers", "createdAt", "updatedAt"])) return false;
   return value["schemaVersion"] === EXECUTION_POLICY_SCHEMA_VERSION
     && typeof value["projectId"] === "string"
     && isExecutionSelectionMode(value["selectionMode"])
+    && isOrchestrationWorkspaceMode(value["workspaceMode"])
     && Array.isArray(value["providers"])
     && value["providers"].every(isProviderPolicyRawV2)
     && typeof value["createdAt"] === "string"

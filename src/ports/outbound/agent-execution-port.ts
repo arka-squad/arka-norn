@@ -30,6 +30,23 @@ export type AgentExecutionStatus = "running" | "awaiting_approval" | "completed"
  */
 export type AgentExecutionRetryStrategy = "new-run";
 
+export interface AgentExecutionFrameworkContext {
+  readonly contractVersion: 1;
+  readonly integrityFingerprint: string;
+  readonly frameworkVersion: string;
+  readonly project: { readonly id: string; readonly logicalRoot: string; readonly orchestrationMode: "automatic" };
+  readonly productAgent: { readonly sessionId: "main"; readonly agentId?: string };
+  readonly feature: { readonly id: string; readonly pipelineId: string };
+  readonly pipelineState: { readonly nextStepId: string };
+  readonly expectedRole: string;
+  readonly expectedSkill: string;
+  readonly workspace: { readonly logicalRoot: string; readonly realization: "project" | "domain_managed" };
+  readonly allowedActions: readonly string[];
+  readonly forbiddenActions: readonly string[];
+  readonly capabilities: readonly string[];
+  readonly decisionGate: "continue" | "human_decision";
+}
+
 /**
  * A preauthorized workspace policy is deliberately descriptive rather than an
  * automatic provider grant: current ACP permission requests do not contain a
@@ -50,6 +67,8 @@ export interface AgentExecutionBaseMission {
   readonly mission: string;
   /** Absolute work directory for the external harness. */
   readonly workspace: string;
+  /** Signed-in-process governance envelope exposed by the arka.norn tool broker. */
+  readonly frameworkContext?: AgentExecutionFrameworkContext;
   /**
    * Omission means deny-all. A preauthorized workspace order is carried to the
    * worker but never turns an opaque provider permission request into an
@@ -149,6 +168,8 @@ export interface AgentExecutionOutcome {
   readonly startedAt: string;
   readonly completedAt?: string;
   readonly output?: string;
+  /** Bounded mechanical receipts emitted by arka.norn-owned tools. */
+  readonly receipts?: readonly string[];
   readonly sessionId?: string;
   readonly failure?: AgentExecutionFailure;
   readonly approval?: AgentExecutionApproval;

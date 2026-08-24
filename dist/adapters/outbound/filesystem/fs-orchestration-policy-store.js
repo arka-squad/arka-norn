@@ -15,7 +15,7 @@
  */
 import * as fs from "node:fs/promises";
 import { join } from "node:path";
-import { EXECUTION_POLICY_SCHEMA_VERSION, ExecutionPolicy, isExecutionSelectionMode, } from "../../../domain/orchestration/execution-policy.js";
+import { EXECUTION_POLICY_SCHEMA_VERSION, ExecutionPolicy, isExecutionSelectionMode, isOrchestrationWorkspaceMode, } from "../../../domain/orchestration/execution-policy.js";
 import { InvalidExecutionPolicyError } from "../../../domain/orchestration/errors.js";
 import { canonicalExecutionAdapter, isExecutionAdapter, isExecutionCapability, isExecutionModelId, isExecutionPermission, isExecutionProvider, } from "../../../domain/orchestration/types.js";
 import { ProjectId } from "../../../domain/project/project-id.js";
@@ -51,19 +51,34 @@ export class FsOrchestrationPolicyStore {
             throw invalidFile(path, error);
         }
     }
-    /** Every explicit save writes the current v2 representation. */
+    /** Every explicit save writes v3 and preserves one private legacy backup. */
     async save(project, policy) {
         await this.assertProjectRoot(project);
         if (!policy.projectId.equals(project.id))
             throw new InvalidExecutionPolicyError("policy projectId must match the Project");
         const path = orchestrationPolicyPath(project.root);
         await withFileLock(path, async () => {
+            await backupLegacyFile(path);
             await writeJsonAtomic(path, serialize(policy), { mode: 0o600 });
         });
     }
     async assertProjectRoot(project) {
         await this.paths.assertMarkerRoot(project.root, project.root);
         await rejectMarkerDirectorySymlink(project.root);
+    }
+}
+async function backupLegacyFile(path) {
+    const value = await readJson(path);
+    if (!isRecord(value) || (value["schemaVersion"] !== 1 && value["schemaVersion"] !== 2))
+        return;
+    const backup = `${path}.v${String(value["schemaVersion"])}.backup`;
+    try {
+        await fs.copyFile(path, backup, fs.constants.COPYFILE_EXCL);
+        await fs.chmod(backup, 0o600);
+    }
+    catch (error) {
+        if (!isNodeError(error, "EEXIST"))
+            throw error;
     }
 }
 export function orchestrationPolicyPath(projectRoot) {
@@ -81,6 +96,7 @@ function serialize(policy) {
         schemaVersion: props.schemaVersion,
         projectId: props.projectId.value,
         selectionMode: props.selectionMode,
+        workspaceMode: props.workspaceMode,
         providers: props.providers.map((provider) => ({
             provider: provider.provider,
             adapter: provider.adapter,
@@ -102,6 +118,7 @@ function deserialize(value) {
             schemaVersion: EXECUTION_POLICY_SCHEMA_VERSION,
             projectId: ProjectId.of(value.projectId),
             selectionMode: "assisted",
+            workspaceMode: "unconfigured",
             providers: value.providers.map((provider) => ({
                 provider: provider.provider,
                 adapter: canonicalExecutionAdapter(provider.provider),
@@ -115,9 +132,10 @@ function deserialize(value) {
             updatedAt: parseDate(value.updatedAt, "updatedAt"),
         }
         : {
-            schemaVersion: value.schemaVersion,
+            schemaVersion: EXECUTION_POLICY_SCHEMA_VERSION,
             projectId: ProjectId.of(value.projectId),
             selectionMode: value.selectionMode,
+            workspaceMode: value.schemaVersion === 3 ? value.workspaceMode : "unconfigured",
             providers: value.providers.map((provider) => ({
                 provider: provider.provider,
                 adapter: canonicalExecutionAdapter(provider.provider),
@@ -133,7 +151,7 @@ function deserialize(value) {
     return ExecutionPolicy.create(props);
 }
 function isPolicyFile(value) {
-    return isPolicyFileV1(value) || isPolicyFileV2(value);
+    return isPolicyFileV1(value) || isPolicyFileV2(value) || isPolicyFileV3(value);
 }
 function isPolicyFileV1(value) {
     if (!isRecord(value) || !hasExactKeys(value, ["schemaVersion", "projectId", "providers", "createdAt", "updatedAt"]))
@@ -152,9 +170,23 @@ function isPolicyFileV1(value) {
 function isPolicyFileV2(value) {
     if (!isRecord(value) || !hasExactKeys(value, ["schemaVersion", "projectId", "selectionMode", "providers", "createdAt", "updatedAt"]))
         return false;
+    return value["schemaVersion"] === 2
+        && typeof value["projectId"] === "string"
+        && isExecutionSelectionMode(value["selectionMode"])
+        && Array.isArray(value["providers"])
+        && value["providers"].every(isProviderPolicyRawV2)
+        && typeof value["createdAt"] === "string"
+        && isIsoDate(value["createdAt"])
+        && typeof value["updatedAt"] === "string"
+        && isIsoDate(value["updatedAt"]);
+}
+function isPolicyFileV3(value) {
+    if (!isRecord(value) || !hasExactKeys(value, ["schemaVersion", "projectId", "selectionMode", "workspaceMode", "providers", "createdAt", "updatedAt"]))
+        return false;
     return value["schemaVersion"] === EXECUTION_POLICY_SCHEMA_VERSION
         && typeof value["projectId"] === "string"
         && isExecutionSelectionMode(value["selectionMode"])
+        && isOrchestrationWorkspaceMode(value["workspaceMode"])
         && Array.isArray(value["providers"])
         && value["providers"].every(isProviderPolicyRawV2)
         && typeof value["createdAt"] === "string"

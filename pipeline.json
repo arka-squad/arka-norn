@@ -8,6 +8,7 @@
   "steps": [
     {
       "id": "concept",
+      "decisionGate": "human_decision",
       "order": 1,
       "schema": "schemas/concept.schema.json",
       "required": true,
@@ -16,6 +17,7 @@
     },
     {
       "id": "plan",
+      "decisionGate": "human_decision",
       "order": 2,
       "schema": "schemas/plan.schema.json",
       "required": true,
@@ -26,6 +28,7 @@
     },
     {
       "id": "technical_contract_appendix",
+      "decisionGate": "continue",
       "order": 3,
       "schema": "schemas/technical-contract-appendix.schema.json",
       "required": false,
@@ -36,6 +39,7 @@
     },
     {
       "id": "current_state_audit",
+      "decisionGate": "continue",
       "order": 4,
       "schema": "schemas/current-state-audit.schema.json",
       "required": true,
@@ -46,6 +50,7 @@
     },
     {
       "id": "frozen_invariants",
+      "decisionGate": "continue",
       "order": 5,
       "schema": "schemas/frozen-invariants.schema.json",
       "required": true,
@@ -56,6 +61,7 @@
     },
     {
       "id": "debt_register",
+      "decisionGate": "continue",
       "order": 6,
       "schema": "schemas/debt-register.schema.json",
       "required": true,
@@ -66,6 +72,7 @@
     },
     {
       "id": "agent_task",
+      "decisionGate": "continue",
       "order": 7,
       "schema": "schemas/agent-task.schema.json",
       "required": true,
@@ -76,6 +83,7 @@
     },
     {
       "id": "technical_integration_specification",
+      "decisionGate": "continue",
       "order": 8,
       "schema": "schemas/technical-integration-specification.schema.json",
       "required": true,
@@ -86,6 +94,7 @@
     },
     {
       "id": "development_report",
+      "decisionGate": "continue",
       "order": 9,
       "schema": "schemas/development-report.schema.json",
       "required": true,
@@ -106,6 +115,7 @@
     },
     {
       "id": "qa_review",
+      "decisionGate": "human_decision",
       "order": 10,
       "schema": "schemas/qa-review.schema.json",
       "required": true,

@@ -53,6 +53,7 @@ export interface PreparedMissionPreview {
 export interface OrchestrationMissionPlanner {
   resolveFeature(project: Project, requested?: Parameters<ForFeatures["show"]>[0]): Promise<Feature>;
   inspectFeature(feature: Feature): Promise<{ readonly report: Awaited<ReturnType<ForPipeline["inspect"]>> }>;
+  inspectWorkspaceFeature(project: Project, feature: Feature): Promise<{ readonly report: Awaited<ReturnType<ForPipeline["inspect"]>> }>;
   loadPolicyForPreview(project: Project): Promise<ExecutionPolicy>;
   prepareMissionPreview(project: Project, featureId: Parameters<ForFeatures["show"]>[0]): Promise<PreparedMissionPreview>;
   assertConfirmedPreview(prepared: PreparedMissionPreview, selection: OrchestrationTargetSelection, expectedFingerprint: string): ExecutionTarget;
@@ -84,6 +85,23 @@ export function createOrchestrationMissionPlanner(input: {
 
   async function inspectFeature(feature: Feature): Promise<{ readonly report: Awaited<ReturnType<ForPipeline["inspect"]>> }> {
     const { authorRegistry } = await loadVerifiedFeatureContext(feature, { projects: input.projects, agents: input.agents });
+    return inspectWithAuthorRegistry(feature, authorRegistry);
+  }
+
+  async function inspectWorkspaceFeature(project: Project, feature: Feature): Promise<{ readonly report: Awaited<ReturnType<ForPipeline["inspect"]>> }> {
+    if (!feature.belongsTo(project.id)) throw new Error("The mirrored Feature does not belong to the logical Project.");
+    const agents = await input.agents.list(project);
+    return inspectWithAuthorRegistry(feature, agents.map((agent) => ({
+      id: agent.id.value,
+      active: agent.active,
+      authorized: agent.coversFeature(feature.id),
+    })));
+  }
+
+  async function inspectWithAuthorRegistry(
+    feature: Feature,
+    authorRegistry: NonNullable<Parameters<ForPipeline["inspect"]>[0]["authorRegistry"]>,
+  ): Promise<{ readonly report: Awaited<ReturnType<ForPipeline["inspect"]>> }> {
     const report = await input.pipeline.inspect({
       featureRoot: feature.root,
       featureId: feature.id.value,
@@ -108,17 +126,22 @@ export function createOrchestrationMissionPlanner(input: {
     await assertNoPendingReadOnlyAnalysis(project, feature.id.value, next.stepId);
     const requirements = requirementsForExecution(role);
     const policy = await loadPolicyForPreview(project);
+    const targetHealth = targetHealthForPolicy(policy, await providerHealth(project));
     const targetSelection = selectBestEligibleTarget(
       policy,
       requirements,
-      targetHealthForPolicy(policy, await providerHealth(project)),
+      targetHealth,
     );
-    const scopePaths = [relativeFeatureScope(project, feature)] as const;
+    // A Feature selects the business workflow. The Product Agent still owns
+    // the Project root; write paths are confirmed independently from cwd.
+    const scopePaths = ["."] as const;
+    const maximumMissions = Math.min(50, current.report.steps.filter((step) => step.completionStatus !== "completed").length + 1);
     const candidates = targetSelection.candidates.map((candidate) => ({
       target: candidate.target,
       eligible: candidate.eligible,
       reasons: candidate.reasons,
       recommended: targetSelection.selected !== undefined && sameExecutionTarget(candidate.target, targetSelection.selected),
+      ...runtimeIdentity(targetHealth, candidate.target),
     }));
     const summary = translate("orchestration.preview.summary", { step: next.stepId, feature: feature.name });
     const preview: OrchestrationPreview = {
@@ -129,6 +152,9 @@ export function createOrchestrationMissionPlanner(input: {
       stepId: next.stepId,
       role,
       summary,
+      logicalRoot: project.root,
+      workspaceMode: policy.workspaceMode,
+      maximumMissions,
       scopePaths,
       requiredCapabilities: [...requirements.capabilities],
       requiredPermissions: [...requirements.permissions],
@@ -141,6 +167,8 @@ export function createOrchestrationMissionPlanner(input: {
         scopePaths,
         requirements,
         policyUpdatedAt: policy.updatedAt.toISOString(),
+        workspaceMode: policy.workspaceMode,
+        maximumMissions,
         candidates,
       }),
     };
@@ -187,6 +215,7 @@ export function createOrchestrationMissionPlanner(input: {
       schemaVersion: defaults.schemaVersion,
       projectId: source.projectId,
       selectionMode: "assisted",
+      workspaceMode: source.workspaceMode,
       providers,
       createdAt: source.createdAt,
       updatedAt,
@@ -197,7 +226,7 @@ export function createOrchestrationMissionPlanner(input: {
     return targetHealthForPolicy(policy, await providerHealth(project));
   }
 
-  return { resolveFeature, inspectFeature, loadPolicyForPreview, prepareMissionPreview, assertConfirmedPreview, policyWithUserModel, targetHealth };
+  return { resolveFeature, inspectFeature, inspectWorkspaceFeature, loadPolicyForPreview, prepareMissionPreview, assertConfirmedPreview, policyWithUserModel, targetHealth };
 
   async function assertNoPendingReadOnlyAnalysis(project: Project, featureId: string, stepId: string): Promise<void> {
     const registry = await input.registryStore.load(project);
@@ -233,8 +262,18 @@ function targetHealthForPolicy(
       target: userExecutionTarget(provider.provider, model.id),
       healthy: health?.healthy ?? false,
       capabilities: health?.capabilities ?? [],
+      ...(health?.runtimeVersion === undefined ? {} : { runtimeVersion: health.runtimeVersion }),
+      ...(health?.runtimeFingerprint === undefined ? {} : { runtimeFingerprint: health.runtimeFingerprint }),
     };
   }));
+}
+
+function runtimeIdentity(health: readonly ExecutionTargetHealth[], target: ExecutionTarget): Pick<ExecutionTargetHealth, "runtimeVersion" | "runtimeFingerprint"> {
+  const match = health.find((entry) => sameExecutionTarget(entry.target, target));
+  return {
+    ...(match?.runtimeVersion === undefined ? {} : { runtimeVersion: match.runtimeVersion }),
+    ...(match?.runtimeFingerprint === undefined ? {} : { runtimeFingerprint: match.runtimeFingerprint }),
+  };
 }
 
 function previewFingerprint(value: {
@@ -245,6 +284,8 @@ function previewFingerprint(value: {
   readonly scopePaths: readonly string[];
   readonly requirements: ExecutionRequirements;
   readonly policyUpdatedAt: string;
+  readonly workspaceMode: ExecutionPolicy["workspaceMode"];
+  readonly maximumMissions: number;
   readonly candidates: readonly OrchestrationPreview["candidates"][number][];
 }): string {
   const stable = JSON.stringify({
@@ -256,11 +297,15 @@ function previewFingerprint(value: {
     capabilities: [...value.requirements.capabilities],
     permissions: [...value.requirements.permissions],
     policyUpdatedAt: value.policyUpdatedAt,
+    workspaceMode: value.workspaceMode,
+    maximumMissions: value.maximumMissions,
     candidates: value.candidates.map((candidate) => ({
       target: candidate.target,
       eligible: candidate.eligible,
       reasons: [...candidate.reasons],
       recommended: candidate.recommended,
+      runtimeVersion: candidate.runtimeVersion,
+      runtimeFingerprint: candidate.runtimeFingerprint,
     })),
   });
   return createHash("sha256").update(stable).digest("hex");

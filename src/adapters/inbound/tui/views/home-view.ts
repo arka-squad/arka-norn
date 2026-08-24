@@ -31,7 +31,8 @@ import type { Theme } from "../runtime/theme.js";
 import type { Scene } from "../runtime/tui-app.js";
 import { formatNumber, formatShortDate, formatTime, translate, type LocalePreference } from "../../../../application/localization/locale.js";
 
-type HomeAction = "action:create" | "action:scan" | "action:health" | "action:install" | "action:locale" | `project:${string}`;
+type PreferredSurface = "web" | "tui" | "cli";
+type HomeAction = "action:create" | "action:scan" | "action:health" | "action:install" | "action:locale" | "action:surface" | `project:${string}`;
 
 export interface HomeViewDeps {
   readonly initialProjects: readonly Project[];
@@ -49,6 +50,8 @@ export interface HomeViewDeps {
   readonly systemHealth?: string;
   readonly localePreference?: LocalePreference;
   readonly onLocaleChange?: (preference: LocalePreference) => Promise<void> | void;
+  readonly preferredSurface?: PreferredSurface;
+  readonly onPreferredSurfaceChange?: (surface: PreferredSurface) => Promise<void> | void;
 }
 
 export interface HomeHealthSummary {
@@ -66,7 +69,7 @@ const IDENTITY = (value: string): string => value;
 export function createHomeView(deps: HomeViewDeps): HomeView {
   const now = deps.now ?? (() => new Date());
   let projects = [...deps.initialProjects];
-  let mode: "menu" | "create" | "orchestration-mode" | "locale" = "menu";
+  let mode: "menu" | "create" | "orchestration-mode" | "locale" | "surface" = "menu";
   let createPath = deps.cwd;
   let pendingProject: { readonly id: ProjectId; readonly name: string; readonly root: string } | undefined;
   let orchestrationMode: ProjectOrchestrationMode = "manual";
@@ -76,6 +79,7 @@ export function createHomeView(deps: HomeViewDeps): HomeView {
   let skillHealth = deps.skillHealth ?? translate("tui.health.unknown");
   let systemHealth = deps.systemHealth ?? translate("tui.health.unknown");
   let localePreference = deps.localePreference ?? "auto";
+  let preferredSurface = deps.preferredSurface ?? "web";
   let menu = buildMenu();
 
   syncFocus();
@@ -92,6 +96,7 @@ export function createHomeView(deps: HomeViewDeps): HomeView {
       { label: translate("tui.home.health.label"), value: "action:health", description: translate("tui.home.health.description", { health: systemHealth }) },
       { label: translate("tui.home.skills.label"), value: "action:install", description: translate("tui.home.skills.description", { health: skillHealth }) },
       { label: `${translate("tui.language")}: ${translate(`common.locale.${localePreference}`)}`, value: "action:locale", description: translate("tui.language.description") },
+      { label: `${translate("tui.surface")}: ${translate(`tui.surface.${preferredSurface}`)}`, value: "action:surface", description: translate("tui.surface.description") },
     ];
   }
 
@@ -132,10 +137,10 @@ export function createHomeView(deps: HomeViewDeps): HomeView {
     }
     if (value === "action:health") await run(async () => { await deps.onShowHealth?.(); });
     else if (value === "action:install") await run(async () => { await deps.onInstallSkills?.(); });
-    else {
+    else if (value === "action:locale") {
       mode = "locale";
       deps.redraw();
-    }
+    } else { mode = "surface"; deps.redraw(); }
   }
 
   async function submitCreate(): Promise<void> {
@@ -212,6 +217,27 @@ export function createHomeView(deps: HomeViewDeps): HomeView {
     deps.onProjectFocused?.(projects.find((project) => project.id.value === focused.value.slice("project:".length)));
   }
 
+  function handlePreferenceKey(event: KeyEvent): boolean {
+    if (mode !== "locale" && mode !== "surface") return false;
+    if (event.kind === "escape") mode = "menu";
+    else if (mode === "locale" && (event.kind === "up" || event.kind === "left")) localePreference = previousLocalePreference(localePreference);
+    else if (mode === "locale" && (event.kind === "down" || event.kind === "right")) localePreference = nextLocalePreference(localePreference);
+    else if (mode === "surface" && (event.kind === "up" || event.kind === "left")) preferredSurface = previousPreferredSurface(preferredSurface);
+    else if (mode === "surface" && (event.kind === "down" || event.kind === "right")) preferredSurface = nextPreferredSurface(preferredSurface);
+    else if (event.kind === "enter" && !busy) void savePreference(mode);
+    deps.redraw();
+    return true;
+  }
+
+  function savePreference(preferenceMode: "locale" | "surface"): Promise<void> {
+    return run(async () => {
+      if (preferenceMode === "locale") await deps.onLocaleChange?.(localePreference);
+      else await deps.onPreferredSurfaceChange?.(preferredSurface);
+      mode = "menu";
+      menu = buildMenu();
+    });
+  }
+
   return {
     chrome: { contextBanner: false },
     setHealth(summary: HomeHealthSummary): void {
@@ -259,20 +285,7 @@ export function createHomeView(deps: HomeViewDeps): HomeView {
         deps.redraw();
         return "consumed";
       }
-      if (mode === "locale") {
-        if (event.kind === "escape") mode = "menu";
-        else if (event.kind === "up" || event.kind === "left") localePreference = previousLocalePreference(localePreference);
-        else if (event.kind === "down" || event.kind === "right") localePreference = nextLocalePreference(localePreference);
-        else if (event.kind === "enter" && !busy) {
-          void run(async () => {
-            await deps.onLocaleChange?.(localePreference);
-            mode = "menu";
-            menu = buildMenu();
-          });
-        }
-        deps.redraw();
-        return "consumed";
-      }
+      if (handlePreferenceKey(event)) return "consumed";
       const result = menu.onKey(event);
       if (result !== undefined) syncFocus();
       return event.kind === "enter" ? "consumed" : result;
@@ -323,6 +336,13 @@ export function createHomeView(deps: HomeViewDeps): HomeView {
           ], theme).split("\n")) line(value);
           return;
         }
+        if (mode === "surface") {
+          for (const value of titledBox(translate("tui.surface.title"), [
+            translate("tui.surface.choice", { surface: translate(`tui.surface.${preferredSurface}`) }),
+            translate("tui.surface.instructions"),
+          ], theme).split("\n")) line(value);
+          return;
+        }
         for (const value of renderHome(theme)) line(value);
       });
     },
@@ -350,6 +370,7 @@ export function createHomeView(deps: HomeViewDeps): HomeView {
 }
 
 const LOCALE_PREFERENCES: readonly LocalePreference[] = ["auto", "en", "fr"];
+const PREFERRED_SURFACES: readonly PreferredSurface[] = ["web", "tui", "cli"];
 
 function nextLocalePreference(value: LocalePreference): LocalePreference {
   return LOCALE_PREFERENCES[(LOCALE_PREFERENCES.indexOf(value) + 1) % LOCALE_PREFERENCES.length]!;
@@ -358,6 +379,9 @@ function nextLocalePreference(value: LocalePreference): LocalePreference {
 function previousLocalePreference(value: LocalePreference): LocalePreference {
   return LOCALE_PREFERENCES[(LOCALE_PREFERENCES.indexOf(value) + LOCALE_PREFERENCES.length - 1) % LOCALE_PREFERENCES.length]!;
 }
+
+function nextPreferredSurface(value: PreferredSurface): PreferredSurface { return PREFERRED_SURFACES[(PREFERRED_SURFACES.indexOf(value) + 1) % PREFERRED_SURFACES.length]!; }
+function previousPreferredSurface(value: PreferredSurface): PreferredSurface { return PREFERRED_SURFACES[(PREFERRED_SURFACES.indexOf(value) + PREFERRED_SURFACES.length - 1) % PREFERRED_SURFACES.length]!; }
 
 function visibleItems(items: readonly MenuItem<HomeAction>[], menu: MenuScene, stripAnsi: (value: string) => string) {
   return menu.filterMode ? filterItems(items, menu.filterText, stripAnsi) : items.map((item, index) => ({ ...item, _origIndex: index }));

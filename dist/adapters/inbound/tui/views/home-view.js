@@ -36,6 +36,7 @@ export function createHomeView(deps) {
     let skillHealth = deps.skillHealth ?? translate("tui.health.unknown");
     let systemHealth = deps.systemHealth ?? translate("tui.health.unknown");
     let localePreference = deps.localePreference ?? "auto";
+    let preferredSurface = deps.preferredSurface ?? "web";
     let menu = buildMenu();
     syncFocus();
     function items() {
@@ -50,6 +51,7 @@ export function createHomeView(deps) {
             { label: translate("tui.home.health.label"), value: "action:health", description: translate("tui.home.health.description", { health: systemHealth }) },
             { label: translate("tui.home.skills.label"), value: "action:install", description: translate("tui.home.skills.description", { health: skillHealth }) },
             { label: `${translate("tui.language")}: ${translate(`common.locale.${localePreference}`)}`, value: "action:locale", description: translate("tui.language.description") },
+            { label: `${translate("tui.surface")}: ${translate(`tui.surface.${preferredSurface}`)}`, value: "action:surface", description: translate("tui.surface.description") },
         ];
     }
     function buildMenu() {
@@ -91,8 +93,12 @@ export function createHomeView(deps) {
             await run(async () => { await deps.onShowHealth?.(); });
         else if (value === "action:install")
             await run(async () => { await deps.onInstallSkills?.(); });
-        else {
+        else if (value === "action:locale") {
             mode = "locale";
+            deps.redraw();
+        }
+        else {
+            mode = "surface";
             deps.redraw();
         }
     }
@@ -169,6 +175,34 @@ export function createHomeView(deps) {
         }
         deps.onProjectFocused?.(projects.find((project) => project.id.value === focused.value.slice("project:".length)));
     }
+    function handlePreferenceKey(event) {
+        if (mode !== "locale" && mode !== "surface")
+            return false;
+        if (event.kind === "escape")
+            mode = "menu";
+        else if (mode === "locale" && (event.kind === "up" || event.kind === "left"))
+            localePreference = previousLocalePreference(localePreference);
+        else if (mode === "locale" && (event.kind === "down" || event.kind === "right"))
+            localePreference = nextLocalePreference(localePreference);
+        else if (mode === "surface" && (event.kind === "up" || event.kind === "left"))
+            preferredSurface = previousPreferredSurface(preferredSurface);
+        else if (mode === "surface" && (event.kind === "down" || event.kind === "right"))
+            preferredSurface = nextPreferredSurface(preferredSurface);
+        else if (event.kind === "enter" && !busy)
+            void savePreference(mode);
+        deps.redraw();
+        return true;
+    }
+    function savePreference(preferenceMode) {
+        return run(async () => {
+            if (preferenceMode === "locale")
+                await deps.onLocaleChange?.(localePreference);
+            else
+                await deps.onPreferredSurfaceChange?.(preferredSurface);
+            mode = "menu";
+            menu = buildMenu();
+        });
+    }
     return {
         chrome: { contextBanner: false },
         setHealth(summary) {
@@ -223,23 +257,8 @@ export function createHomeView(deps) {
                 deps.redraw();
                 return "consumed";
             }
-            if (mode === "locale") {
-                if (event.kind === "escape")
-                    mode = "menu";
-                else if (event.kind === "up" || event.kind === "left")
-                    localePreference = previousLocalePreference(localePreference);
-                else if (event.kind === "down" || event.kind === "right")
-                    localePreference = nextLocalePreference(localePreference);
-                else if (event.kind === "enter" && !busy) {
-                    void run(async () => {
-                        await deps.onLocaleChange?.(localePreference);
-                        mode = "menu";
-                        menu = buildMenu();
-                    });
-                }
-                deps.redraw();
+            if (handlePreferenceKey(event))
                 return "consumed";
-            }
             const result = menu.onKey(event);
             if (result !== undefined)
                 syncFocus();
@@ -295,6 +314,14 @@ export function createHomeView(deps) {
                         line(value);
                     return;
                 }
+                if (mode === "surface") {
+                    for (const value of titledBox(translate("tui.surface.title"), [
+                        translate("tui.surface.choice", { surface: translate(`tui.surface.${preferredSurface}`) }),
+                        translate("tui.surface.instructions"),
+                    ], theme).split("\n"))
+                        line(value);
+                    return;
+                }
                 for (const value of renderHome(theme))
                     line(value);
             });
@@ -319,12 +346,15 @@ export function createHomeView(deps) {
     }
 }
 const LOCALE_PREFERENCES = ["auto", "en", "fr"];
+const PREFERRED_SURFACES = ["web", "tui", "cli"];
 function nextLocalePreference(value) {
     return LOCALE_PREFERENCES[(LOCALE_PREFERENCES.indexOf(value) + 1) % LOCALE_PREFERENCES.length];
 }
 function previousLocalePreference(value) {
     return LOCALE_PREFERENCES[(LOCALE_PREFERENCES.indexOf(value) + LOCALE_PREFERENCES.length - 1) % LOCALE_PREFERENCES.length];
 }
+function nextPreferredSurface(value) { return PREFERRED_SURFACES[(PREFERRED_SURFACES.indexOf(value) + 1) % PREFERRED_SURFACES.length]; }
+function previousPreferredSurface(value) { return PREFERRED_SURFACES[(PREFERRED_SURFACES.indexOf(value) + PREFERRED_SURFACES.length - 1) % PREFERRED_SURFACES.length]; }
 function visibleItems(items, menu, stripAnsi) {
     return menu.filterMode ? filterItems(items, menu.filterText, stripAnsi) : items.map((item, index) => ({ ...item, _origIndex: index }));
 }

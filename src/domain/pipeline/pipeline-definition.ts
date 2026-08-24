@@ -33,6 +33,7 @@ export interface PipelineStepDefinition {
   readonly required: boolean;
   readonly multiple: boolean;
   readonly dependsOn: readonly string[];
+  readonly decisionGate?: "continue" | "human_decision";
   readonly loopTo?: string;
   readonly businessPolicy?: PipelineBusinessPolicy;
 }
@@ -77,6 +78,7 @@ export function createPipelineDefinition(input: PipelineDefinition): PipelineDef
     if (!Number.isInteger(step.order) || step.order < 1 || orders.has(step.order)) throw new Error(`Invalid or duplicate step order: ${step.order}`);
     ids.add(step.id);
     orders.add(step.order);
+    if (step.decisionGate !== undefined && step.decisionGate !== "continue" && step.decisionGate !== "human_decision") throw new Error(`Invalid decision gate for ${step.id}`);
   }
   for (const document of input.transversalDocuments) {
     if (!/^[a-z0-9][a-z0-9_]{0,127}$/.test(document.type) || ids.has(document.type) || document.schemaPath.length === 0) {

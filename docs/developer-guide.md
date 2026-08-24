@@ -97,7 +97,7 @@ No source file may exceed 700 lines. Keep changes scoped, extract reusable logic
 
 The shipped React/Vite source lives under `web/` and builds to `dist/web/`. `.input/` remains an ignored private workspace for design references and is never a source dependency.
 
-Application contracts in `src/application/web/contracts.ts` define `NornBridge` and the Project tracking read models. The browser uses the HTTP bridge; a future Tauri adapter can implement the same interface without changing view components. Do not add Tauri code in the Web phase.
+Application contracts in `src/application/web/contracts.ts` define `NornBridge` and the Project tracking read models. The browser uses the HTTP bridge; a future Tauri adapter can implement the same interface without changing view components. Orchestration views consume the durable domain projection and must not recalculate a next action. Do not add Tauri code in the Web phase.
 
 Folder selection follows the same boundary. Views call `NornBridge.pickFolder`; the loopback adapter delegates to the operating system picker and validates the selected real directory before returning it. Keep platform process handling in `native-folder-picker.ts`, never in React components. A phase-two Tauri adapter will replace this port implementation without changing the guided forms.
 
@@ -115,7 +115,15 @@ The frontend consumes the official Arka Labs tokens and local brand assets from 
 
 ## Local Agent execution
 
-Automatic `claude` and `codex` targets are local CLI adapters, not API-key adapters. Provider health resolves the installed `claude` or `codex` executable (or its explicit absolute override). The detached control worker forwards only the authenticated CLI home paths and a bounded environment; it must never inject an API key for these providers. Claude Code runs in safe mode with an explicit tool set. Codex uses `exec --ephemeral`, ignores user rules/configuration while retaining CLI authentication, and applies its native filesystem sandbox.
+Automatic `claude` and `codex` targets are local CLI adapters, not API-key adapters. Provider health resolves the installed executable, captures its sanitized `--version` output and hashes its real path/stat/version identity. Preview fingerprints and campaigns persist that identity; resume fails after a CLI replacement.
+
+The detached worker receives a private `HOME`, controlled `PATH`, locale/temp values and only the provider-specific authentication directory (`CLAUDE_CONFIG_DIR` or `CODEX_HOME`) when it exists. Never forward `process.env`, a real general-purpose home or an API key for local CLI providers. Claude Code runs in safe mode with only the arka.norn MCP tools. Codex uses `exec --ephemeral`, read-only sandboxing, ignored user rules and disabled shell/multi-agent/browser/app tools.
+
+`OrchestrationWorkspace` owns the Git-independent baseline, isolated mirror and atomic apply/rollback. Keep Project private state, secrets, symlinks, build output and nested repository metadata outside mirrors. Applying a diff must verify the entire real baseline so an unrelated human edit causes a global conflict.
+
+The provider never edits the workspace directly. `scripts/orchestration-tool-server.mjs` is the only mutation and evidence broker. Add tools only with structured schemas, scope/revision validation, bounded output, redaction and a mechanical receipt. Repository recipes belong in `scripts/orchestration-recipe-runner.mjs` and must use pinned Docker/Podman images, no network and no host fallback.
+
+`OrchestrationCampaign` is the durable human control envelope; `OrchestrationProjection` is the single presentation contract for Product, Web, TUI and CLI. Do not infer actions in an adapter. All mutations require the expected revision; confirmation actions also require their object fingerprint. Keep provider permission, Product decision, retry and diff application as distinct actions.
 
 Keep manual prompt generation outside the automatic execution path. A JSON advice response with `orchestrationMode: automatic` must contain only `delivery: orchestrated` recommendations and must not contain `agent prompt` or a `prepare` recommendation.
 

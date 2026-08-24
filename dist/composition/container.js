@@ -83,7 +83,7 @@ export function createContainer(env, ui = {}) {
     };
     const pipelineScenes = createPipelineSceneController(app, pipeline, authorRegistryForFeature);
     const agentScenes = createAgentSceneController(app, management.agents);
-    const orchestration = createAgentOrchestrationRuntime({ ...management, pipeline });
+    const orchestration = createAgentOrchestrationRuntime({ ...management, pipeline, preferredSurface: async () => (await localePreferences.loadPreferences()).preferredSurface });
     const orchestrationScenes = createAgentOrchestrationSceneController(app, orchestration);
     const automaticOrchestration = createOrchestrationRuntime({ ...management, pipeline, homeDir, frameworkRoot: FRAMEWORK_ROOT });
     const confirmations = createResourceConfirmationController({
@@ -228,7 +228,7 @@ export function createContainer(env, ui = {}) {
         },
         async createHomeView() {
             const initialProjects = await projects.list();
-            const localePreference = await localePreferences.load();
+            const preferences = await localePreferences.loadPreferences();
             const doctor = createDoctorRuntime(homeDir, env.cwd);
             const inspectHealth = async () => {
                 const [projectSkills, globalSkills, report] = await Promise.all([
@@ -267,11 +267,13 @@ export function createContainer(env, ui = {}) {
                 contextRoot: uiState.contextRoot,
                 skillHealth: formatSkills(initialHealth.projectSkills, initialHealth.globalSkills),
                 systemHealth: formatSystem(initialHealth.report),
-                localePreference,
+                localePreference: preferences.locale,
+                preferredSurface: preferences.preferredSurface,
                 onLocaleChange: async (preference) => {
                     await localePreferences.save(preference);
                     setActiveLocale(resolveLocale({ preference, environment: process.env }));
                 },
+                onPreferredSurfaceChange: (surface) => localePreferences.savePreferredSurface(surface),
                 redraw: () => app.redraw(),
                 onProjectFocused: (project) => {
                     uiState.currentProject = project;

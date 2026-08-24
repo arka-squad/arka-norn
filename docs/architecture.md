@@ -19,6 +19,16 @@ arka-norn is local-first and follows a ports-and-adapters design. Portable marke
 
 The Pipeline evaluator is deterministic and independent of locale. Adapters discover and validate documents, the domain selects business state, and presenters add localized display text.
 
-The orchestration runtime is split into runtime state, mission planning, worker launching, provider configuration and proof validation. Each source file remains below 700 lines.
+The orchestration control plane has one durable source and one projection:
+
+```text
+Product / Web / TUI / CLI -> OrchestrationProjection -> campaign + execution stores
+campaign -> logical Project root -> direct Project | private mirror
+mission -> signed FrameworkContext -> local Claude/Codex CLI -> arka.norn MCP broker
+broker -> validated file operation | sandbox recipe | evidence/decision receipt
+isolated completion -> full-baseline conflict check -> backup/apply/revalidate/rollback
+```
+
+The runtime is split into campaign state, workspace realization, mission planning, lifecycle/heartbeat recovery, provider configuration, tool brokerage and proof validation. Adapters never derive the next action from prose. Each source file remains below 700 lines.
 
 See the ADRs for ownership, CLI, migration and audit decisions.

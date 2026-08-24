@@ -121,7 +121,12 @@ test("les workers locaux lancent Claude Code CLI et Codex CLI sans clé API ni p
     "--cd", realpathSync(workspace),
     "--model", "gpt-test",
   ]);
-  assert.equal(codexInvocation.args[8], "exec");
+  assert.equal(codexInvocation.args.includes("workspace-write"), false);
+  assert.equal(codexInvocation.args.includes("shell_tool"), true);
+  assert.equal(codexInvocation.args.includes("unified_exec"), true);
+  assert.equal(codexInvocation.args.some((value) => value.startsWith("mcp_servers.norn.command=")), true);
+  assert.equal(codexInvocation.args.some((value) => value.startsWith("mcp_servers.norn.args=")), true);
+  assert.ok(codexInvocation.args.indexOf("exec") > 8);
 });
 
 test("le cancel force la fermeture du worker isolé", async (context) => {

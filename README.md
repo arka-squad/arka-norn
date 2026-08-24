@@ -1,8 +1,8 @@
-# arka-norn
+# arka.norn
 
-arka-norn is a local Project tracking and delivery framework for Features, signed documents, human decisions, evidence and auditable workflows. It provides a Project manager Web interface, an interactive TUI and a scriptable CLI without making an external SaaS the source of truth.
+arka.norn is a local Project tracking and delivery framework for Features, signed documents, human decisions, evidence and auditable workflows. `arka-norn` is its command. It provides a Project manager Web interface, an interactive TUI and a scriptable CLI without making an external SaaS the source of truth.
 
-Version 2.2 aligns the EN/FR Project Web interface with the official Arka Labs product system, adds guided Project and Feature creation with native folder selection, and presents signed productions as a traceable Feature history. Version 2.2.2 keeps browser sessions stable across managed Web restarts and exposes the installed version through the CLI. English remains canonical for contracts and machine data.
+The current release adds safe Product orchestration around locally authenticated Claude Code and Codex CLIs. A durable campaign, one domain projection and mechanical receipts keep the Product, Norn Web, TUI and CLI aligned. English remains canonical for contracts and machine data.
 
 ## Requirements
 
@@ -39,11 +39,25 @@ node bin/arka-norn.mjs web stop
 
 From a source checkout, the equivalent shortcuts are `npm run web:start`, `npm run web:status`, `npm run web:restart` and `npm run web:stop`.
 
-The Web interface presents Project health, Feature paths, every signed document in a human layout, decisions, audits, registered Agents and live Norn orchestration state. It never starts, stops, retries or configures an Agent; control stays in each provider's native application.
+The Web interface presents Project health, Feature paths, every signed document in a human layout, decisions, audits, registered Agents and live Norn orchestration state. It remains read-only for orchestration: the Product Agent is the conversational control, the TUI is the advanced cockpit and the CLI is the automation/diagnostic surface.
 
 Its interface uses the official Arka Labs mark, compact Project rail, product surfaces, Poppins and JetBrains Mono in both dark and light themes. Light sand is reserved for layout chrome while working content remains white; primary commands stay neutral and Arka red identifies the product. Signed documents are grouped by Feature and Pipeline order, retain replaced revisions, and receive an editorial EN/FR reading view with a contract-derived header, navigable dependencies and human-readable provenance. Read-only technical JSON remains available through progressive disclosure.
 
 Project and Feature creation are guided for non-developers. Folder locations use the operating system's native picker instead of editable path fields, while generated identifiers and advanced technical values stay out of the primary flow.
+
+## Safe automatic orchestration
+
+Automatic mode never asks the user to copy a generated prompt. The Product prepares one immutable campaign envelope, then arka.norn launches the selected local Claude Code CLI or Codex CLI itself. The logical working directory is always the Product Project root; a Feature supplies business context and write rights, never a replacement working directory.
+
+An isolated campaign works in a private mirror and shows a verified change summary before the human applies anything. A direct campaign writes to the real Project but still runs repository tests and builds only through bounded Docker or Podman recipes. Provider-native write, shell, network and sub-agent tools stay disabled; all reads, proposed changes, recipes, evidence and decision requests pass through the arka.norn tool broker and produce mechanical receipts.
+
+Choose the preferred tracking surface in Norn Web settings:
+
+- Web: functional explanations and a live read-only timeline, with no command blocks;
+- TUI: interactive campaign actions and technical detail on demand;
+- CLI: exact commands and stable JSON for expert automation.
+
+See [Automatic orchestration](docs/automatic-orchestration.md) for workspace, budget, recovery and application guarantees.
 
 Install the generated Agent skills:
 

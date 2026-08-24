@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { formatNumber, translate } from "../../../../application/localization/locale.js";
+import { translate } from "../../../../application/localization/locale.js";
 import { titledBox } from "../components/box.js";
 import { createMenuScene } from "../components/menu.js";
-import { displayCandidateReason, displayMissionAction, displayMissionEvents, displayMissionStatus, displayPermission, displayProvider, displayRole, displayScopePath, displayStep, displayTarget, isReadOnlyAnalysisAwaitingValidation, translatePreparationError, } from "./orchestration-presentation.js";
+import { displayMissionStatus, displayProvider, displayTarget, isReadOnlyAnalysisAwaitingValidation, renderMissionSummary, renderPreviewSummary, selectableCandidates, translatePreparationError, } from "./orchestration-presentation.js";
 const EXECUTION_PROVIDER_CHOICES = ["claude", "codex", "kimi", "zai"];
 /**
  * Human-facing control-plane view. Preparation is read-only and every start
@@ -32,6 +32,10 @@ export function createOrchestrationView(deps) {
     let selectedCandidateIndex;
     let selectedProvider;
     let modelInput = "";
+    let decisionActor = "";
+    let decisionChoice = "";
+    let decisionStage = "actor";
+    let pendingChanges;
     let busy = false;
     let message;
     let menu = buildMenu();
@@ -42,7 +46,7 @@ export function createOrchestrationView(deps) {
             onSelect: (action) => void select(action),
         });
     }
-    function items() {
+    function modalItems() {
         if (viewMode === "feature-selection") {
             return [
                 ...features.map((feature) => ({
@@ -78,6 +82,19 @@ export function createOrchestrationView(deps) {
                 { label: `<- ${translate("tui.orchestration.back.preview")}`, value: "back" },
             ];
         }
+        if (viewMode === "workspace-selection") {
+            return [
+                { label: translate("tui.orchestration.workspace.isolated"), value: "workspace:isolated", description: translate("tui.orchestration.workspace.isolatedDescription") },
+                { label: translate("tui.orchestration.workspace.direct"), value: "workspace:direct", description: translate("tui.orchestration.workspace.directDescription") },
+                { label: `<- ${translate("tui.orchestration.back.preview")}`, value: "back" },
+            ];
+        }
+        if (viewMode === "changes-preview") {
+            return [
+                { label: translate("tui.orchestration.campaign.apply"), value: "apply-campaign", description: translate("tui.orchestration.campaign.applyDescription") },
+                { label: `<- ${translate("tui.orchestration.back.preview")}`, value: "back" },
+            ];
+        }
         if (viewMode === "preview") {
             const candidate = selectedCandidate();
             return [
@@ -97,14 +114,29 @@ export function createOrchestrationView(deps) {
                 { label: `<- ${translate("tui.orchestration.back.dashboard")}`, value: "back" },
             ];
         }
+        return undefined;
+    }
+    function overviewItems() {
         const active = status.activeExecution;
+        const campaign = status.activeCampaign;
+        if (campaign !== undefined) {
+            return [
+                ...(campaign.status === "running" ? [{ label: translate("tui.orchestration.campaign.pause"), value: "pause-campaign", description: translate("tui.orchestration.campaign.pauseDescription") }] : []),
+                ...(campaign.status === "paused" ? [{ label: translate("tui.orchestration.campaign.resume"), value: "resume-campaign", description: translate("tui.orchestration.campaign.resumeDescription") }] : []),
+                ...(campaign.status === "awaiting_decision" && campaign.actionRequired?.kind === "business_decision" ? [{ label: translate("tui.orchestration.campaign.decide"), value: "decide-campaign", description: translate("tui.orchestration.campaign.decideDescription") }] : []),
+                ...(campaign.status === "awaiting_application" ? [{ label: translate("tui.orchestration.campaign.reviewChanges"), value: "review-campaign-changes", description: translate("tui.orchestration.campaign.reviewChangesDescription") }] : []),
+                ...campaignRetryItem(campaign),
+                ...(["running", "paused", "awaiting_decision", "awaiting_application", "blocked"].includes(campaign.status) ? [{ label: translate("tui.orchestration.campaign.cancel"), value: "cancel-campaign", description: translate("tui.orchestration.campaign.cancelDescription") }] : []),
+                ...(["awaiting_application", "awaiting_decision", "blocked", "paused"].includes(campaign.status) ? [{ label: translate("tui.orchestration.campaign.abandon"), value: "abandon-campaign", description: translate("tui.orchestration.campaign.abandonDescription") }] : []),
+                ...(campaign.actionRequired !== undefined ? [{ label: translate("tui.orchestration.mission.inspect"), value: "inspect", description: campaign.actionRequired.reason }] : []),
+                { label: translate("tui.orchestration.refresh"), value: "refresh", description: translate("tui.orchestration.refresh.description") },
+                { label: `<- ${translate("tui.orchestration.back.project")}`, value: "back" },
+            ];
+        }
         if (active !== undefined) {
             return [
                 ...(active.status === "planned" || active.status === "running" || active.status === "awaiting_approval"
                     ? [{ label: translate("tui.orchestration.mission.cancel"), value: "cancel", description: translate("tui.orchestration.mission.cancelDescription") }]
-                    : []),
-                ...(active.status === "awaiting_approval"
-                    ? [{ label: translate("tui.orchestration.mission.approve"), value: "approve", description: translate("tui.orchestration.mission.approveDescription") }]
                     : []),
                 ...(active.status === "failed" || active.status === "cancelled" || active.status === "interrupted"
                     ? [{ label: translate("tui.orchestration.mission.retry"), value: "retry", description: translate("tui.orchestration.mission.retryDescription") }]
@@ -141,6 +173,7 @@ export function createOrchestrationView(deps) {
             { label: `<- ${translate("tui.orchestration.back.project")}`, value: "back", ...(status.orchestrationMode !== "automatic" ? { description: translate("tui.orchestration.enable.description") } : {}) },
         ];
     }
+    function items() { return modalItems() ?? overviewItems(); }
     async function select(action) {
         if (busy)
             return;
@@ -173,6 +206,10 @@ export function createOrchestrationView(deps) {
             viewMode = "model-input";
             menu = buildMenu();
             deps.redraw();
+            return;
+        }
+        if (action.startsWith("workspace:")) {
+            await configureSelectedTarget(action === "workspace:isolated" ? "isolated" : "direct");
             return;
         }
         if (action === "prepare") {
@@ -225,12 +262,58 @@ export function createOrchestrationView(deps) {
             await updateCurrentMission((execution) => deps.orchestration.cancel({ projectId: project.id, executionId: execution.id }), translate("tui.orchestration.message.cancelled"));
             return;
         }
-        if (action === "approve") {
-            await updateCurrentMission((execution) => deps.orchestration.approve({ projectId: project.id, executionId: execution.id }), translate("tui.orchestration.message.approved"));
+        if (action === "pause-campaign") {
+            await updateCampaign((campaign) => deps.orchestration.pause({ projectId: project.id, campaignId: campaign.id, expectedRevision: campaign.revision }), translate("tui.orchestration.campaign.paused"));
+            return;
+        }
+        if (action === "resume-campaign") {
+            await updateCampaign((campaign) => deps.orchestration.resume({ projectId: project.id, campaignId: campaign.id, expectedRevision: campaign.revision }), translate("tui.orchestration.campaign.resumed"));
+            return;
+        }
+        if (action === "decide-campaign") {
+            decisionActor = "";
+            decisionChoice = "";
+            decisionStage = "actor";
+            viewMode = "decision-input";
+            deps.redraw();
+            return;
+        }
+        if (action === "cancel-campaign") {
+            await updateCampaign((campaign) => deps.orchestration.cancelCampaign({ projectId: project.id, campaignId: campaign.id, expectedRevision: campaign.revision }), translate("tui.orchestration.campaign.cancelled"));
+            return;
+        }
+        if (action === "review-campaign-changes") {
+            await run(async () => {
+                const campaign = status.activeCampaign;
+                if (campaign === undefined)
+                    throw new Error("No automatic campaign is active.");
+                pendingChanges = await deps.orchestration.changes({ projectId: project.id, campaignId: campaign.id });
+                viewMode = "changes-preview";
+                menu = buildMenu();
+            });
+            return;
+        }
+        if (action === "apply-campaign") {
+            await updateCampaign((campaign) => deps.orchestration.apply({ projectId: project.id, campaignId: campaign.id, expectedRevision: campaign.revision, fingerprint: pendingChanges?.fingerprint ?? "" }), translate("tui.orchestration.campaign.applied"));
+            pendingChanges = undefined;
+            viewMode = "overview";
+            return;
+        }
+        if (action === "abandon-campaign") {
+            await updateCampaign((campaign) => deps.orchestration.abandon({ projectId: project.id, campaignId: campaign.id, expectedRevision: campaign.revision }), translate("tui.orchestration.campaign.abandoned"));
             return;
         }
         if (action === "retry") {
             await updateCurrentMission((execution) => deps.orchestration.retry({ projectId: project.id, executionId: execution.id }), translate("tui.orchestration.message.retry"));
+            return;
+        }
+        if (action === "retry-campaign") {
+            await updateCampaign((campaign) => deps.orchestration.retryCampaign({
+                projectId: project.id,
+                campaignId: campaign.id,
+                expectedRevision: campaign.revision,
+                fingerprint: campaign.actionRequired?.fingerprint ?? "",
+            }), translate("tui.orchestration.message.retry"));
         }
     }
     async function loadPreview(feature) {
@@ -246,7 +329,7 @@ export function createOrchestrationView(deps) {
         viewMode = selectedCandidateIndex === undefined ? "target-selection" : "preview";
         menu = buildMenu();
     }
-    async function configureSelectedTarget() {
+    async function configureSelectedTarget(workspaceMode) {
         const provider = selectedProvider;
         const model = modelInput.trim();
         const feature = selectedFeature;
@@ -256,7 +339,7 @@ export function createOrchestrationView(deps) {
             return;
         }
         await run(async () => {
-            await deps.orchestration.configure({ projectId: project.id, selection: { provider, model } });
+            await deps.orchestration.configure({ projectId: project.id, selection: { provider, model }, workspaceMode });
             await preparePreview(feature, { provider, model });
             message = translate("tui.orchestration.model.saved", { provider: displayProvider(provider), model });
         });
@@ -292,6 +375,16 @@ export function createOrchestrationView(deps) {
             await operation(execution);
             await refreshStatusAndProject();
             menu = buildMenu();
+            message = successMessage;
+        });
+    }
+    async function updateCampaign(operation, successMessage) {
+        await run(async () => {
+            const campaign = status.activeCampaign;
+            if (campaign === undefined)
+                throw new Error("No automatic campaign is active.");
+            await operation(campaign);
+            await refreshStatusAndProject();
             message = successMessage;
         });
     }
@@ -343,16 +436,61 @@ export function createOrchestrationView(deps) {
             modelInput += event.value;
         }
         else if (event.kind === "enter") {
-            void configureSelectedTarget();
+            if (modelInput.trim().length > 0) {
+                viewMode = "workspace-selection";
+                menu = buildMenu();
+            }
         }
         deps.redraw();
         return "consumed";
+    }
+    function handleDecisionInput(event) {
+        if (busy)
+            return "consumed";
+        if (event.kind === "escape") {
+            viewMode = "overview";
+            menu = buildMenu();
+        }
+        else if (event.kind === "backspace") {
+            if (decisionStage === "actor")
+                decisionActor = decisionActor.slice(0, -1);
+            else
+                decisionChoice = decisionChoice.slice(0, -1);
+        }
+        else if (event.kind === "char") {
+            if (decisionStage === "actor")
+                decisionActor += event.value;
+            else
+                decisionChoice += event.value;
+        }
+        else if (event.kind === "enter") {
+            if (decisionStage === "actor" && decisionActor.trim().length > 0)
+                decisionStage = "choice";
+            else if (decisionStage === "choice" && decisionChoice.trim().length > 0)
+                void submitDecision();
+        }
+        deps.redraw();
+        return "consumed";
+    }
+    async function submitDecision() {
+        await updateCampaign((campaign) => deps.orchestration.decide({
+            projectId: project.id,
+            campaignId: campaign.id,
+            expectedRevision: campaign.revision,
+            fingerprint: campaign.actionRequired?.fingerprint ?? "",
+            actor: decisionActor.trim(),
+            choice: decisionChoice.trim(),
+        }), translate("tui.orchestration.campaign.decided"));
+        viewMode = "overview";
+        menu = buildMenu();
     }
     return {
         chrome: { contextBanner: false },
         onKey(event) {
             if (viewMode === "model-input")
                 return handleModelInput(event);
+            if (viewMode === "decision-input")
+                return handleDecisionInput(event);
             if (event.kind === "escape") {
                 if (viewMode === "overview")
                     deps.onBack();
@@ -374,7 +512,7 @@ export function createOrchestrationView(deps) {
                     line(`  ${theme.dim(translate("tui.orchestration.busy"))}`);
                 if (message !== undefined)
                     line(`  ${theme.arkaAccent(message)}`);
-                if (viewMode !== "model-input") {
+                if (viewMode !== "model-input" && viewMode !== "decision-input") {
                     for (const value of menu.renderLines(theme))
                         line(value);
                 }
@@ -417,6 +555,29 @@ export function createOrchestrationView(deps) {
                 translate("tui.orchestration.summary.model.hint"),
             ];
         }
+        if (viewMode === "decision-input") {
+            return [
+                translate("tui.orchestration.decision.title"),
+                status.activeCampaign?.actionRequired?.reason ?? translate("tui.orchestration.decision.reasonMissing"),
+                "",
+                decisionStage === "actor"
+                    ? translate("tui.orchestration.decision.actor", { value: `${decisionActor}_` })
+                    : translate("tui.orchestration.decision.choice", { value: `${decisionChoice}_` }),
+                translate("tui.orchestration.decision.hint"),
+            ];
+        }
+        if (viewMode === "workspace-selection") {
+            return [translate("tui.orchestration.workspace.title"), translate("tui.orchestration.workspace.help")];
+        }
+        if (viewMode === "changes-preview") {
+            const changes = pendingChanges?.changes ?? [];
+            return [
+                translate("tui.orchestration.changes.title", { count: changes.length }),
+                ...changes.slice(0, 20).map((change) => `${change.kind} · ${change.path}${change.binary ? " · binary" : ""}`),
+                ...(changes.length > 20 ? [translate("tui.orchestration.changes.more", { count: changes.length - 20 })] : []),
+                translate("tui.orchestration.changes.confirm"),
+            ];
+        }
         if (viewMode === "preview")
             return renderPreviewSummary(requirePreview(), selectedCandidateIndex);
         const execution = status.activeExecution ?? status.latestExecution;
@@ -428,6 +589,11 @@ export function createOrchestrationView(deps) {
         return [
             `Project : ${project.name}`,
             translate("tui.orchestration.summary.mode", { state: translate(status.orchestrationMode === "automatic" ? "tui.project.state.enabled" : "tui.project.state.disabled") }),
+            ...(status.projection === undefined ? [] : [
+                translate("tui.orchestration.campaign.progress", { completed: status.projection.progress.completedMissions, maximum: status.projection.progress.maximumMissions }),
+                translate("tui.orchestration.campaign.activity", { activity: status.projection.currentActivity }),
+                translate("tui.orchestration.campaign.freshness", { freshness: status.projection.stale ? translate("tui.orchestration.campaign.stale") : translate("tui.orchestration.campaign.current") }),
+            ]),
             ...missionSummary,
             translate("tui.orchestration.summary.situation", { situation: displayed.title }),
             displayed.detail,
@@ -444,44 +610,6 @@ export function createOrchestrationView(deps) {
         ];
     }
 }
-function renderMissionSummary(execution, actionRequired, isActive) {
-    const action = displayMissionAction(execution, actionRequired);
-    return [
-        translate("tui.orchestration.mission.id", { label: translate(isActive ? "tui.orchestration.mission.active" : "tui.orchestration.mission.latest"), id: execution.id }),
-        translate("tui.orchestration.mission.step", { step: displayStep(execution.order.preconditions.nextStepId) }),
-        translate("tui.orchestration.mission.assistant", { assistant: displayTarget(execution.target) }),
-        translate("tui.orchestration.mission.events"),
-        ...displayMissionEvents(execution).map((event) => `  * ${event}`),
-        translate("tui.orchestration.mission.expectedAction", { action: action.title }),
-        translate("tui.orchestration.mission.reason", { reason: action.detail }),
-    ];
-}
-function renderPreviewSummary(preview, selectedCandidateIndex) {
-    const selected = selectedCandidateIndex === undefined ? undefined : preview.candidates[selectedCandidateIndex];
-    const compatible = selectableCandidates(preview);
-    const unavailable = preview.candidates.filter((candidate) => !candidate.eligible);
-    return [
-        translate("tui.orchestration.preview.done"),
-        `Feature : ${preview.featureName}`,
-        translate("tui.orchestration.preview.work", { summary: preview.summary }),
-        translate("tui.orchestration.mission.step", { step: displayStep(preview.stepId) }),
-        translate("tui.orchestration.preview.role", { role: displayRole(preview.role) }),
-        translate("tui.orchestration.preview.scope", { scope: preview.scopePaths.map(displayScopePath).join(" - ") }),
-        translate("tui.orchestration.preview.permissions", { permissions: preview.requiredPermissions.map(displayPermission).join(" - ") }),
-        translate("tui.orchestration.preview.target", { target: selected?.eligible === true && selected.target.model !== undefined ? displayTarget(selected.target) : translate("tui.orchestration.preview.target.none") }),
-        ...(compatible.length > 1 ? [translate("tui.orchestration.preview.other", { count: formatNumber(compatible.length - 1) })] : []),
-        ...(unavailable.length === 0
-            ? []
-            : [translate("tui.orchestration.preview.unavailable", { choices: unavailable.map((candidate) => `${displayTarget(candidate.target)} (${candidate.reasons.map(displayCandidateReason).join(", ")})`).join(" - ") })]),
-        translate("tui.orchestration.preview.recheck"),
-    ];
-}
-function selectableCandidates(preview) {
-    return preview.candidates
-        .map((candidate, index) => ({ candidate, index }))
-        .filter(({ candidate }) => candidate.eligible && candidate.target.model !== undefined)
-        .sort((left, right) => Number(right.candidate.recommended) - Number(left.candidate.recommended));
-}
 function requireCurrentExecution(status) {
     const execution = status.activeExecution ?? status.latestExecution;
     if (execution === undefined)
@@ -491,9 +619,16 @@ function requireCurrentExecution(status) {
 function isRetryable(execution) {
     return execution?.status === "failed" || execution?.status === "cancelled" || execution?.status === "interrupted";
 }
+function campaignRetryItem(campaign) { return campaign.status !== "blocked" || campaign.actionRequired?.kind !== "retry" ? [] : [{ label: translate("tui.orchestration.mission.retry"), value: "retry-campaign", description: campaign.actionRequired.reason }]; }
 function previousMode(mode) {
+    if (mode === "decision-input")
+        return "overview";
+    if (mode === "changes-preview")
+        return "overview";
     if (mode === "model-input")
         return "provider-selection";
+    if (mode === "workspace-selection")
+        return "model-input";
     if (mode === "target-selection" || mode === "provider-selection")
         return "preview";
     return "overview";

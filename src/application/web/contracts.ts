@@ -4,6 +4,7 @@
  */
 
 import type { GovernanceEventKind, GovernanceTarget } from "../../domain/governance/governance-event.js";
+import type { OrchestrationProjection } from "../../domain/orchestration/orchestration-projection.js";
 
 export type TrackingHealth = "healthy" | "attention" | "blocked" | "invalid";
 
@@ -201,6 +202,7 @@ export interface OrchestrationTrackingView {
   readonly status: string;
   readonly featureId?: string;
   readonly stepId: string;
+  readonly role?: string;
   readonly provider: string;
   readonly model?: string;
   readonly agentId?: string;
@@ -211,14 +213,46 @@ export interface OrchestrationTrackingView {
   readonly heartbeatAt?: string;
   readonly heartbeatAlive: boolean;
   readonly lastEvent?: { readonly type: string; readonly at: string };
+  readonly timeline: readonly { readonly type: string; readonly at: string }[];
+  readonly stale: boolean;
+  readonly providerUsage: { readonly available: false } | { readonly available: true; readonly consumed: number; readonly unit: string };
   readonly proofReferences: readonly string[];
+  readonly projection?: OrchestrationProjection;
   readonly suspension?: { readonly code: string; readonly detail: string };
+  readonly campaign?: {
+    readonly id: string;
+    readonly status: string;
+    readonly revision: number;
+    readonly workspaceMode: "isolated" | "direct";
+    readonly completedMissions: number;
+    readonly maximumMissions: number;
+    readonly currentStepId: string;
+    readonly decisionCount: number;
+    readonly runtimeVersion?: string;
+    readonly changedFiles?: {
+      readonly total: number;
+      readonly created: number;
+      readonly modified: number;
+      readonly deleted: number;
+      readonly renamed: number;
+      readonly files: readonly { readonly path: string; readonly previousPath?: string; readonly kind: "created" | "modified" | "deleted" | "renamed"; readonly risk: "low" | "medium" | "high"; readonly binary: boolean }[];
+    };
+    readonly actionRequired?: { readonly kind: string; readonly reason: string };
+  };
 }
 
 export interface WebPreferences {
   readonly locale: "auto" | "en" | "fr";
   readonly resolvedLocale: "en" | "fr";
+  readonly preferredSurface: "web" | "tui" | "cli";
   readonly humanProfile?: { readonly id: string; readonly name: string; readonly email?: string };
+}
+
+export interface SaveWebPreferencesInput {
+  readonly locale?: "auto" | "en" | "fr";
+  readonly name?: string;
+  readonly email?: string;
+  readonly preferredSurface?: "web" | "tui" | "cli";
 }
 
 export interface CreateGovernanceEventInput {
@@ -255,7 +289,7 @@ export interface NornBridge {
   resumeAudit(projectId: string, auditId: string): Promise<AuditRunView>;
   getOrchestrations(projectId: string): Promise<readonly OrchestrationTrackingView[]>;
   getPreferences(): Promise<WebPreferences>;
-  savePreferences(input: { readonly locale?: "auto" | "en" | "fr"; readonly name?: string; readonly email?: string }): Promise<WebPreferences>;
+  savePreferences(input: SaveWebPreferencesInput): Promise<WebPreferences>;
   pickFolder(input: { readonly purpose: "project" | "feature"; readonly defaultPath?: string }): Promise<string | null>;
   createProject(input: { readonly id: string; readonly name: string; readonly root: string }): Promise<ProjectOverview>;
   createFeature(projectId: string, input: { readonly id: string; readonly name: string; readonly root: string; readonly pipelineId?: string }): Promise<FeatureTrackingView>;

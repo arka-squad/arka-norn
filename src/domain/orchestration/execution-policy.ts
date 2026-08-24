@@ -33,11 +33,14 @@ import {
   type ExecutionTarget,
 } from "./types.js";
 
-export const EXECUTION_POLICY_SCHEMA_VERSION = 2 as const;
+export const EXECUTION_POLICY_SCHEMA_VERSION = 3 as const;
 
 export const EXECUTION_SELECTION_MODES = ["assisted", "best"] as const;
 
 export type ExecutionSelectionMode = typeof EXECUTION_SELECTION_MODES[number];
+
+export const ORCHESTRATION_WORKSPACE_MODES = ["unconfigured", "isolated", "direct"] as const;
+export type OrchestrationWorkspaceMode = typeof ORCHESTRATION_WORKSPACE_MODES[number];
 
 export interface ExecutionModelPolicy {
   readonly id: string;
@@ -60,6 +63,7 @@ export interface ExecutionPolicyProps {
   readonly schemaVersion: typeof EXECUTION_POLICY_SCHEMA_VERSION;
   readonly projectId: ProjectId;
   readonly selectionMode: ExecutionSelectionMode;
+  readonly workspaceMode: OrchestrationWorkspaceMode;
   readonly providers: readonly ProviderExecutionPolicy[];
   readonly createdAt: Date;
   readonly updatedAt: Date;
@@ -75,12 +79,17 @@ export interface ExecutionProviderHealth {
   readonly provider: ExecutionProvider;
   readonly healthy: boolean;
   readonly capabilities: readonly ExecutionCapability[];
+  /** Exact local runtime identity, when the provider is a locally authenticated CLI. */
+  readonly runtimeVersion?: string;
+  readonly runtimeFingerprint?: string;
 }
 
 export interface ExecutionTargetHealth {
   readonly target: ExecutionTarget;
   readonly healthy: boolean;
   readonly capabilities: readonly ExecutionCapability[];
+  readonly runtimeVersion?: string;
+  readonly runtimeFingerprint?: string;
 }
 
 export type ProviderIneligibility =
@@ -125,6 +134,7 @@ export class ExecutionPolicy {
   public readonly schemaVersion: typeof EXECUTION_POLICY_SCHEMA_VERSION;
   public readonly projectId: ProjectId;
   public readonly selectionMode: ExecutionSelectionMode;
+  public readonly workspaceMode: OrchestrationWorkspaceMode;
   public readonly providers: readonly ProviderExecutionPolicy[];
   private readonly createdAtValue: Date;
   private readonly updatedAtValue: Date;
@@ -133,6 +143,7 @@ export class ExecutionPolicy {
     this.schemaVersion = props.schemaVersion;
     this.projectId = props.projectId;
     this.selectionMode = props.selectionMode;
+    this.workspaceMode = props.workspaceMode;
     this.providers = freezeProviders(props.providers);
     this.createdAtValue = new Date(props.createdAt.getTime());
     this.updatedAtValue = new Date(props.updatedAt.getTime());
@@ -148,6 +159,7 @@ export class ExecutionPolicy {
       schemaVersion: EXECUTION_POLICY_SCHEMA_VERSION,
       projectId,
       selectionMode: "assisted",
+      workspaceMode: "unconfigured",
       providers: [
         defaultProviderPolicy("claude", 40, true),
         defaultProviderPolicy("codex", 30, true),
@@ -197,6 +209,7 @@ export class ExecutionPolicy {
       schemaVersion: this.schemaVersion,
       projectId: this.projectId,
       selectionMode: this.selectionMode,
+      workspaceMode: this.workspaceMode,
       providers,
       createdAt: this.createdAt,
       updatedAt,
@@ -208,6 +221,19 @@ export class ExecutionPolicy {
       schemaVersion: this.schemaVersion,
       projectId: this.projectId,
       selectionMode,
+      workspaceMode: this.workspaceMode,
+      providers: this.providers,
+      createdAt: this.createdAt,
+      updatedAt,
+    });
+  }
+
+  public withWorkspaceMode(workspaceMode: OrchestrationWorkspaceMode, updatedAt: Date): ExecutionPolicy {
+    return ExecutionPolicy.create({
+      schemaVersion: this.schemaVersion,
+      projectId: this.projectId,
+      selectionMode: this.selectionMode,
+      workspaceMode,
       providers: this.providers,
       createdAt: this.createdAt,
       updatedAt,
@@ -219,6 +245,7 @@ export class ExecutionPolicy {
       schemaVersion: this.schemaVersion,
       projectId: this.projectId,
       selectionMode: this.selectionMode,
+      workspaceMode: this.workspaceMode,
       providers: cloneProviders(this.providers),
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
@@ -292,7 +319,7 @@ function defaultProviderPolicy(
     priority,
     capabilities: readOnly
       ? ["inspect_workspace", "read_pipeline"]
-      : ["inspect_workspace", "modify_workspace", "read_pipeline"],
+      : ["inspect_workspace", "modify_workspace", "run_commands", "read_pipeline"],
     permissions: readOnly ? ["read_workspace"] : ["read_workspace", "write_workspace"],
     models: [],
   };
@@ -300,10 +327,11 @@ function defaultProviderPolicy(
 
 function validatePolicyProps(props: ExecutionPolicyProps): void {
   if (props.schemaVersion !== EXECUTION_POLICY_SCHEMA_VERSION) {
-    throw new InvalidExecutionPolicyError("schemaVersion must be 2");
+    throw new InvalidExecutionPolicyError("schemaVersion must be 3");
   }
   if (!(props.projectId instanceof ProjectId)) throw new InvalidExecutionPolicyError("projectId must be a ProjectId");
   if (!isExecutionSelectionMode(props.selectionMode)) throw new InvalidExecutionPolicyError("selectionMode is unsupported");
+  if (!isOrchestrationWorkspaceMode(props.workspaceMode)) throw new InvalidExecutionPolicyError("workspaceMode is unsupported");
   validateDate(props.createdAt, "createdAt");
   validateDate(props.updatedAt, "updatedAt");
   if (props.updatedAt.getTime() < props.createdAt.getTime()) {
@@ -474,6 +502,10 @@ function validateUniqueEnumArray<T extends string>(
 
 export function isExecutionSelectionMode(value: unknown): value is ExecutionSelectionMode {
   return typeof value === "string" && (EXECUTION_SELECTION_MODES as readonly string[]).includes(value);
+}
+
+export function isOrchestrationWorkspaceMode(value: unknown): value is OrchestrationWorkspaceMode {
+  return typeof value === "string" && (ORCHESTRATION_WORKSPACE_MODES as readonly string[]).includes(value);
 }
 
 function isUnknownArray(value: unknown): value is readonly unknown[] {

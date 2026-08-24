@@ -8,12 +8,16 @@ import { join } from "node:path";
 
 import { FsExecutionRegistryStore } from "../../adapters/outbound/filesystem/fs-orchestration-execution-registry-store.js";
 import { FsOrchestrationWorkerStateStore } from "../../adapters/outbound/filesystem/fs-orchestration-worker-state-store.js";
+import { FsOrchestrationCampaignStore } from "../../adapters/outbound/filesystem/fs-orchestration-campaign-store.js";
+import { FsOrchestrationWorkspaceManager } from "../../adapters/outbound/filesystem/fs-orchestration-workspace.js";
 import { readJson } from "../../adapters/outbound/filesystem/_shared/atomic-json.js";
 import { FsAuditStore } from "../../adapters/outbound/filesystem/fs-audit-store.js";
 import { LocalAuditCollector } from "../../adapters/outbound/audit/local-audit-collector.js";
 import { AuditService, type AuditProjectContext } from "../audit/audit-service.js";
 import type { FsLocalePreferenceStore } from "../../adapters/outbound/filesystem/fs-locale-preference-store.js";
 import { resolveLocale, translate } from "../localization/locale.js";
+import { roleForStep } from "../agents/agent-orchestration.js";
+import { projectOrchestration } from "../../domain/orchestration/orchestration-projection.js";
 import { createGovernanceEvent } from "../../domain/governance/governance-event.js";
 import { reduceGovernance } from "../../domain/governance/governance-ledger.js";
 import { FeatureId } from "../../domain/feature/feature-id.js";
@@ -60,11 +64,14 @@ interface TrackingServiceOptions {
 
 export class ProjectTrackingService {
   private readonly executions = new FsExecutionRegistryStore();
+  private readonly campaigns = new FsOrchestrationCampaignStore();
+  private readonly workspaces: FsOrchestrationWorkspaceManager;
   private readonly workers: FsOrchestrationWorkerStateStore;
   private readonly now: () => Date;
 
   public constructor(private readonly options: TrackingServiceOptions) {
     this.workers = new FsOrchestrationWorkerStateStore(options.homeDir);
+    this.workspaces = new FsOrchestrationWorkspaceManager(options.homeDir);
     this.now = options.now ?? (() => new Date());
   }
 
@@ -223,18 +230,25 @@ export class ProjectTrackingService {
 
   public async getOrchestrations(projectId: string): Promise<readonly OrchestrationTrackingView[]> {
     const project = await this.project(projectId);
-    const registry = await this.executions.load(project);
+    const [registry, campaigns] = await Promise.all([this.executions.load(project), this.campaigns.load(project)]);
     return Promise.all(registry.executions.map(async (record) => {
       const worker = await this.workers.load(project.id, record.id).catch(() => undefined);
       const startedAt = record.attempts.at(-1)?.startedAt;
       const endedAt = record.attempts.at(-1)?.endedAt;
       const heartbeatAlive = worker !== undefined && this.now().getTime() - worker.updatedAt.getTime() < 60_000;
       const lastEvent = record.events.at(-1);
+      const campaign = campaigns.find((candidate) => candidate.missionIds.includes(record.id));
+      const changedFiles = campaign?.status === "awaiting_application"
+        ? summarizeChanges((await this.workspaces.changes(project, campaign).catch(() => undefined))?.changes ?? [])
+        : undefined;
+      const changed = changedFiles === undefined ? undefined : { created: changedFiles.created, modified: changedFiles.modified, deleted: changedFiles.deleted, renamed: changedFiles.renamed };
+      const role = roleForStep(record.order.preconditions.nextStepId);
       return {
         id: record.id,
         status: record.status,
         ...(record.order.scope.featureId === undefined ? {} : { featureId: record.order.scope.featureId.value }),
         stepId: record.order.preconditions.nextStepId,
+        ...(role === undefined ? {} : { role }),
         provider: record.target.provider,
         ...(record.target.model === undefined ? {} : { model: record.target.model }),
         ...(record.providerSessionId === undefined ? {} : { providerSessionId: record.providerSessionId }),
@@ -244,8 +258,25 @@ export class ProjectTrackingService {
         ...(worker === undefined ? {} : { heartbeatAt: worker.updatedAt.toISOString() }),
         heartbeatAlive,
         ...(lastEvent === undefined ? {} : { lastEvent: { type: lastEvent.type, at: lastEvent.at.toISOString() } }),
+        timeline: record.events.slice(-20).map((event) => ({ type: event.type, at: event.at.toISOString() })),
+        stale: (record.status === "planned" || record.status === "running") && !heartbeatAlive,
+        providerUsage: { available: false as const },
         proofReferences: record.proofReferences,
+        projection: projectOrchestration({ projectId, ...(campaign === undefined ? {} : { campaign }), execution: record, ...(changed === undefined ? {} : { changed }), now: this.now() }),
         ...(record.suspensionReason === undefined ? {} : { suspension: record.suspensionReason }),
+        ...(campaign === undefined ? {} : { campaign: {
+          id: campaign.id,
+          status: campaign.status,
+          revision: campaign.revision,
+          workspaceMode: campaign.workspaceMode,
+          completedMissions: campaign.missionIds.length,
+          maximumMissions: campaign.maxMissions,
+          currentStepId: campaign.currentStepId,
+          decisionCount: campaign.decisions.length,
+          ...(campaign.runtimeVersion === undefined ? {} : { runtimeVersion: campaign.runtimeVersion }),
+          ...(changedFiles === undefined ? {} : { changedFiles }),
+          ...(campaign.actionRequired === undefined ? {} : { actionRequired: { kind: campaign.actionRequired.kind, reason: campaign.actionRequired.reason } }),
+        } }),
       };
     }));
   }
@@ -269,13 +300,15 @@ export class ProjectTrackingService {
         preference: preferences.locale,
         ...(this.options.environment === undefined ? {} : { environment: this.options.environment }),
       }),
+      preferredSurface: preferences.preferredSurface,
       ...(preferences.humanProfile === undefined ? {} : { humanProfile: preferences.humanProfile }),
     };
   }
 
-  public async savePreferences(input: { readonly locale?: "auto" | "en" | "fr"; readonly name?: string; readonly email?: string }): Promise<WebPreferences> {
+  public async savePreferences(input: { readonly locale?: "auto" | "en" | "fr"; readonly name?: string; readonly email?: string; readonly preferredSurface?: "web" | "tui" | "cli" }): Promise<WebPreferences> {
     if (input.locale !== undefined) await this.options.preferences.save(input.locale);
     if (input.name !== undefined) await this.options.preferences.saveHumanProfile({ name: input.name, ...(input.email === undefined ? {} : { email: input.email }) });
+    if (input.preferredSurface !== undefined) await this.options.preferences.savePreferredSurface(input.preferredSurface);
     return this.getPreferences();
   }
 
@@ -409,6 +442,27 @@ function parseAuditEntry(value: unknown): readonly AuditTrackingView[] {
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function summarizeChanges(changes: readonly { readonly path: string; readonly previousPath?: string; readonly kind: "created" | "modified" | "deleted" | "renamed"; readonly binary: boolean }[]) {
+  const created = changes.filter((change) => change.kind === "created").length;
+  const modified = changes.filter((change) => change.kind === "modified").length;
+  const deleted = changes.filter((change) => change.kind === "deleted").length;
+  const renamed = changes.filter((change) => change.kind === "renamed").length;
+  return {
+    total: changes.length,
+    created,
+    modified,
+    deleted,
+    renamed,
+    files: changes.slice(0, 100).map((change) => ({
+      path: change.path,
+      ...(change.previousPath === undefined ? {} : { previousPath: change.previousPath }),
+      kind: change.kind,
+      binary: change.binary,
+      risk: change.binary || change.kind === "deleted" ? "high" as const : change.kind === "modified" || change.kind === "renamed" ? "medium" as const : "low" as const,
+    })),
+  };
 }
 
 function auditRunView(run: Awaited<ReturnType<AuditService["requiredRun"]>>): AuditRunView {

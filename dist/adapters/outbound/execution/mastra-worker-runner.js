@@ -163,9 +163,12 @@ function parseWorkerResult(stdout) {
         if (status !== "completed" && status !== "awaiting_approval" && status !== "failed" && status !== "cancelled")
             return undefined;
         const output = value["output"];
+        const receipts = value["receipts"];
         const sessionId = value["sessionId"];
         const failure = value["failure"];
         if (output !== undefined && typeof output !== "string")
+            return undefined;
+        if (receipts !== undefined && (!Array.isArray(receipts) || receipts.length > 100 || receipts.some((receipt) => typeof receipt !== "string" || !/^receipt-[A-Za-z0-9-]{1,160}$/u.test(receipt))))
             return undefined;
         if (sessionId !== undefined && typeof sessionId !== "string")
             return undefined;
@@ -174,6 +177,7 @@ function parseWorkerResult(stdout) {
         return {
             status,
             ...(output === undefined ? {} : { output }),
+            ...(receipts === undefined ? {} : { receipts: receipts }),
             ...(sessionId === undefined ? {} : { sessionId }),
             ...(failure === undefined ? {} : { failure: { code: failure["code"] } }),
         };

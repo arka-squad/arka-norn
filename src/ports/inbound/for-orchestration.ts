@@ -19,6 +19,10 @@ import type {
   TargetIneligibility,
 } from "../../domain/orchestration/execution-policy.js";
 import type { ExecutionRecord } from "../../domain/orchestration/execution-record.js";
+import type { OrchestrationCampaign } from "../../domain/orchestration/orchestration-campaign.js";
+import type { OrchestrationProjection } from "../../domain/orchestration/orchestration-projection.js";
+import type { OrchestrationWorkspaceMode } from "../../domain/orchestration/execution-policy.js";
+import type { WorkspaceChanges } from "../outbound/orchestration-workspace.js";
 import type {
   ExecutionCapability,
   ExecutionPermission,
@@ -47,6 +51,7 @@ export interface OrchestrationConfigureInput {
   readonly projectId: ProjectId;
   /** Adds or enables this explicit Project-owned model choice, never a credential. */
   readonly selection: OrchestrationTargetSelection;
+  readonly workspaceMode?: Exclude<OrchestrationWorkspaceMode, "unconfigured">;
 }
 
 export interface OrchestrationPreviewInput {
@@ -63,6 +68,9 @@ export interface OrchestrationPreview {
   readonly stepId: string;
   readonly role: string;
   readonly summary: string;
+  readonly logicalRoot?: string;
+  readonly workspaceMode?: OrchestrationWorkspaceMode;
+  readonly maximumMissions?: number;
   readonly scopePaths: readonly string[];
   readonly requiredCapabilities: readonly ExecutionCapability[];
   readonly requiredPermissions: readonly ExecutionPermission[];
@@ -76,6 +84,8 @@ export interface OrchestrationPreviewCandidate {
   readonly eligible: boolean;
   readonly reasons: readonly TargetIneligibility[];
   readonly recommended: boolean;
+  readonly runtimeVersion?: string;
+  readonly runtimeFingerprint?: string;
 }
 
 export interface OrchestrationExecutionInput {
@@ -92,13 +102,31 @@ export interface OrchestrationStatus {
   /** An actually live mission only; terminal history never masquerades as active. */
   readonly activeExecution: ExecutionRecord | undefined;
   readonly latestExecution: ExecutionRecord | undefined;
+  readonly activeCampaign?: OrchestrationCampaign;
+  readonly latestCampaign?: OrchestrationCampaign;
+  readonly projection?: OrchestrationProjection;
   readonly actionRequired: OrchestrationActionRequired | undefined;
 }
 
 export interface OrchestrationActionRequired {
-  readonly kind: "approve" | "retry" | "inspect";
+  readonly kind: "approve" | "business_decision" | "scope_expansion" | "capability_expansion" | "apply_changes" | "retry" | "inspect";
   readonly executionId: string;
   readonly reason: string;
+}
+
+export interface OrchestrationCampaignInput {
+  readonly projectId: ProjectId;
+  readonly campaignId: string;
+  readonly expectedRevision: number;
+}
+
+export interface OrchestrationApplyInput extends OrchestrationCampaignInput { readonly fingerprint: string }
+export interface OrchestrationCampaignRetryInput extends OrchestrationCampaignInput { readonly fingerprint: string }
+export interface OrchestrationDecisionInput extends OrchestrationCampaignInput {
+  readonly fingerprint: string;
+  readonly actor: string;
+  readonly choice: string;
+  readonly reason?: string;
 }
 
 /** Public control-plane API. It never exposes worker process state or secrets. */
@@ -107,6 +135,14 @@ export interface ForOrchestration {
   preview(input: OrchestrationPreviewInput): Promise<OrchestrationPreview>;
   start(input: OrchestrationStartInput): Promise<ExecutionRecord>;
   status(input: { readonly projectId: ProjectId }): Promise<OrchestrationStatus>;
+  pause?(input: OrchestrationCampaignInput): Promise<OrchestrationCampaign>;
+  resume?(input: OrchestrationCampaignInput): Promise<OrchestrationCampaign>;
+  decide?(input: OrchestrationDecisionInput): Promise<OrchestrationCampaign>;
+  changes?(input: { readonly projectId: ProjectId; readonly campaignId: string }): Promise<WorkspaceChanges>;
+  apply?(input: OrchestrationApplyInput): Promise<OrchestrationCampaign>;
+  retryCampaign?(input: OrchestrationCampaignRetryInput): Promise<OrchestrationCampaign>;
+  abandon?(input: OrchestrationCampaignInput): Promise<OrchestrationCampaign>;
+  cancelCampaign?(input: OrchestrationCampaignInput): Promise<OrchestrationCampaign>;
   cancel(input: OrchestrationExecutionInput): Promise<ExecutionRecord>;
   approve(input: OrchestrationExecutionInput): Promise<ExecutionRecord>;
   retry(input: OrchestrationExecutionInput): Promise<ExecutionRecord>;

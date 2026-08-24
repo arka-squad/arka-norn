@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "orchestration-campaign.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id", "projectId", "featureId", "status", "revision", "target",
+    "workspaceMode", "scopePaths", "previewFingerprint", "frameworkVersion",
+    "maxMissions", "retryCount", "missionIds", "decisions", "currentStepId", "createdAt", "updatedAt"
+  ],
+  "properties": {
+    "id": { "type": "string", "pattern": "^campaign-[a-z0-9-]{8,80}$" },
+    "projectId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
+    "featureId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
+    "status": { "enum": ["planned", "running", "paused", "awaiting_decision", "awaiting_application", "blocked", "completed", "cancelled", "abandoned"] },
+    "revision": { "type": "integer", "minimum": 1 },
+    "target": { "$ref": "executions-registry.schema.json#/$defs/target" },
+    "workspaceMode": { "enum": ["isolated", "direct"] },
+    "scopePaths": { "type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 512 } },
+    "previewFingerprint": { "$ref": "#/$defs/fingerprint" },
+    "frameworkVersion": { "type": "string", "minLength": 1, "maxLength": 240 },
+    "runtimeVersion": { "type": "string", "minLength": 1, "maxLength": 240 },
+    "runtimeFingerprint": { "$ref": "#/$defs/fingerprint" },
+    "maxMissions": { "type": "integer", "minimum": 1, "maximum": 50 },
+    "retryCount": { "type": "integer", "minimum": 0, "maximum": 1 },
+    "missionIds": { "type": "array", "maxItems": 50, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 128 } },
+    "decisions": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/decision" } },
+    "currentStepId": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "actionRequired": { "$ref": "#/$defs/action" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "reason", "fingerprint"],
+      "properties": {
+        "kind": { "enum": ["business_decision", "scope_expansion", "capability_expansion", "apply_changes", "retry", "inspect"] },
+        "reason": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "fingerprint": { "$ref": "#/$defs/fingerprint" }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "actor", "choice", "fingerprint", "recordedAt"],
+      "properties": {
+        "kind": { "const": "business_decision" },
+        "actor": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "choice": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "reason": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "fingerprint": { "$ref": "#/$defs/fingerprint" },
+        "recordedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

@@ -50,7 +50,8 @@ test("la CLI isole les sessions et livre des prompts Product/spécialistes direc
   const missingResult = run(["agent", "advise", "--project", "product", "--feature", "navigation", "--json"], home, workspace);
   const missing = json<{ readonly productPrincipal: { readonly status: string }; readonly productNextAction: string }>(missingResult);
   assert.equal(missing.data.productPrincipal.status, "missing");
-  assert.match(missing.data.productNextAction, /--role product --session main/);
+  assert.match(missing.data.productNextAction, /Create the main Product identity from Project settings/);
+  assert.doesNotMatch(missing.data.productNextAction, /arka-norn|--role product --session main/);
   assert.doesNotMatch(missingResult.stderr, /listFeatures: index entry has no readable marker|norn-test/);
 
   const product = json<{ readonly id: string }>(run([

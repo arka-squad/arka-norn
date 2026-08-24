@@ -49,8 +49,26 @@ export interface AgentOrchestrationAdvice {
   };
   readonly productNextAction: string;
   readonly recommendations: readonly AgentRoleRecommendation[];
-  readonly handoffPromptCommand: string;
+  readonly handoffPromptCommand?: string;
+  readonly frameworkContext?: FrameworkContext;
   readonly warnings: readonly string[];
+}
+
+export interface FrameworkContext {
+  readonly contractVersion: 1;
+  readonly frameworkVersion: string;
+  readonly project: { readonly id: string; readonly logicalRoot: string; readonly orchestrationMode: "manual" | "automatic" };
+  readonly productAgent: { readonly sessionId: "main"; readonly agentId?: string };
+  readonly feature?: { readonly id: string; readonly pipelineId: string };
+  readonly pipelineState: { readonly phase: string; readonly nextStepId?: string };
+  readonly expectedRole?: OrchestratedAgentRole;
+  readonly expectedSkill?: string;
+  readonly workspace: { readonly logicalRoot: string; readonly realization: "project" | "domain_managed" };
+  readonly allowedActions: readonly string[];
+  readonly forbiddenActions: readonly string[];
+  readonly capabilities: readonly string[];
+  readonly decisionGate: "continue" | "human_decision";
+  readonly surfaceHints: { readonly preferred: "web" | "tui" | "cli"; readonly webRoute: string };
 }
 
 export interface AgentInitializationPrompt {

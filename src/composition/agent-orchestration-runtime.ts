@@ -29,6 +29,7 @@ export function createAgentOrchestrationRuntime(deps: {
   readonly projects: ForProjects;
   readonly features: ForFeatures;
   readonly pipeline: ForPipeline;
+  readonly preferredSurface?: () => Promise<"web" | "tui" | "cli">;
 }): ForAgentOrchestration {
   return {
     async advise(input) {
@@ -47,15 +48,16 @@ export function createAgentOrchestrationRuntime(deps: {
     const projectFeatures = await deps.features.list(project.id);
     const feature = input.featureId === undefined ? uniqueFeature(projectFeatures) : await deps.features.show(input.featureId);
     if (feature !== undefined && !feature.belongsTo(project.id)) throw new Error(`Feature ${feature.id.value} does not belong to Project ${project.id.value}.`);
-    const [agents, sessions, report] = await Promise.all([
+    const [agents, sessions, report, preferredSurface] = await Promise.all([
       deps.agents.list(project),
       deps.agents.sessions(project),
       feature === undefined ? undefined : inspect(feature),
+      deps.preferredSurface?.(),
     ]);
     const warnings = input.featureId === undefined && projectFeatures.length > 1
       ? [translate("orchestration.warning.chooseFeature", { count: formatNumber(projectFeatures.length) })]
       : [];
-    return { project, ...(feature === undefined ? {} : { feature }), ...(report === undefined ? {} : { report }), agents, sessions, warnings };
+    return { project, ...(feature === undefined ? {} : { feature }), ...(report === undefined ? {} : { report }), ...(preferredSurface === undefined ? {} : { preferredSurface }), agents, sessions, warnings };
   }
 
   async function inspect(feature: Feature) {

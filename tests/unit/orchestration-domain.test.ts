@@ -15,8 +15,9 @@
  */
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { Ajv2020, type AnySchema } from "ajv/dist/2020.js";
 
@@ -28,9 +29,11 @@ import {
   selectBestEligibleTarget,
 } from "../../src/domain/orchestration/execution-policy.ts";
 import { configuredProviderHealth } from "../../src/composition/orchestration-runtime.ts";
+import { orchestrationWorkerEnvironment } from "../../src/composition/orchestration-worker-launcher.ts";
 import { ExecutionRecord, executionSuspensionReason } from "../../src/domain/orchestration/execution-record.ts";
 import { ExecutionRegistry } from "../../src/domain/orchestration/execution-registry.ts";
 import { MissionOrder } from "../../src/domain/orchestration/mission-order.ts";
+import { OrchestrationCampaign } from "../../src/domain/orchestration/orchestration-campaign.ts";
 import { userExecutionTarget } from "../../src/domain/orchestration/types.ts";
 import { FeatureId } from "../../src/domain/feature/feature-id.ts";
 import { ProjectId } from "../../src/domain/project/project-id.ts";
@@ -40,9 +43,10 @@ const ROOT = resolve(import.meta.dirname, "..", "..");
 
 test("le sélecteur choisit seulement un provider autorisé, sain et capable avec départage stable", () => {
   const policy = ExecutionPolicy.create({
-    schemaVersion: 2,
+    schemaVersion: 3,
     projectId: ProjectId.of("project"),
     selectionMode: "assisted",
+    workspaceMode: "isolated",
     providers: [
       {
         provider: "codex",
@@ -114,12 +118,38 @@ test("la santé provider détecte les CLI locaux sans exiger de clé API", () =>
   });
   assert.equal(configured.find((entry) => entry.provider === "claude")?.healthy, true);
   assert.equal(configured.find((entry) => entry.provider === "codex")?.healthy, true);
+  assert.match(configured.find((entry) => entry.provider === "claude")?.runtimeVersion ?? "", /^v?\d+/u);
+  assert.match(configured.find((entry) => entry.provider === "claude")?.runtimeFingerprint ?? "", /^[a-f0-9]{64}$/u);
 
   const legacyOnly = configuredProviderHealth({
     ARKA_MASTRA_CODEX_ACP_COMMAND: process.execPath,
     ARKA_MASTRA_CODEX_API_KEY: "test-codex-credential",
   });
   assert.equal(legacyOnly.find((entry) => entry.provider === "codex")?.healthy, false);
+});
+
+test("le worker de contrôle reçoit les dossiers d'authentification sans hériter du home ni des clés CLI", (context) => {
+  const root = mkdtempSync(join(tmpdir(), "arka-norn-worker-env-"));
+  const claude = join(root, ".claude");
+  const codex = join(root, ".codex");
+  mkdirSync(claude);
+  mkdirSync(codex);
+  context.after(() => rmSync(root, { recursive: true, force: true }));
+  const environment = orchestrationWorkerEnvironment("/private/arka-home", {
+    HOME: root,
+    PATH: "/usr/bin:/bin",
+    ARKA_NORN_MASTRA_CLAUDE_API_KEY: "must-not-pass",
+    ARKA_NORN_MASTRA_CODEX_API_KEY: "must-not-pass",
+    ARKA_NORN_MASTRA_ZAI_API_KEY: "zai-only",
+  });
+
+  assert.equal(environment["HOME"], undefined);
+  assert.equal(environment["USERPROFILE"], undefined);
+  assert.equal(environment["ARKA_NORN_MASTRA_CLAUDE_API_KEY"], undefined);
+  assert.equal(environment["ARKA_NORN_MASTRA_CODEX_API_KEY"], undefined);
+  assert.equal(environment["ARKA_NORN_MASTRA_ZAI_API_KEY"], "zai-only");
+  assert.equal(environment["CLAUDE_CONFIG_DIR"], claude);
+  assert.equal(environment["CODEX_HOME"], codex);
 });
 
 test("MissionOrder fige le scope et refuse une précondition Pipeline obsolète", () => {
@@ -197,13 +227,31 @@ test("les schémas de politique et de registre refusent les champs secrets et re
   ajv.addFormat("date-time", { type: "string", validate: (value: string) => !Number.isNaN(Date.parse(value)) });
   const validatePolicy = ajv.compile(json("schemas/orchestration-policy.schema.json"));
   const validateRegistry = ajv.compile(json("schemas/executions-registry.schema.json"));
+  const validateCampaign = ajv.compile(json("schemas/orchestration-campaign.schema.json"));
   const policyPayload = serializeOrchestrationPolicy(policy);
+  const campaign = OrchestrationCampaign.planned({
+    id: "campaign-schema-safe",
+    projectId: ProjectId.of("project"),
+    featureId: FeatureId.of("feature"),
+    target: userExecutionTarget("claude", "claude-sonnet"),
+    workspaceMode: "isolated",
+    scopePaths: ["."],
+    previewFingerprint: "a".repeat(64),
+    frameworkVersion: "test",
+    runtimeVersion: "Claude Code 1.0",
+    runtimeFingerprint: "b".repeat(64),
+    maxMissions: 4,
+    retryCount: 0,
+    currentStepId: "concept",
+  }, at).props;
+  const campaignPayload = { ...campaign, projectId: campaign.projectId.value, featureId: campaign.featureId.value, createdAt: campaign.createdAt.toISOString(), updatedAt: campaign.updatedAt.toISOString() };
 
   assert.equal(validatePolicy(policyPayload), true, JSON.stringify(validatePolicy.errors));
   assert.equal(validateRegistry(serializeExecutionRegistry(registry)), true, JSON.stringify(validateRegistry.errors));
+  assert.equal(validateCampaign(campaignPayload), true, JSON.stringify(validateCampaign.errors));
   assert.equal(validatePolicy({ ...policyPayload, token: "forbidden" }), false);
   for (const provider of policy.providers) {
-    assert.equal(provider.capabilities.includes("run_commands"), false);
+    assert.equal(provider.capabilities.includes("run_commands"), provider.provider !== "kimi");
     assert.equal(provider.permissions.includes("shell"), false);
   }
 });

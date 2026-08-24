@@ -16,8 +16,9 @@
 import { ProjectId } from "../project/project-id.js";
 import { InvalidExecutionPolicyError } from "./errors.js";
 import { canonicalExecutionAdapter, isExecutionAdapter, isExecutionCapability, isExecutionModelId, isExecutionPermission, isExecutionProvider, isExecutionTarget, userExecutionTarget, } from "./types.js";
-export const EXECUTION_POLICY_SCHEMA_VERSION = 2;
+export const EXECUTION_POLICY_SCHEMA_VERSION = 3;
 export const EXECUTION_SELECTION_MODES = ["assisted", "best"];
+export const ORCHESTRATION_WORKSPACE_MODES = ["unconfigured", "isolated", "direct"];
 /**
  * Project-owned routing and permission policy. It deliberately has no
  * credential, process, session, budget or runtime-worker fields.
@@ -26,6 +27,7 @@ export class ExecutionPolicy {
     schemaVersion;
     projectId;
     selectionMode;
+    workspaceMode;
     providers;
     createdAtValue;
     updatedAtValue;
@@ -33,6 +35,7 @@ export class ExecutionPolicy {
         this.schemaVersion = props.schemaVersion;
         this.projectId = props.projectId;
         this.selectionMode = props.selectionMode;
+        this.workspaceMode = props.workspaceMode;
         this.providers = freezeProviders(props.providers);
         this.createdAtValue = new Date(props.createdAt.getTime());
         this.updatedAtValue = new Date(props.updatedAt.getTime());
@@ -46,6 +49,7 @@ export class ExecutionPolicy {
             schemaVersion: EXECUTION_POLICY_SCHEMA_VERSION,
             projectId,
             selectionMode: "assisted",
+            workspaceMode: "unconfigured",
             providers: [
                 defaultProviderPolicy("claude", 40, true),
                 defaultProviderPolicy("codex", 30, true),
@@ -91,6 +95,7 @@ export class ExecutionPolicy {
             schemaVersion: this.schemaVersion,
             projectId: this.projectId,
             selectionMode: this.selectionMode,
+            workspaceMode: this.workspaceMode,
             providers,
             createdAt: this.createdAt,
             updatedAt,
@@ -101,6 +106,18 @@ export class ExecutionPolicy {
             schemaVersion: this.schemaVersion,
             projectId: this.projectId,
             selectionMode,
+            workspaceMode: this.workspaceMode,
+            providers: this.providers,
+            createdAt: this.createdAt,
+            updatedAt,
+        });
+    }
+    withWorkspaceMode(workspaceMode, updatedAt) {
+        return ExecutionPolicy.create({
+            schemaVersion: this.schemaVersion,
+            projectId: this.projectId,
+            selectionMode: this.selectionMode,
+            workspaceMode,
             providers: this.providers,
             createdAt: this.createdAt,
             updatedAt,
@@ -111,6 +128,7 @@ export class ExecutionPolicy {
             schemaVersion: this.schemaVersion,
             projectId: this.projectId,
             selectionMode: this.selectionMode,
+            workspaceMode: this.workspaceMode,
             providers: cloneProviders(this.providers),
             createdAt: this.createdAt,
             updatedAt: this.updatedAt,
@@ -168,19 +186,21 @@ function defaultProviderPolicy(provider, priority, enabled) {
         priority,
         capabilities: readOnly
             ? ["inspect_workspace", "read_pipeline"]
-            : ["inspect_workspace", "modify_workspace", "read_pipeline"],
+            : ["inspect_workspace", "modify_workspace", "run_commands", "read_pipeline"],
         permissions: readOnly ? ["read_workspace"] : ["read_workspace", "write_workspace"],
         models: [],
     };
 }
 function validatePolicyProps(props) {
     if (props.schemaVersion !== EXECUTION_POLICY_SCHEMA_VERSION) {
-        throw new InvalidExecutionPolicyError("schemaVersion must be 2");
+        throw new InvalidExecutionPolicyError("schemaVersion must be 3");
     }
     if (!(props.projectId instanceof ProjectId))
         throw new InvalidExecutionPolicyError("projectId must be a ProjectId");
     if (!isExecutionSelectionMode(props.selectionMode))
         throw new InvalidExecutionPolicyError("selectionMode is unsupported");
+    if (!isOrchestrationWorkspaceMode(props.workspaceMode))
+        throw new InvalidExecutionPolicyError("workspaceMode is unsupported");
     validateDate(props.createdAt, "createdAt");
     validateDate(props.updatedAt, "updatedAt");
     if (props.updatedAt.getTime() < props.createdAt.getTime()) {
@@ -346,6 +366,9 @@ function validateUniqueEnumArray(value, predicate, field) {
 }
 export function isExecutionSelectionMode(value) {
     return typeof value === "string" && EXECUTION_SELECTION_MODES.includes(value);
+}
+export function isOrchestrationWorkspaceMode(value) {
+    return typeof value === "string" && ORCHESTRATION_WORKSPACE_MODES.includes(value);
 }
 function isUnknownArray(value) {
     return Array.isArray(value);

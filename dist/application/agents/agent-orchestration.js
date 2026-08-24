@@ -15,6 +15,7 @@
  */
 import { AgentSessionId, deriveAgentSessionId } from "../../domain/agent/agent-session-id.js";
 import { InvalidAgentOptionError } from "../../domain/errors.js";
+import { PRODUCT_VERSION } from "../product-metadata.js";
 import { canonicalDocumentType, canonicalPipelineId } from "../compatibility/legacy-french-contract.js";
 const ROLE_POLICIES = {
     product: { role: "product", skill: "arka-product", profile: "product" },
@@ -63,8 +64,28 @@ export function createAgentAdvice(state) {
         productPrincipal: product,
         productNextAction: productNextAction(state, requiredRole, next?.stepId),
         recommendations,
-        handoffPromptCommand: `arka-norn agent handoff-prompt --project ${state.project.id.value}${featureId === undefined ? "" : ` --feature ${featureId}`}`,
+        ...(state.project.orchestrationMode === "manual" ? { handoffPromptCommand: `arka-norn agent handoff-prompt --project ${state.project.id.value}${featureId === undefined ? "" : ` --feature ${featureId}`}` } : {}),
+        frameworkContext: adviceFrameworkContext(state, next, requiredRole, product.agentId),
         warnings,
+    };
+}
+function adviceFrameworkContext(state, next, requiredRole, productAgentId) {
+    const automatic = state.project.orchestrationMode === "automatic";
+    const featureId = state.feature?.id.value;
+    return {
+        contractVersion: 1,
+        frameworkVersion: PRODUCT_VERSION,
+        project: { id: state.project.id.value, logicalRoot: state.project.root, orchestrationMode: state.project.orchestrationMode },
+        productAgent: { sessionId: "main", ...(productAgentId === undefined ? {} : { agentId: productAgentId }) },
+        ...(state.feature === undefined ? {} : { feature: { id: state.feature.id.value, pipelineId: state.feature.pipelineId } }),
+        pipelineState: { phase: next?.phase ?? "Project organization", ...(next === undefined ? {} : { nextStepId: next.stepId }) },
+        ...(requiredRole === undefined ? {} : { expectedRole: requiredRole, expectedSkill: ROLE_POLICIES[requiredRole].skill }),
+        workspace: { logicalRoot: state.project.root, realization: automatic ? "domain_managed" : "project" },
+        allowedActions: automatic ? ["orchestration.status", "orchestration.preview", "orchestration.start"] : ["agent.prompt", "agent.handoff-prompt"],
+        forbiddenActions: automatic ? ["agent.prompt", "agent.handoff-prompt", "manual_provider_handoff"] : ["orchestration.start_without_confirmation"],
+        capabilities: requiredRole === "audit" ? ["read_workspace", "submit_evidence"] : ["read_workspace", "propose_change", "run_recipe", "submit_evidence"],
+        decisionGate: next?.decisionGate ?? "human_decision",
+        surfaceHints: { preferred: state.preferredSurface ?? "web", webRoute: automatic ? `/projects/${encodeURIComponent(state.project.id.value)}/live` : `/projects/${encodeURIComponent(state.project.id.value)}/${featureId === undefined ? "overview" : `features/${encodeURIComponent(featureId)}`}` },
     };
 }
 export function createInitializationPrompt(state, input) {
@@ -183,10 +204,15 @@ function resolveProductPrincipal(state) {
 }
 function productNextAction(state, requiredRole, stepId) {
     const product = resolveProductPrincipal(state);
+    const surface = state.preferredSurface ?? "web";
     if (product.status === "missing")
-        return `Register the main Product Agent with arka-norn agent register --project ${state.project.id.value} --provider <provider> --role product --session main.`;
+        return surface === "cli"
+            ? `Register the main Product Agent with arka-norn agent register --project ${state.project.id.value} --provider <provider> --role product --session main.`
+            : "Create the main Product identity from Project settings before starting the work.";
     if (product.status === "unbound" && product.agentId !== undefined)
-        return `Bind ${product.agentId} with arka-norn agent use ${product.agentId} --project ${state.project.id.value} --session main.`;
+        return surface === "cli"
+            ? `Bind ${product.agentId} with arka-norn agent use ${product.agentId} --project ${state.project.id.value} --session main.`
+            : `Reconnect Product identity ${product.agentId} to the main session from Project settings.`;
     if (product.status === "conflict")
         return product.reason;
     if (state.feature === undefined)
@@ -196,7 +222,11 @@ function productNextAction(state, requiredRole, stepId) {
     if (requiredRole === "product")
         return `Execute ${stepId ?? "the next step"} in the main Product session, then recalculate advice.`;
     if (state.project.orchestrationMode === "automatic") {
-        return `Run the ${requiredRole ?? "required"} mission through arka-norn orchestration preview/start and monitor its execution. Do not generate or display an Agent prompt.`;
+        if (surface === "cli")
+            return `Prepare and start the ${requiredRole ?? "required"} mission with orchestration preview/start, then monitor the durable campaign status.`;
+        if (surface === "tui")
+            return `Open the campaign cockpit, verify the ${requiredRole ?? "required"} mission envelope, then start and follow it there.`;
+        return `The ${requiredRole ?? "required"} mission is ready for confirmation. Follow its progress and any real decision in Norn Web.`;
     }
     return `Keep Product control and start the ${requiredRole ?? "required"} profile for ${stepId ?? "the next step"}.`;
 }
@@ -227,7 +257,7 @@ function recommendation(role, mode, stepId, feature, orchestrationMode) {
         skillProfile: policy.profile,
         reason,
         command: orchestrationMode === "automatic"
-            ? `arka-norn orchestration preview --project ${feature.projectId.value} --feature ${feature.id.value}`
+            ? "orchestration.preview"
             : `arka-norn agent prompt ${role} --project ${feature.projectId.value} --feature ${feature.id.value} --provider '<provider>' --mode ${mode}`,
         delivery: orchestrationMode === "automatic" ? "orchestrated" : "manual_prompt",
     };

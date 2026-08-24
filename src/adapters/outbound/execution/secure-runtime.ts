@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, statSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { chmodSync, copyFileSync, lstatSync, mkdirSync, mkdtempSync, realpathSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join } from "node:path";
 
@@ -49,8 +50,6 @@ export interface EphemeralProviderCredential {
 export interface IsolatedProviderProfile {
   readonly kind: "zai" | "kimi" | "local-cli";
   readonly model?: string;
-  readonly home?: string;
-  readonly userProfile?: string;
   readonly path?: string;
   readonly codexHome?: string;
   readonly claudeConfigDir?: string;
@@ -67,6 +66,7 @@ export function validateAgentExecutionMission(mission: AgentExecutionMission): v
     throw new Error("Agent mission is invalid or exceeds the supported length.");
   }
   validatePermissionPolicy(mission.permissionPolicy);
+  validateFrameworkContext(mission.frameworkContext);
   resolveExecutionWorkspace(mission.workspace);
   validateSafeEnvironment(mission.safeEnvironment);
   normalizeTimeout(mission.timeoutMs);
@@ -83,6 +83,18 @@ export function validateAgentExecutionMission(mission: AgentExecutionMission): v
     throw new Error("Claude provider profile is unsupported.");
   }
   validateOptionalValue(mission.model, "Claude model");
+}
+
+function validateFrameworkContext(value: AgentExecutionMission["frameworkContext"]): void {
+  if (value === undefined) return;
+  if (value.contractVersion !== 1 || value.project.orchestrationMode !== "automatic" || value.project.id.length === 0
+    || value.feature.id.length === 0 || value.pipelineState.nextStepId.length === 0 || value.expectedRole.length === 0
+    || value.expectedSkill.length === 0 || value.frameworkVersion.length === 0 || value.allowedActions.length > 20
+    || value.forbiddenActions.length > 20 || value.capabilities.length > 20 || !/^[a-f0-9]{64}$/u.test(value.integrityFingerprint)) throw new Error("Agent framework context is invalid.");
+  const { integrityFingerprint, ...unsigned } = value;
+  if (createHash("sha256").update(JSON.stringify(unsigned)).digest("hex") !== integrityFingerprint) throw new Error("Agent framework context integrity check failed.");
+  const serialized = JSON.stringify(value);
+  if (serialized.length > 16 * 1024 || /[\u0000-\u001f\u007f]/u.test(serialized)) throw new Error("Agent framework context is unsafe.");
 }
 
 export function resolveExecutionWorkspace(workspace: string): string {
@@ -130,10 +142,8 @@ export function createIsolatedExecutionRuntime(
     const temporaryDirectory = join(root, "tmp");
     mkdirSync(isolatedHome, { mode: 0o700 });
     mkdirSync(temporaryDirectory, { mode: 0o700 });
-    const home = profile?.kind === "local-cli" && profile.home !== undefined ? validatedAbsoluteDirectory(profile.home, "CLI home") : isolatedHome;
-    const userProfile = profile?.kind === "local-cli" && profile.userProfile !== undefined
-      ? validatedAbsoluteDirectory(profile.userProfile, "CLI user profile")
-      : home;
+    const home = isolatedHome;
+    const userProfile = isolatedHome;
     const environment: NodeJS.ProcessEnv = {
       ARKA_NORN_MASTRA_ISOLATED: "1",
       HOME: home,
@@ -169,8 +179,8 @@ export function createIsolatedExecutionRuntime(
       environment["KIMI_DISABLE_TELEMETRY"] = "1";
     }
     if (profile?.kind === "local-cli") {
-      if (profile.codexHome !== undefined) environment["CODEX_HOME"] = validatedAbsoluteDirectory(profile.codexHome, "Codex home");
-      if (profile.claudeConfigDir !== undefined) environment["CLAUDE_CONFIG_DIR"] = validatedAbsoluteDirectory(profile.claudeConfigDir, "Claude config directory");
+      if (profile.codexHome !== undefined) environment["CODEX_HOME"] = copyProviderAuthentication(profile.codexHome, join(root, "auth", "codex"), ["auth.json"], "Codex");
+      if (profile.claudeConfigDir !== undefined) environment["CLAUDE_CONFIG_DIR"] = copyProviderAuthentication(profile.claudeConfigDir, join(root, "auth", "claude"), [".credentials.json", "credentials.json"], "Claude");
     }
     return {
       environment,
@@ -184,14 +194,28 @@ export function createIsolatedExecutionRuntime(
   }
 }
 
-function validatedAbsoluteDirectory(value: string, label: string): string {
-  if (!isAbsolute(value) || value.length > 4_096 || value.includes("\u0000")) throw new Error(`${label} is invalid.`);
+function copyProviderAuthentication(sourceValue: string, target: string, candidates: readonly string[], label: string): string {
+  if (!isAbsolute(sourceValue) || sourceValue.length > 4_096 || sourceValue.includes("\u0000")) throw new Error(`${label} authentication directory is invalid.`);
   try {
-    const resolved = realpathSync(value);
-    if (!statSync(resolved).isDirectory()) throw new Error("not-directory");
-    return resolved;
+    const source = realpathSync(sourceValue);
+    if (!statSync(source).isDirectory()) throw new Error("not-directory");
+    mkdirSync(target, { recursive: true, mode: 0o700 });
+    let copied = false;
+    for (const name of candidates) {
+      const file = join(source, name);
+      let info;
+      try { info = lstatSync(file); } catch { continue; }
+      if (!info.isFile() || info.isSymbolicLink() || info.size > 1024 * 1024) throw new Error("unsafe-auth-file");
+      const destination = join(target, name);
+      copyFileSync(file, destination);
+      chmodSync(destination, 0o400);
+      copied = true;
+    }
+    if (!copied) throw new Error("missing-auth-file");
+    chmodSync(target, 0o500);
+    return target;
   } catch {
-    throw new Error(`${label} is not an accessible directory.`);
+    throw new Error(`${label} authentication is not available as a bounded regular file.`);
   }
 }
 

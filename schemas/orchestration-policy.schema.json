@@ -7,13 +7,14 @@
     "schemaVersion",
     "projectId",
     "selectionMode",
+    "workspaceMode",
     "providers",
     "createdAt",
     "updatedAt"
   ],
   "properties": {
     "schemaVersion": {
-      "const": 2
+      "const": 3
     },
     "projectId": {
       "type": "string",
@@ -23,6 +24,13 @@
       "enum": [
         "assisted",
         "best"
+      ]
+    },
+    "workspaceMode": {
+      "enum": [
+        "unconfigured",
+        "isolated",
+        "direct"
       ]
     },
     "providers": {

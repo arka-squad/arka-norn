@@ -15,7 +15,7 @@
  */
 
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -132,12 +132,15 @@ test("un identifiant explicitement fourni reste éphémère et absent du payload
   await waitForTerminalOutcome(port, "claude-credential");
 });
 
-test("Claude Code CLI réutilise le home local sans injecter de clé API", async (context) => {
+test("Claude Code CLI réutilise uniquement sa configuration locale sans exposer le home", async (context) => {
   const workspace = createWorkspace(context);
+  const claudeConfig = join(workspace, ".claude");
+  mkdirSync(claudeConfig);
+  writeFileSync(join(claudeConfig, ".credentials.json"), "{\"oauth\":\"bounded-test-value\"}\n");
   const runner = new ControlledWorkerRunner();
   const port = createMastraExecutionPort({
     runner,
-    localCliEnvironment: { HOME: workspace, USERPROFILE: workspace, PATH: process.env.PATH },
+    localCliEnvironment: { HOME: workspace, USERPROFILE: workspace, PATH: process.env.PATH, CLAUDE_CONFIG_DIR: claudeConfig },
   });
 
   await port.dispatch({
@@ -153,7 +156,10 @@ test("Claude Code CLI réutilise le home local sans injecter de clé API", async
   if (launch === undefined) throw new Error("Expected Claude Code CLI worker launch.");
   assert.equal(launch.payload.provider, "claude-cli");
   assert.equal(launch.payload.command, process.execPath);
-  assert.equal(launch.environment["HOME"], workspace);
+  assert.notEqual(launch.environment["HOME"], workspace);
+  assert.notEqual(launch.environment["CLAUDE_CONFIG_DIR"], realpathSync(claudeConfig));
+  assert.match(launch.environment["CLAUDE_CONFIG_DIR"] ?? "", /arka-norn-mastra-.+\/auth\/claude$/u);
+  assert.equal(readFileSync(join(launch.environment["CLAUDE_CONFIG_DIR"]!, ".credentials.json"), "utf8"), "{\"oauth\":\"bounded-test-value\"}\n");
   assert.equal(launch.environment["ANTHROPIC_API_KEY"], undefined);
   assert.equal(JSON.stringify(launch.payload).includes("Read the bounded workspace."), true);
   runner.complete(0, { status: "cancelled", failure: { code: "CANCELLED" } });

@@ -72,12 +72,13 @@ export function evaluatePipeline(input: PipelineEvaluationInput): PipelineReport
       dependencyStatus,
       ...(policy.action === undefined ? {} : { policyAction: policy.action }),
       ...(input.featureId === undefined ? {} : { featureId: input.featureId }),
-    });
+    }).map((action) => ({ ...action, decisionGate: definition.decisionGate ?? "human_decision" as const }));
     states.set(definition.id, {
       id: definition.id,
       order: definition.order,
       required: definition.required,
       multiple: definition.multiple,
+      decisionGate: definition.decisionGate ?? "human_decision",
       presenceStatus,
       schemaStatus,
       businessStatus: policy.status,

@@ -16,7 +16,7 @@
 
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 
 export interface OrchestrationWorkerLaunch {
   readonly projectId: string;
@@ -43,7 +43,7 @@ export function createNodeOrchestrationWorkerLauncher(input: {
         detached: true,
         stdio: "ignore",
         windowsHide: true,
-        env: workerEnvironment(input.homeDir, environment),
+        env: orchestrationWorkerEnvironment(input.homeDir, environment),
       });
       child.unref();
       return Promise.resolve();
@@ -51,17 +51,14 @@ export function createNodeOrchestrationWorkerLauncher(input: {
   };
 }
 
-function workerEnvironment(homeDir: string, source: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+export function orchestrationWorkerEnvironment(homeDir: string, source: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const names = [
     "ARKA_NORN_CLAUDE_CLI_COMMAND",
     "ARKA_NORN_CODEX_CLI_COMMAND",
     "ARKA_NORN_CODEX_ACP_COMMAND",
     "ARKA_NORN_CODEX_ACP_ARGS",
     "ARKA_NORN_KIMI_ACP_COMMAND",
-    "ARKA_NORN_MASTRA_CLAUDE_ENABLED",
     "ARKA_NORN_MASTRA_ZAI_ENABLED",
-    "ARKA_NORN_MASTRA_CLAUDE_API_KEY",
-    "ARKA_NORN_MASTRA_CODEX_API_KEY",
     "ARKA_NORN_MASTRA_KIMI_API_KEY",
     "ARKA_NORN_MASTRA_ZAI_API_KEY",
     "LANG",
@@ -70,8 +67,6 @@ function workerEnvironment(homeDir: string, source: NodeJS.ProcessEnv): NodeJS.P
     "TERM",
     "NO_COLOR",
     "TZ",
-    "HOME",
-    "USERPROFILE",
     "PATH",
     "CODEX_HOME",
     "CLAUDE_CONFIG_DIR",
@@ -81,5 +76,10 @@ function workerEnvironment(homeDir: string, source: NodeJS.ProcessEnv): NodeJS.P
     const value = source[name];
     if (value !== undefined) result[name] = value;
   }
+  const userHome = source["HOME"] ?? source["USERPROFILE"];
+  const claudeConfig = result["CLAUDE_CONFIG_DIR"] ?? (userHome === undefined ? undefined : join(userHome, ".claude"));
+  const codexHome = result["CODEX_HOME"] ?? (userHome === undefined ? undefined : join(userHome, ".codex"));
+  if (claudeConfig !== undefined && existsSync(claudeConfig)) result["CLAUDE_CONFIG_DIR"] = claudeConfig;
+  if (codexHome !== undefined && existsSync(codexHome)) result["CODEX_HOME"] = codexHome;
   return result;
 }

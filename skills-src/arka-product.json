@@ -59,7 +59,11 @@
     },
     {
       "title": "Follow the selected delivery mode",
-      "content": "In automatic mode, never call `agent prompt`, display a copy/paste prompt, prepare a manual handoff, or ask the user to open another Claude Code or Codex session. Drive the local authenticated CLI provider only through `arka-norn orchestration configure`, `orchestration preview`, `orchestration start`, `orchestration approve`, `orchestration retry` and `orchestration status`. In manual mode only, use the exact prompt and handoff commands calculated by the CLI."
+      "content": "Reload the versioned FrameworkContext before every mutation. In automatic mode, never call `agent prompt`, display a copy/paste prompt, prepare a manual handoff, or ask the user to open another Claude Code or Codex session. Arka dispatches the confirmed local authenticated CLI provider itself. Use `orchestration preview`, then the durable campaign projection and only its allowed actions: start/status, pause/resume, decide, changes/apply, retry, cancel or abandon. Never reinterpret a blocked action. In manual mode only, use the exact prompt and handoff commands calculated by the CLI."
+    },
+    {
+      "title": "Speak for the chosen human surface",
+      "content": "Answer in this order: completed, happening now, reason, decision only if required, and where to follow it in Norn Web. For preferredSurface=web, use functional language and never show internal prompts, private workspace paths, environment variables, fingerprints or CLI commands. For tui, name cockpit actions and keep technical details collapsible. Show exact commands only for preferredSurface=cli or when the user explicitly asks for one."
     },
     {
       "title": "Validate and stop",
