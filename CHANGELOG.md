@@ -2,6 +2,29 @@
 
 Notable changes to arka-norn are recorded here. The project follows semantic versioning.
 
+## 2.2.5 - 2026-08-25
+
+### Added
+
+- Added durable Product orchestration campaigns with a shared projection for Product, Norn Web, TUI and CLI.
+- Added isolated Project mirrors, mechanical change receipts, sandboxed build recipes and atomic final application.
+- Added a versioned Framework Context and a bounded arka.norn tool broker for Claude Code CLI and Codex CLI.
+
+### Changed
+
+- Automatic orchestration now always uses the Project root as its logical workspace and never exposes a prompt to copy.
+- Human decisions, retries and change application use distinct revision-checked actions.
+- Norn Web presents orchestration progress and evidence without requiring developer commands; the TUI provides an automatic campaign cockpit.
+
+### Security
+
+- Provider workers no longer inherit the global environment, native write/shell/network tools or unrelated credentials.
+- Tests and builds execute only through Docker or Podman recipes with network disabled and no host fallback.
+
+### Distribution
+
+- Package and manifest versions are 2.2.5.
+
 ## 2.2.4 - 2026-08-24
 
 ### Added

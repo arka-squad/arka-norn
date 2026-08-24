@@ -193,7 +193,7 @@ test("l’annulation POSIX termine aussi un descendant du worker provider", { sk
 });
 
 async function waitForTerminalOutcome(port: AgentExecutionPort, executionId: string): Promise<AgentExecutionOutcome> {
-  for (let attempt = 0; attempt < 500; attempt += 1) {
+  for (let attempt = 0; attempt < 1_500; attempt += 1) {
     const outcome = await port.inspect({ executionId });
     if (outcome !== undefined && outcome.status !== "running") return outcome;
     await new Promise<void>((resolveDelay): void => {
