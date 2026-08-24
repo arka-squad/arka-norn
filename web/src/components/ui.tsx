@@ -35,9 +35,10 @@ export function LoadingState() {
   return <div className="loading-state" role="status"><LoaderCircle className="spin" size={20} />{t("web.common.loading")}</div>;
 }
 
-export function ErrorState({ retry }: { readonly retry?: () => void }) {
+export function ErrorState({ error, retry }: { readonly error?: Error | undefined; readonly retry?: () => void }) {
   const { t } = useI18n();
-  return <div className="error-state" role="alert"><AlertTriangle size={24} /><div><strong>{t("web.error.title")}</strong><p>{t("web.error.generic")}</p></div>{retry === undefined ? null : <IconButton label={t("web.action.refresh")} onClick={retry}><RefreshCw size={16} /></IconButton>}</div>;
+  const message = isUnauthorized(error) ? t("web.error.unauthorized") : t("web.error.generic");
+  return <div className="error-state" role="alert"><AlertTriangle size={24} /><div><strong>{t("web.error.title")}</strong><p>{message}</p></div>{retry === undefined ? null : <IconButton label={t("web.action.refresh")} onClick={retry}><RefreshCw size={16} /></IconButton>}</div>;
 }
 
 export function BackButton({ onClick }: { readonly onClick: () => void }) {
@@ -51,3 +52,7 @@ export function CloseButton({ onClick }: { readonly onClick: () => void }) {
 }
 
 export function CheckMark() { return <Check size={15} aria-hidden="true" />; }
+
+function isUnauthorized(error: Error | undefined): boolean {
+  return error !== undefined && "status" in error && error.status === 401;
+}

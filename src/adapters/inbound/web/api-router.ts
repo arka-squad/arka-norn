@@ -7,6 +7,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 
 import type { ProjectTrackingService } from "../../../application/web/project-tracking-service.js";
 import type { SseHub } from "./sse-hub.js";
+import { logWebRequestError } from "./web-error-log.js";
 import { resolveLocale, translate, type Locale } from "../../../application/localization/locale.js";
 
 const MAX_BODY_BYTES = 64 * 1024;
@@ -29,6 +30,7 @@ export async function routeApi(
     const data = await dispatch(request, segments.slice(2), url, service);
     sendJson(response, data.status, data.value, locale);
   } catch (error) {
+    logWebRequestError(request, error);
     const clientError = error instanceof ClientRequestError;
     sendError(response, clientError ? error.status : 400, clientError ? error.code : "request_rejected", locale);
   }

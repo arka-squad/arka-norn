@@ -30,6 +30,16 @@ const ROOT = resolve(import.meta.dirname, "..", "..");
 const BIN = resolve(ROOT, "bin", "arka-norn.mjs");
 const EXAMPLE = resolve(ROOT, "tests", "fixtures", "legacy", "fr", "examples", "feature-complete");
 const AUTHOR = "Codex_e2e_20260819";
+const PACKAGE_VERSION = (JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8")) as { readonly version: string }).version;
+
+test("--version and -v report the installed package version", () => {
+  for (const flag of ["--version", "-v"]) {
+    const result = runCli([flag]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, `arka-norn ${PACKAGE_VERSION}\n`);
+    assert.equal(result.stderr, "");
+  }
+});
 
 test("status refuse de déclarer complet l'exemple dont la QA échoue", () => {
   const result = runCli(["status", EXAMPLE]);

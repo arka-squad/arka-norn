@@ -39,6 +39,7 @@ import { FsLocalePreferenceStore } from "../../outbound/filesystem/fs-locale-pre
 import { resolveLocale, runWithLocale, translate } from "../../../application/localization/locale.js";
 import { jsonEnvelope, type CliDiagnostic } from "./cli-envelope.js";
 import { CLI_GUIDE_EN, CLI_HELP_EN, localizedCliGuide, localizedCliHelp } from "../../../application/localization/cli-help.js";
+import { PRODUCT_VERSION } from "../../../application/product-metadata.js";
 
 export const CLI_HELP = CLI_HELP_EN;
 export const CLI_GUIDE = CLI_GUIDE_EN;
@@ -47,6 +48,10 @@ const FRAMEWORK_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", ".
 
 
 export async function runCli(argv: readonly string[]): Promise<number> {
+  if (argv.length === 1 && (argv[0] === "--version" || argv[0] === "-v")) {
+    process.stdout.write(`arka-norn ${PRODUCT_VERSION}\n`);
+    return 0;
+  }
   try {
     const global = extractGlobalOptions(argv);
     const env = readEnv(process.env, process.cwd());

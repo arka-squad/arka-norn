@@ -1,6 +1,6 @@
 {
   "name": "arka-norn",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -44,6 +44,7 @@
     "web:status": "node bin/arka-norn.mjs web status",
     "web:restart": "node bin/arka-norn.mjs web restart",
     "web:stop": "node bin/arka-norn.mjs web stop",
+    "metrics:adoption": "node scripts/adoption-metrics.mjs",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.tests.json && tsc -p web/tsconfig.json",
     "check:js-syntax": "node tests/lint.mjs",
     "check:max-lines": "node scripts/check-max-lines.mjs",

@@ -24,6 +24,8 @@ Run `arka-norn skills doctor` and reinstall from the generated catalog.
 
 Run `arka-norn web status --json` and inspect the returned `logPath`. A healthy managed server can be replaced with `arka-norn web restart --no-open`. If status reports `unresponsive`, Norn deliberately refuses to signal an unverified PID; preserve `server.log` and inspect the private state under `$ARKA_NORN_HOME/.arka-norn/web/` before removing stale runtime data. Use `web foreground` when startup diagnostics must remain in the terminal.
 
+`web restart` preserves the current browser session. A full `web stop` then `web start` rotates the token and intentionally expires older tabs. Run `arka-norn web` to reopen the current secured session. Rejected API requests are recorded in `server.log` with their method, path and sanitized error, never request bodies or credentials.
+
 ## Index or marker problem
 
 Run `arka-norn doctor`. Repair actions are previewed and backed up before application.

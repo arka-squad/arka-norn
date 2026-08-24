@@ -9,6 +9,7 @@ import { LiveWatcher } from "./live-watcher.js";
 import { secureHeaders, authorizeRequest, isLoopback } from "./web-security.js";
 import { serveStatic } from "./static-assets.js";
 import { SseHub } from "./sse-hub.js";
+import { logWebRequestError } from "./web-error-log.js";
 import { resolveLocale } from "../../../application/localization/locale.js";
 export async function startWebServer(options) {
     const token = options.token ?? randomBytes(32).toString("base64url");
@@ -58,7 +59,8 @@ async function handleRequest(request, response, options, hub, token, origin) {
             sendError(response, 405, "method_not_allowed", locale);
         }
     }
-    catch {
+    catch (error) {
+        logWebRequestError(request, error);
         if (!response.headersSent)
             sendError(response, 400, "request_rejected", locale);
         else

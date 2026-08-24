@@ -33,6 +33,7 @@ Maintenance :
   selftest
   guide
   config
+  --version | -v
   help | --help | -h
 `;
 export const CLI_GUIDE_FR = `Démarrage guidé arka-norn

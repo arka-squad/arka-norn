@@ -27,11 +27,12 @@ export class WebProcessManager {
         return this.store.exclusive(async () => {
             const current = await this.inspectUnlocked();
             const selectedPort = port ?? current.port;
+            const token = sessionToken(current.url);
             if (current.status === "unresponsive")
                 throw new Error(`Norn Web is unresponsive. Inspect ${current.logPath} before restarting.`);
             if (current.status === "running")
                 await this.stopRunning(current);
-            return this.startUnlocked(selectedPort);
+            return this.startUnlocked(selectedPort, token);
         });
     }
     status() {
@@ -46,6 +47,7 @@ export class WebProcessManager {
         });
     }
     async serve(port) {
+        const token = sessionToken(this.context.environment["ARKA_NORN_WEB_TOKEN"]);
         const server = await createWebRuntime({
             frameworkRoot: this.context.frameworkRoot,
             homeDir: this.context.homeDir,
@@ -53,6 +55,7 @@ export class WebProcessManager {
             sessionId: this.context.sessionId,
             environment: this.context.environment,
             ...(port === undefined ? {} : { port }),
+            ...(token === undefined ? {} : { token }),
         });
         const state = {
             schemaVersion: 1,
@@ -81,7 +84,7 @@ export class WebProcessManager {
         process.once("SIGTERM", shutdown);
         return running(state, this.store.logPath());
     }
-    async startUnlocked(port) {
+    async startUnlocked(port, token) {
         const current = await this.inspectUnlocked();
         if (current.status !== "stopped") {
             if (current.status === "unresponsive")
@@ -108,6 +111,7 @@ export class WebProcessManager {
                 ARKA_NORN_HOME: this.context.homeDir,
                 ARKA_NORN_SESSION: this.context.sessionId.value,
                 ARKA_NORN_WEB_DAEMON: "1",
+                ...(token === undefined ? {} : { ARKA_NORN_WEB_TOKEN: token }),
             },
         });
         closeSync(log);
@@ -210,5 +214,16 @@ function isRecord(value) {
 }
 function isNodeError(error, code) {
     return error instanceof Error && "code" in error && error.code === code;
+}
+function sessionToken(value) {
+    if (value === undefined)
+        return undefined;
+    try {
+        const candidate = value.includes("#token=") ? new URL(value).hash.slice("#token=".length) : value;
+        return /^[A-Za-z0-9_-]{43}$/u.test(candidate) ? candidate : undefined;
+    }
+    catch {
+        return undefined;
+    }
 }
 //# sourceMappingURL=web-process-manager.js.map

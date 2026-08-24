@@ -2,6 +2,7 @@
  * Copyright 2026 Arka Labs
  * Licensed under the Apache License, Version 2.0 (the "License");
  */
+import { logWebRequestError } from "./web-error-log.js";
 import { resolveLocale, translate } from "../../../application/localization/locale.js";
 const MAX_BODY_BYTES = 64 * 1024;
 export async function routeApi(request, response, service, hub) {
@@ -19,6 +20,7 @@ export async function routeApi(request, response, service, hub) {
         sendJson(response, data.status, data.value, locale);
     }
     catch (error) {
+        logWebRequestError(request, error);
         const clientError = error instanceof ClientRequestError;
         sendError(response, clientError ? error.status : 400, clientError ? error.code : "request_rejected", locale);
     }

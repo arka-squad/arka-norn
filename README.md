@@ -2,7 +2,7 @@
 
 arka-norn is a local Project tracking and delivery framework for Features, signed documents, human decisions, evidence and auditable workflows. It provides a Project manager Web interface, an interactive TUI and a scriptable CLI without making an external SaaS the source of truth.
 
-Version 2.2 aligns the EN/FR Project Web interface with the official Arka Labs product system, adds guided Project and Feature creation with native folder selection, and presents signed productions as a traceable Feature history. English remains canonical for contracts and machine data.
+Version 2.2 aligns the EN/FR Project Web interface with the official Arka Labs product system, adds guided Project and Feature creation with native folder selection, and presents signed productions as a traceable Feature history. Version 2.2.2 keeps browser sessions stable across managed Web restarts and exposes the installed version through the CLI. English remains canonical for contracts and machine data.
 
 ## Requirements
 
@@ -16,6 +16,7 @@ Version 2.2 aligns the EN/FR Project Web interface with the official Arka Labs p
 ```bash
 npm install
 npm run build
+node bin/arka-norn.mjs --version
 node bin/arka-norn.mjs doctor
 ```
 
@@ -34,7 +35,7 @@ node bin/arka-norn.mjs web restart
 node bin/arka-norn.mjs web stop
 ```
 
-`web` without an action is an alias for `web start`. The managed server runs in the background, survives the launching terminal and opens the secured browser session by default. Add `--port 4317`, `--no-open` or `--json` when needed. Use `web foreground` only when the server must remain attached to the current terminal.
+`web` without an action is an alias for `web start`. The managed server runs in the background, survives the launching terminal and opens the secured browser session by default. Add `--port 4317`, `--no-open` or `--json` when needed. `web restart` preserves the current port and browser session; `web stop` followed by `web start` creates a new secure session. Use `web foreground` only when the server must remain attached to the current terminal.
 
 From a source checkout, the equivalent shortcuts are `npm run web:start`, `npm run web:status`, `npm run web:restart` and `npm run web:stop`.
 
@@ -177,9 +178,12 @@ npm run typecheck
 npm test
 npm run selftest
 npm run release:verify
+npm run metrics:adoption
 ```
 
 Source files are limited to 700 lines. Canonical code and public documentation are checked for French text. Generated skills, examples and Web locale catalogs come from shared canonical sources. Production Web assets are built into `dist/web/` and shipped in the npm package.
+
+`metrics:adoption` is a maintainer-only, read-only report. It combines public npm download counts with the authenticated GitHub clone-traffic window exposed by `gh`; use `npm run metrics:adoption -- --json` for automation. Norn itself includes no installation telemetry. npm downloads are not unique installations, and GitHub clone traffic covers only the rolling 14-day window.
 
 `.input/` is an ignored internal workspace. It is not packaged, published or included in public CI.
 

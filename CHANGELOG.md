@@ -2,6 +2,27 @@
 
 Notable changes to arka-norn are recorded here. The project follows semantic versioning.
 
+## 2.2.2 - 2026-08-24
+
+### Added
+
+- `arka-norn --version` and `arka-norn -v` report the installed package version without starting the TUI.
+- Rejected local Web requests are logged with a sanitized method, path and error for actionable diagnostics.
+- `npm run metrics:adoption` reports npm downloads and authenticated GitHub clone traffic without adding product telemetry.
+
+### Fixed
+
+- `web restart` preserves the active session token so existing browser tabs recover instead of failing every Project request.
+- Expired browser sessions now display a specific recovery message instead of being presented as a Project-state rejection.
+
+### Documentation
+
+- README and the CLI, user, Agent, developer, Web, architecture, release and troubleshooting guides describe the current lifecycle and version commands.
+
+### Distribution
+
+- Package and manifest versions are 2.2.2.
+
 ## 2.2.1 - 2026-08-24
 
 ### Changed

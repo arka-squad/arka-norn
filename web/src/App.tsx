@@ -43,7 +43,7 @@ function NornApp({ preferences, refreshPreferences }: { readonly preferences: We
     : route.projectId === undefined || project.loading && project.data === undefined
       ? <LoadingState />
       : project.error !== undefined || project.data === undefined
-        ? <ErrorState retry={project.reload} />
+        ? <ErrorState error={project.error} retry={project.reload} />
         : <ProjectContent projectId={route.projectId} section={route.section} {...(route.featureId === undefined ? {} : { featureId: route.featureId })} {...(route.documentId === undefined ? {} : { documentId: route.documentId })} project={project.data} revision={liveRevision} navigate={navigate} reloadProject={project.reload} preferences={preferences} refreshPreferences={refreshPreferences} />;
   return <AppShell route={route} {...(project.data === undefined ? {} : { project: project.data })} live={live} navigate={navigate}>{content}{preferences.humanProfile === undefined ? <ProfileDialog onSaved={refreshPreferences} /> : null}</AppShell>;
 }
@@ -125,6 +125,6 @@ function GraphContent({ project, revision }: { readonly project: ProjectOverview
 
 function dataView<T>(state: { readonly data?: T; readonly loading: boolean; readonly error?: Error; readonly reload: () => void }, render: (data: T) => React.ReactNode): React.ReactNode {
   if (state.loading && state.data === undefined) return <LoadingState />;
-  if (state.error !== undefined || state.data === undefined) return <ErrorState retry={state.reload} />;
+  if (state.error !== undefined || state.data === undefined) return <ErrorState error={state.error} retry={state.reload} />;
   return render(state.data);
 }

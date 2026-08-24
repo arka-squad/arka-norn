@@ -103,7 +103,11 @@ Folder selection follows the same boundary. Views call `NornBridge.pickFolder`; 
 
 The server adapter binds to loopback, authenticates API and SSE requests, serves only packaged assets and emits invalidations rather than duplicated business events. View components reload complete read models after an invalidation. Orchestration APIs remain read-only.
 
-The CLI lifecycle is split between `web-cli.ts`, the reusable `WebProcessManager` and `FsWebServerStateStore`. `web start` spawns the package entrypoint as a detached process; state and logs stay under `$ARKA_NORN_HOME/.arka-norn/web/`. Status and stop validate the authenticated health endpoint before trusting or signalling the recorded PID. State writes are atomic, private and serialized with the shared file-lock helper. Keep lifecycle behavior in these shared modules rather than adding shell-specific launch scripts.
+The CLI lifecycle is split between `web-cli.ts`, the reusable `WebProcessManager` and `FsWebServerStateStore`. `web start` spawns the package entrypoint as a detached process; state and logs stay under `$ARKA_NORN_HOME/.arka-norn/web/`. Status and stop validate the authenticated health endpoint before trusting or signalling the recorded PID. Restart passes the existing token to the replacement process through its private environment so open tabs survive; stop then start rotates the token. State writes are atomic, private and serialized with the shared file-lock helper. Keep lifecycle behavior in these shared modules rather than adding shell-specific launch scripts.
+
+`PRODUCT_VERSION` reads the package manifest and is the shared source for TUI, Web contracts and `arka-norn --version`/`-v`. Do not introduce a display-version constant in an adapter.
+
+Maintainer adoption reporting lives in `scripts/adoption-metrics.mjs`. It derives package and repository identity from `package.json`, reads npm download counts and uses the authenticated `gh` CLI for GitHub's 14-day clone window. Keep it outside the product runtime: installations must not emit telemetry.
 
 Web catalogs are generated from the typed localization source, while Pipeline metadata is generated from the canonical catalog. Add new human text to both typed catalogs and regenerate; do not copy translation or contract objects into the frontend.
 

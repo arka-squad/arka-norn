@@ -415,7 +415,7 @@ export const WEB_MESSAGES_FR: Readonly<Record<keyof typeof WEB_MESSAGES, string>
   "web.pipeline.documents": "documents",
   "web.pipeline.optional": "facultatif",
   "web.error.title": "Impossible de charger cette vue",
-  "web.error.unauthorized": "La session Web locale n'est plus autorisée. Exécutez `arka-norn web restart`.",
+  "web.error.unauthorized": "Cette session navigateur a expiré. Exécutez `arka-norn web` pour rouvrir la session sécurisée actuelle.",
   "web.error.generic": "Norn a refusé la requête. Actualisez après avoir vérifié l'état local du Projet.",
   "web.error.actionRejected": "Norn n'a pas pu terminer cette action. Vérifiez le dossier et les identifiants choisis, puis réessayez.",
   "web.theme.toggle": "Changer de thème",

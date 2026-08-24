@@ -13,6 +13,7 @@ A Project owns the Agent registry. A Feature belongs to exactly one Project and 
 ## First run
 
 ```bash
+arka-norn --version
 arka-norn doctor
 arka-norn project scan /workspace
 arka-norn project list
@@ -63,7 +64,7 @@ arka-norn web restart --no-open
 arka-norn web stop
 ```
 
-The server runs in the background and survives the launching terminal. `arka-norn web` is the short form of `web start`; add `--port 4317` to select a port or use `web foreground` for a terminal-attached process. `status` returns the verified URL, PID, port, start time and log path. Restarting preserves the current port by default but rotates the session token.
+The server runs in the background and survives the launching terminal. `arka-norn web` is the short form of `web start`; add `--port 4317` to select a port or use `web foreground` for a terminal-attached process. `status` returns the verified URL, PID, port, start time and log path. Restarting preserves the current port and browser session so open views recover. Use `web stop` followed by `web start` when the secure session token must be rotated.
 
 The Web interface is designed for Project managers rather than Agent operators. It shows aggregate Project state, Feature Pipelines, all signed and legacy documents in a human layout, linked evidence, open decisions, corrections, risks, audits, registered Agent identities and observed Norn orchestrations.
 

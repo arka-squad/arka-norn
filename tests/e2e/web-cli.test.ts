@@ -42,12 +42,14 @@ test("web start, status, restart and stop manage one verified background server"
   assert.equal(restarted.status, "running");
   assert.equal(restarted.port, started.port);
   assert.notEqual(restarted.pid, started.pid);
-  assert.notEqual(restarted.url, started.url);
+  assert.equal(restarted.url, started.url);
   await assertHealthy(restarted.url!);
 
   const stopped = data(run(["web", "stop", "--json"], home));
   assert.equal(stopped.status, "stopped");
   assert.equal(data(run(["web", "status", "--json"], home)).status, "stopped");
+  const startedAgain = data(run(["web", "start", "--no-open", "--json"], home));
+  assert.notEqual(startedAgain.url, restarted.url);
   assert.equal(data(run(["web", "stop", "--json"], home)).status, "stopped");
 });
 

@@ -13,7 +13,7 @@ CLI lifecycle -> verified health probe -> private PID/token state -> loopback se
 
 `NornBridge` is transport-neutral. HTTP is the 2.1 adapter; Tauri is reserved for a separate phase. The execution ledger remains the only orchestration source of truth, and the Web API exposes no orchestration mutation.
 
-The Web server is a single managed process per `ARKA_NORN_HOME`. Its transient state is not a Project database: it contains only the private local PID, port, bootstrap URL, start time and working directory needed by `web start|status|restart|stop`. PID signalling is gated by an authenticated health probe.
+The Web server is a single managed process per `ARKA_NORN_HOME`. Its transient state is not a Project database: it contains only the private local PID, port, bootstrap URL, start time and working directory needed by `web start|status|restart|stop`. PID signalling is gated by an authenticated health probe. A managed restart transfers the existing token only through the replacement process environment; a stop removes the state and the next start creates a new token.
 
 arka-norn is local-first and follows a ports-and-adapters design. Portable markers and signed documents are durable truth; home indexes, skill installations and worker heartbeats are local operational state.
 

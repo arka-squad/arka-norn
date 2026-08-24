@@ -15,7 +15,7 @@ export function ProjectsView({ navigate }: { readonly navigate: (path: string) =
   const projects = useAsync(() => bridge.listProjects(), [bridge]);
   const [creating, setCreating] = useState(false);
   if (projects.loading && projects.data === undefined) return <LoadingState />;
-  if (projects.error !== undefined) return <ErrorState retry={projects.reload} />;
+  if (projects.error !== undefined) return <ErrorState error={projects.error} retry={projects.reload} />;
   return <div className="page">
     <PageTitle title={t("web.projects.title")} summary={t("web.projects.summary")} actions={<Button variant="primary" onClick={() => setCreating(true)}><Plus size={16} />{t("web.action.createProject")}</Button>} />
     {projects.data?.length === 0 ? <EmptyState title={t("web.projects.empty")} description={t("web.projects.emptyDetail")} icon={<FolderKanban size={16} />} /> : <div className="project-list">{projects.data?.map((project) => <button className="project-row" key={project.id} onClick={() => navigate(projectRoute(project.id))}>

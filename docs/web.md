@@ -19,7 +19,7 @@ Use the complete command surface when operating or scripting the server:
 | --- | --- |
 | `arka-norn web start [--port <port>] [--no-open]` | Start the managed server or return the verified running instance. |
 | `arka-norn web status` | Probe the authenticated health endpoint and report URL, PID, port, start time and log path. |
-| `arka-norn web restart [--port <port>] [--no-open]` | Stop gracefully, retain the current port by default and create a new session token. |
+| `arka-norn web restart [--port <port>] [--no-open]` | Stop gracefully while retaining the current port and browser session. |
 | `arka-norn web stop` | Stop the verified process. Repeating the command is safe. |
 | `arka-norn web foreground [--port <port>] [--no-open]` | Keep the server attached to the current terminal. |
 
@@ -98,4 +98,4 @@ All fonts and brand assets are local. The application loads no visual resource f
 
 The session token starts in the URL fragment, is removed from browser history and is sent as a Bearer credential to the local API and SSE stream. The server checks loopback origin and applies a CSP without external resources.
 
-`web stop` invalidates the session. `web restart` creates a new URL token, so an older browser tab must use the newly returned session URL.
+`web restart` preserves the current token so open browser tabs reconnect after the short interruption. `web stop` invalidates the session; the next `web start` creates a new token. If an old tab reports an expired session, run `arka-norn web` to reopen the current secured URL.

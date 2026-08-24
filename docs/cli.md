@@ -3,6 +3,8 @@
 ## Global locale
 
 ```bash
+arka-norn --version
+arka-norn -v
 arka-norn [--locale en|fr] <command>
 arka-norn locale show [--json]
 arka-norn locale set auto|en|fr [--json]
@@ -51,7 +53,7 @@ arka-norn web foreground [--port <port>] [--no-open] [--json]
 
 `web` and `web start` launch one managed background server. It survives the launching terminal and records private runtime state under `$ARKA_NORN_HOME/.arka-norn/web/server.json`. With no `--port`, Norn selects a free port. The default opens the secured session URL; `--no-open` returns it without launching a browser.
 
-`status` verifies the authenticated `/api/v1/health` endpoint instead of trusting a PID alone. `restart` stops the verified process gracefully, preserves its port unless another is supplied and creates a new session token. `stop` is idempotent. `foreground` is the explicit terminal-attached mode. Logs are written to `$ARKA_NORN_HOME/.arka-norn/web/server.log`.
+`status` verifies the authenticated `/api/v1/health` endpoint instead of trusting a PID alone. `restart` stops the verified process gracefully while preserving its port and session token so open browser tabs recover. A full `stop` then `start` rotates the token. `stop` is idempotent. `foreground` is the explicit terminal-attached mode. Logs are written to `$ARKA_NORN_HOME/.arka-norn/web/server.log`.
 
 The Web API is versioned under `/api/v1` and uses the public JSON envelope with `schemaVersion: 2`. Orchestration endpoints are read-only.
 
