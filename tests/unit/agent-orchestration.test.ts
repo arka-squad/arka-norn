@@ -56,6 +56,26 @@ test("le conseil Essentiel dérive le rôle de l'action et route vers la skill g
   ]);
 });
 
+test("le mode automatique ne propose jamais de prompt à copier ni de préparation parallèle", () => {
+  const automaticProject = Project.create({
+    id: PROJECT_ID,
+    name: "Arka Norn",
+    root: "/workspace/arka-norn",
+    schemaVersion: 4,
+    orchestrationMode: "automatic",
+    createdAt: AT,
+    updatedAt: AT,
+  });
+  const advice = createAgentAdvice({ ...stateFor(report("delivery_audit", "Audit - 3/4")), project: automaticProject });
+
+  assert.equal(advice.orchestrationMode, "automatic");
+  assert.equal(advice.recommendations.length, 1);
+  assert.equal(advice.recommendations[0]?.delivery, "orchestrated");
+  assert.match(advice.recommendations[0]?.command ?? "", /orchestration preview/);
+  assert.doesNotMatch(JSON.stringify(advice.recommendations), /agent prompt|--mode prepare/);
+  assert.match(advice.productNextAction, /Do not generate or display an Agent prompt/);
+});
+
 test("un prompt spécialisé interdit d'exécuter une phase qui ne lui appartient pas", () => {
   const state = stateFor(report("delivery_audit", "Audit - 3/4"));
   assert.throws(() => createInitializationPrompt(state, { role: "dev", mode: "execute" }), /cannot execute/);

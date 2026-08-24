@@ -53,6 +53,8 @@ export interface MastraExecutionPortOptions {
     readonly kimiApiKey?: string;
     readonly zaiApiKey?: string;
   };
+  /** Non-secret paths used only to reuse an already authenticated local CLI. */
+  readonly localCliEnvironment?: NodeJS.ProcessEnv;
 }
 
 interface ExecutionEntry {
@@ -77,12 +79,14 @@ export class MastraAgentExecutionAdapter implements AgentExecutionPort {
   private readonly runner: MastraWorkerRunner;
   private readonly now: () => Date;
   private readonly providerCredentials: Readonly<{ readonly claudeApiKey?: string; readonly codexApiKey?: string; readonly kimiApiKey?: string; readonly zaiApiKey?: string }>;
+  private readonly localCliEnvironment: NodeJS.ProcessEnv;
 
   public constructor(options: MastraExecutionPortOptions = {}) {
     const workerScripts = { ...defaultWorkerScripts(), ...(options.workerScripts ?? {}) };
     this.runner = options.runner ?? new NodeMastraWorkerRunner(workerScripts);
     this.now = options.now ?? ((): Date => new Date());
     this.providerCredentials = copyProviderCredentials(options.providerCredentials);
+    this.localCliEnvironment = { ...(options.localCliEnvironment ?? process.env) };
   }
 
   public dispatch(mission: AgentExecutionMission): Promise<AgentExecutionOutcome> {
@@ -110,7 +114,7 @@ export class MastraAgentExecutionAdapter implements AgentExecutionPort {
   private start(sourceMission: AgentExecutionMission, attempt: number): Promise<AgentExecutionOutcome> {
     const mission = normalizeMission(sourceMission);
     if (this.records.has(mission.executionId)) throw new Error("Agent execution id already exists.");
-    const providerRuntime = providerRuntimeFor(mission, this.providerCredentials);
+    const providerRuntime = providerRuntimeFor(mission, this.providerCredentials, this.localCliEnvironment);
     const runtime = createIsolatedExecutionRuntime(mission.safeEnvironment, providerRuntime.credential, providerRuntime.profile);
     const startedAt = this.now().toISOString();
     const entry: ExecutionEntry = {
@@ -214,6 +218,14 @@ function normalizeMission(source: AgentExecutionMission): AgentExecutionMission 
     ...(source.timeoutMs === undefined ? {} : { timeoutMs: source.timeoutMs }),
     ...(source.signal === undefined ? {} : { signal: source.signal }),
   } as const;
+  if (source.provider === "claude-cli" || source.provider === "codex-cli") {
+    return {
+      ...common,
+      provider: source.provider,
+      command: resolveAcpExecutable(source.command),
+      ...(source.model === undefined ? {} : { model: source.model }),
+    };
+  }
   if (source.provider === "codex-acp" || source.provider === "kimi-acp") {
     return {
       ...common,
@@ -241,6 +253,13 @@ function toWorkerPayload(mission: AgentExecutionMission): MastraWorkerPayload {
     workspace: mission.workspace,
     permissionPolicy: copyPermissionPolicy(mission.permissionPolicy),
   };
+  if (mission.provider === "claude-cli" || mission.provider === "codex-cli") {
+    return {
+      ...common,
+      command: mission.command,
+      ...(mission.model === undefined ? {} : { model: mission.model }),
+    };
+  }
   if (mission.provider === "codex-acp" || mission.provider === "kimi-acp") {
     return {
       ...common,
@@ -324,6 +343,14 @@ function copyMissionWithNewId(mission: AgentExecutionMission, newExecutionId: st
     ...(mission.safeEnvironment === undefined ? {} : { safeEnvironment: { ...mission.safeEnvironment } }),
     ...(mission.timeoutMs === undefined ? {} : { timeoutMs: mission.timeoutMs }),
   } as const;
+  if (mission.provider === "claude-cli" || mission.provider === "codex-cli") {
+    return {
+      ...common,
+      provider: mission.provider,
+      command: mission.command,
+      ...(mission.model === undefined ? {} : { model: mission.model }),
+    };
+  }
   if (mission.provider === "codex-acp" || mission.provider === "kimi-acp") {
     return {
       ...common,
@@ -376,7 +403,20 @@ function copyCredential(value: string | undefined): string | undefined {
 function providerRuntimeFor(
   mission: AgentExecutionMission,
   credentials: Readonly<{ readonly claudeApiKey?: string; readonly codexApiKey?: string; readonly kimiApiKey?: string; readonly zaiApiKey?: string }>,
+  localEnvironment: NodeJS.ProcessEnv,
 ): { readonly credential?: EphemeralProviderCredential; readonly profile?: IsolatedProviderProfile } {
+  if (mission.provider === "claude-cli" || mission.provider === "codex-cli") {
+    return {
+      profile: {
+        kind: "local-cli",
+        ...(localEnvironment["HOME"] === undefined ? {} : { home: localEnvironment["HOME"] }),
+        ...(localEnvironment["USERPROFILE"] === undefined ? {} : { userProfile: localEnvironment["USERPROFILE"] }),
+        ...(localEnvironment["PATH"] === undefined ? {} : { path: localEnvironment["PATH"] }),
+        ...(localEnvironment["CODEX_HOME"] === undefined ? {} : { codexHome: localEnvironment["CODEX_HOME"] }),
+        ...(localEnvironment["CLAUDE_CONFIG_DIR"] === undefined ? {} : { claudeConfigDir: localEnvironment["CLAUDE_CONFIG_DIR"] }),
+      },
+    };
+  }
   if (mission.provider === "claude") {
     if (mission.providerProfile === "zai") {
       return {
@@ -397,6 +437,8 @@ function providerRuntimeFor(
 
 function defaultWorkerScripts(): MastraWorkerScripts {
   return {
+    "claude-cli": fileURLToPath(new URL("../../../../scripts/mastra-cli-worker.mjs", import.meta.url)),
+    "codex-cli": fileURLToPath(new URL("../../../../scripts/mastra-cli-worker.mjs", import.meta.url)),
     "codex-acp": fileURLToPath(new URL("../../../../scripts/mastra-acp-worker.mjs", import.meta.url)),
     "kimi-acp": fileURLToPath(new URL("../../../../scripts/mastra-kimi-acp-worker.mjs", import.meta.url)),
     claude: fileURLToPath(new URL("../../../../scripts/mastra-claude-worker.mjs", import.meta.url)),

@@ -48,6 +48,7 @@ import {
   isExecutionProvider,
   isExecutionRecordStatus,
   isExecutionTargetSource,
+  isStoredExecutionAdapterCompatible,
   legacyExecutionTarget,
   type ExecutionAdapter,
   type ExecutionAttemptStatus,
@@ -317,7 +318,7 @@ function createRecord(value: ExecutionRecordRawBase, target: ExecutionTarget): E
 function deserializeTarget(value: ExecutionTargetRaw): ExecutionTarget {
   return {
     provider: value.provider,
-    adapter: value.adapter,
+    adapter: canonicalExecutionAdapter(value.provider),
     ...(value.model === undefined ? {} : { model: value.model }),
     source: value.source,
   };
@@ -420,7 +421,7 @@ function isExecutionTargetRaw(value: unknown): value is ExecutionTargetRaw {
   if (!isRecord(value) || !hasKeys(value, ["provider", "adapter", "source"], ["model"])) return false;
   if (!isExecutionProvider(value["provider"])
     || !isExecutionAdapter(value["adapter"])
-    || value["adapter"] !== canonicalExecutionAdapter(value["provider"])
+    || !isStoredExecutionAdapterCompatible(value["provider"], value["adapter"])
     || !isExecutionTargetSource(value["source"])) {
     return false;
   }

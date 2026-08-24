@@ -113,6 +113,12 @@ Web catalogs are generated from the typed localization source, while Pipeline me
 
 The frontend consumes the official Arka Labs tokens and local brand assets from `web/src/styles/brand.css` and `web/public/assets/`. Use the Arka mark without substitute monograms, preserve Poppins/JetBrains Mono roles, keep sand on light layout chrome rather than working surfaces, and use neutral primary controls. New views must compose the shared button, status, navigation, modal, form and document patterns instead of introducing a parallel dashboard theme.
 
+## Local Agent execution
+
+Automatic `claude` and `codex` targets are local CLI adapters, not API-key adapters. Provider health resolves the installed `claude` or `codex` executable (or its explicit absolute override). The detached control worker forwards only the authenticated CLI home paths and a bounded environment; it must never inject an API key for these providers. Claude Code runs in safe mode with an explicit tool set. Codex uses `exec --ephemeral`, ignores user rules/configuration while retaining CLI authentication, and applies its native filesystem sandbox.
+
+Keep manual prompt generation outside the automatic execution path. A JSON advice response with `orchestrationMode: automatic` must contain only `delivery: orchestrated` recommendations and must not contain `agent prompt` or a `prepare` recommendation.
+
 Document pages use one structural renderer. Extend contract labels or structural presentations in the shared renderer; never create a copied renderer for a specific document type.
 
 ```bash

@@ -39,11 +39,13 @@ export function validateAgentExecutionMission(mission) {
     resolveExecutionWorkspace(mission.workspace);
     validateSafeEnvironment(mission.safeEnvironment);
     normalizeTimeout(mission.timeoutMs);
-    if (mission.provider === "codex-acp" || mission.provider === "kimi-acp") {
+    if (mission.provider === "claude-cli" || mission.provider === "codex-cli" || mission.provider === "codex-acp" || mission.provider === "kimi-acp") {
         resolveAcpExecutable(mission.command);
-        validateArguments(mission.args);
-        validateOptionalValue(mission.authMethodId, "ACP authentication method");
-        validateOptionalValue(mission.model, "ACP model");
+        if (mission.provider === "codex-acp" || mission.provider === "kimi-acp") {
+            validateArguments(mission.args);
+            validateOptionalValue(mission.authMethodId, "ACP authentication method");
+        }
+        validateOptionalValue(mission.model, "execution model");
         return;
     }
     if (mission.providerProfile !== undefined && mission.providerProfile !== "anthropic" && mission.providerProfile !== "zai") {
@@ -91,18 +93,22 @@ export function createIsolatedExecutionRuntime(safeEnvironment, credential, prof
     const root = mkdtempSync(join(tmpdir(), "arka-norn-mastra-"));
     try {
         chmodSync(root, 0o700);
-        const home = join(root, "home");
+        const isolatedHome = join(root, "home");
         const temporaryDirectory = join(root, "tmp");
-        mkdirSync(home, { mode: 0o700 });
+        mkdirSync(isolatedHome, { mode: 0o700 });
         mkdirSync(temporaryDirectory, { mode: 0o700 });
+        const home = profile?.kind === "local-cli" && profile.home !== undefined ? validatedAbsoluteDirectory(profile.home, "CLI home") : isolatedHome;
+        const userProfile = profile?.kind === "local-cli" && profile.userProfile !== undefined
+            ? validatedAbsoluteDirectory(profile.userProfile, "CLI user profile")
+            : home;
         const environment = {
             ARKA_NORN_MASTRA_ISOLATED: "1",
             HOME: home,
-            USERPROFILE: home,
+            USERPROFILE: userProfile,
             TMPDIR: temporaryDirectory,
             TMP: temporaryDirectory,
             TEMP: temporaryDirectory,
-            PATH: dirname(process.execPath),
+            PATH: profile?.kind === "local-cli" && profile.path !== undefined ? validatedEnvironmentValue(profile.path, "CLI PATH") : dirname(process.execPath),
         };
         if (process.platform === "win32") {
             const systemRoot = process.env["SystemRoot"] ?? process.env["SYSTEMROOT"];
@@ -131,6 +137,12 @@ export function createIsolatedExecutionRuntime(safeEnvironment, credential, prof
             environment["KIMI_CODE_HOME"] = home;
             environment["KIMI_DISABLE_TELEMETRY"] = "1";
         }
+        if (profile?.kind === "local-cli") {
+            if (profile.codexHome !== undefined)
+                environment["CODEX_HOME"] = validatedAbsoluteDirectory(profile.codexHome, "Codex home");
+            if (profile.claudeConfigDir !== undefined)
+                environment["CLAUDE_CONFIG_DIR"] = validatedAbsoluteDirectory(profile.claudeConfigDir, "Claude config directory");
+        }
         return {
             environment,
             cleanup() {
@@ -142,6 +154,24 @@ export function createIsolatedExecutionRuntime(safeEnvironment, credential, prof
         rmSync(root, { recursive: true, force: true, maxRetries: 3, retryDelay: 25 });
         throw error;
     }
+}
+function validatedAbsoluteDirectory(value, label) {
+    if (!isAbsolute(value) || value.length > 4_096 || value.includes("\u0000"))
+        throw new Error(`${label} is invalid.`);
+    try {
+        const resolved = realpathSync(value);
+        if (!statSync(resolved).isDirectory())
+            throw new Error("not-directory");
+        return resolved;
+    }
+    catch {
+        throw new Error(`${label} is not an accessible directory.`);
+    }
+}
+function validatedEnvironmentValue(value, label) {
+    if (value.length === 0 || value.length > 16 * 1024 || value.includes("\u0000"))
+        throw new Error(`${label} is invalid.`);
+    return value;
 }
 function validateArguments(args) {
     if (args === undefined)

@@ -266,6 +266,7 @@ function humanAdvice(value: unknown): string {
     : advice.recommendations.map((item) => `  ${item.mode === "execute" ? "NOW" : "PREPARE"} - ${item.role} - session ${item.sessionId}\n    ${item.reason}\n    ${item.command}`);
   return [
     `Pilotage Product — Project ${advice.projectId}${advice.featureId === undefined ? "" : ` · Feature ${advice.featureId}`}`,
+    `Mode d'orchestration : ${advice.orchestrationMode}`,
     `Phase: ${advice.phase}${advice.nextStepId === undefined ? "" : ` - next step ${advice.nextStepId}`}`,
     `Product principal : ${advice.productPrincipal.status}${advice.productPrincipal.agentId === undefined ? "" : ` · ${advice.productPrincipal.agentId}`} · session main`,
     `Conseil : ${advice.productNextAction}`,

@@ -47,7 +47,7 @@
       "name": "arka-product",
       "version": "2.1.0",
       "source": "arka-product.json",
-      "checksum": "ef4de4e80a297f72cd22fbe9aa62be75f38b5a4b5e4234298382218290bbd094",
+      "checksum": "8431aa4bc5b251b8741f995d8512e99aad5ca263dbf0e5aec5346dc9749894aa",
       "step": "core.product",
       "profiles": [
         "all",

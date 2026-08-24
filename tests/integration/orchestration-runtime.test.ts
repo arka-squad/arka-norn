@@ -63,7 +63,7 @@ test("le contrôle Arka arme le mode automatique, garde le provider choisi et n'
   const selection = planned.events.find((event) => event.type === "target_selected" && event.detail.includes("target=claude/claude-test"));
   assert.equal(selection?.detail.includes("target=claude/claude-test"), true);
   assert.equal(harness.port.missions.length, 1);
-  assert.equal(harness.port.missions[0]?.provider, "claude");
+  assert.equal(harness.port.missions[0]?.provider, "claude-cli");
   assert.deepEqual(harness.port.missions[0]?.permissionPolicy, {
     mode: "preauthorized-workspace",
     scopePaths: ["."],
@@ -463,7 +463,7 @@ async function createHarness(
     executionPort: port,
     workerLauncher: { async launch(input): Promise<void> { launches.push(input); } },
     providerHealth: runtimeOptions.providerHealth ?? (() => [{ provider: "claude", healthy: true, capabilities: CAPABILITIES }]),
-    environment: { ARKA_NORN_MASTRA_CLAUDE_ENABLED: "1" },
+    environment: { ARKA_NORN_CLAUDE_CLI_COMMAND: process.execPath, HOME: process.env.HOME, PATH: process.env.PATH },
     ...(runtimeOptions.clock === undefined ? {} : { clock: runtimeOptions.clock }),
     ...(workerStateStore === undefined ? {} : { workerStateStore }),
   });
@@ -596,6 +596,7 @@ function fakeAgentOrchestration(): ForAgentOrchestration {
         projectId: "project",
         featureId: "feature",
         pipelineId: "arka-norn-default",
+        orchestrationMode: "automatic",
         phase: "Fake",
         nextStepId: "concept",
         productPrincipal: { sessionId: "main", status: "ready", reason: "Fake." },

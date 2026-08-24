@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 import { resolveAcpExecutable } from "../adapters/outbound/execution/secure-runtime.js";
+import { delimiter, isAbsolute, resolve } from "node:path";
+import { existsSync, realpathSync, statSync } from "node:fs";
 import { containsSecretLikeText } from "../domain/orchestration/mission-order.js";
 const WRITE_CAPABILITIES = ["inspect_workspace", "modify_workspace", "read_pipeline"];
 const WRITE_WORKER_PERMISSIONS = ["read_workspace", "write_workspace"];
@@ -23,13 +25,13 @@ export function configuredProviderHealth(environment = process.env) {
     return [
         {
             provider: "claude",
-            healthy: environment["ARKA_NORN_MASTRA_CLAUDE_ENABLED"] === "1" && hasExplicitProviderCredential(environment["ARKA_NORN_MASTRA_CLAUDE_API_KEY"]),
+            healthy: configuredLocalCli(environment, "claude") !== undefined,
             capabilities: WRITE_CAPABILITIES,
         },
         {
             provider: "codex",
-            healthy: isConfiguredAcpExecutable(environment["ARKA_NORN_CODEX_ACP_COMMAND"]) && hasExplicitProviderCredential(environment["ARKA_NORN_MASTRA_CODEX_API_KEY"]),
-            capabilities: READ_ONLY_CAPABILITIES,
+            healthy: configuredLocalCli(environment, "codex") !== undefined,
+            capabilities: WRITE_CAPABILITIES,
         },
         {
             provider: "kimi",
@@ -54,14 +56,25 @@ export function providerMission(record, prompt, workspace, environment) {
     if (record.target.source !== "user" || record.target.model === undefined) {
         throw new Error("A confirmed assistant and version are required for dispatch.");
     }
-    if (record.target.provider === "claude" || record.target.provider === "zai") {
+    if (record.target.provider === "zai") {
         return {
             provider: "claude",
-            ...(record.target.provider === "zai" ? { providerProfile: "zai" } : {}),
+            providerProfile: "zai",
             executionId: record.id,
             mission: prompt,
             workspace,
             permissionPolicy,
+            model: record.target.model,
+        };
+    }
+    if (record.target.provider === "claude" || record.target.provider === "codex") {
+        return {
+            provider: record.target.provider === "claude" ? "claude-cli" : "codex-cli",
+            executionId: record.id,
+            mission: prompt,
+            workspace,
+            permissionPolicy,
+            command: requiredLocalCli(environment, record.target.provider),
             model: record.target.model,
         };
     }
@@ -95,12 +108,47 @@ export function requirementsForExecution(role) {
 }
 export function providerLabel(provider) {
     if (provider === "claude")
-        return "Claude";
+        return "Claude Code CLI";
     if (provider === "codex")
-        return "Codex";
+        return "Codex CLI";
     if (provider === "kimi")
         return "Kimi Platform";
     return "Z.AI Coding Plan";
+}
+function configuredLocalCli(environment, provider) {
+    const explicit = environment[provider === "claude" ? "ARKA_NORN_CLAUDE_CLI_COMMAND" : "ARKA_NORN_CODEX_CLI_COMMAND"];
+    if (explicit !== undefined) {
+        if (!safeConfigurationValue(explicit) || !isAbsolute(explicit))
+            return undefined;
+        try {
+            return resolveAcpExecutable(explicit);
+        }
+        catch {
+            return undefined;
+        }
+    }
+    const names = process.platform === "win32" ? [`${provider}.exe`, `${provider}.cmd`, provider] : [provider];
+    for (const directory of (environment["PATH"] ?? "").split(delimiter).filter(Boolean)) {
+        for (const name of names) {
+            const candidate = resolve(directory, name);
+            try {
+                if (!existsSync(candidate) || !statSync(candidate).isFile())
+                    continue;
+                return realpathSync(candidate);
+            }
+            catch {
+                // Continue with the next deterministic PATH candidate.
+            }
+        }
+    }
+    return undefined;
+}
+function requiredLocalCli(environment, provider) {
+    const command = configuredLocalCli(environment, provider);
+    if (command === undefined) {
+        throw new Error(`${provider === "claude" ? "Claude Code" : "Codex"} CLI is not installed or not available on PATH.`);
+    }
+    return command;
 }
 export function matchesExecutionProvider(agentProvider, selectedProvider) {
     const normalized = agentProvider.trim().toLowerCase();

@@ -20,7 +20,7 @@ import { EXECUTION_REGISTRY_SCHEMA_VERSION, ExecutionRegistry, } from "../../../
 import { ExecutionRecord, isExecutionSuspensionCode, } from "../../../domain/orchestration/execution-record.js";
 import { InvalidExecutionRegistryError } from "../../../domain/orchestration/errors.js";
 import { MissionOrder, } from "../../../domain/orchestration/mission-order.js";
-import { canonicalExecutionAdapter, isExecutionAdapter, isExecutionAttemptStatus, isExecutionCapability, isExecutionModelId, isExecutionPermission, isExecutionProvider, isExecutionRecordStatus, isExecutionTargetSource, legacyExecutionTarget, } from "../../../domain/orchestration/types.js";
+import { canonicalExecutionAdapter, isExecutionAdapter, isExecutionAttemptStatus, isExecutionCapability, isExecutionModelId, isExecutionPermission, isExecutionProvider, isExecutionRecordStatus, isExecutionTargetSource, isStoredExecutionAdapterCompatible, legacyExecutionTarget, } from "../../../domain/orchestration/types.js";
 import { FeatureId } from "../../../domain/feature/feature-id.js";
 import { ProjectId } from "../../../domain/project/project-id.js";
 import { readJson, writeJsonAtomic } from "./_shared/atomic-json.js";
@@ -180,7 +180,7 @@ function createRecord(value, target) {
 function deserializeTarget(value) {
     return {
         provider: value.provider,
-        adapter: value.adapter,
+        adapter: canonicalExecutionAdapter(value.provider),
         ...(value.model === undefined ? {} : { model: value.model }),
         source: value.source,
     };
@@ -277,7 +277,7 @@ function isExecutionTargetRaw(value) {
         return false;
     if (!isExecutionProvider(value["provider"])
         || !isExecutionAdapter(value["adapter"])
-        || value["adapter"] !== canonicalExecutionAdapter(value["provider"])
+        || !isStoredExecutionAdapterCompatible(value["provider"], value["adapter"])
         || !isExecutionTargetSource(value["source"])) {
         return false;
     }

@@ -20,7 +20,7 @@
  * callers own durable execution records and only pass a bounded mission.
  */
 
-export type AgentExecutionProvider = "codex-acp" | "kimi-acp" | "claude";
+export type AgentExecutionProvider = "claude-cli" | "codex-cli" | "codex-acp" | "kimi-acp" | "claude";
 
 export type AgentExecutionStatus = "running" | "awaiting_approval" | "completed" | "failed" | "cancelled" | "interrupted";
 
@@ -80,6 +80,25 @@ export interface CodexAcpExecutionMission extends AgentExecutionBaseMission {
 }
 
 /**
+ * A locally authenticated coding CLI. The absolute executable is resolved by
+ * arka.norn before dispatch; the prompt is sent over stdin and never appears
+ * in the process arguments.
+ */
+export interface ClaudeCliExecutionMission extends AgentExecutionBaseMission {
+  readonly provider: "claude-cli";
+  readonly command: string;
+  readonly model?: string;
+}
+
+export interface CodexCliExecutionMission extends AgentExecutionBaseMission {
+  readonly provider: "codex-cli";
+  readonly command: string;
+  readonly model?: string;
+}
+
+export type LocalCliExecutionMission = ClaudeCliExecutionMission | CodexCliExecutionMission;
+
+/**
  * Kimi Code exposes the same ACP transport shape as Codex. The command is
  * still explicit and absolute; the adapter never inherits an interactive
  * user home or relies on a package-manager launcher.
@@ -102,7 +121,7 @@ export interface ClaudeExecutionMission extends AgentExecutionBaseMission {
   readonly model?: string;
 }
 
-export type AgentExecutionMission = CodexAcpExecutionMission | KimiAcpExecutionMission | ClaudeExecutionMission;
+export type AgentExecutionMission = LocalCliExecutionMission | CodexAcpExecutionMission | KimiAcpExecutionMission | ClaudeExecutionMission;
 
 export interface AgentExecutionFailure {
   readonly code: string;

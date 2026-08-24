@@ -37,7 +37,7 @@ async function runSmoke() {
     throw new Error("Build requis avant le smoke Mastra.");
   }
   const credentials = credentialsFor(provider);
-  const port = createMastraExecutionPort({ providerCredentials: credentials });
+  const port = createMastraExecutionPort({ providerCredentials: credentials, localCliEnvironment: process.env });
   const base = {
     executionId,
     mission: "Reply with exactly ARKA_MASTRA_SMOKE_OK. Do not use tools or modify files.",
@@ -72,8 +72,7 @@ function normalizeProvider(value) {
 }
 
 function credentialsFor(provider) {
-  if (provider === "claude") return { claudeApiKey: requiredSecretEnvironment("ARKA_NORN_MASTRA_CLAUDE_API_KEY") };
-  if (provider === "codex") return { codexApiKey: requiredSecretEnvironment("ARKA_NORN_MASTRA_CODEX_API_KEY") };
+  if (provider === "claude" || provider === "codex") return {};
   if (provider === "kimi") return { kimiApiKey: requiredSecretEnvironment("ARKA_NORN_MASTRA_KIMI_API_KEY") };
   return { zaiApiKey: requiredSecretEnvironment("ARKA_NORN_MASTRA_ZAI_API_KEY") };
 }
@@ -81,14 +80,18 @@ function credentialsFor(provider) {
 function missionFor(provider, base) {
   const model = process.env.ARKA_MASTRA_SMOKE_MODEL;
   if (provider === "claude") {
-    return { ...base, provider: "claude", ...(model === undefined ? {} : { model }) };
+    return {
+      ...base,
+      provider: "claude-cli",
+      command: requiredAbsoluteEnvironment("ARKA_NORN_CLAUDE_CLI_COMMAND"),
+      ...(model === undefined ? {} : { model }),
+    };
   }
   if (provider === "codex") {
     return {
       ...base,
-      provider: "codex-acp",
-      command: requiredAbsoluteEnvironment("ARKA_NORN_CODEX_ACP_COMMAND"),
-      args: parseJsonArguments(process.env.ARKA_NORN_CODEX_ACP_ARGS),
+      provider: "codex-cli",
+      command: requiredAbsoluteEnvironment("ARKA_NORN_CODEX_CLI_COMMAND"),
       ...(model === undefined ? {} : { model }),
     };
   }
@@ -112,7 +115,7 @@ function missionFor(provider, base) {
 function requiredAbsoluteEnvironment(name) {
   const value = process.env[name];
   if (value === undefined || !isAbsolute(value)) {
-    throw new Error(name + " must contain an absolute, already installed ACP executable path.");
+    throw new Error(name + " must contain an absolute, already installed executable path.");
   }
   return value;
 }
@@ -123,19 +126,6 @@ function requiredSecretEnvironment(name) {
     throw new Error(name + " must be supplied explicitly for a real smoke run.");
   }
   return value;
-}
-
-function parseJsonArguments(value) {
-  if (value === undefined || value === "") return [];
-  try {
-    const parsed = JSON.parse(value);
-    if (!Array.isArray(parsed) || parsed.some((item) => typeof item !== "string")) {
-      throw new Error("invalid");
-    }
-    return parsed;
-  } catch {
-    throw new Error("ARKA_NORN_CODEX_ACP_ARGS must be a JSON string array.");
-  }
 }
 
 function delay(milliseconds) {

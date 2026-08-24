@@ -23,7 +23,7 @@ export type ExecutionProvider = typeof EXECUTION_PROVIDERS[number];
  * from a provider name so a persisted execution remains explicit about the
  * integration contract it was dispatched through.
  */
-export const EXECUTION_ADAPTERS = ["claude-sdk", "acp"] as const;
+export const EXECUTION_ADAPTERS = ["claude-cli", "codex-cli", "claude-sdk", "acp"] as const;
 
 export type ExecutionAdapter = typeof EXECUTION_ADAPTERS[number];
 
@@ -94,7 +94,14 @@ export function isExecutionTargetSource(value: unknown): value is ExecutionTarge
 }
 
 export function canonicalExecutionAdapter(provider: ExecutionProvider): ExecutionAdapter {
-  return provider === "claude" || provider === "zai" ? "claude-sdk" : "acp";
+  if (provider === "claude") return "claude-cli";
+  if (provider === "codex") return "codex-cli";
+  return provider === "zai" ? "claude-sdk" : "acp";
+}
+
+export function isStoredExecutionAdapterCompatible(provider: ExecutionProvider, adapter: ExecutionAdapter): boolean {
+  if (adapter === canonicalExecutionAdapter(provider)) return true;
+  return (provider === "claude" && adapter === "claude-sdk") || (provider === "codex" && adapter === "acp");
 }
 
 export function isExecutionModelId(value: unknown): value is string {

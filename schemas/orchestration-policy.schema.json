@@ -66,6 +66,8 @@
         },
         "adapter": {
           "enum": [
+            "claude-cli",
+            "codex-cli",
             "claude-sdk",
             "acp"
           ]
@@ -115,10 +117,7 @@
           "if": {
             "properties": {
               "provider": {
-                "enum": [
-                  "claude",
-                  "zai"
-                ]
+                "const": "claude"
               }
             },
             "required": [
@@ -128,7 +127,7 @@
           "then": {
             "properties": {
               "adapter": {
-                "const": "claude-sdk"
+                "const": "claude-cli"
               }
             },
             "required": [
@@ -140,10 +139,7 @@
           "if": {
             "properties": {
               "provider": {
-                "enum": [
-                  "codex",
-                  "kimi"
-                ]
+                "const": "codex"
               }
             },
             "required": [
@@ -153,12 +149,48 @@
           "then": {
             "properties": {
               "adapter": {
-                "const": "acp"
+                "const": "codex-cli"
               }
             },
             "required": [
               "adapter"
             ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "provider": {
+                "const": "zai"
+              }
+            },
+            "required": ["provider"]
+          },
+          "then": {
+            "properties": {
+              "adapter": {
+                "const": "claude-sdk"
+              }
+            },
+            "required": ["adapter"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "provider": {
+                "const": "kimi"
+              }
+            },
+            "required": ["provider"]
+          },
+          "then": {
+            "properties": {
+              "adapter": {
+                "const": "acp"
+              }
+            },
+            "required": ["adapter"]
           }
         }
       ]

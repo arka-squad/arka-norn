@@ -121,6 +121,7 @@ function definitionFor(config) {
 }
 
 function procedureFor(config) {
+  if (config.name === "arka-product") return productProcedure();
   const nextCommand = config.mode === "guided"
     ? `arka-norn ${config.command} next <feature> --session <session-id> --json`
     : "arka-norn pipeline next <feature> --json";
@@ -140,6 +141,27 @@ function procedureFor(config) {
     {
       title: "Validate and stop",
       content: `Run \`arka-norn pipeline validate <feature> --document <file> --json\`, then rerun \`${nextCommand}\` only to observe the transition. Report the next action without executing it.`,
+    },
+  ];
+}
+
+function productProcedure() {
+  return [
+    {
+      title: "Resolve locale, Project mode and verified context",
+      content: "Run `arka-norn locale show --json`, `project show --json`, `feature show`, `agent current` and `agent sessions`. Reply in the active display locale, keep contract keys in English and set `content_locale` to the prose locale. Treat the Project orchestration mode returned by the CLI as authoritative.",
+    },
+    {
+      title: "Read one calculated action",
+      content: "Run `arka-norn pipeline next <feature> --json`. Use its stable codes, parameters, expected artifact and suggested command without guessing from display prose. Stop if the action is null.",
+    },
+    {
+      title: "Follow the selected delivery mode",
+      content: "In automatic mode, never call `agent prompt`, display a copy/paste prompt, prepare a manual handoff, or ask the user to open another Claude Code or Codex session. Drive the local authenticated CLI provider only through `arka-norn orchestration configure`, `orchestration preview`, `orchestration start`, `orchestration approve`, `orchestration retry` and `orchestration status`. In manual mode only, use the exact prompt and handoff commands calculated by the CLI.",
+    },
+    {
+      title: "Validate and stop",
+      content: "After the automatic mission or manual handoff completes, rerun `arka-norn pipeline next <feature> --json` only to observe the transition. Report the verified result without executing a second phase in the same invocation.",
     },
   ];
 }

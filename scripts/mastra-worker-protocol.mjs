@@ -27,6 +27,8 @@ const ALLOWED_WORKER_ENVIRONMENT = new Set([
   "TMP",
   "TEMP",
   "PATH",
+  "CODEX_HOME",
+  "CLAUDE_CONFIG_DIR",
   "LANG",
   "LC_ALL",
   "LC_CTYPE",
@@ -62,7 +64,8 @@ export async function readWorkerRequest(expectedProvider) {
   } catch {
     throw new Error("Worker request is not valid JSON.");
   }
-  if (!isRecord(value) || value.type !== "run" || value.provider !== expectedProvider) {
+  const expectedProviders = Array.isArray(expectedProvider) ? expectedProvider : [expectedProvider];
+  if (!isRecord(value) || value.type !== "run" || !expectedProviders.includes(value.provider)) {
     throw new Error("Worker request provider is invalid.");
   }
   const executionId = requiredString(value.executionId);
@@ -74,16 +77,16 @@ export async function readWorkerRequest(expectedProvider) {
   if (!isAbsolute(workspace)) throw new Error("Worker workspace must be absolute.");
   const permissionPolicy = parsePermissionPolicy(value.permissionPolicy);
   const model = optionalString(value.model);
-  if (expectedProvider === "codex-acp" || expectedProvider === "kimi-acp") {
+  if (value.provider === "claude-cli" || value.provider === "codex-cli" || value.provider === "codex-acp" || value.provider === "kimi-acp") {
     const command = requiredString(value.command);
     if (!isAbsolute(command) || PROHIBITED_LAUNCHERS.has(basename(command).toLowerCase())) {
       throw new Error("Worker ACP command is invalid.");
     }
-    const args = optionalStringArray(value.args);
-    const authMethodId = optionalString(value.authMethodId);
+    const args = value.provider === "codex-acp" || value.provider === "kimi-acp" ? optionalStringArray(value.args) : [];
+    const authMethodId = value.provider === "codex-acp" || value.provider === "kimi-acp" ? optionalString(value.authMethodId) : undefined;
     return {
       executionId,
-      provider: expectedProvider,
+      provider: value.provider,
       mission,
       workspace,
       permissionPolicy,

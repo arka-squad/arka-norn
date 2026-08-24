@@ -15,7 +15,7 @@
  */
 
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
@@ -78,6 +78,50 @@ test("le worker Node reçoit un environnement isolé sans secret hérité", asyn
     if (previousSecret === undefined) delete process.env["ARKA_NORN_TEST_SECRET"];
     else process.env["ARKA_NORN_TEST_SECRET"] = previousSecret;
   }
+});
+
+test("les workers locaux lancent Claude Code CLI et Codex CLI sans clé API ni prompt à copier", async (context) => {
+  const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-local-cli-integration-"));
+  const workspace = join(sandbox, "workspace");
+  const claude = join(sandbox, "claude");
+  const codex = join(sandbox, "codex");
+  mkdirSync(workspace);
+  writeFileSync(claude, [
+    "#!/usr/bin/env node",
+    "let raw = '';",
+    "for await (const chunk of process.stdin) raw += String(chunk);",
+    "const result = JSON.stringify({ result: `CLAUDE:${raw}:${process.env.ANTHROPIC_API_KEY ?? 'subscription'}`, is_error: false });",
+    "process.stdout.write(result);",
+  ].join("\n"));
+  writeFileSync(codex, [
+    "#!/usr/bin/env node",
+    "let raw = '';",
+    "for await (const chunk of process.stdin) raw += String(chunk);",
+    "process.stdout.write(JSON.stringify({ raw, args: process.argv.slice(2), auth: process.env.OPENAI_API_KEY ?? 'subscription' }));",
+  ].join("\n"));
+  chmodSync(claude, 0o755);
+  chmodSync(codex, 0o755);
+  context.after(() => rmSync(sandbox, { recursive: true, force: true }));
+  const port = createMastraExecutionPort({ localCliEnvironment: { HOME: workspace, USERPROFILE: workspace, PATH: process.env.PATH } });
+
+  await port.dispatch({ provider: "claude-cli", executionId: "claude-local", mission: "bounded-claude", workspace, command: claude, model: "opus" });
+  await port.dispatch({ provider: "codex-cli", executionId: "codex-local", mission: "bounded-codex", workspace, command: codex, model: "gpt-test" });
+  const claudeOutcome = await waitForTerminalOutcome(port, "claude-local");
+  const codexOutcome = await waitForTerminalOutcome(port, "codex-local");
+
+  assert.equal(claudeOutcome.status, "completed");
+  assert.equal(claudeOutcome.output, "CLAUDE:bounded-claude:subscription");
+  assert.equal(codexOutcome.status, "completed");
+  const codexInvocation = JSON.parse(codexOutcome.output ?? "null") as { readonly raw: string; readonly args: readonly string[]; readonly auth: string };
+  assert.equal(codexInvocation.raw, "bounded-codex");
+  assert.equal(codexInvocation.auth, "subscription");
+  assert.deepEqual(codexInvocation.args.slice(0, 8), [
+    "--sandbox", "read-only",
+    "--ask-for-approval", "never",
+    "--cd", realpathSync(workspace),
+    "--model", "gpt-test",
+  ]);
+  assert.equal(codexInvocation.args[8], "exec");
 });
 
 test("le cancel force la fermeture du worker isolé", async (context) => {

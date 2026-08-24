@@ -148,7 +148,7 @@ test("le Pilote assisté confirme une prévisualisation puis actualise le détai
     createdAt: at,
     updatedAt: at,
   });
-  const target = { provider: "claude", adapter: "claude-sdk", model: "claude-test", source: "user" } as const;
+  const target = { provider: "claude", adapter: "claude-cli", model: "claude-test", source: "user" } as const;
   const order = MissionOrder.create({
     id: "mission",
     scope: { projectId: project.id, featureId: feature.id, paths: ["feature"] },

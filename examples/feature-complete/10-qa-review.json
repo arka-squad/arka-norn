@@ -14,7 +14,7 @@
   "date": "2026-07-01",
   "tester": {
     "name": "Documented name for the canonical English example.",
-    "provider": "Documented provider for the canonical English example."
+    "provider": "codex-cli"
   },
   "environment": "Documented environment for the canonical English example.",
   "version": "Documented version for the canonical English example.",

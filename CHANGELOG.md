@@ -2,6 +2,19 @@
 
 Notable changes to arka-norn are recorded here. The project follows semantic versioning.
 
+## 2.2.3 - 2026-08-24
+
+### Fixed
+
+- Automatic orchestration dispatches missions directly through the installed, authenticated Claude Code CLI or Codex CLI without requiring provider API keys.
+- Automatic Product advice no longer offers manual prompts, copy/paste handoffs or parallel preparation alongside an orchestrated mission.
+- Codex CLI receives its global sandbox and approval options before the `exec` subcommand.
+- Generated Product skill instructions preserve the strict separation between automatic orchestration and manual handoff across builds.
+
+### Distribution
+
+- Package and manifest versions are 2.2.3.
+
 ## 2.2.2 - 2026-08-24
 
 ### Added

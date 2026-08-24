@@ -151,7 +151,7 @@ test("la lecture des fichiers v1 migre en mémoire sans réécriture et bloque l
   assert.equal(registry.schemaVersion, 2);
   assert.deepEqual(registry.executions[0]?.target, {
     provider: "claude",
-    adapter: "claude-sdk",
+    adapter: "claude-cli",
     source: "legacy",
   });
   assert.throws(() => registry.executions[0]?.retry(at), /legacy execution target/);

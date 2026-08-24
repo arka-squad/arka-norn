@@ -37,6 +37,8 @@ export function createNodeOrchestrationWorkerLauncher(input) {
 }
 function workerEnvironment(homeDir, source) {
     const names = [
+        "ARKA_NORN_CLAUDE_CLI_COMMAND",
+        "ARKA_NORN_CODEX_CLI_COMMAND",
         "ARKA_NORN_CODEX_ACP_COMMAND",
         "ARKA_NORN_CODEX_ACP_ARGS",
         "ARKA_NORN_KIMI_ACP_COMMAND",
@@ -52,6 +54,11 @@ function workerEnvironment(homeDir, source) {
         "TERM",
         "NO_COLOR",
         "TZ",
+        "HOME",
+        "USERPROFILE",
+        "PATH",
+        "CODEX_HOME",
+        "CLAUDE_CONFIG_DIR",
     ];
     const result = { ARKA_NORN_HOME: homeDir };
     for (const name of names) {

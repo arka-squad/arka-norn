@@ -132,6 +132,34 @@ test("un identifiant explicitement fourni reste éphémère et absent du payload
   await waitForTerminalOutcome(port, "claude-credential");
 });
 
+test("Claude Code CLI réutilise le home local sans injecter de clé API", async (context) => {
+  const workspace = createWorkspace(context);
+  const runner = new ControlledWorkerRunner();
+  const port = createMastraExecutionPort({
+    runner,
+    localCliEnvironment: { HOME: workspace, USERPROFILE: workspace, PATH: process.env.PATH },
+  });
+
+  await port.dispatch({
+    provider: "claude-cli",
+    executionId: "claude-cli-subscription",
+    mission: "Read the bounded workspace.",
+    workspace,
+    command: process.execPath,
+    model: "opus",
+  });
+
+  const launch = runner.launches[0];
+  if (launch === undefined) throw new Error("Expected Claude Code CLI worker launch.");
+  assert.equal(launch.payload.provider, "claude-cli");
+  assert.equal(launch.payload.command, process.execPath);
+  assert.equal(launch.environment["HOME"], workspace);
+  assert.equal(launch.environment["ANTHROPIC_API_KEY"], undefined);
+  assert.equal(JSON.stringify(launch.payload).includes("Read the bounded workspace."), true);
+  runner.complete(0, { status: "cancelled", failure: { code: "CANCELLED" } });
+  await waitForTerminalOutcome(port, "claude-cli-subscription");
+});
+
 test("Kimi Platform et Z.AI utilisent seulement leurs profils fixes et ne sérialisent aucun secret", async (context) => {
   const workspace = createWorkspace(context);
   const runner = new ControlledWorkerRunner();

@@ -120,7 +120,7 @@ function deserialize(value) {
             selectionMode: value.selectionMode,
             providers: value.providers.map((provider) => ({
                 provider: provider.provider,
-                adapter: provider.adapter,
+                adapter: canonicalExecutionAdapter(provider.provider),
                 enabled: provider.enabled,
                 priority: provider.priority,
                 capabilities: [...provider.capabilities],

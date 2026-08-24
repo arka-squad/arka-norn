@@ -1,6 +1,11 @@
 # Agent Orchestration
 
-Product control derives a bounded role from the next Pipeline action, verifies the Agent registry and creates reusable prompts. Essential and FastDev route audit, development and QA through their guided skill; Complete uses a specialized phase skill.
+Product control derives a bounded role from the next Pipeline action and verifies the Agent registry. Essential and FastDev route audit, development and QA through their guided skill; Complete uses a specialized phase skill.
+
+Delivery depends strictly on the Project mode:
+
+- `manual`: create one reusable specialist prompt for a human-opened Claude Code or Codex session;
+- `automatic`: send one bounded mission directly to the authenticated Claude Code CLI or Codex CLI worker. Never display a prompt to copy, create a manual handoff or propose a parallel preparation session.
 
 Automatic orchestration remains assisted:
 

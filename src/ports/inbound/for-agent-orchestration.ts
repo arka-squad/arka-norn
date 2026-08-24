@@ -30,6 +30,7 @@ export interface AgentRoleRecommendation {
   readonly skillProfile: string;
   readonly reason: string;
   readonly command: string;
+  readonly delivery: "manual_prompt" | "orchestrated";
 }
 
 export interface AgentOrchestrationAdvice {
@@ -37,6 +38,7 @@ export interface AgentOrchestrationAdvice {
   readonly projectId: string;
   readonly featureId?: string;
   readonly pipelineId?: string;
+  readonly orchestrationMode: "manual" | "automatic";
   readonly phase: string;
   readonly nextStepId?: string;
   readonly productPrincipal: {

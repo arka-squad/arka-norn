@@ -77,7 +77,7 @@ export function createAgentAdvice(state: AgentOrchestrationState): AgentOrchestr
   const featureId = state.feature?.id.value;
   const recommendations = featureId === undefined || next === undefined || requiredRole === undefined
     ? []
-    : recommendationsFor(requiredRole, next.stepId, state.feature!);
+    : recommendationsFor(requiredRole, next.stepId, state.feature!, state.project.orchestrationMode);
   const warnings = [...(state.warnings ?? [])];
   if (state.feature === undefined) warnings.push("No unique Feature is selected; Product must choose or create the priority before starting a specialized profile.");
   if (product.status !== "ready") warnings.push(product.reason);
@@ -86,6 +86,7 @@ export function createAgentAdvice(state: AgentOrchestrationState): AgentOrchestr
     projectId: state.project.id.value,
     ...(featureId === undefined ? {} : { featureId }),
     ...(state.feature === undefined ? {} : { pipelineId: state.feature.pipelineId }),
+    orchestrationMode: state.project.orchestrationMode,
     phase: next?.phase ?? (state.report?.overallStatus === "completed" ? "Closure" : "Project organization"),
     ...(next === undefined ? {} : { nextStepId: next.stepId }),
     productPrincipal: product,
@@ -112,7 +113,7 @@ export function createInitializationPrompt(
   const requiredRole = next === undefined ? undefined : roleForAction(next);
   const advised = feature === undefined || next === undefined || requiredRole === undefined
     ? undefined
-    : recommendationsFor(requiredRole, next.stepId, feature).find((item) => item.role === input.role);
+    : recommendationsFor(requiredRole, next.stepId, feature, state.project.orchestrationMode).find((item) => item.role === input.role);
   const mode = input.mode ?? advised?.mode ?? (input.role === "product" && requiredRole === "product" ? "execute" : "prepare");
   if (mode === "execute" && (next === undefined || requiredRole !== input.role)) {
     throw new InvalidAgentOptionError("mode", `role ${input.role} cannot execute step ${next?.stepId ?? "none"}; generate a prompt in prepare mode`);
@@ -223,18 +224,22 @@ function productNextAction(state: AgentOrchestrationState, requiredRole: Orchest
   if (state.feature === undefined) return "Choose, create or import the priority Feature before starting a specialized profile.";
   if (state.report?.overallStatus === "completed") return "Verify handoffs, close the Feature and choose the next product priority.";
   if (requiredRole === "product") return `Execute ${stepId ?? "the next step"} in the main Product session, then recalculate advice.`;
+  if (state.project.orchestrationMode === "automatic") {
+    return `Run the ${requiredRole ?? "required"} mission through arka-norn orchestration preview/start and monitor its execution. Do not generate or display an Agent prompt.`;
+  }
   return `Keep Product control and start the ${requiredRole ?? "required"} profile for ${stepId ?? "the next step"}.`;
 }
 
-function recommendationsFor(requiredRole: OrchestratedAgentRole, stepId: string, feature: Feature): readonly AgentRoleRecommendation[] {
+function recommendationsFor(requiredRole: OrchestratedAgentRole, stepId: string, feature: Feature, orchestrationMode: "manual" | "automatic"): readonly AgentRoleRecommendation[] {
   if (requiredRole === "product") return [];
-  const recommendations: AgentRoleRecommendation[] = [recommendation(requiredRole, "execute", stepId, feature)];
-  if (["audit", "architecte"].includes(requiredRole)) recommendations.push(recommendation("dev", "prepare", stepId, feature));
-  if (requiredRole === "dev") recommendations.push(recommendation("qa", "prepare", stepId, feature));
+  if (orchestrationMode === "automatic") return [recommendation(requiredRole, "execute", stepId, feature, orchestrationMode)];
+  const recommendations: AgentRoleRecommendation[] = [recommendation(requiredRole, "execute", stepId, feature, orchestrationMode)];
+  if (["audit", "architecte"].includes(requiredRole)) recommendations.push(recommendation("dev", "prepare", stepId, feature, orchestrationMode));
+  if (requiredRole === "dev") recommendations.push(recommendation("qa", "prepare", stepId, feature, orchestrationMode));
   return recommendations;
 }
 
-function recommendation(role: OrchestratedAgentRole, mode: AgentWorkMode, stepId: string, feature: Feature): AgentRoleRecommendation {
+function recommendation(role: OrchestratedAgentRole, mode: AgentWorkMode, stepId: string, feature: Feature, orchestrationMode: "manual" | "automatic"): AgentRoleRecommendation {
   const policy = policyFor(role, feature);
   const sessionId = deriveAgentSessionId(role, feature.id.value).value;
   const reason = mode === "execute"
@@ -248,7 +253,10 @@ function recommendation(role: OrchestratedAgentRole, mode: AgentWorkMode, stepId
     skill: policy.skill,
     skillProfile: policy.profile,
     reason,
-    command: `arka-norn agent prompt ${role} --project ${feature.projectId.value} --feature ${feature.id.value} --provider '<provider>' --mode ${mode}`,
+    command: orchestrationMode === "automatic"
+      ? `arka-norn orchestration preview --project ${feature.projectId.value} --feature ${feature.id.value}`
+      : `arka-norn agent prompt ${role} --project ${feature.projectId.value} --feature ${feature.id.value} --provider '<provider>' --mode ${mode}`,
+    delivery: orchestrationMode === "automatic" ? "orchestrated" : "manual_prompt",
   };
 }
 

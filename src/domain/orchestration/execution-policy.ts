@@ -279,11 +279,12 @@ function defaultProviderPolicy(
   priority: number,
   enabled: boolean,
 ): ProviderExecutionPolicy {
-  // Codex and Kimi use ACP in V1, whose permission payload is not structured
-  // enough to prove a Feature write scope. Z.AI uses the same bounded Claude
+  // Kimi uses ACP in V1, whose permission payload is not structured enough to
+  // prove a Feature write scope. Codex CLI supplies its native filesystem
+  // sandbox. Z.AI uses the same bounded Claude
   // worker as Claude; it is disabled by default, but its declared policy can
   // explicitly allow writes without a later configuration action escalating it.
-  const readOnly = provider === "codex" || provider === "kimi";
+  const readOnly = provider === "kimi";
   return {
     provider,
     adapter: canonicalExecutionAdapter(provider),

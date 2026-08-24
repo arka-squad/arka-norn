@@ -20,3 +20,5 @@ When an Agent needs the Project tracking surface, use `arka-norn web status --js
 Project and Feature location selection belongs to the human Web flow and uses a native folder picker. An Agent must not emulate that interaction by inventing or entering a path. For scripted creation, use the canonical CLI contract with an explicitly verified path supplied by the human or the current Project context.
 
 Use `$arka-norn` only for the main Product context. Specialized sessions use the calculated role skill. `author_agent_id` must match the active session binding.
+
+Before delegating a specialist phase, read the Project's `orchestrationMode`. In `automatic` mode, do not call `agent prompt` and do not ask the human to copy a prompt into another session. Use the orchestration preview/start/status flow; arka.norn launches the locally authenticated Claude Code CLI or Codex CLI itself. Manual prompts exist only for `manual` mode. Never offer both paths for the same phase.

@@ -148,14 +148,17 @@ test("the global arka-norn rendering uses the canonical locale-aware phase gate"
   assert.match(rendered, /Do not execute a second phase/);
 });
 
-test("the global Product rendering keeps locale, evidence and one-phase constraints", () => {
+test("the global Product rendering strictly separates automatic orchestration from manual handoff", () => {
   const runtime = createSkillCatalogRuntime(ROOT);
   const definition = runtime.definitions.find((item) => item.name === "arka-product");
   assert.ok(definition);
   const rendered = runtime.renderGlobalSkillMd(definition);
 
   assert.match(rendered, /Reply in the active display locale/);
-  assert.match(rendered, /code, functional, UX and security evidence/);
-  assert.match(rendered, /preserve the specialized session/);
+  assert.match(rendered, /In automatic mode, never call `agent prompt`/);
+  assert.match(rendered, /display a copy\/paste prompt/);
+  assert.match(rendered, /local authenticated CLI provider/);
+  assert.match(rendered, /In manual mode only/);
+  assert.match(rendered, /orchestration preview/);
   assert.match(rendered, /Do not execute a second phase/);
 });

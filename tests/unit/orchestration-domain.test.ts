@@ -46,7 +46,7 @@ test("le sélecteur choisit seulement un provider autorisé, sain et capable ave
     providers: [
       {
         provider: "codex",
-        adapter: "acp",
+        adapter: "codex-cli",
         enabled: true,
         priority: 20,
         capabilities: ["inspect_workspace", "read_pipeline"],
@@ -58,7 +58,7 @@ test("le sélecteur choisit seulement un provider autorisé, sain et capable ave
       },
       {
         provider: "claude",
-        adapter: "claude-sdk",
+        adapter: "claude-cli",
         enabled: true,
         priority: 20,
         capabilities: ["inspect_workspace", "read_pipeline"],
@@ -107,12 +107,10 @@ test("le sélecteur choisit seulement un provider autorisé, sain et capable ave
   assert.deepEqual(targetSelection.candidates.map((candidate) => candidate.target.model), ["codex-max", "claude-sonnet", "codex-mini"]);
 });
 
-test("la santé provider lit les variables runtime ARKA_NORN sans accepter les anciens noms smoke", () => {
+test("la santé provider détecte les CLI locaux sans exiger de clé API", () => {
   const configured = configuredProviderHealth({
-    ARKA_NORN_MASTRA_CLAUDE_ENABLED: "1",
-    ARKA_NORN_MASTRA_CLAUDE_API_KEY: "test-claude-credential",
-    ARKA_NORN_MASTRA_CODEX_API_KEY: "test-codex-credential",
-    ARKA_NORN_CODEX_ACP_COMMAND: process.execPath,
+    ARKA_NORN_CLAUDE_CLI_COMMAND: process.execPath,
+    ARKA_NORN_CODEX_CLI_COMMAND: process.execPath,
   });
   assert.equal(configured.find((entry) => entry.provider === "claude")?.healthy, true);
   assert.equal(configured.find((entry) => entry.provider === "codex")?.healthy, true);

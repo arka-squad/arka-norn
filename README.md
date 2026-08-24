@@ -9,7 +9,7 @@ Version 2.2 aligns the EN/FR Project Web interface with the official Arka Labs p
 - Node.js 22.13 or newer
 - npm
 - A local repository to manage
-- Claude, Codex, Kimi or Z.AI only when an external Agent runtime is needed
+- An authenticated Claude Code CLI or Codex CLI when automatic local Agent execution is needed; Kimi and Z.AI remain optional alternative integrations
 
 ## Install
 

@@ -29,7 +29,7 @@ export function createAgentOrchestrationSceneController(app, orchestration) {
                 { label: translate("tui.agentAdvice.productAdvice"), value: "advice", description: `${advice.phase} - ${advice.productNextAction}` },
                 ...advice.recommendations.map((item, index) => ({
                     label: translate("tui.agentAdvice.item", { mode: translate(item.mode === "execute" ? "tui.agentAdvice.execute" : "tui.agentAdvice.prepare"), role: item.role }),
-                    value: `prompt:${index}`,
+                    value: `${item.delivery === "orchestrated" ? "orchestrate" : "prompt"}:${index}`,
                     description: translate("tui.agentAdvice.description", { session: item.sessionId, access: translate(item.canWrite ? "tui.agentAdvice.write" : "tui.agentAdvice.read") }),
                 })),
                 { label: translate("tui.agentAdvice.handoff"), value: "handoff", description: translate("tui.agentAdvice.handoffDescription") },
@@ -61,9 +61,20 @@ export function createAgentOrchestrationSceneController(app, orchestration) {
                     }
                     return;
                 }
-                const recommendation = advice.recommendations[Number(value.slice("prompt:".length))];
+                const separator = value.indexOf(":");
+                const recommendation = advice.recommendations[Number(value.slice(separator + 1))];
                 if (recommendation === undefined)
                     return;
+                if (recommendation.delivery === "orchestrated") {
+                    app.push(createResultView({
+                        title: translate("tui.agentAdvice.adviceTitle"),
+                        code: 0,
+                        output: `${recommendation.reason}\n${recommendation.command}\n`,
+                        onBack: () => { },
+                        nextStep: recommendation.command,
+                    }));
+                    return;
+                }
                 app.push(createTextInputScene({
                     title: translate("tui.agentAdvice.providerTitle", { role: recommendation.role }),
                     hint: translate("tui.agentAdvice.providerHint"),

@@ -50,20 +50,20 @@
   ],
   "procedure": [
     {
-      "title": "Resolve locale and verified context",
-      "content": "Run `arka-norn locale show --json`, `feature show`, `agent current` and `agent sessions`. Reply in the active display locale. Keep contract keys in English and set `content_locale` to the prose locale."
+      "title": "Resolve locale, Project mode and verified context",
+      "content": "Run `arka-norn locale show --json`, `project show --json`, `feature show`, `agent current` and `agent sessions`. Reply in the active display locale, keep contract keys in English and set `content_locale` to the prose locale. Treat the Project orchestration mode returned by the CLI as authoritative."
     },
     {
       "title": "Read one calculated action",
       "content": "Run `arka-norn pipeline next <feature> --json`. Use its stable codes, parameters, expected artifact and suggested command without guessing from display prose. Stop if the action is null."
     },
     {
-      "title": "Produce the bounded artifact",
-      "content": "Execute only the proposed scaffold command. Replace every sentinel, preserve the specialized session, satisfy code, functional, UX and security evidence where applicable, and never modify another documentary phase."
+      "title": "Follow the selected delivery mode",
+      "content": "In automatic mode, never call `agent prompt`, display a copy/paste prompt, prepare a manual handoff, or ask the user to open another Claude Code or Codex session. Drive the local authenticated CLI provider only through `arka-norn orchestration configure`, `orchestration preview`, `orchestration start`, `orchestration approve`, `orchestration retry` and `orchestration status`. In manual mode only, use the exact prompt and handoff commands calculated by the CLI."
     },
     {
       "title": "Validate and stop",
-      "content": "Run `arka-norn pipeline validate <feature> --document <file> --json`, then rerun `arka-norn pipeline next <feature> --json` only to observe the transition. Report the next action without executing it."
+      "content": "After the automatic mission or manual handoff completes, rerun `arka-norn pipeline next <feature> --json` only to observe the transition. Report the verified result without executing a second phase in the same invocation."
     }
   ],
   "outputFormat": "Report the verified Project, Feature, Agent/session, locale, executed phase, signed document, validation result, evidence and observed next command. Do not execute a second phase in the same invocation."
