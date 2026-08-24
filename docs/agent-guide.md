@@ -13,4 +13,6 @@ An Agent must never infer Project, Feature, identity, session or Pipeline phase.
 
 Skills are authored once in English. Their English and French triggers choose the same logic, and replies follow the active locale. Scripts and Agents must use stable JSON codes and parameters instead of `display` prose.
 
+The Project Web interface may display an Agent's manifest identity, declared provider, role, scope and signed productions. It does not infer connection state and does not control the Agent. Live orchestration views expose only Norn's durable execution state, heartbeat freshness and verified proof references; they never expose prompts, terminal logs, environment values or secrets.
+
 Use `$arka-norn` only for the main Product context. Specialized sessions use the calculated role skill. `author_agent_id` must match the active session binding.

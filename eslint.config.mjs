@@ -87,6 +87,26 @@ export default tseslint.config(
     },
   },
   {
+    files: ["web/**/*.ts", "web/**/*.tsx"],
+    extends: [...tseslint.configs.recommendedTypeChecked],
+    languageOptions: {
+      parserOptions: {
+        project: ["./web/tsconfig.json"],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      globals: globals.browser,
+    },
+    rules: {
+      "@typescript-eslint/consistent-type-imports": ["error", { "prefer": "type-imports", "fixStyle": "inline-type-imports" }],
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-floating-promises": ["error", { "ignoreVoid": true }],
+      "@typescript-eslint/no-misused-promises": ["error", { "checksVoidReturn": true }],
+      "complexity": ["error", 32],
+      "eqeqeq": ["error", "always"],
+      "max-depth": ["error", 5]
+    },
+  },
+  {
     files: ["src/domain/**/*.ts"],
     rules: {
       "no-restricted-imports": ["error", { "patterns": ["node:*", "**/adapters/**", "**/composition/**"] }],

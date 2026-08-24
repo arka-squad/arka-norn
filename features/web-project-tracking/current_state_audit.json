@@ -1,0 +1,64 @@
+{
+  "schema_version": 5,
+  "id": "current-state-audit-norn-project-web-001",
+  "feature_id": "norn-project-web-2181d081",
+  "type": "current_state_audit",
+  "sequence": 1,
+  "created_at": "2026-08-23T21:49:37Z",
+  "depends_on_document_ids": [
+    "plan-norn-project-web-001"
+  ],
+  "content_locale": "en",
+  "task_id": "web-project-tracking-discovery",
+  "plan_sources": [
+    "plan-norn-project-web-001"
+  ],
+  "audited_repository": "arka-squad/arka-norn",
+  "audited_reference": "7b3608b7b7af69f001259c2b47ba8626d442731b",
+  "audit_date": "2026-08-23",
+  "method": "Static inspection of domain, application, filesystem, CLI, TUI, schemas, pipelines, localization, packaging and tests; execution of public JSON commands; production build and responsive browser inspection of the private mock at 1024 and 1440 pixels; comparison with Cortex Deck durable-ledger and live-observation patterns.",
+  "overall_verdict": "The repository already contains the durable Project, Feature, Pipeline, Agent, audit and orchestration contracts required for a Web projection, but has no tracked renderer or secured Web inbound adapter. Existing TUI projections are reusable after ownership extraction. The private mock is visually suitable but static, partially localized, inaccessible by keyboard in several surfaces and functionally overstates Agent control, provider connectivity, costs, imports and exports.",
+  "findings": [
+    {
+      "id": "F01",
+      "description": "Project and Feature markers, PipelineReport schema v2, FeatureCockpitViewModel and project-dashboard metrics already expose most durable tracking facts without requiring CLI text parsing.",
+      "status": "confirmed"
+    },
+    {
+      "id": "F02",
+      "description": "executions.json is the durable orchestration ledger and private worker heartbeat files provide liveness; the execution port does not expose safe intermediate progress or raw logs, so live UX must remain status-and-freshness based.",
+      "status": "confirmed"
+    },
+    {
+      "id": "F03",
+      "description": "Agent registrations describe identity, provider label, role and scope only; they do not prove provider connectivity, credentials or native application health.",
+      "status": "confirmed"
+    },
+    {
+      "id": "F04",
+      "description": "The framework supports canonical v5 documents and legacy French contracts, but schemas contain limited presentation metadata and no generic human document projection.",
+      "status": "confirmed"
+    },
+    {
+      "id": "F05",
+      "description": "No portable human identity or append-only Project decision ledger exists; current validation confirms structural and business contracts, not a project manager approval action.",
+      "status": "discovered"
+    },
+    {
+      "id": "F06",
+      "description": "The private React mock compiles and renders cleanly at desktop widths, but uses static data, carries stale routes, localizes only its chrome and home, embeds the full CLI/TUI catalog and uses non-semantic clickable elements extensively.",
+      "status": "confirmed"
+    },
+    {
+      "id": "F07",
+      "description": "Cortex Deck validates the desired architecture: durable ledger as authority, lightweight invalidations, full snapshot reload, reconnect after navigation, condensed human digests and explicit coverage/freshness.",
+      "status": "confirmed"
+    },
+    {
+      "id": "F08",
+      "description": "The npm build currently generates private mock catalogs into .input but does not build or package a tracked Web application; package version is 2.0.0.",
+      "status": "confirmed"
+    }
+  ],
+  "author_agent_id": "OpenAI-Codex_dev-audit_20260819"
+}

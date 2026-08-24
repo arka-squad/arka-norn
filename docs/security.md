@@ -10,4 +10,8 @@ arka-norn treats filesystem boundaries, Agent identity, provider permissions and
 - migration validates all targets before mutation and keeps backups
 - unknown contract formats fail closed
 
+The local Web server listens only on `127.0.0.1`. Every API and SSE request requires a 256-bit session token and a matching Origin. The initial token is delivered in the URL fragment, removed from browser history, kept in session storage and sent as a Bearer credential. Responses use a restrictive CSP and no external assets.
+
+Web document rendering ignores raw HTML, filesystem access stays within verified Project and Feature boundaries, and API responses exclude prompts, provider output, terminal logs, environment values and secrets. Live tracking reports only durable Norn execution records, bounded proof references and heartbeat freshness.
+
 Report vulnerabilities through the repository security policy.

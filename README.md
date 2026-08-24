@@ -1,8 +1,8 @@
 # arka-norn
 
-arka-norn is a local, multi-provider delivery cockpit for Projects, Features, Agents, signed documents, evidence and auditable workflows. It provides an interactive TUI and a scriptable CLI without making an external SaaS the source of truth.
+arka-norn is a local Project tracking and delivery framework for Features, signed documents, human decisions, evidence and auditable workflows. It provides a Project manager Web interface, an interactive TUI and a scriptable CLI without making an external SaaS the source of truth.
 
-Version 2.0 uses English contracts and supports English and French human interfaces.
+Version 2.1 adds the EN/FR Project Web interface. English remains canonical for contracts and machine data.
 
 ## Requirements
 
@@ -24,6 +24,17 @@ Open the cockpit:
 ```bash
 node bin/arka-norn.mjs
 ```
+
+Open Project tracking in the browser:
+
+```bash
+node bin/arka-norn.mjs web
+node bin/arka-norn.mjs web --port 4317 --no-open
+```
+
+The Web interface presents Project health, Feature paths, every signed document in a human layout, decisions, audits, registered Agents and live Norn orchestration state. It never starts, stops, retries or configures an Agent; control stays in each provider's native application.
+
+Its dark-first interface uses the official Arka Labs mark, product colors, Poppins and JetBrains Mono. Signed documents receive an editorial EN/FR reading view; technical JSON and provenance remain available through progressive disclosure.
 
 Install the generated Agent skills:
 
@@ -138,6 +149,7 @@ Scripts must depend on `data`, stable diagnostic codes and parameters, never on 
 - [User guide](docs/user-guide.md)
 - [CLI reference](docs/cli.md)
 - [TUI guide](docs/tui.md)
+- [Project Web guide](docs/web.md)
 - [Essential workflow](docs/essential.md)
 - [FastDev workflow](docs/fastdev.md)
 - [Agent guide](docs/agent-guide.md)
@@ -159,7 +171,7 @@ npm run selftest
 npm run release:verify
 ```
 
-Source files are limited to 700 lines. Canonical code and public documentation are checked for French text. Generated skills, examples and Web locale catalogs come from shared canonical sources.
+Source files are limited to 700 lines. Canonical code and public documentation are checked for French text. Generated skills, examples and Web locale catalogs come from shared canonical sources. Production Web assets are built into `dist/web/` and shipped in the npm package.
 
 `.input/` is an ignored internal workspace. It is not packaged, published or included in public CI.
 

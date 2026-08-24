@@ -1,5 +1,17 @@
 # Architecture
 
+## Project Web boundary
+
+The Project Web application is a renderer over application-layer read models. It does not read repository files directly and it does not own a second Project, governance or execution database.
+
+```text
+React views -> NornBridge -> loopback HTTP API -> application projections
+                                             -> canonical filesystem stores
+filesystem watcher -> authenticated SSE invalidation -> read-model reload
+```
+
+`NornBridge` is transport-neutral. HTTP is the 2.1 adapter; Tauri is reserved for a separate phase. The execution ledger remains the only orchestration source of truth, and the Web API exposes no orchestration mutation.
+
 arka-norn is local-first and follows a ports-and-adapters design. Portable markers and signed documents are durable truth; home indexes, skill installations and worker heartbeats are local operational state.
 
 The Pipeline evaluator is deterministic and independent of locale. Adapters discover and validate documents, the domain selects business state, and presenters add localized display text.

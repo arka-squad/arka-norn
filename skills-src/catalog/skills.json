@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "catalogVersion": "2.0.0",
+  "catalogVersion": "2.1.0",
   "profiles": {
     "all": "21 skills: complete catalog",
     "core": "10 bootstrap and Product control skills",
@@ -14,7 +14,7 @@
   "skills": [
     {
       "name": "arka-norn",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "source": "arka-norn.json",
       "checksum": "bd34becc6e57e69c5eda1e3e4a6cae236bacb376660e7d126d2168f0160124ff",
       "step": "core.bootstrap",
@@ -31,7 +31,7 @@
     },
     {
       "name": "arka-audit",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "source": "arka-audit.json",
       "checksum": "736bd081912e165660146c9cb524d1a0be0bcf90ba642880fce7e2cbe0389141",
       "step": "transversal.audit",
@@ -45,7 +45,7 @@
     },
     {
       "name": "arka-product",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "source": "arka-product.json",
       "checksum": "ef4de4e80a297f72cd22fbe9aa62be75f38b5a4b5e4234298382218290bbd094",
       "step": "core.product",
@@ -58,7 +58,7 @@
     },
     {
       "name": "arka-fastdev",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "source": "arka-fastdev.json",
       "checksum": "0ae7ac07802726686ff173e6badbb398a2258b7ab9374c9819bd072bcd590bb3",
       "step": "core.fastdev",
@@ -73,7 +73,7 @@
     },
     {
       "name": "arka-essential",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "source": "arka-essential.json",
       "checksum": "5e82fc72a501df5e5e7b729045719cbc9cf29b7ba4ca42953e250aa85c7820a7",
       "step": "core.essential",
@@ -90,7 +90,7 @@
     },
     {
       "name": "arka-framework-mastery",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "source": "arka-framework-mastery.json",
       "checksum": "687a941e9947e08d6fd95700fe0b6231df15eea480b90a6fd526ecbc6dc04669",
       "step": "core.mastery",
@@ -107,7 +107,7 @@
     },
     {
       "name": "arka-framework-status",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "source": "arka-framework-status.json",
       "checksum": "6534d77d161110fdbb3066f9df5b5f4c791a7f4c3702605fabc61d2601171fc3",
       "step": "core.status",
@@ -124,7 +124,7 @@
     },
     {
       "name": "arka-framework-scaffold",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "source": "arka-framework-scaffold.json",
       "checksum": "0a1fd1298e6274c5413037a1bb6e9a2c4c59f8a77c17f2ceac7da3aa7b0e299c",
       "step": "core.scaffold",
@@ -141,7 +141,7 @@
     },
     {
       "name": "arka-framework-validate",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "source": "arka-framework-validate.json",
       "checksum": "5ebf8ea209cb54a2ae2762ad9f72857c50deab13b7728f10dbcb808821e0d3e9",
       "step": "core.validate",
@@ -158,7 +158,7 @@
     },
     {
       "name": "arka-framework-handoff",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "source": "arka-framework-handoff.json",
       "checksum": "f86df8a65eb7451c216f31cc9c2e22478a10e54614db658b9d7757da60628cb8",
       "step": "transversal.handoff",
@@ -175,7 +175,7 @@
     },
     {
       "name": "arka-framework-concept",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "source": "arka-framework-concept.json",
       "checksum": "067561e50f04a0431c2154ee256e890c08a0d074f9d22d1e60b8c8a9c2f107f2",
       "step": "concept",
@@ -186,7 +186,7 @@
     },
     {
       "name": "arka-framework-plan",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "source": "arka-framework-plan.json",
       "checksum": "755d3ca8f67e70c123b4941d5973290dd0130e1f026601cdacff2cbadbbb79c3",
       "step": "plan",
@@ -198,7 +198,7 @@
     },
     {
       "name": "arka-framework-technical-appendix",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "source": "arka-framework-technical-appendix.json",
       "checksum": "4850a7b8d38fb508f4891c1bef1a1a93aaf5ab9dd3d23b85dcc07d65014f6979",
       "step": "technical_contract_appendix",
@@ -209,7 +209,7 @@
     },
     {
       "name": "arka-framework-audit",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "source": "arka-framework-audit.json",
       "checksum": "e5ad0ef554ed34e7bd66d81feb08f4a1c881957aa38bd61bd19cc1837b9410f2",
       "step": "current_state_audit",
@@ -222,7 +222,7 @@
     },
     {
       "name": "arka-framework-invariants",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "source": "arka-framework-invariants.json",
       "checksum": "ecc70efa7079b11f8b55be33fa0a730ff24b0d76056019415bb7c4b565c02d28",
       "step": "frozen_invariants",
@@ -235,7 +235,7 @@
     },
     {
       "name": "arka-framework-debt-register",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "source": "arka-framework-debt-register.json",
       "checksum": "f3d142406bef94fea0238c8822ec22183007a429067f655228540a35a34d48ae",
       "step": "debt_register",
@@ -247,7 +247,7 @@
     },
     {
       "name": "arka-framework-tasks",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "source": "arka-framework-tasks.json",
       "checksum": "def499c0a3fdc92d4aa04e7e06223909eb07e3ed1c89c0d8e2b99b371843b207",
       "step": "agent_task",
@@ -259,7 +259,7 @@
     },
     {
       "name": "arka-framework-integration-specification",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "source": "arka-framework-integration-specification.json",
       "checksum": "0cc92a876033da25a7acc94a84fc49afd024119db6ad6fb3f5215378b52dbeff",
       "step": "technical_integration_specification",
@@ -272,7 +272,7 @@
     },
     {
       "name": "arka-framework-development",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "source": "arka-framework-development.json",
       "checksum": "2243b3ad91df1dd6ff1c3b6bcd4688a8eac9a1813f5e2dbc80a65d5412bb7168",
       "step": "development_report",
@@ -284,7 +284,7 @@
     },
     {
       "name": "arka-framework-qa-review",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "source": "arka-framework-qa-review.json",
       "checksum": "99c913e9d615fe063b1120c6667c8d21d81ac242acff60a785522758301be9f2",
       "step": "qa_review",
@@ -296,7 +296,7 @@
     },
     {
       "name": "arka-git-steward",
-      "version": "2.0.0",
+      "version": "2.1.0",
       "source": "arka-git-steward.json",
       "checksum": "4924a3051d22eaeff11bf4f150b81361477515fc73842586fa6891817902478f",
       "step": "git_steward",

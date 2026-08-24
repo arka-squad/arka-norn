@@ -1,0 +1,79 @@
+{
+  "schema_version": 5,
+  "id": "frozen-invariants-norn-project-web-001",
+  "feature_id": "norn-project-web-2181d081",
+  "type": "frozen_invariants",
+  "sequence": 1,
+  "created_at": "2026-08-23T21:49:37Z",
+  "depends_on_document_ids": [
+    "current-state-audit-norn-project-web-001"
+  ],
+  "content_locale": "en",
+  "task_id": "web-project-tracking-invariants",
+  "plan_sources": [
+    "plan-norn-project-web-001"
+  ],
+  "depends_on": [
+    "current-state-audit-norn-project-web-001"
+  ],
+  "date": "2026-08-23",
+  "invariants": [
+    {
+      "id": "INV-01",
+      "title": "Durable contracts remain authoritative",
+      "description": "The browser never becomes a Project database. Every displayed business state is rebuilt from Project, Feature, Pipeline, document, audit, Agent, governance or execution stores.",
+      "level": "N1",
+      "source_section": "F01 and F02"
+    },
+    {
+      "id": "INV-02",
+      "title": "No Agent control from the Web",
+      "description": "Web routes and bridge methods cannot start, cancel, retry, approve, configure or grant permissions to an Agent execution. Registered Agents and orchestrations are read-only observations.",
+      "level": "N1",
+      "source_section": "Product boundary"
+    },
+    {
+      "id": "INV-03",
+      "title": "Signed documents are immutable",
+      "description": "A project manager decision links to an exact document and JSON pointer but never rewrites that document; corrections require a new framework production or sequence.",
+      "level": "N1",
+      "source_section": "Governance decision"
+    },
+    {
+      "id": "INV-04",
+      "title": "Loopback security is deny by default",
+      "description": "The server binds only to loopback, authenticates every API and event request, checks Origin, constrains all filesystem access to verified Project roots and emits no prompts, secrets, stderr or terminal logs.",
+      "level": "N1",
+      "source_section": "Security and distribution"
+    },
+    {
+      "id": "INV-05",
+      "title": "Live signals are invalidations, not truth",
+      "description": "Watch events are debounced hints. Reconnection and every invalidation reload a complete durable snapshot; heartbeat indicates liveness only and never becomes invented progress.",
+      "level": "N1",
+      "source_section": "F02 and F07"
+    },
+    {
+      "id": "INV-06",
+      "title": "One renderer and one bridge",
+      "description": "Document presentation is schema-driven and shared across document types; UI components depend only on NornBridge so phase 2 Tauri does not duplicate screens or business projections.",
+      "level": "N2",
+      "source_section": "Maintainability"
+    },
+    {
+      "id": "INV-07",
+      "title": "English contracts, bilingual interface",
+      "description": "Routes, IDs, API data and contracts remain canonical English. Human labels and formatted values use complete key-parity EN/FR catalogs, and machine data is locale independent.",
+      "level": "N2",
+      "source_section": "Internationalization"
+    },
+    {
+      "id": "INV-08",
+      "title": "Non-developer honesty",
+      "description": "The UI shows coverage, freshness and missing evidence explicitly and does not claim provider connectivity, cryptographic seals, costs, remaining time or reproducibility without corresponding contracts.",
+      "level": "N2",
+      "source_section": "F03, F04 and F06"
+    }
+  ],
+  "author_agent_id": "OpenAI-Codex_dev-audit_20260819"
+}

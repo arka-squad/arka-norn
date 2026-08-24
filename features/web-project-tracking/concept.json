@@ -1,0 +1,62 @@
+{
+  "schema_version": 5,
+  "id": "concept-norn-project-web-001",
+  "feature_id": "norn-project-web-2181d081",
+  "type": "concept",
+  "sequence": 1,
+  "created_at": "2026-08-23T21:49:37Z",
+  "depends_on_document_ids": [],
+  "content_locale": "en",
+  "title": "Norn Project Web 2.1.0",
+  "version": "2.1.0",
+  "date": "2026-08-23",
+  "scope": "A local EN/FR Web interface for project managers, distributed with arka-norn and backed exclusively by existing Project, Feature, Pipeline, document, audit, Agent and orchestration contracts.",
+  "objective": "Make every managed Project understandable and actionable without requiring terminal fluency, while preserving signed documents, traceability, local security and native-agent boundaries.",
+  "assumptions": [
+    {
+      "subject": "Distribution",
+      "selected_position": "Ship a complete loopback Web application in 2.1.0; keep Tauri as a separate phase 2 Feature behind the same typed bridge."
+    },
+    {
+      "subject": "Agent boundary",
+      "selected_position": "Display registered Agents and observe Norn orchestrations, but never start, stop, retry, configure or grant permissions to Agents from the Web interface."
+    },
+    {
+      "subject": "Governance",
+      "selected_position": "Keep framework documents immutable and record human decisions as append-only, portable Project governance events signed by a stable local human profile."
+    }
+  ],
+  "executive_summary": "Norn Project Web turns the existing local framework into a project-tracking workspace for non-developers. It presents Project health, Feature progress, workflow relationships, every signed document, audits, decisions, registered Agents and live orchestration state through human-readable projections. The filesystem contracts remain the source of truth and the browser receives only bounded, authenticated read models.",
+  "guiding_principle": "The interface explains the Project; it never becomes a second source of truth or a remote control for Agents.",
+  "sections": [
+    {
+      "title": "Audience and experience",
+      "content": "The primary user is a project manager who needs to understand progress, evidence, risks, dependencies and decisions without reading JSON or operating coding-agent tools. The default view answers where the Project stands, what requires attention and which evidence supports that conclusion."
+    },
+    {
+      "title": "Information architecture",
+      "content": "The product is organized around Projects, Features, workflow stages, documents, decisions, audits, Agents and activity. Stable resource routes support refresh and deep links. A deterministic relationship graph complements, rather than replaces, the ordered workflow view."
+    },
+    {
+      "title": "Human documents and decisions",
+      "content": "All canonical v5 and supported legacy documents receive one schema-driven human rendering with provenance and dependency links. Raw JSON remains available as technical disclosure. Human decisions are append-only events linked to exact resources and never rewrite signed framework documents."
+    },
+    {
+      "title": "Live observation",
+      "content": "executions.json remains the durable ledger. Filesystem changes emit lightweight authenticated invalidations and the client reloads complete projections. Heartbeats describe liveness only; the UI never invents cost, percentage or remaining time."
+    },
+    {
+      "title": "Security and distribution",
+      "content": "The server binds only to loopback, uses an ephemeral session token, validates Origin and paths, applies a strict CSP and never exposes prompts, secrets, environment variables, stderr or raw terminal output. The same NornBridge boundary is reserved for a later Tauri shell."
+    }
+  ],
+  "status": "valid",
+  "recommendation": "Implement as a Complete Feature and release only after Project tracking, document rendering, governance, audits, read-only live observation, EN/FR, accessibility and packaging gates pass together.",
+  "risks": [
+    "A browser-facing filesystem bridge can widen the local attack surface unless every route is allowlisted and authenticated.",
+    "A generic document renderer can become unreadable unless semantic field presentations and relationship views are tested across every distributed schema.",
+    "Filesystem watchers can miss or duplicate notifications, so the durable ledger and full snapshot reload must remain authoritative.",
+    "The private mock can create false parity expectations unless unsupported agent-control and simulated metrics are removed explicitly."
+  ],
+  "author_agent_id": "OpenAI-Codex_dev-audit_20260819"
+}

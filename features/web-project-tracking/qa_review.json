@@ -1,0 +1,145 @@
+{
+  "schema_version": 5,
+  "id": "qa-review-norn-project-web-001",
+  "feature_id": "norn-project-web-2181d081",
+  "type": "qa_review",
+  "sequence": 1,
+  "created_at": "2026-08-24T00:09:05Z",
+  "depends_on_document_ids": [
+    "development-report-norn-project-web-001"
+  ],
+  "content_locale": "en",
+  "development_report_id": "development-report-norn-project-web-001",
+  "ref": "QA-NORN-WEB-2.1.0",
+  "date": "2026-08-24",
+  "tester": {
+    "name": "Codex",
+    "provider": "OpenAI"
+  },
+  "environment": "macOS, Node.js 22.22.2, local Chromium through Playwright, loopback HTTP server and isolated temporary Project homes",
+  "version": "2.1.0",
+  "overall_status": "pass",
+  "scope": "Project tracking read models, governance ledger, secure local API, live invalidations, EN/FR React experience, official Arka Labs identity, human document reader, accessibility, responsive behavior, distribution and regressions across Complete, Essential and FastDev.",
+  "prerequisites": [
+    "The development report development-report-norn-project-web-001 is schema-valid and selected by the Complete Pipeline.",
+    "The production Web bundle has been rebuilt after the final accessibility correction.",
+    "The release checks execute with loopback access for the local registry and Playwright server."
+  ],
+  "test_cases": [
+    {
+      "id": "QA-01",
+      "name": "Canonical Project tracking projections and governance",
+      "steps": [
+        "Run the complete TypeScript unit and integration suites.",
+        "Exercise Project aggregation, human document projection, profile snapshots and append-only governance reduction."
+      ],
+      "expected_outcome": "Read models are deterministic, degraded state wins, documents stay immutable and governance history remains attributable.",
+      "actual_result": "All corresponding tests passed in the 57-check selftest and instrumented coverage run.",
+      "status": "pass"
+    },
+    {
+      "id": "QA-02",
+      "name": "Loopback API security boundary",
+      "steps": [
+        "Start the Web runtime on a temporary loopback port.",
+        "Call the API without a token and with a foreign Origin.",
+        "Probe an orchestration mutation route and inspect the CSP."
+      ],
+      "expected_outcome": "Unauthorized requests fail, foreign origins fail, mutation is unavailable and static responses enforce a self-only CSP.",
+      "actual_result": "Playwright security test passed: responses were 401, 401 and 404 respectively, with default-src 'self' in CSP.",
+      "status": "pass"
+    },
+    {
+      "id": "QA-03",
+      "name": "Project manager EN/FR workflow",
+      "steps": [
+        "Create the mandatory human profile.",
+        "Create a Project and an Essential Feature.",
+        "Switch the interface from English to French."
+      ],
+      "expected_outcome": "The Project and Feature are persisted, Essential is selected and the interface changes locale immediately.",
+      "actual_result": "Playwright completed the workflow and verified html lang=fr and French navigation.",
+      "status": "pass"
+    },
+    {
+      "id": "QA-04",
+      "name": "Official Arka Labs visual identity",
+      "steps": [
+        "Load the production Web shell.",
+        "Inspect the official mark, primary red token, default theme and body typography."
+      ],
+      "expected_outcome": "The real Arka mark loads locally, #c70f43 is canonical, dark is default and Poppins is active.",
+      "actual_result": "All four assertions passed in Playwright; no substitute N monogram or remote visual dependency remains.",
+      "status": "pass"
+    },
+    {
+      "id": "QA-05",
+      "name": "Human editorial document rendering",
+      "steps": [
+        "Project a signed v5 document through the shared backend model.",
+        "Render it in French with the shared React reader.",
+        "Inspect title, facts, numbered sections, structured records, references and technical disclosure."
+      ],
+      "expected_outcome": "The document reads as an editorial production inspired by Arka Deck patterns while preserving every contract field and optional raw JSON.",
+      "actual_result": "Backend and Vitest renderer tests passed; raw contract keys are replaced by localized labels and no HTML is accepted from Markdown.",
+      "status": "pass"
+    },
+    {
+      "id": "QA-06",
+      "name": "Responsive layout and accessibility",
+      "steps": [
+        "Render the Feature view at 1024, 1440 and 1920 pixels.",
+        "Measure document root horizontal overflow.",
+        "Run axe-core against the final French view."
+      ],
+      "expected_outcome": "No incoherent overlap or horizontal overflow occurs and no serious or critical accessibility violation is reported.",
+      "actual_result": "All widths stayed within one pixel tolerance and Axe returned an empty serious/critical violation set.",
+      "status": "pass"
+    },
+    {
+      "id": "QA-07",
+      "name": "Localization and source quality gates",
+      "steps": [
+        "Run typecheck, ESLint, max-lines and language gates.",
+        "Run Web catalog parity and document renderer tests."
+      ],
+      "expected_outcome": "EN and FR contracts remain type-compatible, public source stays canonical English and maintained files stay below 700 lines.",
+      "actual_result": "All gates passed; maximum allowed source length remains 700 lines and Web Vitest reports 3 passing tests.",
+      "status": "pass"
+    },
+    {
+      "id": "QA-08",
+      "name": "Regression across workflows and CLI/TUI",
+      "steps": [
+        "Run npm run release:verify.",
+        "Complete selftest and the 60 E2E scenarios under coverage instrumentation."
+      ],
+      "expected_outcome": "Complete, Essential, FastDev, migrations, Agents, orchestration, audit, CLI and TUI retain existing behavior.",
+      "actual_result": "Release verification passed; selftest reported 57/57 checks and the E2E suite passed all 60 scenarios.",
+      "status": "pass"
+    },
+    {
+      "id": "QA-09",
+      "name": "Coverage, performance and dependency health",
+      "steps": [
+        "Run source and CLI coverage thresholds.",
+        "Run the deterministic benchmark and dependency audit."
+      ],
+      "expected_outcome": "Coverage exceeds configured thresholds, benchmark stays within budgets and dependency audit is acceptable.",
+      "actual_result": "Coverage reached 75.8% lines, 71.09% functions and 65.53% branches; benchmark completed in 160.17 ms against a 5000 ms total budget; release verification exited successfully.",
+      "status": "pass"
+    },
+    {
+      "id": "QA-10",
+      "name": "Production package contents",
+      "steps": [
+        "Install the packed artifact in a consumer without worktree node_modules.",
+        "Run npm pack --dry-run --ignore-scripts and inspect packaged paths."
+      ],
+      "expected_outcome": "The CLI runs from the consumer, dist/web and local brand assets ship, and .input, src and tests are excluded.",
+      "actual_result": "The consumer test passed; arka-norn-2.1.0.tgz is 1.8 MB compressed, 6.9 MB unpacked, contains 643 files and includes the Web bundle, logo and local fonts.",
+      "status": "pass"
+    }
+  ],
+  "author_agent_id": "OpenAI-Codex_dev-audit_20260819"
+}

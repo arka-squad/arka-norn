@@ -2,6 +2,32 @@
 
 Notable changes to arka-norn are recorded here. The project follows semantic versioning.
 
+## 2.1.0 - 2026-08-24
+
+### Added
+
+- Local EN/FR Project Web interface launched with `arka-norn web`.
+- Official Arka Labs identity with the canonical mark, local Poppins and JetBrains Mono assets, dark-first surfaces and shared semantic components.
+- Editorial signed-document reader with localized contract labels, structured records, proofs, risks and progressive technical disclosure.
+- Human Project, Feature, Pipeline and document projections, including canonical v5 and legacy documents.
+- Append-only Project governance with stable human profiles, linked decisions, correction requests and acknowledgements.
+- Read-only registered Agent and live Norn orchestration tracking.
+- Verified Project audit lifecycle and Doctor dry-run confirmation in the Web interface.
+- Typed `NornBridge`, authenticated loopback API v1 and debounced SSE invalidations.
+- Responsive Playwright coverage and Web source line-limit enforcement.
+
+### Security
+
+- The Web server binds to `127.0.0.1`, uses a 256-bit session token, checks Origin and applies a restrictive CSP.
+- Prompts, terminal output, environment values, provider secrets and orchestration controls are absent from Web responses.
+- Markdown raw HTML and filesystem paths outside verified Project boundaries are rejected or left inert.
+
+### Distribution
+
+- React/Vite production assets are included under `dist/web/`.
+- `.input/` remains ignored and excluded from npm packages and public CI.
+- Package and manifest versions are 2.1.0.
+
 ## 2.0.0 - 2026-08-23
 
 ### Added

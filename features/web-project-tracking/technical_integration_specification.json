@@ -1,0 +1,108 @@
+{
+  "schema_version": 5,
+  "id": "technical-integration-specification-norn-project-web-001",
+  "feature_id": "norn-project-web-2181d081",
+  "type": "technical_integration_specification",
+  "sequence": 1,
+  "created_at": "2026-08-23T21:49:37Z",
+  "depends_on_document_ids": [
+    "agent-task-norn-project-web-001"
+  ],
+  "content_locale": "en",
+  "title": "Technical integration specification - Norn Project Web 2.1.0",
+  "covered_batches": [
+    "L1",
+    "L2",
+    "L3",
+    "L4",
+    "L5",
+    "L6"
+  ],
+  "sources": [
+    "concept-norn-project-web-001",
+    "plan-norn-project-web-001",
+    "current-state-audit-norn-project-web-001",
+    "frozen-invariants-norn-project-web-001",
+    "debt-register-norn-project-web-001",
+    "agent-task-norn-project-web-001"
+  ],
+  "frozen_decisions": [
+    {
+      "id": "DEC-01",
+      "description": "The phase 1 product is a complete loopback Web application; Tauri is excluded until phase 2."
+    },
+    {
+      "id": "DEC-02",
+      "description": "The Web exposes Project governance and local audit/Doctor actions but no orchestration mutation."
+    },
+    {
+      "id": "DEC-03",
+      "description": "A stable local human profile signs append-only governance events; framework documents remain immutable."
+    },
+    {
+      "id": "DEC-04",
+      "description": "The existing execution registry and worker state remain authoritative for live observation."
+    },
+    {
+      "id": "DEC-05",
+      "description": "One NornBridge contract isolates the renderer from HTTP and future Tauri transports."
+    },
+    {
+      "id": "DEC-06",
+      "description": "The private mock is a visual reference only and cannot remain a generated runtime target."
+    }
+  ],
+  "date": "2026-08-23",
+  "nature": "Hexagonal integration of new governance and presentation application capabilities with a secured local HTTP/SSE inbound adapter and a code-split React renderer packaged as static assets.",
+  "structure": {
+    "crates": [
+      "domain/governance - immutable human profile snapshots, targets and governance events",
+      "application/web - Project, Feature, document, graph, governance, audit, Agent and orchestration projections",
+      "ports/inbound - NornBridge use-case boundary",
+      "ports/outbound - governance store and change observer"
+    ],
+    "adapters": [
+      "filesystem - atomic preferences v2, append-only governance registry and chokidar invalidations",
+      "web server - loopback HTTP API v1, static assets, Bearer authentication, Origin/path checks and SSE",
+      "CLI - arka-norn web lifecycle",
+      "renderer - React/Vite HTTP bridge, router, accessible design system and schema-driven document view"
+    ]
+  },
+  "contracts": [
+    {
+      "name": "NornBridge",
+      "definition": "A transport-neutral typed interface for Project/Feature read models, document and graph detail, Agents, audits, governance, read-only orchestration, profile/locale preferences, Project/Feature creation, audit lifecycle and confirmed Doctor repairs. UI components import this interface only."
+    },
+    {
+      "name": "Project governance registry",
+      "definition": "Portable schemaVersion 1 file at .arka-norn/governance.json containing projectId, updatedAt and append-only events. Each event has a stable id, one of six canonical kinds, exact targets, rationale/payload, actor snapshot and ISO timestamp; resolution/supersession references prior decision ids rather than rewriting records."
+    },
+    {
+      "name": "Human document presentation",
+      "definition": "A safe recursive presentation tree built from validated content and schema property order. Envelope metadata is separated from semantic sections; scalar object arrays become tables, references become resolved links, unknown fields remain visible and long text renders sanitized Markdown without raw HTML."
+    },
+    {
+      "name": "Local API v1",
+      "definition": "schemaVersion 2 envelopes over loopback only. An ephemeral 256-bit token is bootstrapped from the URL fragment and required as Authorization Bearer for every API/SSE request; invalid origins, paths and methods fail with stable codes."
+    },
+    {
+      "name": "Live invalidation",
+      "definition": "Authenticated SSE messages contain only scope, Project/Feature/execution identifiers, revision and occurredAt. Watcher bursts debounce for 250 ms; clients always reload complete projections and reconnect with a fresh snapshot."
+    },
+    {
+      "name": "Web build",
+      "definition": "Tracked source under web, filtered generated web catalogs/contracts, Vite output under dist/web, route-level code splitting, no external font/network dependency and npm packaging through the existing dist allowlist."
+    }
+  ],
+  "invariant_references": [
+    "INV-01",
+    "INV-02",
+    "INV-03",
+    "INV-04",
+    "INV-05",
+    "INV-06",
+    "INV-07",
+    "INV-08"
+  ],
+  "author_agent_id": "OpenAI-Codex_dev-audit_20260819"
+}

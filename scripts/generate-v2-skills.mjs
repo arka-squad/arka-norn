@@ -14,9 +14,9 @@ const all = ["all"];
 const core = ["all", "core", "delivery", "product", "architecture", "audit", "dev", "qa"];
 
 const skills = [
-  skill("arka-norn", "Arka Norn bootstrap", "Initialize the Product Agent and verified Project context.", "core.bootstrap", core, "2.0.0"),
+  skill("arka-norn", "Arka Norn bootstrap", "Initialize the Product Agent and verified Project context.", "core.bootstrap", core, "2.1.0"),
   skill("arka-audit", "Arka repository audit", "Run a transverse repository audit outside a Feature Pipeline.", "transversal.audit", ["all", "core", "product", "architecture", "audit"]),
-  skill("arka-product", "Arka Product control", "Coordinate Product decisions, roles, prompts and handoffs.", "core.product", ["all", "core", "delivery", "product"], "2.0.0"),
+  skill("arka-product", "Arka Product control", "Coordinate Product decisions, roles, prompts and handoffs.", "core.product", ["all", "core", "delivery", "product"], "2.1.0"),
   guided("arka-fastdev", "FastDev guided rework", "fastdev", "arka-norn-fastdev", ["rework_brief", "development_report", "delivery_audit", "delivery_validation"], ["all", "core", "delivery", "audit", "dev", "qa"]),
   guided("arka-essential", "Essential guided Feature", "essential", "arka-norn-essential", ["feature_brief", "technical_contract_appendix", "development_report", "delivery_audit", "delivery_validation"], core),
   skill("arka-framework-mastery", "Complete workflow mastery", "Drive one verified phase of the Complete workflow.", "core.mastery", core),
@@ -60,7 +60,7 @@ for (const config of skills) {
 
 const catalog = {
   schemaVersion: 2,
-  catalogVersion: "2.0.0",
+  catalogVersion: "2.1.0",
   profiles: {
     all: "21 skills: complete catalog",
     core: "10 bootstrap and Product control skills",
@@ -75,12 +75,12 @@ const catalog = {
 };
 writeFileSync(resolve(catalogRoot, "skills.json"), `${JSON.stringify(catalog, null, 2)}\n`, "utf8");
 
-function skill(name, title, summary, step, profiles = all, version = "2.0.0") {
+function skill(name, title, summary, step, profiles = all, version = "2.1.0") {
   return { name, title, summary, step, profiles, version, mode: "pipeline" };
 }
 
 function guided(name, title, command, pipelineId, steps, profiles) {
-  return { name, title, summary: `Execute exactly one calculated ${title} phase.`, step: `core.${command}`, profiles, version: "2.0.0", mode: "guided", command, pipelineId, steps };
+  return { name, title, summary: `Execute exactly one calculated ${title} phase.`, step: `core.${command}`, profiles, version: "2.1.0", mode: "guided", command, pipelineId, steps };
 }
 
 function definitionFor(config) {

@@ -8,4 +8,4 @@
 6. inspect `npm pack --dry-run --ignore-scripts`
 7. verify `.input/` is absent from the tarball
 
-Version 2.0 introduces English v5 contracts and EN/FR display localization. Legacy French data remains supported for all 2.x releases.
+Version 2.1 ships the local Project Web assets under `dist/web/`. `.input/` remains private and excluded. Legacy French data remains supported for all 2.x releases.

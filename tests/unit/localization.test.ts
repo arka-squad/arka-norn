@@ -56,7 +56,12 @@ test("locale preferences are parsed and persisted atomically", async (context) =
   assert.equal(await store.load(), "auto");
   await store.save("fr");
   assert.equal(await store.load(), "fr");
-  assert.deepEqual(JSON.parse(readFileSync(resolve(home, ".arka-norn", "preferences.json"), "utf8")), { schemaVersion: 1, locale: "fr" });
+  assert.deepEqual(JSON.parse(readFileSync(resolve(home, ".arka-norn", "preferences.json"), "utf8")), { schemaVersion: 2, locale: "fr" });
+  const profile = await store.saveHumanProfile({ name: "Norn QA", email: "qa@example.test" });
+  assert.match(profile.id, /^human_[a-f0-9]{24}$/);
+  assert.equal((await store.loadPreferences()).humanProfile?.name, "Norn QA");
+  const updated = await store.saveHumanProfile({ name: "Norn Reviewer" });
+  assert.equal(updated.id, profile.id);
   assert.equal(parseLocalePreference(" EN "), "en");
   assert.throws(() => parseLocalePreference("de"), /Unsupported locale preference/);
 });

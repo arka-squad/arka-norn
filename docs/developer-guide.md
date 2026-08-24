@@ -5,9 +5,9 @@
 The code follows ports and adapters:
 
 - `src/domain`: immutable entities and deterministic policies
-- `src/application`: use cases, localization, compatibility and Pipeline inspection
+- `src/application`: use cases, localization, compatibility, Pipeline inspection and Project tracking projections
 - `src/ports`: inbound and outbound contracts
-- `src/adapters`: CLI, TUI, filesystem, validation and provider adapters
+- `src/adapters`: CLI, TUI, Web HTTP, filesystem, validation and provider adapters
 - `src/composition`: dependency wiring and runtime coordination
 
 Canonical data contracts are JSON Schema 2020-12 documents under `schemas/`. Legacy French contracts are isolated under `schemas/legacy/fr/`.
@@ -95,4 +95,20 @@ No source file may exceed 700 lines. Keep changes scoped, extract reusable logic
 
 ## Internal Web application
 
-The Web application is intentionally under ignored `.input/`. Public code exports generated locale and contract catalogs to its bridge; the Web application is never part of the npm package or public CI.
+The shipped React/Vite source lives under `web/` and builds to `dist/web/`. `.input/` remains an ignored private workspace for design references and is never a source dependency.
+
+Application contracts in `src/application/web/contracts.ts` define `NornBridge` and the Project tracking read models. The browser uses the HTTP bridge; a future Tauri adapter can implement the same interface without changing view components. Do not add Tauri code in the Web phase.
+
+The server adapter binds to loopback, authenticates API and SSE requests, serves only packaged assets and emits invalidations rather than duplicated business events. View components reload complete read models after an invalidation. Orchestration APIs remain read-only.
+
+Web catalogs are generated from the typed localization source, while Pipeline metadata is generated from the canonical catalog. Add new human text to both typed catalogs and regenerate; do not copy translation or contract objects into the frontend.
+
+The frontend consumes the official Arka Labs tokens and local brand assets from `web/src/styles/brand.css` and `web/public/assets/`. Keep dark mode canonical, use the Arka mark without substitute monograms, and preserve Poppins/JetBrains Mono roles. New views must compose the shared button, status, navigation, card and document patterns instead of introducing a parallel dashboard theme.
+
+Document pages use one structural renderer. Extend contract labels or structural presentations in the shared renderer; never create a copied renderer for a specific document type.
+
+```bash
+npm run build:web
+npm run dev:web
+npm run test:web:e2e
+```

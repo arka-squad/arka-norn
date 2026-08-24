@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const extensions = new Set([".ts", ".tsx", ".js", ".mjs", ".cjs", ".json", ".md"]);
-const roots = ["src", "scripts", "schemas", "pipelines", "skills-src", "examples", "docs"];
+const roots = ["src", "web", "scripts", "schemas", "pipelines", "skills-src", "examples", "docs"];
 const ignoredDirectories = new Set(["node_modules", "dist", "coverage"]);
 const allowedPrefixes = [
   `src${sep}application${sep}localization${sep}messages${sep}fr${sep}`,
@@ -12,6 +12,7 @@ const allowedPrefixes = [
   `src${sep}application${sep}compatibility${sep}`,
   `schemas${sep}legacy${sep}fr${sep}`,
   `pipelines${sep}legacy${sep}fr${sep}`,
+  `web${sep}src${sep}generated${sep}catalogs.ts`,
 ];
 
 const frenchSignals = [

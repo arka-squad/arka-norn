@@ -1,0 +1,118 @@
+/*
+ * Arka Labs design tokens for Norn Web.
+ * Canonical reference: cortex.deck_officiel/src/ui/styles/tokens.css.
+ */
+:root {
+  color-scheme: dark;
+  --arka-red: #c70f43;
+  --arka-green: #00d287;
+  --arka-purple: #8b5cf6;
+  --arka-blue: #4a90e2;
+  --status-pass: #16a34a;
+  --status-fail: #dc2626;
+  --status-warn: #d97706;
+  --font-sans: "Poppins", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --w: 255, 255, 255;
+  --surface: #171718;
+  --surface-alt: #1e1e1f;
+  --surface-card: rgba(255, 255, 255, .025);
+  --surface-hover: rgba(255, 255, 255, .05);
+  --bar: #222121;
+  --zone: #1d1c1c;
+  --elevated: #1e1e20;
+  --panel-bg: #222121;
+  --app-border: rgba(255, 255, 255, .08);
+  --app-border-subtle: rgba(255, 255, 255, .04);
+  --app-border-strong: rgba(255, 255, 255, .15);
+  --tx1: #fff;
+  --tx2: #e5e7eb;
+  --tx3: #9ca3af;
+  --tx4: #6b7280;
+  --tx-soft: #c9ccd2;
+  --tx-inactive: #8b929c;
+  --shadow-float: 0 4px 14px rgba(0, 0, 0, .4);
+  --shadow-pop: 0 16px 44px rgba(0, 0, 0, .45);
+  --glow-red: 0 0 8px rgba(199, 15, 67, .5);
+  --glow-green: 0 0 8px rgba(0, 210, 135, .5);
+  --scrollbar-thumb: #3f3f46;
+
+  /* Existing view semantics mapped to the canonical brand system. */
+  --canvas: var(--surface);
+  --surface-raised: var(--surface-card);
+  --border: var(--app-border);
+  --border-strong: var(--app-border-strong);
+  --text: var(--tx1);
+  --text-soft: var(--tx2);
+  --text-muted: var(--tx3);
+  --accent: var(--arka-red);
+  --accent-hover: #a80c38;
+  --accent-soft: rgba(199, 15, 67, .14);
+  --green: var(--arka-green);
+  --green-soft: rgba(0, 210, 135, .12);
+  --amber: #f2a93b;
+  --amber-soft: rgba(217, 119, 6, .13);
+  --red: #f05b5b;
+  --red-soft: rgba(220, 38, 38, .13);
+  --blue: #75b5eb;
+  --blue-soft: rgba(74, 144, 226, .13);
+  --sidebar: var(--bar);
+  --sidebar-text: var(--tx2);
+  --sidebar-muted: var(--tx-inactive);
+  --shadow: var(--shadow-pop);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --w: 28, 24, 20;
+  --surface: #ece8e1;
+  --surface-alt: #f4f1ec;
+  --surface-card: #fff;
+  --surface-hover: rgba(0, 0, 0, .05);
+  --bar: #f4f1ec;
+  --zone: #fff;
+  --elevated: #fff;
+  --panel-bg: #fff;
+  --app-border: rgba(0, 0, 0, .09);
+  --app-border-subtle: rgba(0, 0, 0, .045);
+  --app-border-strong: rgba(0, 0, 0, .18);
+  --tx1: #1c1816;
+  --tx2: #33302b;
+  --tx3: #57524b;
+  --tx4: #857e74;
+  --tx-soft: #45403a;
+  --tx-inactive: #6e675e;
+  --shadow-float: 0 2px 10px rgba(0, 0, 0, .06);
+  --shadow-pop: 0 10px 30px rgba(0, 0, 0, .09);
+  --accent-hover: #a80c38;
+  --green: #087c56;
+  --amber: #945800;
+  --red: #b42323;
+  --blue: #28669e;
+  --scrollbar-thumb: #d1c9c0;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--arka-red); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

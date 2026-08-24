@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const limit = 700;
 const extensions = new Set([".ts", ".tsx", ".js", ".mjs", ".cjs"]);
-const roots = ["src", "scripts", "tests"];
+const roots = ["src", "web", "scripts", "tests"];
 const ignoredDirectories = new Set(["node_modules", "dist", "coverage"]);
 
 const oversized = roots

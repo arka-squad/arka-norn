@@ -39,6 +39,16 @@ arka-norn fastdev start|status|next
 
 `next --json` returns phase, iteration, prerequisites, stable reason/instruction codes, expected artifact and suggested command. The supplied Agent session is propagated to scaffolding.
 
+## Project Web
+
+```bash
+arka-norn web [--port <port>] [--no-open]
+```
+
+The command starts an authenticated HTTP API and static Web application on `127.0.0.1` only. With no `--port`, Norn selects a free port. The default opens the secured session URL in the browser; `--no-open` prints it without launching a browser.
+
+The Web API is versioned under `/api/v1` and uses the public JSON envelope with `schemaVersion: 2`. Orchestration endpoints are read-only.
+
 ## Agents
 
 ```bash

@@ -34,6 +34,7 @@ import { runEssentialCommand } from "./essential-cli.js";
 import { runAuditCommand } from "./audit-cli.js";
 import { extractGlobalOptions } from "./global-options.js";
 import { runLocaleCommand } from "./locale-cli.js";
+import { runWebCommand } from "./web-cli.js";
 import { FsLocalePreferenceStore } from "../../outbound/filesystem/fs-locale-preference-store.js";
 import { resolveLocale, runWithLocale, translate } from "../../../application/localization/locale.js";
 import { jsonEnvelope, type CliDiagnostic } from "./cli-envelope.js";
@@ -59,6 +60,8 @@ export async function runCli(argv: readonly string[]): Promise<number> {
   }
 }
 
+// Command fan-out remains explicit so every public command keeps one auditable adapter.
+// eslint-disable-next-line complexity
 async function runLocalizedCli(argv: readonly string[], homeDir: string, env: ReturnType<typeof readEnv>, localeOverride?: "en" | "fr"): Promise<number> {
   const command = argv[0];
   const rest = argv.slice(1);
@@ -136,6 +139,15 @@ async function runLocalizedCli(argv: readonly string[], homeDir: string, env: Re
         break;
       case "migrate":
         result = await runMigrateCommand(rest, { cwd: env.cwd, frameworkRoot: FRAMEWORK_ROOT });
+        break;
+      case "web":
+        result = await runWebCommand(rest, {
+          homeDir,
+          cwd: env.cwd,
+          frameworkRoot: FRAMEWORK_ROOT,
+          sessionId: env.agentSessionId,
+          environment: process.env,
+        });
         break;
       default:
         process.stderr.write(`${translate("common.unknownCommand", { command })}\n\n${localizedCliHelp()}`);

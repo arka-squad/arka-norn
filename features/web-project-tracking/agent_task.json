@@ -1,0 +1,36 @@
+{
+  "schema_version": 5,
+  "id": "agent-task-norn-project-web-001",
+  "feature_id": "norn-project-web-2181d081",
+  "type": "agent_task",
+  "sequence": 1,
+  "created_at": "2026-08-23T21:49:37Z",
+  "depends_on_document_ids": [
+    "debt-register-norn-project-web-001"
+  ],
+  "content_locale": "en",
+  "number": 1,
+  "title": "Implement Norn Project Web 2.1.0",
+  "block": "L1-L6",
+  "status": "in_progress",
+  "internal_plan_sources": [
+    "plan-norn-project-web-001"
+  ],
+  "dependencies": [
+    "current-state-audit-norn-project-web-001",
+    "frozen-invariants-norn-project-web-001",
+    "debt-register-norn-project-web-001"
+  ],
+  "objective": "Deliver the complete secured EN/FR Web project-tracking application, its durable governance model, human document projection, read-only live observation, build integration, documentation and release evidence.",
+  "plan_statement": "Implement contracts and reusable projections first, then filesystem stores and the loopback inbound adapter, then the bridge-driven renderer, operational governance and live invalidations, and finally package and verify the release as one coherent Feature.",
+  "recommended_breakdown": [
+    "L1 - canonical contracts and reusable projections",
+    "L2 - secure loopback application service",
+    "L3 - project manager Web experience",
+    "L4 - human governance and operational actions",
+    "L5 - live observation and relationship graph",
+    "L6 - distribution, documentation and release gates"
+  ],
+  "expected_output": "A publishable arka-norn 2.1.0 tarball containing dist/web, a functional arka-norn web command, complete real-data views and passing unit, integration, E2E, accessibility, security and packaging evidence.",
+  "author_agent_id": "OpenAI-Codex_dev-audit_20260819"
+}

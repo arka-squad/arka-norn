@@ -2,8 +2,8 @@
   "$schema": "manifest.json",
   "schemaVersion": 3,
   "name": "arka-norn",
-  "version": "2.0.0",
-  "description": "Local agent-agnostic cockpit for Projects, Features, Pipelines, signed documents, audits, runs and handoffs.",
+  "version": "2.1.0",
+  "description": "Local Project tracking for Features, Pipelines, signed documents, human governance, audits and observed orchestration runs.",
   "locales": {
     "canonical": "en",
     "supported": [
@@ -33,6 +33,7 @@
     "agentGuide": "docs/agent-guide.md",
     "auditDomains": "docs/audit/domains.md",
     "auditSecurity": "docs/audit/security.md",
+    "webGuide": "docs/web.md",
     "adrs": [
       "docs/adr/ADR-001-canonical-project.md",
       "docs/adr/ADR-002-sources-of-truth.md",
@@ -56,7 +57,8 @@
     "skills": "arka-norn skills <list|install|doctor>",
     "migrate": "arka-norn migrate [--target <path>] [--dry-run|--apply]",
     "doctor": "arka-norn doctor [--repair [--apply]]",
-    "selftest": "arka-norn selftest"
+    "selftest": "arka-norn selftest",
+    "web": "arka-norn web [--port <port>] [--no-open]"
   },
   "quality": {
     "gate": "npm run check",
@@ -70,7 +72,8 @@
   },
   "distribution": {
     "privateInputExcluded": ".input/",
-    "publicDocumentationLocale": "en"
+    "publicDocumentationLocale": "en",
+    "webAssets": "dist/web/"
   },
   "rules": [
     "English is canonical for code, identifiers, contracts, commands and public documentation.",
@@ -79,6 +82,7 @@
     "Portable markers are sources of truth and local indexes are reconstructible caches.",
     "Every v5 document declares content_locale and a verified author_agent_id.",
     "Generated skills and Web catalogs come from canonical sources and are never copied manually.",
+    "The Web interface observes orchestration; Agent control remains in native provider applications.",
     "No source file may exceed 700 lines."
   ]
 }

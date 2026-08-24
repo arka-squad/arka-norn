@@ -1,0 +1,172 @@
+{
+  "schema_version": 5,
+  "id": "development-report-norn-project-web-001",
+  "feature_id": "norn-project-web-2181d081",
+  "type": "development_report",
+  "sequence": 1,
+  "created_at": "2026-08-24T00:06:47Z",
+  "depends_on_document_ids": [
+    "technical-integration-specification-norn-project-web-001"
+  ],
+  "content_locale": "en",
+  "ref": "NORN-WEB-2.1.0",
+  "date": "2026-08-24",
+  "agent": {
+    "name": "Codex",
+    "provider": "OpenAI"
+  },
+  "spec_sources": [
+    "technical-integration-specification-norn-project-web-001",
+    "agent-task-norn-project-web-001"
+  ],
+  "status": "delivered",
+  "delivered_files": [
+    {
+      "path": "src/application/web/project-tracking-service.ts",
+      "action": "created",
+      "lines": 412,
+      "role": "Reusable Project, Feature, document, governance, Agent, audit and orchestration read-model service."
+    },
+    {
+      "path": "src/application/web/contracts.ts",
+      "action": "created",
+      "lines": 265,
+      "role": "Transport-neutral NornBridge and human tracking contracts."
+    },
+    {
+      "path": "src/application/web/human-document.ts",
+      "action": "created",
+      "lines": 85,
+      "role": "Single schema-oriented projection for canonical and legacy signed documents."
+    },
+    {
+      "path": "src/adapters/inbound/web/api-router.ts",
+      "action": "created",
+      "lines": 171,
+      "role": "Versioned local API with stable envelopes and explicit governance actions."
+    },
+    {
+      "path": "src/adapters/inbound/web/web-server.ts",
+      "action": "created",
+      "lines": 101,
+      "role": "Loopback-only authenticated HTTP and SSE server."
+    },
+    {
+      "path": "src/adapters/inbound/web/live-watcher.ts",
+      "action": "created",
+      "lines": 100,
+      "role": "Debounced durable-file invalidation observer for live tracking."
+    },
+    {
+      "path": "src/domain/governance/governance-event.ts",
+      "action": "created",
+      "lines": 98,
+      "role": "Append-only human governance event model with portable actor snapshots."
+    },
+    {
+      "path": "src/adapters/outbound/filesystem/fs-governance-store.ts",
+      "action": "created",
+      "lines": 64,
+      "role": "Locked and atomic portable governance ledger persistence."
+    },
+    {
+      "path": "src/adapters/inbound/cli/web-cli.ts",
+      "action": "created",
+      "lines": 63,
+      "role": "arka-norn web command, loopback launch and browser bootstrap."
+    },
+    {
+      "path": "web/src/components/document-renderer.tsx",
+      "action": "created",
+      "lines": 48,
+      "role": "Signed-document cover, contract facts, dependencies and progressive technical disclosure."
+    },
+    {
+      "path": "web/src/components/document-content.tsx",
+      "action": "created",
+      "lines": 91,
+      "role": "Shared editorial document hierarchy inspired by established Arka Deck reading patterns."
+    },
+    {
+      "path": "web/src/styles/brand.css",
+      "action": "created",
+      "lines": 118,
+      "role": "Official Arka Labs color, typography, surface and component tokens."
+    },
+    {
+      "path": "web/public/assets/brand/arka-logo-mark.svg",
+      "action": "created",
+      "lines": 5,
+      "role": "Official locally distributed Arka Labs mark."
+    },
+    {
+      "path": "tests/web/norn-web.spec.ts",
+      "action": "created",
+      "lines": 113,
+      "role": "Loopback security, EN/FR workflow, official brand, responsive overflow and Axe accessibility E2E evidence."
+    },
+    {
+      "path": "docs/web.md",
+      "action": "created",
+      "lines": 82,
+      "role": "Public user and technical documentation for tracking, governance, security, documents and official identity."
+    },
+    {
+      "path": "package.json",
+      "action": "modified",
+      "lines": 119,
+      "role": "Version 2.1.0, Web build and test scripts, runtime dependencies and packaged dist integration."
+    }
+  ],
+  "covered_requirements": [
+    {
+      "id": "L1",
+      "requirement": "Canonical governance contracts and reusable Project tracking projections.",
+      "covered": true,
+      "evidence": "Governance domain, schema, filesystem store and application/web read models pass web-governance, web-document-renderer and the complete TypeScript test suite."
+    },
+    {
+      "id": "L2",
+      "requirement": "Secure loopback application service and arka-norn web command.",
+      "covered": true,
+      "evidence": "web-security unit tests and Playwright reject missing tokens and foreign origins; release verification validates the packaged CLI and server artifacts."
+    },
+    {
+      "id": "L3",
+      "requirement": "Complete EN/FR Project manager Web experience using official Arka Labs identity.",
+      "covered": true,
+      "evidence": "Playwright creates a profile, Project and Essential Feature, switches locale, verifies Poppins, the official mark and #c70f43, and finds no overflow at 1024, 1440 or 1920 pixels."
+    },
+    {
+      "id": "L4",
+      "requirement": "Human governance and explicit operational actions without Agent control.",
+      "covered": true,
+      "evidence": "Append-only reduction, profile snapshot and API tests pass; the orchestration mutation endpoint is absent and returns 404 in Playwright."
+    },
+    {
+      "id": "L5",
+      "requirement": "Live orchestration observation and deterministic relationship graph.",
+      "covered": true,
+      "evidence": "The watcher, SSE invalidation hub, read-only execution projection and lazy relationship graph are built and covered by integration and release suites."
+    },
+    {
+      "id": "L6",
+      "requirement": "Distribution, English public documentation and complete release gates.",
+      "covered": true,
+      "evidence": "npm run release:verify passes lint, language, max-lines, selftest, 60 E2E scenarios, coverage thresholds, CLI coverage, benchmark, dependency audit and npm pack dry-run; the tarball is 1.8 MB and includes dist/web."
+    },
+    {
+      "id": "UX-DOC",
+      "requirement": "All signed framework productions are readable as human documents rather than raw JSON.",
+      "covered": true,
+      "evidence": "The shared renderer presents a signed cover, semantic numbered sections, structured lists and records, resolved references, progressive provenance and optional raw JSON; dedicated Vitest and unit tests pass."
+    },
+    {
+      "id": "QUALITY",
+      "requirement": "Accessible, stable implementation with no maintained source file above 700 lines.",
+      "covered": true,
+      "evidence": "Axe reports no serious or critical violation; typecheck, lint, check:max-lines, check:language, test:web and test:web:e2e all pass."
+    }
+  ],
+  "author_agent_id": "OpenAI-Codex_dev-audit_20260819"
+}

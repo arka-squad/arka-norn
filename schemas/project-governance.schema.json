@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arka-labs.dev/schemas/project-governance.schema.json",
+  "title": "Project governance ledger",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "projectId", "revision", "events"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "projectId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$" },
+    "revision": { "type": "integer", "minimum": 0 },
+    "events": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/event" }
+    }
+  },
+  "$defs": {
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^human_[a-f0-9]{24}$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "email": { "type": "string", "format": "email", "maxLength": 254 }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id"],
+      "properties": {
+        "type": { "enum": ["project", "feature", "step", "document", "finding", "debt"] },
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$" },
+        "featureId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$" },
+        "jsonPointer": { "type": "string", "maxLength": 1000 }
+      }
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "projectId", "targets", "reason", "occurredAt", "author"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^gov_[a-f0-9]{24}$" },
+        "kind": { "enum": ["decision_opened", "decision_resolved", "correction_requested", "risk_acknowledged", "debt_acknowledged", "decision_superseded"] },
+        "projectId": { "type": "string" },
+        "targets": { "type": "array", "minItems": 1, "maxItems": 20, "items": { "$ref": "#/$defs/target" } },
+        "reason": { "type": "string", "minLength": 1, "maxLength": 2000 },
+        "occurredAt": { "type": "string", "format": "date-time" },
+        "author": { "$ref": "#/$defs/profile" },
+        "resolvesEventId": { "type": "string", "pattern": "^gov_[a-f0-9]{24}$" },
+        "supersedesEventId": { "type": "string", "pattern": "^gov_[a-f0-9]{24}$" }
+      }
+    }
+  }
+}

@@ -54,6 +54,19 @@ Choose FastDev only for bounded rework:
 arka-norn fastdev start "Fix keyboard focus" --project product
 ```
 
+## Track the Project in a browser
+
+```bash
+arka-norn web
+arka-norn web --port 4317 --no-open
+```
+
+The Web interface is designed for Project managers rather than Agent operators. It shows aggregate Project state, Feature Pipelines, all signed and legacy documents in a human layout, linked evidence, open decisions, corrections, risks, audits, registered Agent identities and observed Norn orchestrations.
+
+Create Projects and Features, record governance decisions, run verified audits and apply Doctor repairs after reviewing a dry run. Framework documents remain immutable. Agent start, cancel, approval, retry, provider configuration and prompts are intentionally absent; use the provider's native application for those actions.
+
+On first launch, enter a human name. Norn stores a stable local profile and snapshots it into governance events so decisions remain understandable when the Project moves to another computer.
+
 ## Work on one step
 
 1. Read the exact action with `pipeline next` or the guided workflow command.
@@ -98,4 +111,4 @@ arka-norn migrate --target /workspace/product/search-by-status
 arka-norn migrate --target /workspace/product/search-by-status --apply
 ```
 
-See [CLI reference](cli.md), [TUI guide](tui.md), [Agent guide](agent-guide.md) and [Troubleshooting](troubleshooting.md).
+See [Project Web guide](web.md), [CLI reference](cli.md), [TUI guide](tui.md), [Agent guide](agent-guide.md) and [Troubleshooting](troubleshooting.md).

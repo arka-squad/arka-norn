@@ -1,0 +1,98 @@
+{
+  "schema_version": 5,
+  "id": "plan-norn-project-web-001",
+  "feature_id": "norn-project-web-2181d081",
+  "type": "plan",
+  "sequence": 1,
+  "created_at": "2026-08-23T21:49:37Z",
+  "depends_on_document_ids": [
+    "concept-norn-project-web-001"
+  ],
+  "content_locale": "en",
+  "title": "Delivery plan - Norn Project Web 2.1.0",
+  "version": "2.1.0",
+  "target": "Ship the complete local Web project-tracking experience in arka-norn 2.1.0, with Tauri explicitly deferred to phase 2.",
+  "source_concepts": [
+    "concept-norn-project-web-001"
+  ],
+  "nature": "Cross-cutting product Feature spanning domain contracts, application projections, filesystem adapters, a secured loopback inbound adapter, a React renderer, packaging and documentation.",
+  "completion_criteria": [
+    "Every registered Project, Feature, Pipeline stage, supported document, audit, Agent and Norn orchestration is represented from real repository data.",
+    "All framework documents are readable through one schema-driven human renderer with provenance, dependencies and raw technical disclosure.",
+    "Human decisions are append-only, attributable, portable and never mutate signed framework documents.",
+    "The Web API is loopback-only, authenticated, origin checked, path constrained and free of prompts, secrets, stderr and raw terminal output.",
+    "Orchestration observation survives navigation and reconnects from durable registries without exposing mutation controls or invented progress.",
+    "The complete interface works in English and French, is keyboard accessible at 1024, 1440 and 1920 pixels, and ships inside the npm tarball.",
+    "Build, lint, max-lines, language, unit, integration, E2E, coverage, selftest, dependency audit and packaging gates pass."
+  ],
+  "guiding_principle": "All UI state is a human projection of durable Norn contracts; mutations are explicit governance actions, never hidden browser state.",
+  "assertion_status": {
+    "locked": [
+      "Local Web delivery is complete in 2.1.0; Tauri remains a separate phase 2 Feature behind NornBridge.",
+      "Agents are visible contributors and orchestration subjects, never controllable resources in the Web UI.",
+      "Documents remain immutable and execution registries remain the live source of truth.",
+      "No maintained code or generated contract is copied from the private mock or Cortex Deck."
+    ],
+    "objective_to_prove": [
+      "A generic presentation model can render every canonical and supported legacy schema without losing critical meaning.",
+      "Filesystem invalidation plus full snapshot reload remains reliable across supported operating systems and detached workers.",
+      "The secured local server and future Tauri bridge can share one frontend contract without runtime coupling."
+    ]
+  },
+  "batches": [
+    {
+      "id": "L1",
+      "name": "Canonical contracts and reusable projections",
+      "description": "Add human profile and governance contracts, move shared Project/Feature projections out of TUI ownership, and define document, graph, audit, Agent and orchestration read models.",
+      "depends_on": []
+    },
+    {
+      "id": "L2",
+      "name": "Secure loopback application service",
+      "description": "Implement NornBridge application methods, the authenticated API v1, static asset serving, route allowlists and the arka-norn web command.",
+      "depends_on": [
+        "L1"
+      ]
+    },
+    {
+      "id": "L3",
+      "name": "Project manager Web experience",
+      "description": "Create the tracked React/Vite application, design system, stable resource routing and EN/FR Project, Feature, workflow, document, decision, audit, Agent, activity and settings views.",
+      "depends_on": [
+        "L1",
+        "L2"
+      ]
+    },
+    {
+      "id": "L4",
+      "name": "Human governance and operational actions",
+      "description": "Wire profile onboarding, append-only decisions, Project/Feature creation, audit lifecycle and confirmed Doctor repairs without exposing Agent orchestration mutations.",
+      "depends_on": [
+        "L2",
+        "L3"
+      ]
+    },
+    {
+      "id": "L5",
+      "name": "Live observation and relationship graph",
+      "description": "Watch durable registries and heartbeats, stream authenticated invalidations, reconnect safely, and render deterministic scoped relationships and orchestration timelines.",
+      "depends_on": [
+        "L1",
+        "L2",
+        "L3"
+      ]
+    },
+    {
+      "id": "L6",
+      "name": "Distribution, documentation and release gates",
+      "description": "Integrate filtered catalog generation and Web build into the npm package, update public English documentation and version metadata, then run functional, security, accessibility and packaging verification.",
+      "depends_on": [
+        "L3",
+        "L4",
+        "L5"
+      ]
+    }
+  ],
+  "status": "valid",
+  "author_agent_id": "OpenAI-Codex_dev-audit_20260819"
+}
