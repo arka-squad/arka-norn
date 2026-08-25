@@ -136,10 +136,21 @@ test("Project manager creates a profile, Project and Essential Feature in EN and
   await expect(more).toBeHidden();
   await expect(moreTrigger).toBeFocused();
 
+  await mobileNavigation.getByRole("button", { name: "Features" }).click();
+  await expect(page.locator(".feature-index")).toBeVisible();
+  await expect(page.locator(".data-table")).toHaveCount(0);
+  await expect(page.locator(".feature-index-state")).toBeHidden();
+  expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1);
+
+  await moreTrigger.click();
+  await more.getByRole("button", { name: "Réglages" }).click();
+  await page.getByRole("button", { name: "Inspecter avec Doctor" }).click();
+  await expect(page.locator(".doctor-report")).toBeVisible();
+  await expect(page.locator("pre.doctor-output")).toHaveCount(0);
+
   for (const width of [390, 1024, 1440, 1920]) {
     await page.setViewportSize({ width, height: 900 });
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-    expect(overflow).toBeLessThanOrEqual(1);
+    expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1);
   }
   await page.addScriptTag({ content: axe.source });
   const seriousViolations = await page.evaluate(async () => {
@@ -170,6 +181,10 @@ async function registeredFeatureCount(page: Page): Promise<number | undefined> {
     const envelope = await response.json() as { readonly data?: readonly { readonly featureCount?: number }[] };
     return envelope.data?.[0]?.featureCount;
   });
+}
+
+function horizontalOverflow(page: Page): Promise<number> {
+  return page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 }
 
 function requiredServer(): RunningWebServer {

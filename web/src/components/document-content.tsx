@@ -59,7 +59,7 @@ function RecordCard({ row, index }: { readonly row: Readonly<Record<string, unkn
   const state = primitiveString(row["status"] ?? row["statut"] ?? row["verdict"]);
   const attention = state !== undefined && /discover|partial|fail|block|reject|invalid|warning/i.test(state);
   return <article className={attention ? "record-card attention" : "record-card"}>
-    <header>{badge === undefined ? <span className="record-number">{String(index + 1).padStart(2, "0")}</span> : <span className="record-code">{badge.replaceAll("_", " ")}</span>}<div>{title === undefined ? null : <strong>{title}</strong>}</div>{state === undefined ? null : <em>{state.replaceAll("_", " ")}</em>}</header>
+    <header><div className="record-heading">{badge === undefined ? <span className="record-number">{String(index + 1).padStart(2, "0")}</span> : <span className="record-code">{badge.replaceAll("_", " ")}</span>}{title === undefined ? null : <strong>{title}</strong>}</div>{state === undefined ? null : <em>{state.replaceAll("_", " ")}</em>}</header>
     {entries.length === 0 ? null : <dl>{entries.map(([key, item]) => <div key={key}><dt>{contractLabel(key)}</dt><dd><SectionValue value={item} kind="fields" /></dd></div>)}</dl>}
   </article>;
 }

@@ -25,7 +25,7 @@ import type { Feature } from "../../domain/feature/feature.js";
 import { createWebOnboardingState } from "../../domain/onboarding/web-onboarding-state.js";
 import { ProjectId } from "../../domain/project/project-id.js";
 import type { Project } from "../../domain/project/project.js";
-import type { ForDoctor } from "../../ports/inbound/for-doctor.js";
+import type { DoctorReport, ForDoctor } from "../../ports/inbound/for-doctor.js";
 import type { ForPipeline, PipelineAuthorAuthorization } from "../../ports/inbound/for-pipeline.js";
 import type { GovernanceStore } from "../../ports/outbound/governance-store.js";
 import type { FolderPicker } from "../../ports/outbound/folder-picker.js";
@@ -350,11 +350,11 @@ export class ProjectTrackingService {
     return this.getFeature(projectId, feature.id.value);
   }
 
-  public inspectDoctor(): Promise<unknown> {
+  public inspectDoctor(): Promise<DoctorReport> {
     return this.options.doctor.run();
   }
 
-  public repairDoctor(input: { readonly apply: boolean; readonly confirmed: boolean }): Promise<unknown> {
+  public repairDoctor(input: { readonly apply: boolean; readonly confirmed: boolean }): Promise<DoctorReport> {
     if (input.apply && !input.confirmed) throw new Error("Doctor apply requires explicit confirmation.");
     return this.options.doctor.run({ repair: true, apply: input.apply });
   }

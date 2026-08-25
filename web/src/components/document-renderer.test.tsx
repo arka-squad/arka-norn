@@ -23,8 +23,8 @@ const document: HumanDocumentView = {
     { id: "objective", title: "Objective", kind: "text", value: "Make signed evidence understandable." },
     { id: "acceptance_criteria", title: "Acceptance Criteria", kind: "table", value: [{ id: "AC-1", dimension: "ux", criterion: "Readable without JSON", expected_evidence: "Rendered document" }] },
   ],
-  metadata: { schema_version: 5, id: "brief-1", author_agent_id: "agent-product", content_locale: "en", depends_on_document_ids: ["concept-1"] },
-  raw: {},
+  metadata: { schema_version: 5, id: "brief-1", author_agent_id: "agent-product", content_locale: "en", depends_on_document_ids: ["concept-1"], provenance: { sources: [{ id: "source-a", valid: true }] } },
+  raw: { machine_only: "must-not-be-visible" },
   errors: [],
 };
 
@@ -41,7 +41,11 @@ describe("DocumentRenderer", () => {
     expect(html).toContain("Anglais");
     expect(html).toContain("document-metadata-table");
     expect(html).toContain("framework.feature_brief.v5");
+    expect(html).toContain("source-a");
     expect(html).toContain("Source concept");
+    expect(html).not.toContain("document-view-switch");
+    expect(html).not.toContain("json-panel");
+    expect(html).not.toContain("must-not-be-visible");
     expect(html).not.toContain("document-section-key");
     expect(html).not.toContain("acceptance_criteria");
   });

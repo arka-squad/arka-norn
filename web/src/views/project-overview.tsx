@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowRight, Boxes, CheckCircle2, FileWarning, GitPullRequest, Radio } from "lucide-react";
+import { AlertTriangle, ArrowRight, Boxes, CheckCircle2, FileWarning, GitBranch, GitPullRequest, Radio } from "lucide-react";
 
 import type { ProjectOverview } from "../../../src/application/web/contracts";
 import { featureRoute, projectRoute } from "../app/router";
@@ -42,5 +42,11 @@ export function ProjectOverviewView({ project, navigate }: { readonly project: P
 export function FeatureTable({ project, navigate }: { readonly project: ProjectOverview; readonly navigate: (path: string) => void }) {
   const { t, contractLabel } = useI18n();
   if (project.features.length === 0) return <EmptyState title={t("web.feature.empty")} description={t("web.feature.emptyDetail")} icon={<Boxes size={16} />} />;
-  return <div className="data-table"><div className="data-row data-head"><span>{t("web.table.feature")}</span><span>{t("web.table.workflow")}</span><span>{t("web.table.status")}</span><span>{t("web.table.progress")}</span><span>{t("web.table.next")}</span></div>{project.features.map((feature) => <button className="data-row" key={feature.id} onClick={() => navigate(featureRoute(project.id, feature.id))}><span><strong>{feature.name}</strong><small>{feature.id}</small></span><span>{pipelineName(feature.pipelineId)}</span><span><StatusBadge health={feature.health} /></span><span>{feature.progress.completed}/{feature.progress.required}</span><span>{feature.nextStepId === undefined ? "—" : contractLabel(feature.nextStepId)}</span></button>)}</div>;
+  return <div className="feature-index">{project.features.map((feature) => <button key={feature.id} onClick={() => navigate(featureRoute(project.id, feature.id))}>
+    <span className="feature-index-icon"><GitBranch size={15} /></span>
+    <span className="feature-index-main"><span><strong>{feature.name}</strong><em>{pipelineName(feature.pipelineId)}</em></span><small>{feature.id}</small></span>
+    <span className={`feature-index-state health-${feature.health}`}><i />{t(feature.status === "completed" ? "web.status.completed" : "web.status.incomplete")}</span>
+    <span className="feature-index-meta"><strong>{feature.nextStepId === undefined ? "—" : contractLabel(feature.nextStepId)}</strong><small>{feature.progress.completed}/{feature.progress.required} {t("web.table.progress").toLowerCase()}</small></span>
+    <ArrowRight className="feature-index-go" size={16} />
+  </button>)}</div>;
 }

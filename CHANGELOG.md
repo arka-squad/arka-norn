@@ -2,6 +2,27 @@
 
 Notable changes to arka-norn are recorded here. The project follows semantic versioning.
 
+## 2.2.7 - 2026-08-25
+
+### Changed
+
+- Project Doctor results now use a human health summary with readable checks, status counts and repair availability instead of raw JSON.
+- Feature indexes now follow the same visual grammar as signed Document indexes, with consistent hierarchy, status and responsive metadata.
+- Signed Document views use the available content width and render structured records as full-width rows with codes attached to their titles.
+
+### Fixed
+
+- Removed the raw JSON switch from signed Document views and render nested metadata recursively as human-readable fields.
+- Prevented structured record cards from splitting long titles into cramped two-column grids.
+
+### Accessibility
+
+- Feature and Doctor views remain free of horizontal overflow from 390 through 1920 pixels, with secondary list metadata progressively hidden on narrow screens.
+
+### Distribution
+
+- Package and manifest versions are 2.2.7.
+
 ## 2.2.6 - 2026-08-25
 
 ### Added

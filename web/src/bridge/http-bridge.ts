@@ -16,6 +16,7 @@ import type {
   SaveWebPreferencesInput,
   WebPreferences,
 } from "../../../src/application/web/contracts";
+import type { DoctorReport } from "../../../src/ports/inbound/for-doctor";
 
 interface ApiEnvelope<T> {
   readonly schemaVersion: 2;
@@ -51,8 +52,8 @@ export class HttpNornBridge implements NornBridge {
   public createProject(input: { readonly id: string; readonly name: string; readonly root: string }): Promise<ProjectOverview> { return this.request("/api/v1/projects", "POST", input); }
   public createFeature(projectId: string, input: { readonly id: string; readonly name: string; readonly root: string; readonly pipelineId?: string }): Promise<FeatureTrackingView> { return this.request(`/api/v1/projects/${encode(projectId)}/features`, "POST", input); }
   public appendGovernance(projectId: string, input: CreateGovernanceEventInput): Promise<GovernanceView> { return this.request(`/api/v1/projects/${encode(projectId)}/governance`, "POST", input); }
-  public inspectDoctor(): Promise<unknown> { return this.request("/api/v1/doctor"); }
-  public repairDoctor(input: { readonly apply: boolean; readonly confirmed: boolean }): Promise<unknown> { return this.request("/api/v1/doctor/repair", "POST", input); }
+  public inspectDoctor(): Promise<DoctorReport> { return this.request("/api/v1/doctor"); }
+  public repairDoctor(input: { readonly apply: boolean; readonly confirmed: boolean }): Promise<DoctorReport> { return this.request("/api/v1/doctor/repair", "POST", input); }
 
   public async subscribe(listener: (event: LiveInvalidation) => void, signal?: AbortSignal): Promise<void> {
     const response = await fetch("/api/v1/events", { headers: this.headers(), ...(signal === undefined ? {} : { signal }) });

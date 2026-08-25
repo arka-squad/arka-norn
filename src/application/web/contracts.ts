@@ -6,6 +6,7 @@
 import type { GovernanceEventKind, GovernanceTarget } from "../../domain/governance/governance-event.js";
 import type { WebOnboardingProgress, WebOnboardingState } from "../../domain/onboarding/web-onboarding-state.js";
 import type { OrchestrationProjection } from "../../domain/orchestration/orchestration-projection.js";
+import type { DoctorReport } from "../../ports/inbound/for-doctor.js";
 
 export type TrackingHealth = "healthy" | "attention" | "blocked" | "invalid";
 
@@ -297,7 +298,7 @@ export interface NornBridge {
   createProject(input: { readonly id: string; readonly name: string; readonly root: string }): Promise<ProjectOverview>;
   createFeature(projectId: string, input: { readonly id: string; readonly name: string; readonly root: string; readonly pipelineId?: string }): Promise<FeatureTrackingView>;
   appendGovernance(projectId: string, input: CreateGovernanceEventInput): Promise<GovernanceView>;
-  inspectDoctor(): Promise<unknown>;
-  repairDoctor(input: { readonly apply: boolean; readonly confirmed: boolean }): Promise<unknown>;
+  inspectDoctor(): Promise<DoctorReport>;
+  repairDoctor(input: { readonly apply: boolean; readonly confirmed: boolean }): Promise<DoctorReport>;
   subscribe(listener: (event: LiveInvalidation) => void, signal?: AbortSignal): Promise<void>;
 }
