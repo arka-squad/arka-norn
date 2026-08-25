@@ -1,0 +1,185 @@
+{
+  "schema_version": 5,
+  "id": "brief-norn-web-onboarding-1",
+  "feature_id": "norn-web-onboarding-e01f002a",
+  "type": "feature_brief",
+  "sequence": 1,
+  "created_at": "2026-08-24T14:37:44.000Z",
+  "depends_on_document_ids": [],
+  "content_locale": "fr",
+  "author_agent_id": "Anthropic-Claude_product_20260824",
+  "problem": "Norn Web n'a pas de véritable onboarding. Une personne qui ne maîtrise ni le terminal ni les contrats JSON traverse trois modales disjointes : la modale de profil (nom obligatoire, courriel facultatif) surgit au-dessus d'un fond vide sans expliquer que cette identité signe les décisions de gouvernance ; l'utilisateur arrive ensuite sur une liste de Projets vide et doit ouvrir une seconde modale pour enregistrer un dossier ; la création d'une première Feature et le choix de son workflow sont une étape séparée et déconnectée. Le routeur (hash uniquement) ne persiste ni progression, ni brouillon, ni dernière route valide : un rechargement renvoie au départ. La page ne revient pas en haut au changement de ressource et, à 390px, le rail de navigation à neuf entrées déborde hors écran. Un cadrage UX détaillé existe (features/web-project-tracking/ux-onboarding-ergonomie.md) mais reste hors pipeline : rien ne le trace ni ne l'impose.",
+  "objective": "Livrer un onboarding first-run cohérent et reprenable pour Norn Web (increment 1) : un parcours guidé en quatre étapes reliées — 1) Vous et votre rôle, 2) Relier un Projet, 3) Premier résultat à livrer, 4) Prêt à avancer — qui persiste sa progression, reprend exactement l'étape après un rechargement, humanise les libellés (aucun enum, alias de pipeline ou identifiant interne en primaire) et reste utilisable jusqu'à 390px. But : qu'une personne non technique atteigne la vue d'ensemble vérifiée de sa première Feature sans jamais toucher au terminal ni au JSON.",
+  "expected_outcome": "Un nouvel utilisateur atteint la vue d'ensemble de son premier Projet/Feature en quatre étapes explicites au maximum ; une interruption puis un rechargement reprennent l'étape exacte, champs déjà saisis conservés, sans dupliquer Projet ni Feature ; un utilisateur déjà configuré ne revoit pas l'onboarding et retrouve sa dernière route encore valide ; à 390px toutes les destinations restent découvrables sans rangée de navigation hors écran. L'onboarding n'est considéré comme terminé qu'une fois une première Feature créée.",
+  "scope": {
+    "included": [
+      "Gate d'onboarding remplaçant la ProfileDialog isolée par un parcours guidé à quatre étapes reliées (identité et rôle → relier un Projet → premier résultat/Feature → récapitulatif).",
+      "État d'onboarding durable et lié à l'identité locale : statut (not_started/in_progress/completed), étape courante, brouillons de formulaire non sensibles, identifiants de Projet et de Feature créés, dernière route valide, date de mise à jour ; reprise idempotente.",
+      "Règles d'entrée : profil présent/absent, Projet existant ou non, parcours interrompu, route récente devenue invalide.",
+      "Comportement de démarrage et de défilement : retour en haut au changement de ressource ; restauration de la route et de la position de lecture pour les documents longs.",
+      "Refonte de la navigation mobile : barre contextuelle Vue / Features / Documents / Plus, « Plus » ouvrant une feuille regroupant les destinations secondaires ; Projet actif visible dans l'en-tête.",
+      "Humanisation des libellés de workflow à l'étape « premier résultat » (cartes d'intention FastDev / Essential / Complete avec « pourquoi ce choix »), sans exposer les alias techniques (default, arka-norn-*)."
+    ],
+    "excluded": [
+      "Parcours d'onboarding CLI/TUI et onboarding d'Agent (installation, arka-norn guide, enregistrement d'identité et déclaration de périmètre) : reporté à un increment ultérieur.",
+      "Création d'un nouveau dossier Projet depuis le Web : seul l'enregistrement d'un dossier existant est pris en charge (arbitrage D2).",
+      "Refonte ergonomique approfondie vue par vue au-delà des vues critiques de l'onboarding (Lots 2 à 4 du cadrage UX : gouvernance, résultat d'audit, sommaire Documents, etc.).",
+      "Configuration d'un fournisseur IA, de workers ou d'un Agent dans l'onboarding Web : Norn Web observe les Agents mais ne les pilote pas."
+    ]
+  },
+  "impacted_areas": [
+    "web/src/App.tsx (montage du gate d'onboarding, remplacement de la ProfileDialog isolée)",
+    "web/src/app/router.ts (persistance de la route, reprise, retour en haut et restauration de position)",
+    "web/src/views/profile-dialog.tsx (étape identité et explication du rôle de gouvernance)",
+    "web/src/layout/app-shell.tsx (navigation mobile contextuelle et rafraîchissement des compteurs)",
+    "web/src/onboarding/* (nouveau modèle et vues du parcours guidé)",
+    "web/src/styles/base.css (densité, cibles tactiles, responsive 390px)",
+    "src/application/web/contracts.ts (contrat de l'état d'onboarding persistant, si nécessaire)"
+  ],
+  "batches": [
+    {
+      "id": "L1-parcours-guide",
+      "title": "Parcours guidé et gate d'onboarding : quatre étapes reliées (identité → Projet → première Feature → récapitulatif) remplaçant la modale de profil isolée.",
+      "depends_on": []
+    },
+    {
+      "id": "L2-persistance-reprise",
+      "title": "État durable, reprise idempotente après rechargement, retour en haut au changement de ressource et restauration route + position pour les documents longs.",
+      "depends_on": [
+        "L1-parcours-guide"
+      ]
+    },
+    {
+      "id": "L3-nav-mobile",
+      "title": "Navigation mobile en barre contextuelle Vue/Features/Documents/Plus avec feuille « Plus », et harmonisation de densité/cibles tactiles à 390px.",
+      "depends_on": []
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-UX-01",
+      "dimension": "ux",
+      "criterion": "Un nouvel utilisateur atteint la vue d'ensemble de sa première Feature en quatre étapes explicites au maximum, chaque étape énonçant sa question et son action principale.",
+      "expected_evidence": "Scénario de recette (ou enregistrement) partant de l'ouverture initiale jusqu'à la vue d'ensemble, comptant quatre étapes au plus."
+    },
+    {
+      "id": "AC-FUNC-01",
+      "dimension": "functional",
+      "criterion": "Une interruption puis un rechargement reprennent l'étape exacte avec les champs déjà saisis, sans dupliquer le Projet ni la Feature (reprise idempotente).",
+      "expected_evidence": "Test d'intégration coupant après l'étape 2 ou 3, rechargeant, et vérifiant l'étape restaurée, les champs conservés et l'absence de ressource dupliquée."
+    },
+    {
+      "id": "AC-FUNC-02",
+      "dimension": "functional",
+      "criterion": "Un utilisateur déjà configuré (profil et Projet présents) n'affiche pas l'onboarding et retrouve sa dernière route valide ; une route récente invalide ouvre le Projet concerné en expliquant sobrement pourquoi la destination n'existe plus.",
+      "expected_evidence": "Tests des règles d'entrée couvrant la matrice profil présent/absent × Projet présent/absent × route valide/invalide."
+    },
+    {
+      "id": "AC-FUNC-03",
+      "dimension": "functional",
+      "criterion": "L'onboarding n'est marqué completed qu'après création (ou ouverture confirmée) d'une première Feature ; sans Feature, le statut reste in_progress (arbitrage D3).",
+      "expected_evidence": "Test montrant qu'à l'issue des étapes sans première Feature, le statut persistant demeure in_progress, et bascule completed après création."
+    },
+    {
+      "id": "AC-UX-02",
+      "dimension": "ux",
+      "criterion": "À 390px, toutes les destinations restent découvrables via la barre contextuelle et la feuille « Plus », sans rangée hors écran ; les actions principales offrent des cibles tactiles d'au moins 44x44px.",
+      "expected_evidence": "Recette responsive à 390px (capture) et revue des cibles tactiles des actions principales."
+    },
+    {
+      "id": "AC-CODE-01",
+      "dimension": "code",
+      "criterion": "L'état d'onboarding ne duplique ni la santé, ni les documents, ni le workflow des ressources ; après chaque mutation, Norn relit la ressource et mémorise son identifiant ; aucun libellé principal n'est un enum, un alias de pipeline ou un identifiant interne.",
+      "expected_evidence": "Revue de code du modèle d'onboarding (relecture post-mutation, idempotence) et contrôle statique de l'absence d'alias arka-norn-* / default en libellé primaire."
+    },
+    {
+      "id": "AC-SEC-01",
+      "dimension": "security",
+      "criterion": "Aucune donnée sensible (secret, clé, jeton) n'est persistée dans l'état d'onboarding ; la persistance reste locale et liée à l'identité ; aucun envoi vers un service externe n'est déclenché ; le courriel reste facultatif.",
+      "expected_evidence": "Revue du contenu réellement persisté (localStorage / contrat Web) et vérification de l'absence d'appel réseau sortant pendant l'onboarding."
+    }
+  ],
+  "expected_tests": [
+    "Test d'intégration de reprise : coupure puis rechargement à l'étape 2/3 sans duplication de Projet ni de Feature.",
+    "Tests unitaires des règles d'entrée (matrice profil × Projet × validité de route).",
+    "Test de complétion conditionnée : statut completed uniquement après création d'une première Feature.",
+    "Test responsive 390px : barre contextuelle, feuille « Plus » et cibles tactiles.",
+    "Test de sécurité/confidentialité : l'état persisté ne contient aucun secret et l'onboarding ne déclenche aucun appel réseau externe."
+  ],
+  "risks": [
+    {
+      "id": "R1",
+      "risk": "Duplication de Projet ou de Feature lors d'une reprise si l'idempotence est mal implémentée.",
+      "mitigation": "Mémoriser les identifiants créés, relire la ressource après chaque mutation et rendre les opérations de création idempotentes."
+    },
+    {
+      "id": "R2",
+      "risk": "L'état d'onboarding devient une seconde source de vérité divergente de l'état réel des ressources.",
+      "mitigation": "L'état ne duplique ni santé, ni documents, ni workflow ; les ressources créées restent autoritaires et sont relues après mutation."
+    },
+    {
+      "id": "R3",
+      "risk": "Le contrat Web ne prend pas réellement en charge certaines actions exposées (détecter des Features existantes, créer une Feature).",
+      "mitigation": "Vérifier les capacités réelles du contrat avant de les exposer et dégrader honnêtement (enregistrement de dossier existant uniquement, D2)."
+    },
+    {
+      "id": "R4",
+      "risk": "Régression de navigation (retour/précédent) ou de position de défilement en modifiant le routeur.",
+      "mitigation": "Préserver le comportement back/forward du navigateur et couvrir la navigation et la restauration par des tests dédiés."
+    }
+  ],
+  "definition_of_done": [
+    "Les quatre étapes reliées (identité → Projet → première Feature → récapitulatif) sont livrées et la modale de profil isolée est retirée.",
+    "L'état d'onboarding est durable, versionné et reprend l'étape exacte après un rechargement, de façon idempotente.",
+    "La page revient en haut au changement de ressource ; la route et la position de lecture sont restaurées pour les documents longs.",
+    "La navigation mobile contextuelle (Vue/Features/Documents/Plus) est opérationnelle et testée à 390px.",
+    "L'onboarding n'est complété qu'après création d'une première Feature (D3).",
+    "Tous les critères d'acceptation sont couverts par les tests attendus ; aucun enum, alias ou identifiant interne n'est utilisé comme libellé primaire."
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "subject": "Convention de dossier de Feature",
+      "decision": "Les Features sont créées sous features/ à la racine du Projet.",
+      "justification": "Aligne sur les deux Features existantes du Projet (web-project-tracking, workflow-essentiel) et sur la convention réelle observée."
+    },
+    {
+      "id": "D2",
+      "subject": "Création versus enregistrement d'un dossier Projet depuis le Web",
+      "decision": "Le Web enregistre uniquement un dossier Projet existant ; la création d'emplacement reste au sélecteur natif du flux humain.",
+      "justification": "L'agent-guide interdit à l'interface d'inventer un chemin : la sélection d'emplacement appartient au flux humain avec sélecteur de dossier natif."
+    },
+    {
+      "id": "D3",
+      "subject": "Condition de complétion de l'onboarding",
+      "decision": "L'onboarding n'est terminé qu'après création d'une première Feature.",
+      "justification": "Arbitrage Produit : garantir que l'utilisateur atteint un état réellement productif, pas seulement l'enregistrement d'une identité."
+    },
+    {
+      "id": "D4",
+      "subject": "Portée de la restauration de lecture",
+      "decision": "Restaurer la route et la position de défilement pour les documents longs ; route seule pour les autres vues.",
+      "justification": "Confort de lecture des contenus longs sans complexifier inutilement les vues courtes."
+    },
+    {
+      "id": "D5",
+      "subject": "Navigation mobile cible",
+      "decision": "Barre contextuelle Vue / Features / Documents / Plus, « Plus » ouvrant une feuille regroupant les destinations secondaires.",
+      "justification": "Rend les neuf destinations découvrables à 390px sans rangée ambiguë hors écran."
+    }
+  ],
+  "invariants": [
+    {
+      "id": "INV1",
+      "statement": "L'interface Web explique le Projet sans devenir une seconde source de vérité ; les ressources créées restent autoritaires et sont relues après chaque mutation."
+    },
+    {
+      "id": "INV2",
+      "statement": "Aucun enum, alias de pipeline ou identifiant interne n'est utilisé comme libellé principal exposé à l'utilisateur."
+    },
+    {
+      "id": "INV3",
+      "statement": "Le Web observe les Agents et l'état durable ; il ne pilote pas les Agents et n'invente ni disponibilité, ni progression, ni coût."
+    }
+  ]
+}

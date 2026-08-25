@@ -22,6 +22,7 @@ import { createGovernanceEvent } from "../../domain/governance/governance-event.
 import { reduceGovernance } from "../../domain/governance/governance-ledger.js";
 import { FeatureId } from "../../domain/feature/feature-id.js";
 import type { Feature } from "../../domain/feature/feature.js";
+import { createWebOnboardingState } from "../../domain/onboarding/web-onboarding-state.js";
 import { ProjectId } from "../../domain/project/project-id.js";
 import type { Project } from "../../domain/project/project.js";
 import type { ForDoctor } from "../../ports/inbound/for-doctor.js";
@@ -45,6 +46,7 @@ import type {
   PrepareAuditInput,
   RelationshipEdge,
   RelationshipNode,
+  SaveWebPreferencesInput,
   TrackingHealth,
   WebPreferences,
 } from "./contracts.js";
@@ -302,13 +304,19 @@ export class ProjectTrackingService {
       }),
       preferredSurface: preferences.preferredSurface,
       ...(preferences.humanProfile === undefined ? {} : { humanProfile: preferences.humanProfile }),
+      ...(preferences.onboarding === undefined ? {} : { onboarding: preferences.onboarding }),
     };
   }
 
-  public async savePreferences(input: { readonly locale?: "auto" | "en" | "fr"; readonly name?: string; readonly email?: string; readonly preferredSurface?: "web" | "tui" | "cli" }): Promise<WebPreferences> {
+  public async savePreferences(input: SaveWebPreferencesInput): Promise<WebPreferences> {
     if (input.locale !== undefined) await this.options.preferences.save(input.locale);
     if (input.name !== undefined) await this.options.preferences.saveHumanProfile({ name: input.name, ...(input.email === undefined ? {} : { email: input.email }) });
     if (input.preferredSurface !== undefined) await this.options.preferences.savePreferredSurface(input.preferredSurface);
+    if (input.onboarding !== undefined) {
+      const preferences = await this.options.preferences.loadPreferences();
+      if (preferences.humanProfile === undefined) throw new Error("A human profile is required before saving Web onboarding.");
+      await this.options.preferences.saveOnboardingState(createWebOnboardingState(input.onboarding, preferences.humanProfile.id, this.now()));
+    }
     return this.getPreferences();
   }
 

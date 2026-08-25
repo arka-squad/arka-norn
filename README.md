@@ -2,7 +2,7 @@
 
 arka.norn is a local Project tracking and delivery framework for Features, signed documents, human decisions, evidence and auditable workflows. `arka-norn` is its command. It provides a Project manager Web interface, an interactive TUI and a scriptable CLI without making an external SaaS the source of truth.
 
-The current release adds safe Product orchestration around locally authenticated Claude Code and Codex CLIs. A durable campaign, one domain projection and mechanical receipts keep the Product, Norn Web, TUI and CLI aligned. English remains canonical for contracts and machine data.
+The current release adds a four-step first-run Web onboarding, durable route and reading-position recovery, human workflow labels and mobile Project navigation. Existing configured users migrate without being forced through onboarding or being marked complete incorrectly. English remains canonical for contracts and machine data.
 
 ## Requirements
 
@@ -39,7 +39,7 @@ node bin/arka-norn.mjs web stop
 
 From a source checkout, the equivalent shortcuts are `npm run web:start`, `npm run web:status`, `npm run web:restart` and `npm run web:stop`.
 
-The Web interface presents Project health, Feature paths, every signed document in a human layout, decisions, audits, registered Agents and live Norn orchestration state. It remains read-only for orchestration: the Product Agent is the conversational control, the TUI is the advanced cockpit and the CLI is the automation/diagnostic surface.
+The Web interface presents Project health, Feature paths, every signed document in a human layout, decisions, audits, registered Agents and live Norn orchestration state. New users follow four guided steps: local identity, existing Project, first Feature and verified summary. It remains read-only for orchestration: the Product Agent is the conversational control, the TUI is the advanced cockpit and the CLI is the automation/diagnostic surface.
 
 Its interface uses the official Arka Labs mark, compact Project rail, product surfaces, Poppins and JetBrains Mono in both dark and light themes. Light sand is reserved for layout chrome while working content remains white; primary commands stay neutral and Arka red identifies the product. Signed documents are grouped by Feature and Pipeline order, retain replaced revisions, and receive an editorial EN/FR reading view with a contract-derived header, navigable dependencies and human-readable provenance. Read-only technical JSON remains available through progressive disclosure.
 

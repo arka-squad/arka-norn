@@ -9,6 +9,7 @@ import { Modal } from "../components/modal";
 import { Button, PageTitle } from "../components/ui";
 import { AdvancedFields, FieldHint, FolderPickerField, FormError, FormIntro, WorkflowOptions } from "../components/guided-form";
 import { useI18n } from "../i18n/i18n";
+import { featureRoot, slug } from "../onboarding/onboarding-model";
 import { FeatureTable } from "./project-overview";
 
 export function FeaturesView({ project, navigate, onCreated }: { readonly project: ProjectOverview; readonly navigate: (path: string) => void; readonly onCreated: () => void }) {
@@ -39,15 +40,11 @@ function CreateFeatureDialog({ project, onClose, onCreated }: { readonly project
   return <Modal title={t("web.action.createFeature")} description={t("web.feature.createDescription")} icon={<Boxes size={16} />} onClose={onClose} footer={<><Button onClick={onClose}>{t("web.action.cancel")}</Button><Button form="create-feature" type="submit" variant="primary" disabled={busy || name.length === 0 || id.length === 0 || root.length === 0}>{t("web.action.addFeature")}</Button></>}>
     <FormIntro>{t("web.feature.createGuidance")}</FormIntro>
     <form id="create-feature" className="form-grid" onSubmit={(event) => void submit(event)}>
-      <label className="full">{t("web.form.name")}<input required maxLength={256} value={name} onChange={(event) => { const next = event.target.value; const nextId = slug(next); setName(next); setId(nextId); if (!customRoot) setRoot(nextId.length === 0 ? "" : `${project.root}/${nextId}`); }} /><FieldHint>{t("web.feature.nameHint")}</FieldHint></label>
+      <label className="full">{t("web.form.name")}<input required maxLength={256} value={name} onChange={(event) => { const next = event.target.value; const nextId = slug(next); setName(next); setId(nextId); if (!customRoot) setRoot(nextId.length === 0 ? "" : featureRoot(project.root, nextId)); }} /><FieldHint>{t("web.feature.nameHint")}</FieldHint></label>
       <FolderPickerField label={t("web.form.root")} hint={t("web.feature.folderHint")} purpose="feature" defaultPath={project.root} value={root} onChange={(path) => { setRoot(path); setCustomRoot(true); }} onError={setError} />
       <div className="full folder-field"><span className="folder-field-label">{t("web.form.workflow")}</span><WorkflowOptions value={pipelineId} options={contracts.pipelines} onChange={setPipelineId} /><FieldHint>{t("web.feature.workflowHint")}</FieldHint></div>
       <AdvancedFields label={t("web.form.technicalDetails")}><label>{t("web.form.id")}<input required pattern="[a-z0-9][a-z0-9-]{0,63}" value={id} onChange={(event) => setId(event.target.value)} /><FieldHint>{t("web.form.idHint")}</FieldHint></label></AdvancedFields>
       <FormError message={error} />
     </form>
   </Modal>;
-}
-
-function slug(value: string): string {
-  return value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 64);
 }

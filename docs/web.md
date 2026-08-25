@@ -29,6 +29,14 @@ The first screen asks for a human name and optional email. This creates a stable
 
 Creating a Project or Feature is a guided flow for non-developers. Choose locations with the operating system's native folder picker; paths are not entered in free-form fields. Norn suggests stable identifiers and a Feature location, then keeps those technical values under progressive disclosure. Workflow choices explain when to use Essential, Complete or FastDev before creation.
 
+## First-run onboarding
+
+New users follow four guided steps: create the local human identity, register an existing Project, create the first Feature and review a verified summary before entering the Project overview. Onboarding never asks for an AI provider, API key or online account.
+
+Progress is bound to the local identity and stores only non-sensitive drafts. Reloading resumes the current step idempotently, invalid saved routes recover to the nearest valid Project view, and document reading position is restored when the user returns. Existing configured users migrate silently to route persistence without being forced through onboarding or being marked complete incorrectly.
+
+Workflow cards use human labels and plain-language outcomes; technical workflow identifiers remain available under progressive disclosure. On small screens, the Project bar exposes Overview, Features and Documents directly. The More sheet contains the remaining destinations, traps keyboard focus, closes with Escape and restores focus to its trigger.
+
 ## Project tracking
 
 The Project overview aggregates every registered Feature and reports:

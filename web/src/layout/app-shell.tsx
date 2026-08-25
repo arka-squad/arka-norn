@@ -1,7 +1,7 @@
-import { useState, type PropsWithChildren } from "react";
+import { useEffect, useRef, useState, type PropsWithChildren } from "react";
 import {
   Activity, Bot, Boxes, ClipboardCheck, FileText, FolderKanban, GitBranch, Languages,
-  Github, LayoutDashboard, Moon, Settings, Star, Sun, Waypoints,
+  Github, LayoutDashboard, Menu, Moon, Settings, Star, Sun, Waypoints, X,
 } from "lucide-react";
 
 import type { ProjectOverview } from "../../../src/application/web/contracts";
@@ -34,6 +34,42 @@ export function AppShell({ route, project, live, navigate, children }: PropsWith
   const { locale, setLocale, t } = useI18n();
   const bridge = useBridge();
   const [theme, setTheme] = useState(document.documentElement.dataset.theme === "light" ? "light" : "dark");
+  const [mobileMore, setMobileMore] = useState(false);
+  const mobileMoreTrigger = useRef<HTMLButtonElement>(null);
+  const mobileMoreSheet = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!mobileMore) return;
+    const sheet = mobileMoreSheet.current;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    sheet?.querySelector<HTMLElement>("button")?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMobileMore(false);
+        return;
+      }
+      if (event.key !== "Tab" || sheet === null) return;
+      const focusable = [...sheet.querySelectorAll<HTMLElement>("button:not([disabled]), a[href]")];
+      if (focusable.length === 0) return;
+      const first = focusable.at(0);
+      const last = focusable.at(-1);
+      if (first === undefined || last === undefined) return;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      mobileMoreTrigger.current?.focus();
+    };
+  }, [mobileMore]);
   const toggleTheme = () => {
     const next = theme === "dark" ? "light" : "dark";
     document.documentElement.dataset.theme = next;
@@ -75,6 +111,19 @@ export function AppShell({ route, project, live, navigate, children }: PropsWith
       </header>
       <main><div className="route-stage" key={routeKey(route)}>{children}</div></main>
     </div>
+    {route.projectId === undefined ? null : <nav className="mobile-navigation" aria-label={t("web.common.primaryNavigation")}>
+      {NAVIGATION.slice(0, 3).map(([section, Icon, label]) => <button key={section} className={route.section === section ? "active" : ""} onClick={() => { setMobileMore(false); navigate(projectRoute(route.projectId!, section)); }}><Icon size={19} /><span>{t(label)}</span></button>)}
+      <button ref={mobileMoreTrigger} className={NAVIGATION.slice(3).some(([section]) => section === route.section) ? "active" : ""} aria-expanded={mobileMore} onClick={() => setMobileMore(true)}><Menu size={19} /><span>{t("web.nav.more")}</span></button>
+    </nav>}
+    {!mobileMore || route.projectId === undefined ? null : <div className="mobile-more-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setMobileMore(false); }}>
+      <section ref={mobileMoreSheet} className="mobile-more-sheet" role="dialog" aria-modal="true" aria-labelledby="mobile-more-title">
+        <header><div><small>{project?.name ?? route.projectId}</small><h2 id="mobile-more-title">{t("web.nav.more")}</h2></div><button className="icon-button" aria-label={t("web.action.close")} onClick={() => setMobileMore(false)}><X size={17} /></button></header>
+        <div>{NAVIGATION.slice(3).map(([section, Icon, label]) => {
+          const count = navigationCount(section, project);
+          return <button key={section} className={route.section === section ? "active" : ""} onClick={() => { setMobileMore(false); navigate(projectRoute(route.projectId!, section)); }}><Icon size={18} /><span>{t(label)}</span>{count === undefined ? null : <small>{count}</small>}</button>;
+        })}</div>
+      </section>
+    </div>}
   </div>;
 }
 

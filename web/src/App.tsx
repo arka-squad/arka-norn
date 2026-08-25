@@ -1,7 +1,7 @@
-import { lazy, Suspense, useCallback, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 
-import type { LiveInvalidation, NornBridge, ProjectOverview, WebPreferences } from "../../src/application/web/contracts";
-import { documentRoute, useRoute } from "./app/router";
+import type { FeatureTrackingView, LiveInvalidation, NornBridge, ProjectOverview, WebPreferences } from "../../src/application/web/contracts";
+import { documentRoute, featureRoute, parseRoutePath, projectRoute, routePath, useRoute } from "./app/router";
 import { BridgeContext, useBridge } from "./bridge/context";
 import { DocumentRenderer } from "./components/document-renderer";
 import { ErrorState, LoadingState } from "./components/ui";
@@ -9,6 +9,8 @@ import { useAsync } from "./hooks/use-async";
 import { useLive } from "./hooks/use-live";
 import { I18nProvider, useI18n } from "./i18n/i18n";
 import { AppShell } from "./layout/app-shell";
+import { OnboardingGate } from "./onboarding/onboarding-gate";
+import { isSafeRememberedRoute } from "./onboarding/onboarding-model";
 import { AgentsView } from "./views/agents-view";
 import { AuditsView } from "./views/audits-view";
 import { DocumentsView } from "./views/documents-view";
@@ -16,7 +18,6 @@ import { FeatureView } from "./views/feature-view";
 import { FeaturesView } from "./views/features-view";
 import { GovernancePage } from "./views/governance-view";
 import { LiveView } from "./views/live-view";
-import { ProfileDialog } from "./views/profile-dialog";
 import { ProjectOverviewView } from "./views/project-overview";
 import { ProjectsView } from "./views/projects-view";
 import { SettingsView } from "./views/settings-view";
@@ -25,19 +26,51 @@ const RelationshipGraphView = lazy(() => import("./views/relationship-graph"));
 
 export function App({ bridge, initialPreferences }: { readonly bridge: NornBridge; readonly initialPreferences: WebPreferences }) {
   const [preferences, setPreferences] = useState(initialPreferences);
-  return <BridgeContext.Provider value={bridge}><I18nProvider initialLocale={preferences.resolvedLocale}><NornApp preferences={preferences} refreshPreferences={() => void bridge.getPreferences().then(setPreferences)} /></I18nProvider></BridgeContext.Provider>;
+  return <BridgeContext.Provider value={bridge}><I18nProvider initialLocale={preferences.resolvedLocale}><NornApp preferences={preferences} onPreferences={setPreferences} /></I18nProvider></BridgeContext.Provider>;
 }
 
-function NornApp({ preferences, refreshPreferences }: { readonly preferences: WebPreferences; readonly refreshPreferences: () => void }) {
+function NornApp({ preferences, onPreferences }: { readonly preferences: WebPreferences; readonly onPreferences: (preferences: WebPreferences) => void }) {
   const bridge = useBridge();
   const { route, navigate } = useRoute();
+  const { t } = useI18n();
   const [liveRevision, setLiveRevision] = useState(0);
+  const [navigationRecovered, setNavigationRecovered] = useState(false);
+  const restorationAttempted = useRef(false);
+  const currentPath = routePath(route);
+  const refreshPreferences = useCallback(() => { void bridge.getPreferences().then(onPreferences); }, [bridge, onPreferences]);
   const onInvalidate = useCallback((event: LiveInvalidation) => setLiveRevision((value) => value + (event.revision > 0 ? 1 : 0)), []);
   const live = useLive(bridge, onInvalidate);
   const project = useAsync(
     async () => route.projectId === undefined ? undefined : bridge.getProject(route.projectId),
     [bridge, route.projectId, liveRevision],
   );
+  useEffect(() => {
+    if (route.documentId === undefined) window.scrollTo({ top: 0, behavior: "instant" });
+  }, [currentPath, route.documentId]);
+  useEffect(() => {
+    const saved = preferences.onboarding;
+    if (saved === undefined || saved.lastRoute === currentPath || route.projectId === undefined) return;
+    const timer = setTimeout(() => {
+      void bridge.savePreferences({ onboarding: {
+        status: saved.status,
+        step: saved.step,
+        ...(saved.projectId === undefined ? {} : { projectId: saved.projectId }),
+        ...(saved.featureId === undefined ? {} : { featureId: saved.featureId }),
+        ...(saved.draft === undefined ? {} : { draft: saved.draft }),
+        lastRoute: currentPath,
+      } }).then(onPreferences).catch(() => undefined);
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [bridge, currentPath, onPreferences, preferences.onboarding, route.projectId]);
+  useEffect(() => {
+    const remembered = preferences.onboarding?.lastRoute;
+    if (restorationAttempted.current || currentPath !== "/projects" || !isSafeRememberedRoute(remembered) || remembered === "/projects") return;
+    restorationAttempted.current = true;
+    void resolveRememberedPath(bridge, remembered).then((result) => {
+      setNavigationRecovered(result.recovered);
+      navigate(result.path);
+    });
+  }, [bridge, currentPath, navigate, preferences.onboarding]);
   const content = route.section === "projects"
     ? <ProjectsView navigate={navigate} />
     : route.projectId === undefined || project.loading && project.data === undefined
@@ -45,7 +78,11 @@ function NornApp({ preferences, refreshPreferences }: { readonly preferences: We
       : project.error !== undefined || project.data === undefined
         ? <ErrorState error={project.error} retry={project.reload} />
         : <ProjectContent projectId={route.projectId} section={route.section} {...(route.featureId === undefined ? {} : { featureId: route.featureId })} {...(route.documentId === undefined ? {} : { documentId: route.documentId })} project={project.data} revision={liveRevision} navigate={navigate} reloadProject={project.reload} preferences={preferences} refreshPreferences={refreshPreferences} />;
-  return <AppShell route={route} {...(project.data === undefined ? {} : { project: project.data })} live={live} navigate={navigate}>{content}{preferences.humanProfile === undefined ? <ProfileDialog onSaved={refreshPreferences} /> : null}</AppShell>;
+  const shell = <AppShell route={route} {...(project.data === undefined ? {} : { project: project.data })} live={live} navigate={navigate}>
+    {navigationRecovered ? <div className="navigation-recovery" role="status">{t("web.navigation.recovered")}</div> : null}
+    {content}
+  </AppShell>;
+  return <OnboardingGate preferences={preferences} onPreferences={onPreferences} navigate={navigate}>{shell}</OnboardingGate>;
 }
 
 function ProjectContent(props: {
@@ -61,7 +98,7 @@ function ProjectContent(props: {
   readonly refreshPreferences: () => void;
 }) {
   if (props.featureId !== undefined) {
-    return <FeatureContent projectId={props.projectId} featureId={props.featureId} {...(props.documentId === undefined ? {} : { documentId: props.documentId })} revision={props.revision} navigate={props.navigate} />;
+    return <FeatureContent projectId={props.projectId} featureId={props.featureId} {...(props.documentId === undefined ? {} : { documentId: props.documentId })} revision={props.revision} navigate={props.navigate} {...(props.preferences.humanProfile === undefined ? {} : { humanProfileId: props.preferences.humanProfile.id })} />;
   }
   if (props.section === "overview") return <ProjectOverviewView project={props.project} navigate={props.navigate} />;
   if (props.section === "features") return <FeaturesView project={props.project} navigate={props.navigate} onCreated={props.reloadProject} />;
@@ -74,14 +111,28 @@ function ProjectContent(props: {
   return <SettingsView preferences={props.preferences} onChanged={props.refreshPreferences} />;
 }
 
-function FeatureContent({ projectId, featureId, documentId, revision, navigate }: { readonly projectId: string; readonly featureId: string; readonly documentId?: string; readonly revision: number; readonly navigate: (path: string) => void }) {
+function FeatureContent({ projectId, featureId, documentId, revision, navigate, humanProfileId }: { readonly projectId: string; readonly featureId: string; readonly documentId?: string; readonly revision: number; readonly navigate: (path: string) => void; readonly humanProfileId?: string }) {
   const bridge = useBridge();
   const feature = useAsync(() => bridge.getFeature(projectId, featureId), [bridge, projectId, featureId, revision]);
   return dataView(feature, (data) => {
     if (documentId === undefined) return <FeatureView feature={data} navigate={navigate} />;
     const document = data.documents.find((item) => item.id === documentId);
-    return document === undefined ? <ErrorState /> : <div className="page"><DocumentRenderer document={document} onOpenDependency={(id) => navigate(documentRoute(projectId, featureId, id))} /></div>;
+    return document === undefined ? <ErrorState /> : <DocumentReadingView document={document} projectId={projectId} featureId={featureId} {...(humanProfileId === undefined ? {} : { humanProfileId })} navigate={navigate} />;
   });
+}
+
+function DocumentReadingView({ document, projectId, featureId, humanProfileId, navigate }: { readonly document: FeatureTrackingView["documents"][number]; readonly projectId: string; readonly featureId: string; readonly humanProfileId?: string; readonly navigate: (path: string) => void }) {
+  const path = documentRoute(projectId, featureId, document.id);
+  useEffect(() => {
+    const key = humanProfileId === undefined ? undefined : `arka-norn-reading:${humanProfileId}:${path}`;
+    const saved = key === undefined ? 0 : Number(localStorage.getItem(key));
+    const timer = setTimeout(() => window.scrollTo({ top: Number.isFinite(saved) ? saved : 0, behavior: "instant" }), 0);
+    return () => {
+      clearTimeout(timer);
+      if (key !== undefined) localStorage.setItem(key, String(Math.max(0, Math.round(window.scrollY))));
+    };
+  }, [humanProfileId, path]);
+  return <div className="page"><DocumentRenderer document={document} onOpenDependency={(id) => navigate(documentRoute(projectId, featureId, id))} /></div>;
 }
 
 function DocumentsContent({ project, revision, navigate }: { readonly project: ProjectOverview; readonly revision: number; readonly navigate: (path: string) => void }) {
@@ -127,4 +178,23 @@ function dataView<T>(state: { readonly data?: T; readonly loading: boolean; read
   if (state.loading && state.data === undefined) return <LoadingState />;
   if (state.error !== undefined || state.data === undefined) return <ErrorState error={state.error} retry={state.reload} />;
   return render(state.data);
+}
+
+async function resolveRememberedPath(bridge: NornBridge, remembered: string): Promise<{ readonly path: string; readonly recovered: boolean }> {
+  try {
+    const target = parseRoutePath(remembered);
+    if (target.projectId === undefined) return { path: "/projects", recovered: remembered !== "/projects" };
+    const project = await bridge.getProject(target.projectId);
+    if (target.featureId !== undefined) {
+      if (!project.features.some((feature) => feature.id === target.featureId)) return { path: projectRoute(project.id), recovered: true };
+      if (target.documentId !== undefined) {
+        const feature = await bridge.getFeature(project.id, target.featureId);
+        if (!feature.documents.some((document) => document.id === target.documentId)) return { path: featureRoute(project.id, target.featureId), recovered: true };
+      }
+    }
+    const normalized = routePath(target);
+    return { path: normalized, recovered: normalized !== remembered };
+  } catch {
+    return { path: "/projects", recovered: true };
+  }
 }

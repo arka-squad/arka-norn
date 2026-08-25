@@ -29,12 +29,30 @@ export function documentRoute(projectId: string, featureId: string, documentId: 
   return `${featureRoute(projectId, featureId)}/documents/${encodeURIComponent(documentId)}`;
 }
 
+export function routePath(route: AppRoute): string {
+  if (route.projectId === undefined) return "/projects";
+  if (route.featureId !== undefined) {
+    return route.documentId === undefined
+      ? featureRoute(route.projectId, route.featureId)
+      : documentRoute(route.projectId, route.featureId, route.documentId);
+  }
+  return projectRoute(route.projectId, route.section);
+}
+
+export function parseRoutePath(path: string): AppRoute {
+  return parseRoute(path);
+}
+
 function navigate(path: string): void {
   window.location.hash = `#${path.startsWith("/") ? path : `/${path}`}`;
 }
 
 function readRoute(): AppRoute {
-  const parts = window.location.hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
+  return parseRoute(window.location.hash);
+}
+
+function parseRoute(path: string): AppRoute {
+  const parts = path.replace(/^#\/?/, "").replace(/^\//, "").split("/").filter(Boolean).map(decodeURIComponent);
   if (parts[0] !== "projects" || parts[1] === undefined) return { section: "projects" };
   const projectId = parts[1];
   if (parts[2] === "features" && parts[3] !== undefined) {

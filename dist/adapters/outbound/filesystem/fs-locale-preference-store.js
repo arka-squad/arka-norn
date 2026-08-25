@@ -8,6 +8,7 @@ import { chmod, copyFile } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
 import { parseLocalePreference } from "../../../application/localization/locale.js";
 import { createHumanProfile, isHumanProfile } from "../../../domain/governance/human-profile.js";
+import { parseWebOnboardingState } from "../../../domain/onboarding/web-onboarding-state.js";
 import { readJson, writeJsonAtomic } from "./_shared/atomic-json.js";
 import { withFileLock } from "./_shared/file-lock.js";
 export const PREFERRED_SURFACES = ["web", "tui", "cli"];
@@ -27,20 +28,29 @@ export class FsLocalePreferenceStore {
     async loadPreferences() {
         const value = await readJson(this.path());
         if (value === undefined)
-            return { schemaVersion: 3, locale: "auto", preferredSurface: "web" };
-        if (!isRecord(value) || ![1, 2, 3].includes(Number(value["schemaVersion"])) || typeof value["locale"] !== "string") {
+            return { schemaVersion: 4, locale: "auto", preferredSurface: "web" };
+        if (!isRecord(value) || ![1, 2, 3, 4].includes(Number(value["schemaVersion"])) || typeof value["locale"] !== "string") {
             throw new Error("Invalid user preference file.");
         }
         const locale = parseLocalePreference(value["locale"]);
         if (value["schemaVersion"] === 1)
-            return { schemaVersion: 3, locale, preferredSurface: "web" };
+            return { schemaVersion: 4, locale, preferredSurface: "web" };
         if (value["humanProfile"] !== undefined && !isHumanProfile(value["humanProfile"])) {
             throw new Error("Invalid human profile in preference file.");
         }
-        const preferredSurface = value["schemaVersion"] === 3
+        const preferredSurface = value["schemaVersion"] === 3 || value["schemaVersion"] === 4
             ? parsePreferredSurface(value["preferredSurface"])
             : "web";
-        return { schemaVersion: 3, locale, preferredSurface, ...(value["humanProfile"] === undefined ? {} : { humanProfile: createHumanProfile(value["humanProfile"]) }) };
+        const onboarding = value["schemaVersion"] === 4 && value["onboarding"] !== undefined
+            ? parseWebOnboardingState(value["onboarding"])
+            : undefined;
+        return {
+            schemaVersion: 4,
+            locale,
+            preferredSurface,
+            ...(value["humanProfile"] === undefined ? {} : { humanProfile: createHumanProfile(value["humanProfile"]) }),
+            ...(onboarding === undefined ? {} : { onboarding }),
+        };
     }
     async savePreferredSurface(preferredSurface) {
         const current = await this.loadPreferences();
@@ -56,6 +66,12 @@ export class FsLocalePreferenceStore {
         await this.persist({ ...current, humanProfile: profile });
         return profile;
     }
+    async saveOnboardingState(onboarding) {
+        const current = await this.loadPreferences();
+        if (current.humanProfile?.id !== onboarding.ownerHumanProfileId)
+            throw new Error("Web onboarding state belongs to another human profile.");
+        await this.persist({ ...current, onboarding: parseWebOnboardingState(onboarding) });
+    }
     path() {
         return resolve(this.homeDir, ".arka-norn", "preferences.json");
     }
@@ -63,7 +79,7 @@ export class FsLocalePreferenceStore {
         const path = this.path();
         await withFileLock(path, async () => {
             const previous = await readJson(path);
-            if (isRecord(previous) && (previous["schemaVersion"] === 1 || previous["schemaVersion"] === 2)) {
+            if (isRecord(previous) && [1, 2, 3].includes(Number(previous["schemaVersion"]))) {
                 const backup = `${path}.v${String(previous["schemaVersion"])}.backup`;
                 try {
                     await copyFile(path, backup, constants.COPYFILE_EXCL);

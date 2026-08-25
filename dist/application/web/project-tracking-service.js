@@ -18,6 +18,7 @@ import { projectOrchestration } from "../../domain/orchestration/orchestration-p
 import { createGovernanceEvent } from "../../domain/governance/governance-event.js";
 import { reduceGovernance } from "../../domain/governance/governance-ledger.js";
 import { FeatureId } from "../../domain/feature/feature-id.js";
+import { createWebOnboardingState } from "../../domain/onboarding/web-onboarding-state.js";
 import { ProjectId } from "../../domain/project/project-id.js";
 import { createFeatureTrackingView } from "./feature-tracking.js";
 export class ProjectTrackingService {
@@ -247,6 +248,7 @@ export class ProjectTrackingService {
             }),
             preferredSurface: preferences.preferredSurface,
             ...(preferences.humanProfile === undefined ? {} : { humanProfile: preferences.humanProfile }),
+            ...(preferences.onboarding === undefined ? {} : { onboarding: preferences.onboarding }),
         };
     }
     async savePreferences(input) {
@@ -256,6 +258,12 @@ export class ProjectTrackingService {
             await this.options.preferences.saveHumanProfile({ name: input.name, ...(input.email === undefined ? {} : { email: input.email }) });
         if (input.preferredSurface !== undefined)
             await this.options.preferences.savePreferredSurface(input.preferredSurface);
+        if (input.onboarding !== undefined) {
+            const preferences = await this.options.preferences.loadPreferences();
+            if (preferences.humanProfile === undefined)
+                throw new Error("A human profile is required before saving Web onboarding.");
+            await this.options.preferences.saveOnboardingState(createWebOnboardingState(input.onboarding, preferences.humanProfile.id, this.now()));
+        }
         return this.getPreferences();
     }
     async pickFolder(input) {

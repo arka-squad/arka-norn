@@ -2,6 +2,27 @@
 
 Notable changes to arka-norn are recorded here. The project follows semantic versioning.
 
+## 2.2.6 - 2026-08-25
+
+### Added
+
+- Added a four-step first-run Web onboarding that connects a local human identity, an existing Project, the first Feature and a verified summary.
+- Added durable, identity-bound onboarding progress with non-sensitive drafts, idempotent resume, valid-route recovery and document reading-position restoration.
+- Added a mobile Project navigation bar with Overview, Features, Documents and an accessible More sheet.
+
+### Changed
+
+- Workflow choices and next actions use human labels while technical identifiers remain under progressive disclosure.
+- Existing configured users migrate silently to route persistence without falsely completing onboarding.
+
+### Accessibility
+
+- The mobile More sheet traps focus, closes with Escape, restores focus and keeps 44-pixel touch targets without horizontal overflow at 390 pixels.
+
+### Distribution
+
+- Package and manifest versions are 2.2.6.
+
 ## 2.2.5 - 2026-08-25
 
 ### Added

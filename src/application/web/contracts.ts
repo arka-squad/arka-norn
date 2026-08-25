@@ -4,6 +4,7 @@
  */
 
 import type { GovernanceEventKind, GovernanceTarget } from "../../domain/governance/governance-event.js";
+import type { WebOnboardingProgress, WebOnboardingState } from "../../domain/onboarding/web-onboarding-state.js";
 import type { OrchestrationProjection } from "../../domain/orchestration/orchestration-projection.js";
 
 export type TrackingHealth = "healthy" | "attention" | "blocked" | "invalid";
@@ -246,6 +247,7 @@ export interface WebPreferences {
   readonly resolvedLocale: "en" | "fr";
   readonly preferredSurface: "web" | "tui" | "cli";
   readonly humanProfile?: { readonly id: string; readonly name: string; readonly email?: string };
+  readonly onboarding?: WebOnboardingState;
 }
 
 export interface SaveWebPreferencesInput {
@@ -253,6 +255,7 @@ export interface SaveWebPreferencesInput {
   readonly name?: string;
   readonly email?: string;
   readonly preferredSurface?: "web" | "tui" | "cli";
+  readonly onboarding?: WebOnboardingProgress;
 }
 
 export interface CreateGovernanceEventInput {
