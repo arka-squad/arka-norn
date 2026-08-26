@@ -8,6 +8,8 @@ import { FsExecutionRegistryStore } from "../../adapters/outbound/filesystem/fs-
 import { FsOrchestrationWorkerStateStore } from "../../adapters/outbound/filesystem/fs-orchestration-worker-state-store.js";
 import { FsOrchestrationCampaignStore } from "../../adapters/outbound/filesystem/fs-orchestration-campaign-store.js";
 import { FsOrchestrationWorkspaceManager } from "../../adapters/outbound/filesystem/fs-orchestration-workspace.js";
+import { FsOrchestrationCampaignV23Store } from "../../adapters/outbound/filesystem/fs-orchestration-campaign-v23-store.js";
+import { FsOrchestrationEventStore } from "../../adapters/outbound/filesystem/fs-orchestration-event-store.js";
 import { readJson } from "../../adapters/outbound/filesystem/_shared/atomic-json.js";
 import { FsAuditStore } from "../../adapters/outbound/filesystem/fs-audit-store.js";
 import { LocalAuditCollector } from "../../adapters/outbound/audit/local-audit-collector.js";
@@ -15,6 +17,7 @@ import { AuditService } from "../audit/audit-service.js";
 import { resolveLocale, translate } from "../localization/locale.js";
 import { roleForStep } from "../agents/agent-orchestration.js";
 import { projectOrchestration } from "../../domain/orchestration/orchestration-projection.js";
+import { projectCampaignEvents } from "../../domain/orchestration/orchestration-event.js";
 import { createGovernanceEvent } from "../../domain/governance/governance-event.js";
 import { reduceGovernance } from "../../domain/governance/governance-ledger.js";
 import { FeatureId } from "../../domain/feature/feature-id.js";
@@ -27,11 +30,15 @@ export class ProjectTrackingService {
     campaigns = new FsOrchestrationCampaignStore();
     workspaces;
     workers;
+    campaignsV23;
+    eventsV23;
     now;
     constructor(options) {
         this.options = options;
         this.workers = new FsOrchestrationWorkerStateStore(options.homeDir);
         this.workspaces = new FsOrchestrationWorkspaceManager(options.homeDir);
+        this.campaignsV23 = new FsOrchestrationCampaignV23Store(options.homeDir);
+        this.eventsV23 = new FsOrchestrationEventStore(options.homeDir);
         this.now = options.now ?? (() => new Date());
     }
     async listProjects() {
@@ -71,7 +78,7 @@ export class ProjectTrackingService {
                 openDecisions: governance.openDecisions.length,
                 openCorrections: governance.openCorrections.length,
                 audits: audits.length,
-                activeOrchestrations: orchestrations.filter((item) => item.status === "running" || item.status === "planned" || item.status === "awaiting_approval").length,
+                activeOrchestrations: orchestrations.filter((item) => item.status === "running" || item.status === "planned" || item.status === "awaiting_approval" || item.status === "awaiting_application" || item.status === "authorized").length,
             },
             features: summaries,
         };
@@ -179,7 +186,7 @@ export class ProjectTrackingService {
     async getOrchestrations(projectId) {
         const project = await this.project(projectId);
         const [registry, campaigns] = await Promise.all([this.executions.load(project), this.campaigns.load(project)]);
-        return Promise.all(registry.executions.map(async (record) => {
+        const legacy = await Promise.all(registry.executions.map(async (record) => {
             const worker = await this.workers.load(project.id, record.id).catch(() => undefined);
             const startedAt = record.attempts.at(-1)?.startedAt;
             const endedAt = record.attempts.at(-1)?.endedAt;
@@ -227,6 +234,48 @@ export class ProjectTrackingService {
                     } }),
             };
         }));
+        return [...await this.getV23Orchestrations(project), ...legacy];
+    }
+    async getV23Orchestrations(project) {
+        const ids = await this.campaignsV23.listCampaignIds(project.id.value);
+        return Promise.all(ids.map(async (id) => this.getV23Orchestration(project, id)));
+    }
+    async getV23Orchestration(project, id) {
+        const plan = await this.campaignsV23.loadPlan(project.id.value, id);
+        if (plan === undefined)
+            throw new Error(`Norn 2.3 campaign plan is missing: ${id}`);
+        const [events, attempts, result, application, authorization] = await Promise.all([
+            this.eventsV23.load(project.id.value, id),
+            this.campaignsV23.loadAttempts(project.id.value, id),
+            this.campaignsV23.loadResult(project.id.value, id),
+            this.campaignsV23.loadApplication(project.id.value, id),
+            this.campaignsV23.loadAuthorization(project.id.value, id, plan),
+        ]);
+        const projection = projectCampaignEvents(events);
+        const tasks = v23Tasks(plan, attempts, projection);
+        const activeTask = tasks.find((task) => task.status === "running" || task.status === "prepared") ?? tasks.find((task) => task.status === "planned") ?? tasks.at(-1);
+        const lastEvent = events.at(-1);
+        const status = projection?.status ?? "planned";
+        return {
+            id,
+            status,
+            featureId: plan.props.featureId,
+            stepId: activeTask?.id ?? "campaign",
+            role: activeTask?.role ?? "orchestration",
+            provider: "Norn DAG",
+            ...(activeTask?.profileId === undefined ? {} : { model: activeTask.profileId }),
+            startedAt: plan.props.createdAt.toISOString(),
+            updatedAt: lastEvent?.at.toISOString() ?? plan.props.createdAt.toISOString(),
+            durationMs: (lastEvent?.at ?? this.now()).getTime() - plan.props.createdAt.getTime(),
+            heartbeatAlive: false,
+            ...(lastEvent === undefined ? {} : { lastEvent: { type: lastEvent.kind, at: lastEvent.at.toISOString() } }),
+            timeline: events.slice(-50).map((event) => ({ type: event.taskId === undefined ? event.kind : `${event.kind}:${event.taskId}`, at: event.at.toISOString() })),
+            stale: status === "running" && lastEvent !== undefined && this.now().getTime() - lastEvent.at.getTime() >= 60_000,
+            providerUsage: { available: false },
+            proofReferences: [...new Set(attempts.flatMap((attempt) => [...attempt.props.proofReferences]))],
+            dag: v23Dag(plan, tasks, result, application, authorization),
+            campaign: v23Campaign(id, status, plan, projection, activeTask?.id),
+        };
     }
     async getGraph(projectId, featureId) {
         const project = await this.project(projectId);
@@ -332,6 +381,54 @@ export class ProjectTrackingService {
         const featurePath = feature.root.slice(project.root.length + 1).replaceAll("\\", "/");
         return { projectId: project.id.value, projectName: project.name, projectRoot: project.root, featureId: feature.id.value, featurePath };
     }
+}
+function v23Tasks(plan, attempts, projection) {
+    const latestAttempt = new Map();
+    for (const attempt of attempts)
+        latestAttempt.set(attempt.props.taskId, attempt);
+    return plan.tasks.map((task) => {
+        const attempt = latestAttempt.get(task.id)?.props;
+        return {
+            id: task.id,
+            agentId: task.agentId,
+            role: task.role,
+            status: projection?.tasks[task.id] ?? "planned",
+            ...(attempt === undefined ? {} : { profileId: attempt.profileId }),
+            dependencies: [...task.dependencies],
+            readScopes: [...task.readScopes],
+            writeScopes: [...task.writeScopes],
+            proofCount: attempt?.proofReferences.length ?? 0,
+        };
+    });
+}
+function v23Dag(plan, tasks, result, application, authorization) {
+    return {
+        planFingerprint: plan.fingerprint,
+        ...(authorization === undefined ? {} : { riskPolicyFingerprint: authorization.props.riskPolicyFingerprint }),
+        tasks,
+        ...(result === undefined ? {} : {
+            risk: { score: result.risk.totalScore, automaticEligible: result.risk.automaticEligible, hardDenials: [...result.risk.hardDenials] },
+            applicationFingerprint: application?.fingerprint ?? result.fingerprint,
+            ...(result.applicationGate === undefined ? {} : { applicationGate: { ...result.applicationGate } }),
+        }),
+        requiresHumanApproval: result !== undefined && result.appliedCommit === undefined && application === undefined,
+        discardedHunkCount: result?.integration.discardedHunks?.length ?? 0,
+    };
+}
+function v23Campaign(id, status, plan, projection, activeTaskId) {
+    return {
+        id,
+        status,
+        revision: projection?.revision ?? 0,
+        workspaceMode: "isolated",
+        completedMissions: projection?.progress.succeeded ?? 0,
+        maximumMissions: plan.tasks.length,
+        currentStepId: activeTaskId ?? "campaign",
+        decisionCount: 0,
+        ...(status !== "awaiting_application" ? {} : {
+            actionRequired: { kind: "human_application", reason: "Review the risk score and confirmed application fingerprint." },
+        }),
+    };
 }
 function eventView(event) {
     return { ...event, targets: event.targets, author: event.author };

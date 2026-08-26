@@ -157,8 +157,9 @@ test("the global Product rendering strictly separates automatic orchestration fr
   assert.match(rendered, /Reply in the active display locale/);
   assert.match(rendered, /In automatic mode, never call `agent prompt`/);
   assert.match(rendered, /display a copy\/paste prompt/);
-  assert.match(rendered, /local authenticated CLI provider/);
+  assert.match(rendered, /human-confirmed task DAG through registered execution profiles/);
   assert.match(rendered, /In manual mode only/);
-  assert.match(rendered, /orchestration preview/);
+  assert.match(rendered, /`orchestration profile`, `preview`, `start`, `status`, `apply` and `recovery`/);
+  assert.match(rendered, /never invoke, resume or retry a legacy 2\.2 campaign/);
   assert.match(rendered, /Do not execute a second phase/);
 });

@@ -2,14 +2,15 @@
 
 arka.norn is a local Project tracking and delivery framework for Features, signed documents, human decisions, evidence and auditable workflows. `arka-norn` is its command. It provides a Project manager Web interface, an interactive TUI and a scriptable CLI without making an external SaaS the source of truth.
 
-The current release adds a four-step first-run Web onboarding, durable route and reading-position recovery, human workflow labels and mobile Project navigation. Existing configured users migrate without being forced through onboarding or being marked complete incorrectly. English remains canonical for contracts and machine data.
+Version 2.3 replaces automatic orchestration with a confirmed task DAG: one Agent identity, execution profile, branch, private Git worktree, scope and evidence set per task. Legacy 2.2 campaigns are inspection-only, while manual Project workflows remain available. English remains canonical for contracts and machine data.
 
 ## Requirements
 
 - Node.js 22.13 or newer
 - npm
 - A local repository to manage
-- An authenticated Claude Code CLI or Codex CLI when automatic local Agent execution is needed; Kimi and Z.AI remain optional alternative integrations
+- A registered and authenticated execution profile when automatic Agent execution is needed; supported transports are Codex CLI, Claude CLI, and explicitly diagnosed API/Gemini profiles
+- Docker or Podman with the Project's pinned recipe image already present for automatic tests and builds
 
 ## Install
 
@@ -39,7 +40,7 @@ node bin/arka-norn.mjs web stop
 
 From a source checkout, the equivalent shortcuts are `npm run web:start`, `npm run web:status`, `npm run web:restart` and `npm run web:stop`.
 
-The Web interface presents Project health, Feature paths, every signed document in a human layout, decisions, audits, registered Agents and live Norn orchestration state. New users follow four guided steps: local identity, existing Project, first Feature and verified summary. It remains read-only for orchestration: the Product Agent is the conversational control, the TUI is the advanced cockpit and the CLI is the automation/diagnostic surface.
+The Web interface presents Project health, Feature paths, every signed document in a human layout, decisions, audits, registered Agents and live Norn orchestration state. New users follow four guided steps: local identity, existing Project, first Feature and verified summary. It remains read-only for orchestration. The CLI owns profile registration, preview, run authorization, recovery and application; the TUI cannot relaunch quarantined 2.2 campaigns.
 
 Its interface uses the official Arka Labs mark, compact Project rail, product surfaces, Poppins and JetBrains Mono in both dark and light themes. Light sand is reserved for layout chrome while working content remains white; primary commands stay neutral and Arka red identifies the product. Signed documents are grouped by Feature and Pipeline order, retain replaced revisions, and receive an editorial EN/FR reading view with a contract-derived header, navigable dependencies and human-readable provenance. Read-only technical JSON remains available through progressive disclosure.
 
@@ -47,14 +48,14 @@ Project and Feature creation are guided for non-developers. Folder locations use
 
 ## Safe automatic orchestration
 
-Automatic mode never asks the user to copy a generated prompt. The Product prepares one immutable campaign envelope, then arka.norn launches the selected local Claude Code CLI or Codex CLI itself. The logical working directory is always the Product Project root; a Feature supplies business context and write rights, never a replacement working directory.
+Automatic mode builds a signed task DAG. Every task gets its own branch, private Git worktree, execution profile, read/write scopes and mechanical proof. Dependency-ready tasks with disjoint write scopes can run in parallel; overlapping scopes are serialized before authorization. Direct automatic execution no longer exists.
 
-An isolated campaign works in a private mirror and shows a verified change summary before the human applies anything. A direct campaign writes to the real Project but still runs repository tests and builds only through bounded Docker or Podman recipes. Provider-native write, shell, network and sub-agent tools stay disabled; all reads, proposed changes, recipes, evidence and decision requests pass through the arka.norn tool broker and produce mechanical receipts.
+The human selects one provider/model profile per role and confirms the plan, risk policy, commit authority, application policy, budget and parallelism. Agents have no native shell, Git, commit, network or sub-agent authority. All reads, proposed changes, Docker/Podman recipes, evidence and decisions pass through the bounded Norn broker. Norn validates the result and creates the commit.
 
 Choose the preferred tracking surface in Norn Web settings:
 
 - Web: functional explanations and a live read-only timeline, with no command blocks;
-- TUI: interactive campaign actions and technical detail on demand;
+- TUI: manual workflow and Agent identity management, with an explicit handoff to the 2.3 CLI for automatic runs;
 - CLI: exact commands and stable JSON for expert automation.
 
 See [Automatic orchestration](docs/automatic-orchestration.md) for workspace, budget, recovery and application guarantees.

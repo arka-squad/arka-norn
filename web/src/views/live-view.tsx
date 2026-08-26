@@ -22,6 +22,7 @@ function ExecutionCard({ execution, date, duration }: {
   readonly duration: (value: number) => string;
 }) {
   const { t } = useI18n();
+  if (execution.dag !== undefined) return <DagExecutionCard execution={execution} date={date} duration={duration} />;
   return <article>
     <header>
       <span className={execution.heartbeatAlive ? "execution-pulse alive" : "execution-pulse"}><Activity size={18} /></span>
@@ -54,6 +55,40 @@ function ExecutionCard({ execution, date, duration }: {
       <summary>{t("web.live.timeline")}</summary>
       <ol className="compact-list">{execution.timeline.map((event, index) => <li key={`${event.at}:${event.type}:${index}`}>{date(event.at)} · {event.type}</li>)}</ol>
     </details>
+  </article>;
+}
+
+function DagExecutionCard({ execution, date, duration }: { readonly execution: OrchestrationTrackingView; readonly date: (value: string) => string; readonly duration: (value: number) => string }) {
+  const { t } = useI18n();
+  const dag = execution.dag!;
+  return <article className="dag-card">
+    <header>
+      <span className="execution-pulse"><FolderLock size={18} /></span>
+      <div><h2>{execution.featureId ?? execution.id}</h2><p>{t("web.live.dag")} · {dag.tasks.length} · {execution.campaign?.completedMissions ?? 0}/{execution.campaign?.maximumMissions ?? dag.tasks.length}</p></div>
+      <span className={`execution-status execution-${execution.status}`}>{execution.status.replaceAll("_", " ")}</span>
+    </header>
+    <div className="dag-summary">
+      <Metric icon={<Clock3 size={14} />} label={t("web.live.duration")} value={execution.durationMs === undefined ? "—" : duration(execution.durationMs)} />
+      <Metric icon={<ShieldCheck size={14} />} label={t("web.live.proofs")} value={String(execution.proofReferences.length)} />
+      <Metric icon={<Gauge size={14} />} label={t("web.live.riskScore")} value={dag.risk === undefined ? "—" : `${dag.risk.score} / 20`} />
+      <Metric icon={<Activity size={14} />} label={t("web.live.lastEvent")} value={execution.lastEvent?.type ?? "—"} />
+    </div>
+    <div className={dag.requiresHumanApproval ? "notice notice-warn" : "notice notice-ok"} role="status">{dag.requiresHumanApproval ? t("web.live.applicationGate") : t("web.live.applicationReady")}</div>
+    {dag.applicationGate === undefined ? null : <div className="notice notice-warn"><strong>{t("web.live.applicationReason")}</strong> · {dag.applicationGate.code.replaceAll("_", " ")} · {dag.applicationGate.message}</div>}
+    <div className="dag-task-list" aria-label={t("web.live.dag")}>
+      {dag.tasks.map((task) => <section className="dag-task-row" key={task.id}>
+        <div className="dag-task-state"><span className={`execution-status execution-${task.status}`}>{task.status.replaceAll("_", " ")}</span><strong>{task.id.replaceAll("-", " ")}</strong><small>{task.role} · {task.agentId}</small></div>
+        <dl>
+          <Metric icon={<WalletCards size={14} />} label={t("web.live.profile")} value={task.profileId ?? "—"} />
+          <Metric icon={<Activity size={14} />} label={t("web.live.dependencies")} value={task.dependencies.join(", ") || "—"} />
+          <Metric icon={<FolderLock size={14} />} label={t("web.live.readScopes")} value={task.readScopes.join(", ")} />
+          <Metric icon={<FileDiff size={14} />} label={t("web.live.writeScopes")} value={task.writeScopes.join(", ")} />
+        </dl>
+      </section>)}
+    </div>
+    <details><summary>{t("web.live.planFingerprint")}</summary><code className="fingerprint-value">{dag.planFingerprint}</code></details>
+    {dag.discardedHunkCount === 0 ? null : <div className="notice notice-warn">{t("web.live.discardedHunks")} · {dag.discardedHunkCount}</div>}
+    <details><summary>{t("web.live.timeline")}</summary><ol className="compact-list">{execution.timeline.map((event, index) => <li key={`${event.at}:${event.type}:${index}`}>{date(event.at)} · {event.type.replaceAll("_", " ")}</li>)}</ol></details>
   </article>;
 }
 

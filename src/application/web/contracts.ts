@@ -221,6 +221,26 @@ export interface OrchestrationTrackingView {
   readonly proofReferences: readonly string[];
   readonly projection?: OrchestrationProjection;
   readonly suspension?: { readonly code: string; readonly detail: string };
+  readonly dag?: {
+    readonly planFingerprint: string;
+    readonly riskPolicyFingerprint?: string;
+    readonly tasks: readonly {
+      readonly id: string;
+      readonly agentId: string;
+      readonly role: string;
+      readonly status: string;
+      readonly profileId?: string;
+      readonly dependencies: readonly string[];
+      readonly readScopes: readonly string[];
+      readonly writeScopes: readonly string[];
+      readonly proofCount: number;
+    }[];
+    readonly risk?: { readonly score: number; readonly automaticEligible: boolean; readonly hardDenials: readonly string[] };
+    readonly applicationFingerprint?: string;
+    readonly applicationGate?: { readonly code: string; readonly message: string };
+    readonly requiresHumanApproval: boolean;
+    readonly discardedHunkCount: number;
+  };
   readonly campaign?: {
     readonly id: string;
     readonly status: string;

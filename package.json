@@ -1,6 +1,6 @@
 {
   "name": "arka-norn",
-  "version": "2.2.7",
+  "version": "2.3.0",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -57,7 +57,7 @@
     "test:web": "vitest run --config web/vite.config.ts",
     "test:web:e2e": "playwright test",
     "test:coverage": "c8 --all --include \"src/**/*.ts\" --exclude \"src/ports/**\" --exclude \"src/**/_shared/*-deps.ts\" --exclude \"src/domain/pipeline/pipeline-report.ts\" --reporter=text --reporter=json-summary --check-coverage --lines 70 --functions 70 --branches 60 npm test",
-    "test:coverage:cli": "c8 --all --include \"src/adapters/inbound/cli/**/*.ts\" --reporter=text --reporter=json-summary --check-coverage --lines 70 --functions 70 --branches 60 npm run test:unit",
+    "test:coverage:cli": "c8 --all --include \"src/adapters/inbound/cli/**/*.ts\" --reporter=text --reporter=json-summary --check-coverage --lines 70 --functions 70 --branches 60 node tests/run-tests.mjs cli-coverage",
     "smoke:mastra": "node scripts/mastra-smoke.mjs",
     "benchmark": "npm run build && node scripts/benchmark.mjs",
     "check": "npm run check:max-lines && npm run check:language && npm run lint && npm run selftest",

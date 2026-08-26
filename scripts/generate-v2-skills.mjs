@@ -157,7 +157,7 @@ function productProcedure() {
     },
     {
       title: "Follow the selected delivery mode",
-      content: "Reload the versioned FrameworkContext before every mutation. In automatic mode, never call `agent prompt`, display a copy/paste prompt, prepare a manual handoff, or ask the user to open another Claude Code or Codex session. Arka dispatches the confirmed local authenticated CLI provider itself. Use `orchestration preview`, then the durable campaign projection and only its allowed actions: start/status, pause/resume, decide, changes/apply, retry, cancel or abandon. Never reinterpret a blocked action. In manual mode only, use the exact prompt and handoff commands calculated by the CLI.",
+      content: "Reload the versioned FrameworkContext before every mutation. In automatic mode, never call `agent prompt`, display a copy/paste prompt, prepare a manual handoff, or ask the user to open another Claude Code or Codex session. Norn 2.3 dispatches only a human-confirmed task DAG through registered execution profiles. Use `orchestration profile`, `preview`, `start`, `status`, `apply` and `recovery`; never invoke, resume or retry a legacy 2.2 campaign, and never reinterpret a blocked action. In manual mode only, use the exact prompt and handoff commands calculated by the CLI.",
     },
     {
       title: "Speak for the chosen human surface",

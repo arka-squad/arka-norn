@@ -168,23 +168,38 @@ function parseWorkerResult(stdout) {
         const failure = value["failure"];
         if (output !== undefined && typeof output !== "string")
             return undefined;
-        if (receipts !== undefined && (!Array.isArray(receipts) || receipts.length > 100 || receipts.some((receipt) => typeof receipt !== "string" || !/^receipt-[A-Za-z0-9-]{1,160}$/u.test(receipt))))
+        if (!validReceipts(receipts))
             return undefined;
         if (sessionId !== undefined && typeof sessionId !== "string")
             return undefined;
-        if (failure !== undefined && (!isRecord(failure) || typeof failure["code"] !== "string"))
+        const parsedFailure = parseFailure(failure);
+        if (parsedFailure === null)
             return undefined;
         return {
             status,
             ...(output === undefined ? {} : { output }),
-            ...(receipts === undefined ? {} : { receipts: receipts }),
+            ...(receipts === undefined ? {} : { receipts }),
             ...(sessionId === undefined ? {} : { sessionId }),
-            ...(failure === undefined ? {} : { failure: { code: failure["code"] } }),
+            ...(parsedFailure === undefined ? {} : { failure: parsedFailure }),
         };
     }
     catch {
         return undefined;
     }
+}
+function validReceipts(value) { return value === undefined || (Array.isArray(value) && value.length <= 100 && value.every((receipt) => typeof receipt === "string" && /^receipt-[A-Za-z0-9-]{1,160}$/u.test(receipt))); }
+function parseFailure(value) {
+    if (value === undefined)
+        return undefined;
+    if (!isRecord(value) || typeof value["code"] !== "string")
+        return null;
+    if (value["message"] !== undefined && typeof value["message"] !== "string")
+        return null;
+    if (value["exitCode"] !== undefined && (typeof value["exitCode"] !== "number" || !Number.isInteger(value["exitCode"]) || value["exitCode"] < 0))
+        return null;
+    if (value["stderrExcerpt"] !== undefined && (typeof value["stderrExcerpt"] !== "string" || value["stderrExcerpt"].length > 1_000))
+        return null;
+    return { code: value["code"], ...(typeof value["message"] === "string" ? { message: value["message"] } : {}), ...(typeof value["exitCode"] === "number" ? { exitCode: value["exitCode"] } : {}), ...(typeof value["stderrExcerpt"] === "string" ? { stderrExcerpt: value["stderrExcerpt"] } : {}) };
 }
 function isRecord(value) {
     return typeof value === "object" && value !== null;

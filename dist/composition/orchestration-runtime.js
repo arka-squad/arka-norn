@@ -182,7 +182,6 @@ export function createOrchestrationRuntime(options) {
         async status(input) {
             const project = await options.projects.show(input.projectId);
             const [policy, registry, campaigns] = await Promise.all([policyStore.load(project), registryStore.load(project), campaignStore.load(project)]);
-            await workspaceManager.cleanupExpired(campaigns, clock.now());
             const active = registry.executions.find((record) => isActive(record));
             const latest = registry.executions.at(-1);
             const focus = active ?? latest;

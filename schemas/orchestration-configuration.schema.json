@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "orchestration-configuration.schema.json",
+  "title": "Norn 2.3 Orchestration Configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "projectId", "automaticEnabled", "profiles", "riskPolicy", "createdAt", "updatedAt"],
+  "properties": {
+    "schemaVersion": { "const": 4 },
+    "projectId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,119}$" },
+    "automaticEnabled": { "type": "boolean" },
+    "profiles": {
+      "type": "array",
+      "maxItems": 64,
+      "items": { "$ref": "#/$defs/profile" }
+    },
+    "riskPolicy": { "$ref": "#/$defs/riskPolicy" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "id", "transport", "provider", "model", "capabilities", "egressHosts", "costMeter", "enabled", "createdAt", "updatedAt"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,79}$" },
+        "transport": { "enum": ["codex-cli", "claude-cli", "gemini-cli", "api"] },
+        "gateway": { "$ref": "#/$defs/gateway" },
+        "provider": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "model": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "credentialRef": { "$ref": "#/$defs/credentialRef" },
+        "capabilities": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["inspect_workspace", "modify_workspace", "run_commands", "read_pipeline"] }
+        },
+        "egressHosts": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[a-z0-9.-]+$" }
+        },
+        "costMeter": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "observable"],
+          "properties": {
+            "kind": { "enum": ["cli_quota_percent", "currency_eur", "calls", "duration_seconds", "unknown"] },
+            "observable": { "type": "boolean" }
+          }
+        },
+        "enabled": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "gateway": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "endpoint", "catalogRef", "fingerprint"],
+      "properties": {
+        "kind": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,79}$" },
+        "endpoint": { "type": "string", "format": "uri" },
+        "catalogRef": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "credentialRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "name", "environmentVariable"],
+      "properties": {
+        "kind": { "enum": ["environment", "keychain"] },
+        "name": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "environmentVariable": { "enum": ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY", "KIMI_MODEL_API_KEY"] }
+      }
+    },
+    "riskPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["automaticThreshold"],
+      "properties": {
+        "automaticThreshold": { "type": "integer", "minimum": 0, "maximum": 20 },
+        "extraWeights": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[a-z][a-z0-9_]{0,79}$" },
+          "additionalProperties": { "type": "integer", "minimum": 0, "maximum": 100 }
+        }
+      }
+    }
+  }
+}

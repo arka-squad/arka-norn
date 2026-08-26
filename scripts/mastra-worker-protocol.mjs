@@ -41,6 +41,8 @@ const ALLOWED_WORKER_ENVIRONMENT = new Set([
   // They never arrive in the JSON request and are never written to stdout.
   "ANTHROPIC_API_KEY",
   "OPENAI_API_KEY",
+  "GEMINI_API_KEY",
+  "GOOGLE_API_KEY",
   "ANTHROPIC_BASE_URL",
   "KIMI_MODEL_API_KEY",
   "KIMI_MODEL_BASE_URL",

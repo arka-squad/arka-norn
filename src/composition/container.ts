@@ -24,7 +24,6 @@ import { createTheme, type Theme } from "../adapters/inbound/tui/runtime/theme.j
 import { createTuiApp, type TuiApp } from "../adapters/inbound/tui/runtime/tui-app.js";
 import { createProjectDetailView } from "../adapters/inbound/tui/views/project-detail-view.js";
 import { createFeatureDetailView } from "../adapters/inbound/tui/views/feature-detail-view.js";
-import { createOrchestrationView } from "../adapters/inbound/tui/views/orchestration-view.js";
 import { createHomeView, type HomeView } from "../adapters/inbound/tui/views/home-view.js";
 import { createResultView } from "../adapters/inbound/tui/views/result-view.js";
 import { FsFilesystem } from "../adapters/outbound/filesystem/fs-filesystem.js";
@@ -48,7 +47,6 @@ import { createResourceConfirmationController } from "./tui/resource-confirmatio
 import { showHealthReport, showSkillInstallation } from "./tui/skill-scene-controller.js";
 import { createAgentSceneController } from "./tui/agent-scene-controller.js";
 import { createAgentOrchestrationRuntime } from "./agent-orchestration-runtime.js";
-import { createOrchestrationRuntime } from "./orchestration-runtime.js";
 import { createAgentOrchestrationSceneController } from "./tui/agent-orchestration-scene-controller.js";
 import { FsLocalePreferenceStore } from "../adapters/outbound/filesystem/fs-locale-preference-store.js";
 import { formatNumber, resolveLocale, setActiveLocale, translate } from "../application/localization/locale.js";
@@ -122,7 +120,6 @@ export function createContainer(env: Env, ui: ContainerUiOptions = {}): Containe
   const agentScenes = createAgentSceneController(app, management.agents);
   const orchestration = createAgentOrchestrationRuntime({ ...management, pipeline, preferredSurface: async () => (await localePreferences.loadPreferences()).preferredSurface });
   const orchestrationScenes = createAgentOrchestrationSceneController(app, orchestration);
-  const automaticOrchestration = createOrchestrationRuntime({ ...management, pipeline, homeDir, frameworkRoot: FRAMEWORK_ROOT });
   const confirmations = createResourceConfirmationController({
     app,
     projects,
@@ -227,24 +224,13 @@ export function createContainer(env: Env, ui: ContainerUiOptions = {}): Containe
           projectView.setAgents(agents, current?.id.value);
         }),
         onShowProductAdvice: (selected) => orchestrationScenes.showProjectAdvice(selected),
-        onOpenOrchestration: async (selected) => {
-          const [status, currentFeatures] = await Promise.all([
-            automaticOrchestration.status({ projectId: selected.id }),
-            features.list(selected.id),
-          ]);
-          app.push(createOrchestrationView({
-            project: selected,
-            initialStatus: status,
-            initialFeatures: currentFeatures,
-            orchestration: automaticOrchestration,
-            refreshProject: async () => {
-              const refreshed = await projects.show(selected.id);
-              uiState.currentProject = refreshed;
-              projectView.setProject(refreshed);
-              return refreshed;
-            },
-            redraw: () => app.redraw(),
-            onBack: () => app.pop(),
+        onOpenOrchestration: () => {
+          app.push(createResultView({
+            title: translate("tui.container.orchestration23.title"),
+            code: 0,
+            output: translate("tui.container.orchestration23.output"),
+            onBack: () => {},
+            nextStep: translate("tui.container.orchestration23.next"),
           }));
         },
       });
