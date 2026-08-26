@@ -95,7 +95,7 @@ function setup(argv, context, json) {
     const projectFlag = parsed.booleans.has("project");
     const dryRun = parsed.booleans.has("dry-run");
     const force = parsed.booleans.has("force");
-    // Par défaut, setup installe dans le project courant ; --project le force explicitement.
+    // By default setup installs in the current Project; --project selects another one explicitly.
     const installProject = !globalFlag || projectFlag;
     const installGlobal = globalFlag;
     const targets = [];
