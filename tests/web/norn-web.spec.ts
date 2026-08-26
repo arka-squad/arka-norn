@@ -64,6 +64,7 @@ test("local API rejects unauthorized origins and exposes no orchestration contro
   expect(capabilityEnvelope.data.schemaVersion).toBe(1);
   expect(capabilityEnvelope.data.capabilities).toHaveLength(15);
   expect(capabilityEnvelope.data.capabilities.find((item) => item.id === "doctor.inspect")?.surfaces).toContain("web");
+  expect(capabilityEnvelope.data.capabilities.find((item) => item.id === "project.set_orchestration_mode")?.surfaces).toContain("web");
   expect(capabilityEnvelope.data.capabilities.find((item) => item.id === "agent.replace")?.surfaces).not.toContain("web");
   const unexpected = await fetch(`${origin}/api/v1/framing/enter`, {
     method: "POST",
@@ -151,6 +152,21 @@ test("materialized Project keeps the complete tracking experience in EN and FR",
   const switchToEnglish = page.getByRole("button", { name: "EN", exact: true });
   if (await switchToEnglish.count() > 0) await switchToEnglish.click();
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await expect(page.getByRole("heading", { name: "How assistants are launched" })).toBeVisible();
+  await expect(page.getByText("Manual launch", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Change mode" }).click();
+  const modeDialog = page.getByRole("dialog", { name: "Change assistant launch mode" });
+  await modeDialog.getByRole("radio", { name: /Assisted mode/ }).check();
+  await expect(modeDialog.getByText("Assisted mode needs at least one enabled execution profile", { exact: false })).toBeVisible();
+  await expect(modeDialog.getByRole("button", { name: "Save" })).toBeDisabled();
+  await modeDialog.getByRole("button", { name: "Cancel" }).click();
+  const modeContract = await projectModeContract(page);
+  expect(modeContract.preflightStatus).toBe(422);
+  expect(modeContract.preflightCode).toBe("automatic_preflight_required");
+  expect(modeContract.preflightMessage).toContain("enabled execution profile");
+  expect(modeContract.conflictStatus).toBe(409);
+  expect(modeContract.conflictCode).toBe("project_changed");
+  expect(modeContract.orchestrationCount).toBe(0);
   await page.locator(".sidebar").getByRole("button", { name: /^Features/ }).click();
   await page.getByRole("button", { name: "Frame a new Feature" }).click();
   const framingDialog = page.getByRole("dialog", { name: "Frame a new Feature" });
@@ -220,6 +236,29 @@ async function registeredFeatureCount(page: Page): Promise<number | undefined> {
     const response = await fetch("/api/v1/projects", { headers: { Authorization: `Bearer ${token ?? ""}` } });
     const envelope = await response.json() as { readonly data?: readonly { readonly id: string; readonly featureCount?: number }[] };
     return envelope.data?.find((project) => project.id === "demo-project")?.featureCount;
+  });
+}
+
+async function projectModeContract(page: Page): Promise<{ readonly preflightStatus: number; readonly preflightCode: string; readonly preflightMessage: string; readonly conflictStatus: number; readonly conflictCode: string; readonly orchestrationCount: number }> {
+  return page.evaluate(async () => {
+    const token = sessionStorage.getItem("arka-norn-web-token") ?? "";
+    const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+    const overviewResponse = await fetch("/api/v1/projects/demo-project", { headers });
+    const overview = await overviewResponse.json() as { readonly data: { readonly updatedAt: string } };
+    const preflight = await fetch("/api/v1/projects/demo-project/orchestration-mode", { method: "PUT", headers, body: JSON.stringify({ mode: "automatic", expectedUpdatedAt: overview.data.updatedAt }) });
+    const preflightEnvelope = await preflight.json() as { readonly errors: readonly { readonly code: string }[]; readonly display: { readonly message: string } };
+    const conflict = await fetch("/api/v1/projects/demo-project/orchestration-mode", { method: "PUT", headers, body: JSON.stringify({ mode: "manual", expectedUpdatedAt: "2020-01-01T00:00:00.000Z" }) });
+    const conflictEnvelope = await conflict.json() as { readonly errors: readonly { readonly code: string }[] };
+    const orchestrations = await fetch("/api/v1/projects/demo-project/orchestrations", { headers });
+    const orchestrationEnvelope = await orchestrations.json() as { readonly data: readonly unknown[] };
+    return {
+      preflightStatus: preflight.status,
+      preflightCode: preflightEnvelope.errors[0]?.code ?? "",
+      preflightMessage: preflightEnvelope.display.message,
+      conflictStatus: conflict.status,
+      conflictCode: conflictEnvelope.errors[0]?.code ?? "",
+      orchestrationCount: orchestrationEnvelope.data.length,
+    };
   });
 }
 

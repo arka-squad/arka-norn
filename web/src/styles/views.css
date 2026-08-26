@@ -17,6 +17,36 @@
 .draft-project-state.recovery svg { color: var(--red); }
 .overview-bands { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(250px, .7fr); gap: 34px; margin-bottom: 32px; }
 .overview-section { min-width: 0; }
+.orchestration-mode-card { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 14px; margin: -8px 0 27px; padding: 15px 17px; border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--surface-card); }
+.mode-icon { display: grid; width: 38px; height: 38px; place-items: center; border: 1px solid var(--border); border-radius: 11px; color: var(--tx3); }
+.mode-icon.is-assisted { border-color: color-mix(in srgb, var(--arka-green) 35%, var(--border)); background: color-mix(in srgb, var(--arka-green) 8%, transparent); color: var(--arka-green); }
+.mode-summary { display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: 2px 9px; min-width: 0; }
+.mode-summary h2 { grid-column: 1 / -1; margin: 0; color: var(--tx4); font-family: var(--font-mono); font-size: 8px; letter-spacing: .06em; text-transform: uppercase; }
+.mode-summary strong { font-size: 12px; }
+.mode-summary p { min-width: 0; margin: 0; color: var(--tx3); font-size: 10.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mode-readiness { display: inline-flex; grid-column: 1 / -1; align-items: center; gap: 5px; width: fit-content; margin-top: 4px; color: var(--amber); font-family: var(--font-mono); font-size: 8px; }
+.mode-readiness.is-ready { color: var(--arka-green); }
+.mode-dialog-content { display: grid; gap: 16px; }
+.mode-current { display: flex; align-items: center; justify-content: space-between; margin: 0; padding-bottom: 11px; border-bottom: 1px solid var(--border); color: var(--tx3); font-size: 11px; }
+.mode-current strong { color: var(--tx1); }
+.mode-options { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; }
+.mode-options legend { margin-bottom: 7px; color: var(--tx3); font-size: 10px; font-weight: 700; }
+.mode-options label { display: grid; grid-template-columns: 18px 20px minmax(0, 1fr); align-items: start; gap: 10px; padding: 13px; border: 1px solid var(--border); border-radius: var(--radius-lg); cursor: pointer; }
+.mode-options label.is-selected { border-color: color-mix(in srgb, var(--arka-red) 42%, var(--border)); background: var(--accent-soft); }
+.mode-options input { margin: 3px 0 0; }
+.mode-options svg { margin-top: 2px; color: var(--tx3); }
+.mode-options span { display: flex; flex-direction: column; gap: 4px; }
+.mode-options strong { font-size: 11px; }
+.mode-options small { color: var(--tx3); font-size: 10px; line-height: 1.5; }
+.mode-preflight { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border: 1px solid color-mix(in srgb, var(--amber) 32%, var(--border)); border-radius: var(--radius-lg); background: var(--amber-soft); }
+.mode-preflight > svg { flex: 0 0 auto; color: var(--amber); }
+.mode-preflight.is-ready { border-color: color-mix(in srgb, var(--arka-green) 30%, var(--border)); background: color-mix(in srgb, var(--arka-green) 7%, transparent); }
+.mode-preflight.is-ready > svg { color: var(--arka-green); }
+.mode-preflight strong, .mode-active-runs > strong { font-size: 10.5px; }
+.mode-preflight p, .mode-active-runs p { margin: 3px 0 0; color: var(--tx3); font-size: 10px; line-height: 1.5; }
+.mode-active-runs ul { margin: 9px 0 0; padding: 0; list-style: none; }
+.mode-active-runs li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-top: 1px solid var(--border); font-family: var(--font-mono); font-size: 8.5px; }
+.mode-active-runs li small { color: var(--tx4); }
 .attention-list button, .document-list button { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 59px; padding: 10px 8px; border: 0; border-bottom: 1px solid var(--border); background: transparent; cursor: pointer; text-align: left; }
 .attention-list button:hover, .document-list button:hover { background: var(--surface-hover); }
 .attention-list button > span:nth-child(2), .document-list button > span { display: flex; flex: 1; flex-direction: column; gap: 3px; min-width: 0; }
@@ -407,6 +437,11 @@
 }
 
 @media (max-width: 680px) {
+  .orchestration-mode-card { grid-template-columns: 38px minmax(0, 1fr); }
+  .orchestration-mode-card > .button { grid-column: 2; justify-self: start; min-height: 44px; }
+  .mode-summary { grid-template-columns: 1fr; }
+  .mode-summary h2, .mode-readiness { grid-column: 1; }
+  .mode-summary p { white-space: normal; }
   .framing-card { grid-template-columns: 42px minmax(0, 1fr); }
   .framing-card > .button { grid-column: 2; justify-self: start; }
   .framing-next { grid-template-columns: 28px minmax(0, 1fr); }

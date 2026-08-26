@@ -30,6 +30,7 @@ import { v23Campaign, v23Dag, v23Tasks } from "./orchestration-v23-projection.js
 import { createProjectDraftListItem, createProjectDraftOverview } from "./project-draft-projection.js";
 import { CAPABILITY_CATALOG } from "../capabilities/capability-registry.js";
 import { buildProjectRelationshipGraph } from "./relationship-graph.js";
+import { projectOrchestrationModeView, setProjectOrchestrationMode } from "./project-orchestration-mode-service.js";
 export class ProjectTrackingService {
     options;
     executions = new FsExecutionRegistryStore();
@@ -87,6 +88,7 @@ export class ProjectTrackingService {
             return (await createFeatureTrackingView(feature, report));
         }));
         const health = worstHealth(summaries.map((feature) => feature.health));
+        const orchestration = await projectOrchestrationModeView(this.options.orchestrationConfigurations, project, orchestrations);
         const observedAt = this.now();
         return {
             id: project.id.value,
@@ -95,6 +97,7 @@ export class ProjectTrackingService {
             updatedAt: project.updatedAt.toISOString(),
             health,
             orchestrationMode: project.orchestrationMode,
+            orchestration,
             lifecycle: "materialized",
             availability: { markerReady: true, reason: null },
             coverage: { tracked: summaries.length, total: features.length },
@@ -112,6 +115,10 @@ export class ProjectTrackingService {
             features: summaries,
             ...(framings[0] === undefined ? {} : { framing: framings.find((item) => !item.published) ?? framings[0] }),
         };
+    }
+    async setProjectOrchestrationMode(projectId, input) {
+        await setProjectOrchestrationMode({ management: this.options.management, framing: this.options.framing, configurations: this.options.orchestrationConfigurations, now: this.now }, projectId, input);
+        return this.getProject(projectId);
     }
     async enterProjectFraming(input) {
         if (typeof input.root !== "string" || input.root.trim().length === 0 || input.root.length > 4_096) {

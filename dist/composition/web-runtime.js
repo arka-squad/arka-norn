@@ -6,6 +6,7 @@ import { resolve } from "node:path";
 import { FsGovernanceStore } from "../adapters/outbound/filesystem/fs-governance-store.js";
 import { FsLocalePreferenceStore } from "../adapters/outbound/filesystem/fs-locale-preference-store.js";
 import { NativeFolderPicker } from "../adapters/outbound/filesystem/native-folder-picker.js";
+import { FsOrchestrationConfigurationStore } from "../adapters/outbound/filesystem/fs-orchestration-configuration-store.js";
 import { startWebServer } from "../adapters/inbound/web/web-server.js";
 import { ProjectTrackingService } from "../application/web/project-tracking-service.js";
 import { createAgentOrchestrationRuntime } from "./agent-orchestration-runtime.js";
@@ -31,6 +32,7 @@ export async function createWebRuntime(options) {
         doctor: createDoctorRuntime(options.homeDir, options.cwd),
         homeDir: options.homeDir,
         framing: createFramingRuntime({ homeDir: options.homeDir, frameworkRoot: options.frameworkRoot }),
+        orchestrationConfigurations: new FsOrchestrationConfigurationStore(),
         ...(options.environment === undefined ? {} : { environment: options.environment }),
     });
     return startWebServer({

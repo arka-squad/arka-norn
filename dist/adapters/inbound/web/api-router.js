@@ -25,7 +25,7 @@ export async function routeApi(request, response, service, hub) {
     catch (error) {
         logWebRequestError(request, error);
         const clientError = error instanceof ClientRequestError || error instanceof WebMutationError;
-        sendError(response, clientError ? error.status : 400, clientError ? error.code : "request_rejected", locale);
+        sendError(response, clientError ? error.status : 400, clientError ? error.code : "request_rejected", locale, error instanceof WebMutationError ? error.details : {});
     }
 }
 async function dispatch(request, segments, url, service) {
@@ -38,6 +38,16 @@ async function dispatch(request, segments, url, service) {
         return dispatchGet(segments, url, service);
     if (method === "POST")
         return dispatchPost(request, segments, service);
+    if (method === "PUT" && segments.length === 3 && segments[0] === "projects" && segments[2] === "orchestration-mode") {
+        const input = await body(request, ["mode", "expectedUpdatedAt"]);
+        if (input.mode !== "manual" && input.mode !== "automatic")
+            throw new ClientRequestError(400, "invalid_orchestration_mode");
+        if (typeof input.expectedUpdatedAt !== "string")
+            throw new ClientRequestError(400, "invalid_expected_timestamp");
+        const projectId = id(segments[1]);
+        const project = await service.setProjectOrchestrationMode(projectId, { mode: input.mode, expectedUpdatedAt: input.expectedUpdatedAt });
+        return ok(project, [{ scope: "project", projectId }, { scope: "orchestration", projectId }]);
+    }
     if (method === "PUT" && same(segments, ["preferences"])) {
         return ok(await service.savePreferences(await body(request, ["locale", "name", "email", "preferredSurface", "onboarding"])));
     }
@@ -181,17 +191,28 @@ export function sendJson(response, status, data, locale = "en") {
     response.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Content-Length": Buffer.byteLength(payload) });
     response.end(payload);
 }
-export function sendError(response, status, code, locale = "en") {
+export function sendError(response, status, code, locale = "en", params = {}) {
     const payload = JSON.stringify({
         schemaVersion: 2,
         ok: false,
         data: null,
-        errors: [{ code, params: {} }],
+        errors: [{ code, params }],
         warnings: [],
-        display: { locale, message: translate(status === 401 ? "web.error.unauthorized" : "web.error.generic", {}, locale) },
+        display: { locale, message: translate(errorMessageKey(status, code), {}, locale) },
     });
     response.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Content-Length": Buffer.byteLength(payload) });
     response.end(payload);
+}
+function errorMessageKey(status, code) {
+    if (status === 401)
+        return "web.error.unauthorized";
+    if (code === "project_changed")
+        return "web.error.projectChanged";
+    if (code === "project_draft_not_materialized")
+        return "web.error.projectDraftNotMaterialized";
+    if (code === "automatic_preflight_required")
+        return "web.error.automaticPreflightRequired";
+    return "web.error.generic";
 }
 function requestLocale(request) {
     const header = request.headers["accept-language"];

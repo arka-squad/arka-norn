@@ -8,8 +8,9 @@ import { FramingCard } from "../components/framing-card";
 import { MetricStrip } from "../components/metric-strip";
 import { EmptyState, PageTitle, StatusBadge } from "../components/ui";
 import { useI18n } from "../i18n/i18n";
+import { OrchestrationModeControl } from "./orchestration-mode-control";
 
-export function ProjectOverviewView({ project, navigate }: { readonly project: ProjectOverview; readonly navigate: (path: string) => void }) {
+export function ProjectOverviewView({ project, navigate, onChanged = () => undefined }: { readonly project: ProjectOverview; readonly navigate: (path: string) => void; readonly onChanged?: () => void }) {
   const { t, date } = useI18n();
   const bridge = useBridge();
   if (project.lifecycle === "draft") {
@@ -27,6 +28,7 @@ export function ProjectOverviewView({ project, navigate }: { readonly project: P
   return <div className="page">
     <PageTitle title={project.name} summary={project.root} actions={<StatusBadge health={project.health} />} />
     <FramingCard {...(project.framing === undefined ? { onStart: async () => { const framing = await bridge.startFraming(project.id, {}); navigate(framingRoute(project.id, framing.framingId)); } } : { framing: project.framing, onOpen: () => navigate(framingRoute(project.id, project.framing!.framingId)) })} startLabel={t("web.framing.frameProject")} />
+    <OrchestrationModeControl project={project} onChanged={onChanged} />
     <MetricStrip items={[
       { label: t("web.project.features"), value: project.counts.features },
       { label: t("web.project.completed"), value: project.counts.completedFeatures, tone: "good" },

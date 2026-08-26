@@ -50,7 +50,7 @@ export interface CapabilityCatalog {
 const DEFINITIONS: readonly CapabilityDescriptor[] = [
   descriptor("framing.start", "bounded_mutation", ["cli", "tui", "web"], ["project_root_resolvable"], ["projects", "project"]),
   descriptor("framing.resume", "read", ["cli", "tui", "web"], ["framing_plan_exists"], []),
-  descriptor("project.set_orchestration_mode", "human_confirmation", ["cli", "tui"], ["project_materialized", "project_revision_current"], ["project"]),
+  descriptor("project.set_orchestration_mode", "human_confirmation", ["cli", "tui", "web"], ["project_materialized", "project_revision_current"], ["project", "orchestration"]),
   descriptor("project.scan", "bounded_mutation", ["cli", "tui"], ["project_materialized"], ["project", "feature"]),
   descriptor("project.forget", "human_confirmation", ["cli", "tui"], ["project_materialized", "explicit_confirmation"], ["projects"]),
   descriptor("agent.register", "bounded_mutation", ["cli", "tui"], ["project_materialized", "agent_registry_revision_current"], ["agents"]),

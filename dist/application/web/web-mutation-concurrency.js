@@ -5,10 +5,12 @@
 export class WebMutationError extends Error {
     status;
     code;
-    constructor(status, code) {
+    details;
+    constructor(status, code, details = {}) {
         super(code);
         this.status = status;
         this.code = code;
+        this.details = details;
     }
 }
 export function assertExpectedTimestamp(expected, current, conflictCode) {

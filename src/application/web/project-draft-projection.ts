@@ -29,6 +29,10 @@ export function createProjectDraftOverview(draft: ProjectDraft, framing?: Framin
     updatedAt: draft.updatedAt,
     health: recovery ? "blocked" : "attention",
     orchestrationMode: "manual",
+    orchestration: {
+      activeRuns: [],
+      preflight: { readyForPreview: false, configurationPresent: false, configuredProfiles: 0, enabledProfiles: 0, missing: ["project_materialization"] },
+    },
     lifecycle: "draft",
     materialization: activeMaterialization(draft.materialization),
     availability: { markerReady: false, reason: recovery ? "project_recovery_required" : "framing_publication_required" },

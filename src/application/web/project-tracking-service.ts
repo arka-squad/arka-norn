@@ -35,6 +35,7 @@ import type { ForPipeline, PipelineAuthorAuthorization } from "../../ports/inbou
 import type { ForFraming } from "../../ports/inbound/for-framing.js";
 import type { GovernanceStore } from "../../ports/outbound/governance-store.js";
 import type { FolderPicker } from "../../ports/outbound/folder-picker.js";
+import type { OrchestrationConfigurationStore } from "../../ports/outbound/orchestration-configuration-store.js";
 import type { ManagementRuntime } from "../../composition/management-runtime.js";
 import type {
   AgentTrackingView,
@@ -65,6 +66,7 @@ import { v23Campaign, v23Dag, v23Tasks } from "./orchestration-v23-projection.js
 import { createProjectDraftListItem, createProjectDraftOverview } from "./project-draft-projection.js";
 import { CAPABILITY_CATALOG, type CapabilityCatalog } from "../capabilities/capability-registry.js";
 import { buildProjectRelationshipGraph } from "./relationship-graph.js";
+import { projectOrchestrationModeView, setProjectOrchestrationMode } from "./project-orchestration-mode-service.js";
 
 interface TrackingServiceOptions {
   readonly management: ManagementRuntime;
@@ -76,6 +78,7 @@ interface TrackingServiceOptions {
   readonly folderPicker: FolderPicker;
   readonly homeDir: string;
   readonly framing: ForFraming;
+  readonly orchestrationConfigurations: OrchestrationConfigurationStore;
   readonly environment?: Readonly<Record<string, string | undefined>>;
   readonly now?: () => Date;
 }
@@ -139,6 +142,7 @@ export class ProjectTrackingService {
       return (await createFeatureTrackingView(feature, report));
     }));
     const health = worstHealth(summaries.map((feature) => feature.health));
+    const orchestration = await projectOrchestrationModeView(this.options.orchestrationConfigurations, project, orchestrations);
     const observedAt = this.now();
     return {
       id: project.id.value,
@@ -147,6 +151,7 @@ export class ProjectTrackingService {
       updatedAt: project.updatedAt.toISOString(),
       health,
       orchestrationMode: project.orchestrationMode,
+      orchestration,
       lifecycle: "materialized",
       availability: { markerReady: true, reason: null },
       coverage: { tracked: summaries.length, total: features.length },
@@ -164,6 +169,14 @@ export class ProjectTrackingService {
       features: summaries,
       ...(framings[0] === undefined ? {} : { framing: framings.find((item) => !item.published) ?? framings[0] }),
     };
+  }
+
+  public async setProjectOrchestrationMode(
+    projectId: string,
+    input: { readonly mode: "manual" | "automatic"; readonly expectedUpdatedAt: string },
+  ): Promise<ProjectOverview> {
+    await setProjectOrchestrationMode({ management: this.options.management, framing: this.options.framing, configurations: this.options.orchestrationConfigurations, now: this.now }, projectId, input);
+    return this.getProject(projectId);
   }
 
   public async enterProjectFraming(input: { readonly root: string }): Promise<ProjectOverview> {
@@ -567,6 +580,7 @@ export class ProjectTrackingService {
   private project(id: string): Promise<Project> {
     return this.options.management.projects.show(ProjectId.of(id));
   }
+
 
   private async feature(project: Project, id: string): Promise<Feature> {
     const feature = await this.options.management.features.show(FeatureId.of(id));

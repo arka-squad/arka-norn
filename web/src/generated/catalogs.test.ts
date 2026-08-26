@@ -26,7 +26,7 @@ describe("generated Web contracts", () => {
     expect(contracts.capabilities).toHaveLength(15);
     expect(contracts.capabilities.find((capability) => capability.id === "framing.start")?.surfaces).toContain("web");
     expect(contracts.capabilities.find((capability) => capability.id === "doctor.inspect")?.surfaces).toContain("web");
-    expect(contracts.capabilities.find((capability) => capability.id === "project.set_orchestration_mode")?.surfaces).not.toContain("web");
+    expect(contracts.capabilities.find((capability) => capability.id === "project.set_orchestration_mode")?.surfaces).toContain("web");
     expect(contracts.capabilities.find((capability) => capability.id === "orchestration.authorize")?.surfaces).not.toContain("web");
   });
 });

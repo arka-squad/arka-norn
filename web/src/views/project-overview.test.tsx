@@ -13,6 +13,7 @@ const project: ProjectOverview = {
   updatedAt: "2026-08-25T00:00:00Z",
   health: "healthy",
   orchestrationMode: "manual",
+  orchestration: { activeRuns: [], preflight: { readyForPreview: false, configurationPresent: false, configuredProfiles: 0, enabledProfiles: 0, missing: ["configuration_missing"] } },
   lifecycle: "materialized",
   availability: { markerReady: true, reason: null },
   coverage: { tracked: 1, total: 1 },
@@ -68,5 +69,14 @@ describe("FeatureTable", () => {
     expect(html).toContain("Plan vivant");
     expect(html).not.toContain("feature-index");
     expect(html).not.toContain("compact-summary");
+  });
+
+  it("shows the current launch mode and its prerequisites without starting a run", () => {
+    const bridge = { startFraming: () => Promise.reject(new Error("not used")) } as unknown as NornBridge;
+    const html = renderToStaticMarkup(<BridgeContext.Provider value={bridge}><I18nProvider initialLocale="en"><ProjectOverviewView project={project} navigate={() => undefined} /></I18nProvider></BridgeContext.Provider>);
+    expect(html).toContain("How assistants are launched");
+    expect(html).toContain("Manual launch");
+    expect(html).toContain("0 enabled profile(s) out of 0");
+    expect(html).toContain("Change mode");
   });
 });

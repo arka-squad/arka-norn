@@ -104,7 +104,7 @@ function ProjectContent(props: {
     return <FeatureContent projectId={props.projectId} featureId={props.featureId} {...(props.documentId === undefined ? {} : { documentId: props.documentId })} revision={props.revision} navigate={props.navigate} {...(props.preferences.humanProfile === undefined ? {} : { humanProfileId: props.preferences.humanProfile.id })} />;
   }
   if (props.section === "framing" && props.framingId !== undefined) return <FramingContent projectId={props.projectId} framingId={props.framingId} view={props.framingView ?? "plan"} revision={props.revision} navigate={props.navigate} />;
-  if (props.section === "overview") return <ProjectOverviewView project={props.project} navigate={props.navigate} />;
+  if (props.section === "overview") return <ProjectOverviewView project={props.project} navigate={props.navigate} onChanged={props.reloadProject} />;
   if (props.section === "features") return <FeaturesView project={props.project} navigate={props.navigate} onCreated={props.reloadProject} />;
   if (props.section === "documents") return <DocumentsContent project={props.project} revision={props.revision} navigate={props.navigate} />;
   if (props.section === "decisions") return <GovernanceContent projectId={props.projectId} revision={props.revision} reloadProject={props.reloadProject} />;

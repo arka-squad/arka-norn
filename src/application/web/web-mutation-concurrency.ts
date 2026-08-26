@@ -7,6 +7,7 @@ export class WebMutationError extends Error {
   public constructor(
     public readonly status: 400 | 409 | 422,
     public readonly code: string,
+    public readonly details: Readonly<Record<string, string | number | boolean>> = {},
   ) {
     super(code);
   }

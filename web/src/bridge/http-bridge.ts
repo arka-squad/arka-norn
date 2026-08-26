@@ -38,6 +38,7 @@ export class HttpNornBridge implements NornBridge {
   public listProjects(): Promise<readonly ProjectListItem[]> { return this.request("/api/v1/projects"); }
   public enterProjectFraming(input: { readonly root: string }): Promise<ProjectOverview> { return this.request("/api/v1/framing/enter", "POST", input); }
   public getProject(projectId: string): Promise<ProjectOverview> { return this.request(`/api/v1/projects/${encode(projectId)}`); }
+  public setProjectOrchestrationMode(projectId: string, input: { readonly mode: "manual" | "automatic"; readonly expectedUpdatedAt: string }): Promise<ProjectOverview> { return this.request(`/api/v1/projects/${encode(projectId)}/orchestration-mode`, "PUT", input); }
   public getFeature(projectId: string, featureId: string): Promise<FeatureTrackingView> { return this.request(`/api/v1/projects/${encode(projectId)}/features/${encode(featureId)}`); }
   public listFramings(projectId: string): Promise<readonly FramingSummaryView[]> { return this.request(`/api/v1/projects/${encode(projectId)}/framing`); }
   public getFraming(projectId: string, framingId: string): Promise<FramingDetailView> { return this.request(`/api/v1/projects/${encode(projectId)}/framing/${encode(framingId)}`); }
@@ -92,8 +93,8 @@ export class HttpNornBridge implements NornBridge {
       headers: { ...this.headers(), ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
-    const envelope = await response.json() as ApiEnvelope<T>;
-    if (!response.ok || !envelope.ok) throw new BridgeError(response.status, envelope.errors[0]?.code ?? "request_failed");
+    const envelope = await response.json() as ApiEnvelope<T> & { readonly display?: { readonly message?: string }; readonly errors: readonly { readonly code: string; readonly params?: Readonly<Record<string, unknown>> }[] };
+    if (!response.ok || !envelope.ok) throw new BridgeError(response.status, envelope.errors[0]?.code ?? "request_failed", envelope.display?.message ?? "", envelope.errors[0]?.params ?? {});
     return envelope.data;
   }
 
@@ -103,7 +104,7 @@ export class HttpNornBridge implements NornBridge {
 }
 
 export class BridgeError extends Error {
-  public constructor(public readonly status: number, public readonly code: string) { super(code); }
+  public constructor(public readonly status: number, public readonly code: string, public readonly displayMessage = "", public readonly details: Readonly<Record<string, unknown>> = {}) { super(displayMessage || code); }
 }
 
 function encode(value: string): string { return encodeURIComponent(value); }

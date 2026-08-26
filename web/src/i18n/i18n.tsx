@@ -4,11 +4,12 @@ import { catalogs } from "../generated/catalogs";
 
 export type WebLocale = "en" | "fr";
 export type MessageKey = keyof typeof catalogs.en;
+type MessageParameters = Readonly<Record<string, string | number | boolean>>;
 
 interface I18nValue {
   readonly locale: WebLocale;
   readonly setLocale: (locale: WebLocale) => void;
-  readonly t: (key: MessageKey) => string;
+  readonly t: (key: MessageKey, parameters?: MessageParameters) => string;
   readonly contractLabel: (field: string) => string;
   readonly date: (value: string | Date) => string;
   readonly duration: (milliseconds: number) => string;
@@ -26,7 +27,7 @@ export function I18nProvider({ initialLocale, children }: PropsWithChildren<{ re
       document.documentElement.lang = next;
       setLocaleState(next);
     },
-    t: (key) => catalogs[locale][key],
+    t: (key, parameters = {}) => catalogs[locale][key].replace(/\{([A-Za-z][A-Za-z0-9_]*)\}/g, (placeholder, name: string) => parameters[name] === undefined ? placeholder : String(parameters[name])),
     contractLabel: (field) => {
       const key = `web.contract.${field}`;
       const translated = (catalogs[locale] as Readonly<Record<string, string>>)[key];

@@ -101,14 +101,16 @@ export const contracts = {
       "authority": "human_confirmation",
       "surfaces": [
         "cli",
-        "tui"
+        "tui",
+        "web"
       ],
       "preconditions": [
         "project_materialized",
         "project_revision_current"
       ],
       "invalidations": [
-        "project"
+        "project",
+        "orchestration"
       ]
     },
     {

@@ -30,6 +30,7 @@ export interface ProjectOverview {
   readonly updatedAt: string;
   readonly health: TrackingHealth;
   readonly orchestrationMode: "manual" | "automatic";
+  readonly orchestration: ProjectOrchestrationModeView;
   readonly lifecycle: "draft" | "materialized";
   readonly materialization?: "draft" | "publishing" | "recovery_required";
   readonly availability: {
@@ -50,6 +51,17 @@ export interface ProjectOverview {
   };
   readonly features: readonly FeatureSummary[];
   readonly framing?: FramingSummaryView;
+}
+
+export interface ProjectOrchestrationModeView {
+  readonly activeRuns: readonly { readonly id: string; readonly status: string }[];
+  readonly preflight: {
+    readonly readyForPreview: boolean;
+    readonly configurationPresent: boolean;
+    readonly configuredProfiles: number;
+    readonly enabledProfiles: number;
+    readonly missing: readonly ("project_materialization" | "configuration_missing" | "enabled_profile_missing" | "configuration_invalid")[];
+  };
 }
 
 export interface FeatureSummary {
@@ -390,6 +402,7 @@ export interface NornBridge {
   listProjects(): Promise<readonly ProjectListItem[]>;
   enterProjectFraming(input: { readonly root: string }): Promise<ProjectOverview>;
   getProject(projectId: string): Promise<ProjectOverview>;
+  setProjectOrchestrationMode(projectId: string, input: { readonly mode: "manual" | "automatic"; readonly expectedUpdatedAt: string }): Promise<ProjectOverview>;
   getFeature(projectId: string, featureId: string): Promise<FeatureTrackingView>;
   listFramings(projectId: string): Promise<readonly FramingSummaryView[]>;
   getFraming(projectId: string, framingId: string): Promise<FramingDetailView>;
