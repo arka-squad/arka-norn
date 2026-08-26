@@ -21,6 +21,7 @@ export function createProjectDraftOverview(draft, framing) {
         id: draft.id,
         name: draft.name,
         root: draft.root,
+        updatedAt: draft.updatedAt,
         health: recovery ? "blocked" : "attention",
         orchestrationMode: "manual",
         lifecycle: "draft",

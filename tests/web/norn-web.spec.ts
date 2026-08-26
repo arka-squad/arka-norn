@@ -11,6 +11,7 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import axe from "axe-core";
 
+import type { LiveInvalidation } from "../../src/application/web/contracts.js";
 import type { RunningWebServer } from "../../src/adapters/inbound/web/web-server.js";
 
 let sandbox = "";
@@ -57,6 +58,27 @@ test("local API rejects unauthorized origins and exposes no orchestration contro
   expect(envelope.schemaVersion).toBe(2);
   expect(envelope.display.locale).toBe("fr");
   expect(JSON.stringify(envelope)).not.toContain(runtime.token);
+  const capabilities = await fetch(`${origin}/api/v1/capabilities`, { headers: { Authorization: `Bearer ${runtime.token}`, Origin: origin } });
+  expect(capabilities.status).toBe(200);
+  const capabilityEnvelope = await capabilities.json() as { readonly data: { readonly schemaVersion: number; readonly capabilities: readonly { readonly id: string; readonly surfaces: readonly string[] }[] } };
+  expect(capabilityEnvelope.data.schemaVersion).toBe(1);
+  expect(capabilityEnvelope.data.capabilities).toHaveLength(15);
+  expect(capabilityEnvelope.data.capabilities.find((item) => item.id === "doctor.inspect")?.surfaces).toContain("web");
+  expect(capabilityEnvelope.data.capabilities.find((item) => item.id === "agent.replace")?.surfaces).not.toContain("web");
+  const unexpected = await fetch(`${origin}/api/v1/framing/enter`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${runtime.token}`, Origin: origin, "Content-Type": "application/json" },
+    body: JSON.stringify({ root: projectRoot, ignored: true }),
+  });
+  expect(unexpected.status).toBe(400);
+  expect(await errorCode(unexpected)).toBe("unexpected_field");
+  const oversized = await fetch(`${origin}/api/v1/framing/enter`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${runtime.token}`, Origin: origin, "Content-Type": "application/json" },
+    body: JSON.stringify({ root: `/${"x".repeat(64 * 1024)}` }),
+  });
+  expect(oversized.status).toBe(413);
+  expect(await errorCode(oversized)).toBe("body_too_large");
   const control = await fetch(`${origin}/api/v1/projects/demo/orchestrations/start`, { method: "POST", headers: { Authorization: `Bearer ${runtime.token}`, Origin: origin } });
   expect(control.status).toBe(404);
   const shell = await fetch(origin);
@@ -82,9 +104,17 @@ test("Project framing enters and resumes as a draft without marker, Feature or w
   await expect(projectDialog.getByText(projectRoot)).toBeVisible();
   const continueButton = projectDialog.getByRole("button", { name: "Continue to framing" });
   await expect(continueButton).toBeEnabled();
+  const runtime = requiredServer();
+  const origin = new URL(runtime.url).origin;
+  const stream = await fetch(`${origin}/api/v1/events`, { headers: { Authorization: `Bearer ${runtime.token}`, Origin: origin } });
+  expect(stream.status).toBe(200);
+  const persistedInvalidation = nextInvalidation(stream.body, (event) => event.scope === "project");
   const entryResponse = page.waitForResponse((response) => response.url().endsWith("/api/v1/framing/enter") && response.request().method() === "POST");
   await continueButton.click();
-  expect((await entryResponse).status()).toBe(201);
+  const entered = await entryResponse;
+  expect(entered.status()).toBe(201);
+  const enteredEnvelope = await entered.json() as { readonly data: { readonly id: string } };
+  expect((await persistedInvalidation).projectId).toBe(enteredEnvelope.data.id);
 
   await expect(page.getByRole("heading", { name: "project", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "This Project is still being framed" })).toBeVisible();
@@ -211,4 +241,36 @@ function horizontalOverflow(page: Page): Promise<number> {
 function requiredServer(): RunningWebServer {
   if (server === undefined) throw new Error("Web test server did not start.");
   return server;
+}
+
+async function errorCode(response: Response): Promise<string | undefined> {
+  const envelope = await response.json() as { readonly errors?: readonly { readonly code?: string }[] };
+  return envelope.errors?.[0]?.code;
+}
+
+async function nextInvalidation(
+  body: ReadableStream<Uint8Array> | null,
+  predicate: (event: LiveInvalidation) => boolean,
+): Promise<LiveInvalidation> {
+  if (body === null) throw new Error("SSE response body is missing.");
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) throw new Error("SSE stream ended before the expected invalidation.");
+      buffer += decoder.decode(chunk.value, { stream: true });
+      const messages = buffer.split("\n\n");
+      buffer = messages.pop() ?? "";
+      for (const message of messages) {
+        const data = message.split("\n").find((line) => line.startsWith("data: "));
+        if (data === undefined) continue;
+        const event = JSON.parse(data.slice(6)) as LiveInvalidation;
+        if (predicate(event)) return event;
+      }
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
 }

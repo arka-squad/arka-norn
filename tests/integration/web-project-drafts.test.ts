@@ -44,10 +44,15 @@ test("le Web projette un ProjectDraft et borne ses capacités au cadrage", async
 
   const entered = await service.enterProjectFraming({ root: projectRoot });
   assert.equal(entered.lifecycle, "draft");
+  assert.equal(Number.isNaN(Date.parse(entered.updatedAt)), false);
   assert.equal(entered.availability.markerReady, false);
   assert.equal(entered.availability.reason, "framing_publication_required");
   assert.equal(entered.framing?.framingId, "project");
   assert.equal(existsSync(resolve(projectRoot, ".arka-norn")), false);
+
+  const capabilities = service.getCapabilities();
+  assert.equal(capabilities.capabilities.length, 15);
+  assert.equal(capabilities.capabilities.find((item) => item.id === "project.set_orchestration_mode")?.surfaces.includes("web"), false);
 
   const listed = await service.listProjects();
   assert.equal(listed.length, 1);

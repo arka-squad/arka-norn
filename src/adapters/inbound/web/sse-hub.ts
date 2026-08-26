@@ -30,7 +30,14 @@ export class SseHub {
   public publish(event: Omit<LiveInvalidation, "revision" | "occurredAt">): void {
     this.revision += 1;
     const message: LiveInvalidation = { ...event, revision: this.revision, occurredAt: new Date().toISOString() };
-    for (const client of this.clients) this.send(client, message);
+    for (const client of this.clients) {
+      try {
+        this.send(client, message);
+      } catch {
+        this.clients.delete(client);
+        client.end();
+      }
+    }
   }
 
   public close(): void {

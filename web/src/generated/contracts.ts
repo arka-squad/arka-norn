@@ -64,5 +64,228 @@ export const contracts = {
   "locales": [
     "en",
     "fr"
+  ],
+  "capabilitySchemaVersion": 1,
+  "capabilities": [
+    {
+      "id": "framing.start",
+      "authority": "bounded_mutation",
+      "surfaces": [
+        "cli",
+        "tui",
+        "web"
+      ],
+      "preconditions": [
+        "project_root_resolvable"
+      ],
+      "invalidations": [
+        "projects",
+        "project"
+      ]
+    },
+    {
+      "id": "framing.resume",
+      "authority": "read",
+      "surfaces": [
+        "cli",
+        "tui",
+        "web"
+      ],
+      "preconditions": [
+        "framing_plan_exists"
+      ],
+      "invalidations": []
+    },
+    {
+      "id": "project.set_orchestration_mode",
+      "authority": "human_confirmation",
+      "surfaces": [
+        "cli",
+        "tui"
+      ],
+      "preconditions": [
+        "project_materialized",
+        "project_revision_current"
+      ],
+      "invalidations": [
+        "project"
+      ]
+    },
+    {
+      "id": "project.scan",
+      "authority": "bounded_mutation",
+      "surfaces": [
+        "cli",
+        "tui"
+      ],
+      "preconditions": [
+        "project_materialized"
+      ],
+      "invalidations": [
+        "project",
+        "feature"
+      ]
+    },
+    {
+      "id": "project.forget",
+      "authority": "human_confirmation",
+      "surfaces": [
+        "cli",
+        "tui"
+      ],
+      "preconditions": [
+        "project_materialized",
+        "explicit_confirmation"
+      ],
+      "invalidations": [
+        "projects"
+      ]
+    },
+    {
+      "id": "agent.register",
+      "authority": "bounded_mutation",
+      "surfaces": [
+        "cli",
+        "tui"
+      ],
+      "preconditions": [
+        "project_materialized",
+        "agent_registry_revision_current"
+      ],
+      "invalidations": [
+        "agents"
+      ]
+    },
+    {
+      "id": "agent.select",
+      "authority": "bounded_mutation",
+      "surfaces": [
+        "cli",
+        "tui"
+      ],
+      "preconditions": [
+        "agent_active",
+        "agent_registry_revision_current"
+      ],
+      "invalidations": [
+        "agents",
+        "project"
+      ]
+    },
+    {
+      "id": "agent.replace",
+      "authority": "human_confirmation",
+      "surfaces": [
+        "cli",
+        "tui"
+      ],
+      "preconditions": [
+        "agent_active",
+        "agent_registry_revision_current"
+      ],
+      "invalidations": [
+        "agents",
+        "project"
+      ]
+    },
+    {
+      "id": "agent.deactivate",
+      "authority": "human_confirmation",
+      "surfaces": [
+        "cli",
+        "tui"
+      ],
+      "preconditions": [
+        "agent_registry_revision_current",
+        "linked_session_confirmation"
+      ],
+      "invalidations": [
+        "agents",
+        "project"
+      ]
+    },
+    {
+      "id": "doctor.inspect",
+      "authority": "read",
+      "surfaces": [
+        "cli",
+        "tui",
+        "web"
+      ],
+      "preconditions": [],
+      "invalidations": []
+    },
+    {
+      "id": "doctor.repair_preview",
+      "authority": "read",
+      "surfaces": [
+        "cli",
+        "tui"
+      ],
+      "preconditions": [
+        "doctor_findings_exist"
+      ],
+      "invalidations": []
+    },
+    {
+      "id": "doctor.repair_apply",
+      "authority": "human_confirmation",
+      "surfaces": [
+        "cli",
+        "tui"
+      ],
+      "preconditions": [
+        "exact_repair_preview",
+        "explicit_confirmation"
+      ],
+      "invalidations": [
+        "projects",
+        "project",
+        "feature",
+        "agents"
+      ]
+    },
+    {
+      "id": "orchestration.preview",
+      "authority": "read",
+      "surfaces": [
+        "cli"
+      ],
+      "preconditions": [
+        "project_materialized",
+        "framing_plan_published"
+      ],
+      "invalidations": []
+    },
+    {
+      "id": "orchestration.authorize",
+      "authority": "expert_authorization",
+      "surfaces": [
+        "cli"
+      ],
+      "preconditions": [
+        "orchestration_preview_current",
+        "execution_profiles_admissible"
+      ],
+      "invalidations": [
+        "orchestration"
+      ]
+    },
+    {
+      "id": "orchestration.apply",
+      "authority": "human_confirmation",
+      "surfaces": [
+        "cli"
+      ],
+      "preconditions": [
+        "application_candidate_verified",
+        "application_gate_satisfied"
+      ],
+      "invalidations": [
+        "project",
+        "feature",
+        "orchestration"
+      ]
+    }
   ]
 } as const;

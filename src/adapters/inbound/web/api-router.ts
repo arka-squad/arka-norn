@@ -6,11 +6,15 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import type { ProjectTrackingService } from "../../../application/web/project-tracking-service.js";
+import type { LiveInvalidation } from "../../../application/web/contracts.js";
+import { WebMutationError } from "../../../application/web/web-mutation-concurrency.js";
 import type { SseHub } from "./sse-hub.js";
 import { logWebRequestError } from "./web-error-log.js";
 import { resolveLocale, translate, type Locale } from "../../../application/localization/locale.js";
 
 const MAX_BODY_BYTES = 64 * 1024;
+type MutationInvalidation = Omit<LiveInvalidation, "revision" | "occurredAt">;
+interface DispatchResult { readonly status: number; readonly value: unknown; readonly invalidations: readonly MutationInvalidation[] }
 
 export async function routeApi(
   request: IncomingMessage,
@@ -29,9 +33,10 @@ export async function routeApi(
   try {
     const data = await dispatch(request, segments.slice(2), url, service);
     sendJson(response, data.status, data.value, locale);
+    for (const invalidation of data.invalidations) hub.publish(invalidation);
   } catch (error) {
     logWebRequestError(request, error);
-    const clientError = error instanceof ClientRequestError;
+    const clientError = error instanceof ClientRequestError || error instanceof WebMutationError;
     sendError(response, clientError ? error.status : 400, clientError ? error.code : "request_rejected", locale);
   }
 }
@@ -41,12 +46,15 @@ async function dispatch(
   segments: readonly string[],
   url: URL,
   service: ProjectTrackingService,
-): Promise<{ readonly status: number; readonly value: unknown }> {
+): Promise<DispatchResult> {
   const method = request.method ?? "GET";
   if (method === "GET" && same(segments, ["health"])) return ok({ status: "ready" });
+  if (method === "GET" && same(segments, ["capabilities"])) return ok(service.getCapabilities());
   if (method === "GET") return dispatchGet(segments, url, service);
   if (method === "POST") return dispatchPost(request, segments, service);
-  if (method === "PUT" && same(segments, ["preferences"])) return ok(await service.savePreferences(await body(request)));
+  if (method === "PUT" && same(segments, ["preferences"])) {
+    return ok(await service.savePreferences(await body(request, ["locale", "name", "email", "preferredSurface", "onboarding"])));
+  }
   throw new ClientRequestError(404, "not_found");
 }
 
@@ -81,40 +89,58 @@ async function dispatchFeatureGet(segments: readonly string[], service: ProjectT
 }
 
 async function dispatchPost(request: IncomingMessage, segments: readonly string[], service: ProjectTrackingService) {
-  if (same(segments, ["folder-picker"])) return ok(await service.pickFolder(await body(request)));
+  if (same(segments, ["folder-picker"])) return ok(await service.pickFolder(await body(request, ["purpose", "defaultPath"])));
   if (same(segments, ["framing", "enter"])) {
-    const input = await body<{ readonly root?: unknown }>(request);
+    const input = await body<{ readonly root?: unknown }>(request, ["root"]);
     if (typeof input.root !== "string" || input.root.trim().length === 0 || input.root.length > 4_096) throw new ClientRequestError(400, "invalid_root");
-    return created(await service.enterProjectFraming({ root: input.root.trim() }));
+    const project = await service.enterProjectFraming({ root: input.root.trim() });
+    return created(project, [{ scope: "projects" }, { scope: "project", projectId: project.id }]);
   }
-  if (same(segments, ["projects"])) return created(await service.createProject(await body(request)));
+  if (same(segments, ["projects"])) {
+    const project = await service.createProject(await body(request, ["id", "name", "root"]));
+    return created(project, [{ scope: "projects" }, { scope: "project", projectId: project.id }]);
+  }
   if (segments.length === 3 && segments[0] === "projects" && segments[2] === "features") {
-    return created(await service.createFeature(id(segments[1]), await body(request)));
+    const projectId = id(segments[1]);
+    const feature = await service.createFeature(projectId, await body(request, ["id", "name", "root", "pipelineId"]));
+    return created(feature, [{ scope: "projects" }, { scope: "project", projectId }, { scope: "feature", projectId, featureId: feature.id }]);
   }
   const framing = await dispatchFramingPost(request, segments, service);
   if (framing !== undefined) return framing;
   if (segments.length === 5 && segments[0] === "projects" && segments[2] === "features" && segments[4] === "product-prompt") {
-    return ok(await service.prepareProductPrompt(id(segments[1]), id(segments[3]), await body(request)));
+    return ok(await service.prepareProductPrompt(id(segments[1]), id(segments[3]), await body(request, ["target", "purpose"])));
   }
-  if (segments.length === 3 && segments[0] === "projects" && segments[2] === "governance") return created(await service.appendGovernance(id(segments[1]), await body(request)));
+  if (segments.length === 3 && segments[0] === "projects" && segments[2] === "governance") {
+    const projectId = id(segments[1]);
+    const governance = await service.appendGovernance(projectId, await body(request, ["kind", "targets", "reason", "resolvesEventId", "supersedesEventId"]));
+    return created(governance, [{ scope: "governance", projectId }, { scope: "project", projectId }]);
+  }
   if (segments.length === 4 && segments[0] === "projects" && segments[2] === "audits" && segments[3] === "prepare") {
-    return created(await service.prepareAudit(id(segments[1]), await body(request)));
+    const projectId = id(segments[1]);
+    const audit = await service.prepareAudit(projectId, await body(request, ["featureId", "objective", "mode", "paths", "modules"]));
+    return created(audit, [{ scope: "audits", projectId }, { scope: "project", projectId }]);
   }
   const audit = await dispatchAuditPost(request, segments, service);
   if (audit !== undefined) return audit;
-  if (same(segments, ["doctor", "repair"])) return ok(await service.repairDoctor(await body(request)));
+  if (same(segments, ["doctor", "repair"])) {
+    const input = await body<{ readonly apply?: unknown; readonly confirmed?: unknown }>(request, ["apply", "confirmed"]);
+    if (typeof input.apply !== "boolean" || typeof input.confirmed !== "boolean") throw new ClientRequestError(400, "invalid_doctor_repair");
+    const report = await service.repairDoctor({ apply: input.apply, confirmed: input.confirmed });
+    return ok(report, input.apply ? [{ scope: "projects" }] : []);
+  }
   throw new ClientRequestError(404, "not_found");
 }
 
 async function dispatchFramingPost(request: IncomingMessage, segments: readonly string[], service: ProjectTrackingService) {
   if (segments.length !== 3 || segments[0] !== "projects" || segments[2] !== "framing") return undefined;
-  const input = await body<{ readonly existingFeatureId?: unknown; readonly newFeatureTitle?: unknown }>(request);
+  const input = await body<{ readonly existingFeatureId?: unknown; readonly newFeatureTitle?: unknown }>(request, ["existingFeatureId", "newFeatureTitle"]);
   if (input.existingFeatureId !== undefined && typeof input.existingFeatureId !== "string") throw new ClientRequestError(400, "invalid_feature");
   if (input.newFeatureTitle !== undefined && (typeof input.newFeatureTitle !== "string" || input.newFeatureTitle.trim().length === 0 || input.newFeatureTitle.length > 256)) throw new ClientRequestError(400, "invalid_title");
-  return created(await service.startFraming(id(segments[1]), {
+  const projectId = id(segments[1]);
+  return created(await service.startFraming(projectId, {
     ...(typeof input.existingFeatureId === "string" ? { existingFeatureId: id(input.existingFeatureId) } : {}),
     ...(typeof input.newFeatureTitle === "string" ? { newFeatureTitle: input.newFeatureTitle.trim() } : {}),
-  }));
+  }), [{ scope: "project", projectId }]);
 }
 
 async function dispatchAuditPost(request: IncomingMessage, segments: readonly string[], service: ProjectTrackingService) {
@@ -123,13 +149,17 @@ async function dispatchAuditPost(request: IncomingMessage, segments: readonly st
   const auditId = id(segments[3]);
   const action = segments[4];
   if (action === "start") {
-    const input = await body<{ readonly confirmation?: unknown }>(request);
+    const input = await body<{ readonly confirmation?: unknown }>(request, ["confirmation"]);
     if (typeof input.confirmation !== "string") throw new ClientRequestError(400, "confirmation_required");
-    return ok(await service.startAudit(projectId, auditId, input.confirmation));
+    return ok(await service.startAudit(projectId, auditId, input.confirmation), [{ scope: "audits", projectId }, { scope: "project", projectId }]);
   }
-  if (action === "finalize") return ok(await service.finalizeAudit(projectId, auditId));
-  if (action === "cancel") return ok(await service.cancelAudit(projectId, auditId));
-  if (action === "resume") return ok(await service.resumeAudit(projectId, auditId));
+  if (action === "finalize" || action === "cancel" || action === "resume") {
+    await body(request, []);
+    const audit = action === "finalize"
+      ? await service.finalizeAudit(projectId, auditId)
+      : action === "cancel" ? await service.cancelAudit(projectId, auditId) : await service.resumeAudit(projectId, auditId);
+    return ok(audit, [{ scope: "audits", projectId }, { scope: "project", projectId }]);
+  }
   return undefined;
 }
 
@@ -164,7 +194,11 @@ function requestLocale(request: IncomingMessage): Locale {
   return resolveLocale({ environment: {}, ...(typeof header === "string" ? { systemLocale: header } : {}) });
 }
 
-async function body<T>(request: IncomingMessage): Promise<T> {
+async function body<T>(request: IncomingMessage, allowedKeys: readonly string[]): Promise<T> {
+  const contentType = request.headers["content-type"];
+  if (typeof contentType !== "string" || !contentType.toLowerCase().startsWith("application/json")) {
+    throw new ClientRequestError(415, "unsupported_media_type");
+  }
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of request as AsyncIterable<unknown>) {
@@ -176,8 +210,11 @@ async function body<T>(request: IncomingMessage): Promise<T> {
   try {
     const value: unknown = JSON.parse(Buffer.concat(chunks).toString("utf8"));
     if (!isRecord(value)) throw new Error("object required");
+    const unexpected = Object.keys(value).find((key) => !allowedKeys.includes(key));
+    if (unexpected !== undefined) throw new ClientRequestError(400, "unexpected_field");
     return value as T;
-  } catch {
+  } catch (error) {
+    if (error instanceof ClientRequestError) throw error;
     throw new ClientRequestError(400, "invalid_json");
   }
 }
@@ -199,8 +236,8 @@ function same(left: readonly string[], right: readonly string[]): boolean {
   return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
-function ok(value: unknown) { return { status: 200, value } as const; }
-function created(value: unknown) { return { status: 201, value } as const; }
+function ok(value: unknown, invalidations: readonly MutationInvalidation[] = []): DispatchResult { return { status: 200, value, invalidations }; }
+function created(value: unknown, invalidations: readonly MutationInvalidation[] = []): DispatchResult { return { status: 201, value, invalidations }; }
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

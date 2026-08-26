@@ -17,6 +17,7 @@ import { relative, resolve } from "node:path";
 import { FeatureId } from "../../../../domain/feature/feature-id.js";
 import { mapConcurrent } from "../../../../application/shared/map-concurrent.js";
 import { formatNumber, translate } from "../../../../application/localization/locale.js";
+import { capabilityAvailableOn } from "../../../../application/capabilities/capability-registry.js";
 import { titledBox } from "../components/box.js";
 import { guidedShortcuts, nextActionLine, renderGuidance } from "../components/guidance.js";
 import { createMenuScene } from "../components/menu.js";
@@ -44,7 +45,7 @@ export function createProjectDetailView(deps) {
         });
         return [
             { label: translate("tui.project.product.label"), value: "action:product", description: translate("tui.project.product.description") },
-            { label: translate("tui.project.framing.label"), value: "action:framing", description: translate("tui.project.framing.description") },
+            ...(capabilityAvailableOn("framing.start", "tui") ? [{ label: translate("tui.project.framing.label"), value: "action:framing", description: translate("tui.project.framing.description") }] : []),
             { label: translate("tui.project.import.label"), value: "action:import", description: translate("tui.project.import.description") },
             ...groupedFeatures.map((feature) => {
                 const featureMetrics = metrics.get(feature.id.value);
@@ -54,8 +55,8 @@ export function createProjectDetailView(deps) {
                 const progress = featureMetrics === undefined ? "" : ` - ${featureMetrics.phase} - ${featureMetrics.progress}${featureMetrics.iteration > 1 ? ` - ${translate("tui.project.iteration", { iteration: formatNumber(featureMetrics.iteration) })}` : ""}`;
                 return { label: `${CIRCLE} ${badge}[${statuses.get(feature.id.value) ?? translate("tui.project.status.unknown")}] ${feature.name}${progress}`, value: `feature:${feature.id.value}`, description: feature.root };
             }),
-            { label: translate("tui.project.agents.label"), value: "action:agents", description: translate("tui.project.agents.description") },
-            ...(deps.projects === undefined ? [] : [{
+            ...(capabilityAvailableOn("agent.register", "tui") ? [{ label: translate("tui.project.agents.label"), value: "action:agents", description: translate("tui.project.agents.description") }] : []),
+            ...(deps.projects === undefined || !capabilityAvailableOn("project.set_orchestration_mode", "tui") ? [] : [{
                     label: translate("tui.project.assisted.label", { state: translate(project.orchestrationMode === "automatic" ? "tui.project.state.enabled" : "tui.project.state.disabled") }),
                     value: "action:orchestration",
                     description: project.orchestrationMode === "automatic"
@@ -66,8 +67,8 @@ export function createProjectDetailView(deps) {
                     label: translate("tui.project.assisted.open"), value: "action:orchestration-dashboard",
                     description: translate("tui.project.assisted.openDescription"),
                 }]),
-            { label: translate("tui.project.scan.label"), value: "action:scan" },
-            { label: translate("tui.project.forget.label"), value: "action:forget" },
+            ...(capabilityAvailableOn("project.scan", "tui") ? [{ label: translate("tui.project.scan.label"), value: "action:scan" }] : []),
+            ...(capabilityAvailableOn("project.forget", "tui") ? [{ label: translate("tui.project.forget.label"), value: "action:forget" }] : []),
             { label: `<- ${translate("tui.project.back")}`, value: "action:back" },
         ];
     }

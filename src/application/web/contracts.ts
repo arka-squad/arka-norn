@@ -7,6 +7,7 @@ import type { GovernanceEventKind, GovernanceTarget } from "../../domain/governa
 import type { WebOnboardingProgress, WebOnboardingState } from "../../domain/onboarding/web-onboarding-state.js";
 import type { OrchestrationProjection } from "../../domain/orchestration/orchestration-projection.js";
 import type { DoctorReport } from "../../ports/inbound/for-doctor.js";
+import type { CapabilityCatalog, CapabilityInvalidationScope } from "../capabilities/capability-registry.js";
 
 export type TrackingHealth = "healthy" | "attention" | "blocked" | "invalid";
 
@@ -26,6 +27,7 @@ export interface ProjectOverview {
   readonly id: string;
   readonly name: string;
   readonly root: string;
+  readonly updatedAt: string;
   readonly health: TrackingHealth;
   readonly orchestrationMode: "manual" | "automatic";
   readonly lifecycle: "draft" | "materialized";
@@ -375,7 +377,7 @@ export interface CreateGovernanceEventInput {
 }
 
 export interface LiveInvalidation {
-  readonly scope: "projects" | "project" | "feature" | "documents" | "governance" | "audits" | "agents" | "orchestration";
+  readonly scope: CapabilityInvalidationScope;
   readonly projectId?: string;
   readonly featureId?: string;
   readonly executionId?: string;
@@ -384,6 +386,7 @@ export interface LiveInvalidation {
 }
 
 export interface NornBridge {
+  getCapabilities(): Promise<CapabilityCatalog>;
   listProjects(): Promise<readonly ProjectListItem[]>;
   enterProjectFraming(input: { readonly root: string }): Promise<ProjectOverview>;
   getProject(projectId: string): Promise<ProjectOverview>;

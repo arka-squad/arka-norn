@@ -10,6 +10,7 @@ const project: ProjectOverview = {
   id: "norn",
   name: "Norn",
   root: "/products/norn",
+  updatedAt: "2026-08-25T00:00:00Z",
   health: "healthy",
   orchestrationMode: "manual",
   lifecycle: "materialized",

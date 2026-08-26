@@ -21,6 +21,7 @@ import type {
   SaveWebPreferencesInput,
   WebPreferences,
 } from "../../../src/application/web/contracts";
+import type { CapabilityCatalog } from "../../../src/application/capabilities/capability-registry";
 import type { DoctorReport } from "../../../src/ports/inbound/for-doctor";
 
 interface ApiEnvelope<T> {
@@ -33,6 +34,7 @@ interface ApiEnvelope<T> {
 export class HttpNornBridge implements NornBridge {
   public constructor(private readonly token: string) {}
 
+  public getCapabilities(): Promise<CapabilityCatalog> { return this.request("/api/v1/capabilities"); }
   public listProjects(): Promise<readonly ProjectListItem[]> { return this.request("/api/v1/projects"); }
   public enterProjectFraming(input: { readonly root: string }): Promise<ProjectOverview> { return this.request("/api/v1/framing/enter", "POST", input); }
   public getProject(projectId: string): Promise<ProjectOverview> { return this.request(`/api/v1/projects/${encode(projectId)}`); }
