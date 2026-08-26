@@ -60,65 +60,38 @@ test("local API rejects unauthorized origins and exposes no orchestration contro
   expect(shell.headers.get("content-security-policy")).toContain("default-src 'self'");
 });
 
-test("Project manager creates a profile, Project and Essential Feature in EN and FR", async ({ page }) => {
+test("Project manager enters framing without the legacy wizard or a workflow choice in EN and FR", async ({ page }) => {
   await page.goto(requiredServer().url);
-  const brand = await page.locator(".onboarding-brand img").evaluate((element) => ({
+  const brand = await page.locator(".wordmark img").evaluate((element) => ({
     loaded: (element as HTMLImageElement).naturalWidth > 0,
     red: getComputedStyle(document.documentElement).getPropertyValue("--arka-red").trim(),
     theme: document.documentElement.dataset.theme,
     typography: getComputedStyle(document.body).fontFamily,
   }));
   expect(brand).toEqual({ loaded: true, red: "#c70f43", theme: "dark", typography: expect.stringContaining("Poppins") });
-  const onboarding = page.getByRole("dialog", { name: "Set up your verified workspace" });
-  await expect(onboarding).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Who will make decisions in Norn?" })).toBeVisible();
-  await page.getByLabel("Name", { exact: true }).fill("Norn QA");
-  await page.getByRole("button", { name: "Continue" }).click();
-
-  await expect(page.getByRole("heading", { name: "Which product do you want to track?" })).toBeVisible();
-  const projectName = onboarding.getByRole("textbox", { name: /^Name/ });
+  await expect(page.getByRole("heading", { name: "Projects" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Set up your verified workspace" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Create Project" }).click();
+  const projectDialog = page.getByRole("dialog", { name: "Create Project" });
+  const projectName = projectDialog.getByRole("textbox", { name: /^Name/ });
   await projectName.fill("Demo Project");
-  await onboarding.getByRole("button", { name: "Choose folder" }).click();
-  await expect(onboarding.getByText(projectRoot)).toBeVisible();
-  await page.waitForTimeout(450);
-  await page.reload();
-  await expect(page.getByRole("heading", { name: "Which product do you want to track?" })).toBeVisible();
-  await expect(onboarding.getByRole("textbox", { name: /^Name/ })).toHaveValue("Demo Project");
-  await expect(onboarding.getByText(projectRoot)).toBeVisible();
-  await onboarding.getByRole("button", { name: "Register Project" }).click();
+  await projectDialog.getByRole("button", { name: "Choose folder" }).click();
+  await expect(projectDialog.getByText(projectRoot)).toBeVisible();
+  await projectDialog.getByRole("button", { name: "Register Project" }).click();
 
-  await expect(page.getByRole("heading", { name: "What outcome do you want first?" })).toBeVisible();
-  const featureName = onboarding.getByRole("textbox", { name: /^Name/ });
-  await featureName.fill("Customer export");
-  await expect(onboarding.getByText(`${projectRoot}/features/customer-export`)).toBeVisible();
-  await expect(onboarding.getByText("Essential", { exact: true })).toBeVisible();
-  await page.waitForTimeout(450);
-  await page.reload();
-  await expect(page.getByRole("heading", { name: "What outcome do you want first?" })).toBeVisible();
-  await expect(onboarding.getByRole("textbox", { name: /^Name/ })).toHaveValue("Customer export");
-  expect(await onboardingStatus(page)).toBe("in_progress");
-  await onboarding.getByRole("button", { name: "Add Feature" }).click();
-  await expect(page.getByRole("heading", { name: "Your Feature is created" })).toBeVisible();
-  await expect(onboarding.getByText("Customer export")).toBeVisible();
-  expect(await onboardingState(page)).toMatchObject({ status: "in_progress", step: 4, featureId: "customer-export" });
-  await page.waitForTimeout(450);
-  expect(await onboardingState(page)).toMatchObject({ status: "in_progress", step: 4, featureId: "customer-export" });
-  await page.reload();
-  await expect(page.getByRole("heading", { name: "Your Feature is created" })).toBeVisible();
-  expect(await onboardingStatus(page)).toBe("in_progress");
-  expect(await registeredFeatureCount(page)).toBe(1);
-  await onboarding.getByRole("button", { name: "Continue to framing" }).click();
-  await expect(onboarding).toBeHidden();
+  await expect(page.getByRole("heading", { name: "Demo Project" })).toBeVisible();
+  await page.locator(".sidebar").getByRole("button", { name: /^Features/ }).click();
+  await page.getByRole("button", { name: "Frame a new Feature" }).click();
+  const framingDialog = page.getByRole("dialog", { name: "Frame a new Feature" });
+  await expect(framingDialog.getByText("The Feature, id, folder and workflow are calculated only after the plan is grounded.")).toBeVisible();
+  await expect(framingDialog.getByText("Essential", { exact: true })).toHaveCount(0);
+  await framingDialog.getByLabel("What should change for the user?").fill("Customer export");
+  await framingDialog.getByRole("button", { name: "Start framing" }).click();
   await expect(page.getByRole("heading", { name: "Customer export" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Produce the first framing document" })).toBeVisible();
+  await expect(page.getByText("The plan is being opened")).toBeVisible();
+  expect(await registeredFeatureCount(page)).toBe(0);
   await expect(page.getByText("Automatic missions start", { exact: false })).toHaveCount(0);
-  await page.getByRole("button", { name: "Continue in ChatGPT" }).click();
-  const productPrompt = page.getByRole("dialog", { name: "Continue the framing with Product" });
-  await expect(productPrompt).toBeVisible();
-  await expect(productPrompt.getByLabel("Verified Product continuation context")).toHaveValue(/Use \$arka-norn, then \$arka-product/);
-  await expect(productPrompt.getByLabel("Verified Product continuation context")).toHaveValue(/--provider 'ChatGPT'/);
-  await productPrompt.getByRole("button", { name: "Close" }).click();
-  expect(await onboardingStatus(page)).toBe("completed");
+  await expect(page.getByRole("button", { name: "Copy resume context" })).toBeVisible();
   await expect(page.getByRole("link", { name: "GitHub", exact: true })).toHaveAttribute("href", "https://github.com/arka-squad/arka-norn");
   await expect(page.getByRole("link", { name: "Star arka-norn on GitHub" })).toBeVisible();
 
@@ -145,7 +118,8 @@ test("Project manager creates a profile, Project and Essential Feature in EN and
   await expect(moreTrigger).toBeFocused();
 
   await mobileNavigation.getByRole("button", { name: "Features" }).click();
-  await expect(page.locator(".feature-index")).toBeVisible();
+  await expect(page.getByText("Aucune Feature n'est encore suivie.")).toBeVisible();
+  await expect(page.locator(".feature-index")).toHaveCount(0);
   await expect(page.locator(".data-table")).toHaveCount(0);
   await expect(page.locator(".feature-index-state")).toBeHidden();
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1);
@@ -168,19 +142,6 @@ test("Project manager creates a profile, Project and Essential Feature in EN and
   });
   expect(seriousViolations).toEqual([]);
 });
-
-async function onboardingStatus(page: Page): Promise<string | undefined> {
-  return (await onboardingState(page))?.status;
-}
-
-async function onboardingState(page: Page): Promise<{ readonly status?: string; readonly step?: number; readonly featureId?: string } | undefined> {
-  return page.evaluate(async () => {
-    const token = sessionStorage.getItem("arka-norn-web-token");
-    const response = await fetch("/api/v1/preferences", { headers: { Authorization: `Bearer ${token ?? ""}` } });
-    const envelope = await response.json() as { readonly data?: { readonly onboarding?: { readonly status?: string; readonly step?: number; readonly featureId?: string } } };
-    return envelope.data?.onboarding;
-  });
-}
 
 async function registeredFeatureCount(page: Page): Promise<number | undefined> {
   return page.evaluate(async () => {

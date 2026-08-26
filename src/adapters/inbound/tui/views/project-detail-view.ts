@@ -14,10 +14,8 @@
  * limitations under the License.
  */
 
-import { createHash } from "node:crypto";
-import { basename, relative, resolve } from "node:path";
+import { relative, resolve } from "node:path";
 
-import { DomainError } from "../../../../domain/errors.js";
 import { FeatureId } from "../../../../domain/feature/feature-id.js";
 import type { Feature } from "../../../../domain/feature/feature.js";
 import type { Project } from "../../../../domain/project/project.js";
@@ -35,23 +33,8 @@ import type { Renderer } from "../runtime/render.js";
 import type { Theme } from "../runtime/theme.js";
 import type { Scene } from "../runtime/tui-app.js";
 
-type ProjectAction = "action:product" | "action:import" | "action:agents" | "action:orchestration" | "action:orchestration-dashboard" | "action:scan" | "action:forget" | "action:back" | `action:create:${string}` | `feature:${string}`;
+type ProjectAction = "action:product" | "action:framing" | "action:import" | "action:agents" | "action:orchestration" | "action:orchestration-dashboard" | "action:scan" | "action:forget" | "action:back" | `feature:${string}`;
 const CIRCLE = String.fromCharCode(0x25cf);
-
-export interface WorkflowOption {
-  readonly id: string;
-  readonly name: string;
-  readonly description: string;
-  readonly isDefault: boolean;
-}
-
-function fallbackWorkflows(): readonly WorkflowOption[] {
-  return [
-    { id: "arka-norn-essential", name: "Essential pipeline", description: "Five-step Feature workflow for a known scope: brief, delivery, audit and validation.", isDefault: true },
-    { id: "arka-norn-complete", name: "Complete pipeline", description: "Ten-step workflow for structural or uncertain Features.", isDefault: false },
-    { id: "arka-norn-fastdev", name: "FastDev rework", description: translate("tui.project.fastdev.description"), isDefault: false },
-  ];
-}
 
 export interface ProjectDetailViewDeps {
   readonly project: Project;
@@ -62,7 +45,6 @@ export interface ProjectDetailViewDeps {
   readonly currentAgentId?: string;
   readonly sessionId?: string;
   readonly features: ForFeatures;
-  readonly workflows?: readonly WorkflowOption[];
   readonly projects?: ForProjects;
   readonly scan: ForScan;
   readonly redraw: () => void;
@@ -73,6 +55,7 @@ export interface ProjectDetailViewDeps {
   readonly onManageAgents?: (project: Project) => Promise<void> | void;
   readonly onShowProductAdvice?: (project: Project) => Promise<void> | void;
   readonly onOpenOrchestration?: (project: Project) => Promise<void> | void;
+  readonly onStartFraming?: (project: Project, outcome: string) => Promise<void> | void;
   readonly metricsForFeature?: (feature: Feature) => Promise<ProjectFeatureMetrics>;
 }
 
@@ -98,16 +81,15 @@ export interface ProjectDetailView extends Scene {
 }
 
 export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDetailView {
-  const workflows = deps.workflows ?? fallbackWorkflows();
   let project = deps.project;
   let features = [...deps.initialFeatures];
   let statuses = new Map(deps.initialStatuses ?? []);
   let metrics = new Map(deps.initialMetrics ?? []);
   let agents = [...(deps.initialAgents ?? [])];
   let currentAgentId = deps.currentAgentId;
-  let mode: "menu" | "create" | "confirm-fastdev" | "orchestration-mode" = "menu";
-  let createKind: string = "arka-norn-essential";
-  let createPath = `${project.root}/`;
+  let mode: "menu" | "import" | "framing" | "orchestration-mode" = "menu";
+  let importPath = `${project.root}/`;
+  let framingOutcome = "";
   let selectedOrchestrationMode = project.orchestrationMode;
   let orchestrationModeDirty = false;
   let message: string | undefined;
@@ -122,15 +104,13 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
     });
     return [
       { label: translate("tui.project.product.label"), value: "action:product", description: translate("tui.project.product.description") },
-      ...workflows.map((workflow) => ({
-        label: `${translate("tui.project.create.title", { workflow: workflow.name })}${workflow.isDefault ? ` (${translate("tui.project.workflow.default")})` : ""}`,
-        value: `action:create:${workflow.id}` as const,
-        description: workflow.description,
-      })),
+      { label: translate("tui.project.framing.label"), value: "action:framing", description: translate("tui.project.framing.description") },
       { label: translate("tui.project.import.label"), value: "action:import", description: translate("tui.project.import.description") },
       ...groupedFeatures.map((feature) => {
         const featureMetrics = metrics.get(feature.id.value);
-        const badge = feature.pipelineId === "arka-norn-fastdev" ? "[FASTDEV] " : feature.pipelineId === "arka-norn-essential" ? "[ESSENTIAL] " : "";
+        const badge = feature.schemaVersion === 4
+          ? `[${translate("tui.project.feature.legacy")}] `
+          : feature.pipelineId === "arka-norn-fastdev" ? "[FASTDEV] " : "";
         const progress = featureMetrics === undefined ? "" : ` - ${featureMetrics.phase} - ${featureMetrics.progress}${featureMetrics.iteration > 1 ? ` - ${translate("tui.project.iteration", { iteration: formatNumber(featureMetrics.iteration) })}` : ""}`;
         return { label: `${CIRCLE} ${badge}[${statuses.get(feature.id.value) ?? translate("tui.project.status.unknown")}] ${feature.name}${progress}`, value: `feature:${feature.id.value}` as const, description: feature.root };
       }),
@@ -169,13 +149,14 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
       });
     } else if (value === "action:product") {
       await run(async () => { await deps.onShowProductAdvice?.(project); });
-    } else if (value.startsWith("action:create:")) {
-      createKind = value.slice("action:create:".length);
-      mode = createKind === "arka-norn-fastdev" ? "confirm-fastdev" : "create";
+    } else if (value === "action:framing") {
+      framingOutcome = "";
+      message = undefined;
+      mode = "framing";
       deps.redraw();
     } else if (value === "action:import") {
-      createKind = "import";
-      mode = "create";
+      importPath = `${project.root}/`;
+      mode = "import";
       deps.redraw();
     } else if (value === "action:agents") {
       await run(async () => { await deps.onManageAgents?.(project); });
@@ -199,29 +180,38 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
     }
   }
 
-  async function submit(): Promise<void> {
+  async function submitImport(): Promise<void> {
     if (busy) return;
-    const root = resolve(createPath.trim());
+    const root = resolve(importPath.trim());
     if (!isContained(project.root, root)) {
       message = translate("tui.project.path.outside", { root: project.root });
       deps.redraw();
       return;
     }
     await run(async () => {
-      const name = basename(root);
-      if (createKind === "import") {
-        await deps.features.importFrom({ root, projectId: project.id });
-      } else {
-        await deps.features.create({
-          id: deriveFeatureId(root, slugify(name)),
-          projectId: project.id,
-          name,
-          root,
-          pipelineId: createKind,
-        });
-      }
+      await deps.features.importFrom({ root, projectId: project.id });
       mode = "menu";
       await refresh();
+    });
+  }
+
+  async function submitFraming(): Promise<void> {
+    if (busy) return;
+    const outcome = framingOutcome.trim();
+    if (outcome.length === 0) {
+      message = translate("tui.project.framing.required");
+      deps.redraw();
+      return;
+    }
+    if (deps.onStartFraming === undefined) {
+      message = translate("tui.project.framing.unavailable");
+      deps.redraw();
+      return;
+    }
+    await run(async () => {
+      await deps.onStartFraming!(project, outcome);
+      mode = "menu";
+      message = translate("tui.project.framing.started");
     });
   }
 
@@ -300,18 +290,21 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
         deps.redraw();
         return "consumed";
       }
-      if (mode === "create") {
+      if (mode === "import") {
         if (event.kind === "escape") mode = "menu";
-        else if (event.kind === "enter" && !busy) void submit();
-        else if (event.kind === "backspace") createPath = createPath.slice(0, -1);
-        else if (event.kind === "char") createPath += event.value;
-        else if (event.kind === "filter") createPath += "/";
+        else if (event.kind === "enter" && !busy) void submitImport();
+        else if (event.kind === "backspace") importPath = importPath.slice(0, -1);
+        else if (event.kind === "char") importPath += event.value;
+        else if (event.kind === "filter") importPath += "/";
         deps.redraw();
         return "consumed";
       }
-      if (mode === "confirm-fastdev") {
+      if (mode === "framing") {
         if (event.kind === "escape") mode = "menu";
-        else if (event.kind === "enter") mode = "create";
+        else if (event.kind === "enter" && !busy) void submitFraming();
+        else if (event.kind === "backspace") framingOutcome = framingOutcome.slice(0, -1);
+        else if (event.kind === "char") framingOutcome += event.value;
+        else if (event.kind === "filter") framingOutcome += "/";
         deps.redraw();
         return "consumed";
       }
@@ -344,28 +337,22 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
           }, theme)) line(value);
           return;
         }
-        if (mode === "confirm-fastdev") {
-          for (const value of titledBox(translate("tui.project.fastdev.title"), [
-            translate("tui.project.fastdev.path"),
-            translate("tui.project.fastdev.documents"),
-            translate("tui.project.fastdev.audit"),
-            translate("tui.project.fastdev.scope"),
+        if (mode === "framing") {
+          for (const value of titledBox(translate("tui.project.framing.title"), [
+            translate("tui.project.framing.explanation"),
+            translate("tui.project.framing.hint"),
             "",
-            translate("tui.project.fastdev.confirm"),
-          ], theme, { border: theme.arkaRed }).split("\n")) line(value);
+            `${framingOutcome}${theme.dim("_")}`,
+            message ?? translate("tui.project.framing.confirm"),
+          ], theme, { border: theme.arkaAccent }).split("\n")) line(value);
           return;
         }
-        if (mode === "create") {
-          const title = createKind === "import" ? translate("tui.project.import.title") : translate("tui.project.create.title", { workflow: workflowName(createKind, workflows) });
-          const explanation = createKind === "import"
-            ? translate("tui.project.import.explanation")
-            : translate("tui.project.create.workflowExplanation", { workflow: workflowName(createKind, workflows) });
-          for (const value of titledBox(title, [
-            explanation,
+        if (mode === "import") {
+          for (const value of titledBox(translate("tui.project.import.title"), [
+            translate("tui.project.import.explanation"),
             translate("tui.project.allowedRoot", { root: project.root }),
-            translate("tui.project.create.example", { root: project.root }),
             "",
-            `${createPath}${theme.dim("_")}`,
+            `${importPath}${theme.dim("_")}`,
             message ?? translate("tui.project.path.confirm"),
           ], theme).split("\n")) line(value);
           return;
@@ -411,8 +398,8 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
         ], theme, { border: theme.arkaRed }).split("\n")) line(value);
         line("");
         line(nextActionLine(
-          currentAgentId === undefined ? translate("tui.registry.registerProduct") : features.length === 0 ? translate("tui.project.next.workflow") : translate("tui.project.next.product"),
-          currentAgentId === undefined ? translate("tui.project.noCurrentReason") : features.length === 0 ? translate("tui.project.noFeatureReason") : translate("tui.project.readyReason"),
+          features.length === 0 ? translate("tui.project.next.framing") : currentAgentId === undefined ? translate("tui.registry.registerProduct") : translate("tui.project.next.product"),
+          features.length === 0 ? translate("tui.project.noFeatureReason") : currentAgentId === undefined ? translate("tui.project.noCurrentReason") : translate("tui.project.readyReason"),
           theme,
         ));
         if (features.length === 0) line(`  ${theme.dim(translate("tui.project.guidedPath"))}`);
@@ -440,19 +427,4 @@ export function createProjectDetailView(deps: ProjectDetailViewDeps): ProjectDet
 function isContained(projectRoot: string, featureRoot: string): boolean {
   const relation = relative(resolve(projectRoot), resolve(featureRoot));
   return relation.length > 0 && !relation.startsWith("..") && !relation.startsWith("/");
-}
-
-function workflowName(pipelineId: string, workflows: readonly WorkflowOption[]): string {
-  return workflows.find((workflow) => workflow.id === pipelineId)?.name ?? pipelineId;
-}
-
-function deriveFeatureId(root: string, code: string): FeatureId {
-  const suffix = createHash("sha1").update(root).digest("hex").slice(0, 8);
-  return FeatureId.of(`${code.slice(0, 55)}-${suffix}`);
-}
-
-function slugify(name: string): string {
-  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-  if (slug.length === 0) throw new DomainError("INVALID_FEATURE_OPTION", translate("tui.error.invalidFeatureName", { name }));
-  return slug;
 }

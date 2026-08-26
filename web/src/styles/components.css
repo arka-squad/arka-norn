@@ -126,3 +126,4 @@ td { font-size: 12px; }
   .empty-state { grid-template-columns: 32px minmax(0, 1fr); }
   .empty-state-action { grid-column: 2; justify-self: start; }
 }
+.compatibility-badge { display: inline-flex; min-height: 22px; align-items: center; padding: 2px 7px; border: 1px solid rgba(217, 119, 6, .32); border-radius: 999px; background: rgba(217, 119, 6, .08); color: var(--amber); font-family: var(--font-mono); font-size: 9px; font-style: normal; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }

@@ -45,6 +45,7 @@ export interface FeatureSummary {
   readonly id: string;
   readonly name: string;
   readonly pipelineId: string;
+  readonly pipelineDefinitionVersion?: "legacy-2.0" | "2.3";
   readonly status: string;
   readonly health: TrackingHealth;
   readonly progress: { readonly completed: number; readonly required: number };
@@ -61,7 +62,6 @@ export interface FeatureTrackingView extends FeatureSummary {
   readonly steps: readonly TrackingStep[];
   readonly documents: readonly HumanDocumentView[];
   readonly anomalies: readonly TrackingAnomaly[];
-  readonly pipelineDefinitionVersion?: "legacy-2.0" | "2.3";
   readonly framing?: FramingDetailView;
 }
 

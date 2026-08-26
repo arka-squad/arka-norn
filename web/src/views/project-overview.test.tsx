@@ -28,4 +28,17 @@ describe("FeatureTable", () => {
     expect(html).not.toContain("data-table");
     expect(html).not.toContain("data-head");
   });
+
+  it("labels only actual legacy pipeline definitions", () => {
+    const legacy: ProjectOverview = {
+      ...project,
+      features: [
+        { ...project.features[0]!, id: "legacy", pipelineDefinitionVersion: "legacy-2.0" },
+        { ...project.features[0]!, id: "current", pipelineDefinitionVersion: "2.3" },
+      ],
+    };
+    const html = renderToStaticMarkup(<I18nProvider initialLocale="fr"><FeatureTable project={legacy} navigate={() => undefined} /></I18nProvider>);
+    expect(html.match(/compatibility-badge/g)).toHaveLength(1);
+    expect(html).toContain("Legacy");
+  });
 });

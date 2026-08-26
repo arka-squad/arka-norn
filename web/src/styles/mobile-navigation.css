@@ -1,0 +1,28 @@
+.navigation-recovery { position: fixed; z-index: 50; top: 64px; right: 18px; width: min(410px, calc(100% - 36px)); padding: 11px 13px; border: 1px solid rgba(217, 119, 6, .28); border-radius: 9px; background: var(--elevated); color: var(--tx2); box-shadow: var(--shadow-panel); font-size: 11px; }
+.mobile-navigation, .mobile-more-backdrop { display: none; }
+
+@media (max-width: 760px) {
+  .sidebar { position: relative; z-index: 2; border-bottom: 1px solid var(--app-border-subtle); }
+  .sidebar nav, .sidebar-footer { display: none; }
+  .wordmark { min-height: 42px; padding: 4px 8px; }
+  .topbar { position: sticky; top: 0; height: 46px; }
+  .workspace > main { padding-bottom: 72px; }
+  .mobile-navigation { position: fixed; z-index: 60; right: 0; bottom: 0; left: 0; display: grid; min-height: 66px; grid-template-columns: repeat(4, 1fr); padding: 5px max(6px, env(safe-area-inset-right)) max(5px, env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left)); border-top: 1px solid var(--border); background: color-mix(in srgb, var(--sidebar) 94%, transparent); backdrop-filter: blur(15px); }
+  .mobile-navigation button { position: relative; display: flex; min-width: 0; min-height: 52px; align-items: center; justify-content: center; flex-direction: column; gap: 4px; border: 0; border-radius: 8px; background: transparent; color: var(--tx4); cursor: pointer; font-size: 9px; }
+  .mobile-navigation button.active { background: rgba(var(--w), .05); color: var(--tx1); }
+  .mobile-navigation button.active svg { color: var(--arka-green); }
+  .mobile-more-backdrop { position: fixed; z-index: 80; inset: 0; display: flex; align-items: flex-end; justify-content: center; padding: 12px; background: rgba(0, 0, 0, .6); }
+  .mobile-more-sheet { width: 100%; max-height: min(76dvh, 650px); overflow: hidden; border: 1px solid var(--border); border-radius: 18px; background: var(--elevated); box-shadow: var(--shadow-panel); }
+  .mobile-more-sheet > header { display: flex; min-height: 68px; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+  .mobile-more-sheet header small { color: var(--tx4); font-size: 9px; }
+  .mobile-more-sheet header h2 { margin: 3px 0 0; font-size: 16px; }
+  .mobile-more-sheet > div { display: grid; padding: 8px; overflow-y: auto; }
+  .mobile-more-sheet > div > button { display: grid; min-height: 52px; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 0 10px; border: 0; border-radius: 9px; background: transparent; color: var(--tx3); text-align: left; }
+  .mobile-more-sheet > div > button.active { background: rgba(var(--w), .06); color: var(--tx1); }
+  .mobile-more-sheet > div > button.active svg { color: var(--arka-green); }
+  .mobile-more-sheet > div > button small { color: var(--tx4); font-family: var(--font-mono); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-more-sheet { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}

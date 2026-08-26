@@ -21,6 +21,8 @@ import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 
+import { writeLegacyFeatureMarker } from "../helpers/legacy-feature.ts";
+
 const ROOT = resolve(import.meta.dirname, "..", "..");
 const BIN = resolve(ROOT, "bin", "arka-norn.mjs");
 const EXAMPLE = resolve(ROOT, "examples", "feature-essential");
@@ -33,8 +35,11 @@ test("Essential guides a complete cycle with a blocking audit and corrective rep
   context.after(() => rmSync(sandbox, { recursive: true, force: true }));
 
   assert.equal(run(["project", "add", projectRoot, "--id", "project", "--orchestration-mode", "manual", "--json"], home, projectRoot).status, 0);
+  const featureRoot = resolve(projectRoot, "feature-filter");
+  writeLegacyFeatureMarker({ root: featureRoot, id: "feature-filter", projectId: "project", name: "Feature filter" });
+  assert.equal(run(["feature", "import", featureRoot, "--project", "project", "--json"], home, projectRoot).status, 0);
   const started = run<{ readonly id: string; readonly root: string; readonly pipelineId: string }>([
-    "essential", "start", "Feature filter", "--project", "project", "--json",
+    "essential", "start", "feature-filter", "--project", "project", "--json",
   ], home, projectRoot);
   assert.equal(started.status, 0, started.stderr);
   assert.equal(started.json.data.pipelineId, "arka-norn-essential");

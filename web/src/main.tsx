@@ -8,7 +8,7 @@ import "./styles/brand.css";
 import "./styles/base.css";
 import "./styles/components.css";
 import "./styles/views.css";
-import "./styles/onboarding.css";
+import "./styles/mobile-navigation.css";
 
 const token = sessionToken();
 const root = document.getElementById("root");

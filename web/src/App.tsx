@@ -9,7 +9,7 @@ import { useAsync } from "./hooks/use-async";
 import { useLive } from "./hooks/use-live";
 import { I18nProvider, useI18n } from "./i18n/i18n";
 import { AppShell } from "./layout/app-shell";
-import { isSafeRememberedRoute } from "./onboarding/onboarding-model";
+import { isSafeRememberedRoute } from "./app/navigation-memory";
 import { AgentsView } from "./views/agents-view";
 import { AuditsView } from "./views/audits-view";
 import { DocumentsView } from "./views/documents-view";
@@ -49,19 +49,16 @@ function NornApp({ preferences, onPreferences }: { readonly preferences: WebPref
   }, [currentPath, route.documentId]);
   useEffect(() => {
     const saved = preferences.onboarding;
-    if (saved === undefined || saved.lastRoute === currentPath || route.projectId === undefined) return;
+    if (preferences.humanProfile === undefined || saved?.lastRoute === currentPath || route.projectId === undefined) return;
     const timer = setTimeout(() => {
       void bridge.savePreferences({ onboarding: {
-        status: saved.status,
-        step: saved.step,
-        ...(saved.projectId === undefined ? {} : { projectId: saved.projectId }),
-        ...(saved.featureId === undefined ? {} : { featureId: saved.featureId }),
-        ...(saved.draft === undefined ? {} : { draft: saved.draft }),
+        status: "not_started",
+        step: 1,
         lastRoute: currentPath,
       } }).then(onPreferences).catch(() => undefined);
     }, 150);
     return () => clearTimeout(timer);
-  }, [bridge, currentPath, onPreferences, preferences.onboarding, route.projectId]);
+  }, [bridge, currentPath, onPreferences, preferences.humanProfile, preferences.onboarding, route.projectId]);
   useEffect(() => {
     const remembered = preferences.onboarding?.lastRoute;
     if (restorationAttempted.current || currentPath !== "/projects" || !isSafeRememberedRoute(remembered) || remembered === "/projects") return;

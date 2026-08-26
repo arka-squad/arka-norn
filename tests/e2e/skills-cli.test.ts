@@ -44,7 +44,9 @@ test("skills list/install/doctor partagent le catalogue et détectent une diverg
 
   const core = run(["skills", "install", "--target", target, "--profile", "core", "--json"], target);
   assert.equal(core.status, 0, core.stderr);
-  assert.equal((JSON.parse(core.stdout) as { readonly data: { readonly skills: readonly string[] } }).data.skills.length, 10);
+  const coreData = (JSON.parse(core.stdout) as { readonly data: { readonly plan: readonly unknown[]; readonly doctor: { readonly checks: readonly unknown[] } } }).data;
+  assert.equal(coreData.plan.length, 10 * 3);
+  assert.equal(coreData.doctor.checks.length, 10);
   assert.equal(run(["skills", "doctor", "--target", target, "--profile", "core", "--json"], target).status, 0);
 
   const all = run(["skills", "install", "--target", target, "--profile", "all", "--json"], target);
@@ -54,7 +56,7 @@ test("skills list/install/doctor partagent le catalogue et détectent une diverg
   for (const [profile, count] of [["product", 13], ["architecture", 12], ["audit", 11], ["dev", 11], ["qa", 10]] as const) {
     const result = run(["skills", "install", "--target", target, "--profile", profile, "--json"], target);
     assert.equal(result.status, 0, `${profile}: ${result.stderr}`);
-    assert.equal((JSON.parse(result.stdout) as { readonly data: { readonly skills: readonly string[] } }).data.skills.length, count, profile);
+    assert.equal((JSON.parse(result.stdout) as { readonly data: { readonly doctor: { readonly checks: readonly unknown[] } } }).data.doctor.checks.length, count, profile);
   }
 
   const devSkill = resolve(target, ".agents", "skills", "arka-framework-development", "SKILL.md");
@@ -78,8 +80,8 @@ test("skills global installe et diagnostique les 21 rendus sans masquer une dive
 
   const installed = run(["skills", "install", "--target", target, "--profile", "all", "--global", "--json"], target, env);
   assert.equal(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
-  const plan = (JSON.parse(installed.stdout) as { readonly data: { readonly skills: readonly string[]; readonly plan: readonly unknown[] } }).data;
-  assert.equal(plan.skills.length, 21);
+  const plan = (JSON.parse(installed.stdout) as { readonly data: { readonly plan: readonly unknown[]; readonly doctor: { readonly checks: readonly unknown[] } } }).data;
+  assert.equal(plan.doctor.checks.length, 21);
   assert.equal(plan.plan.length, 21 * 6);
 
   const nornGlobal = readFileSync(resolve(home, ".claude", "skills", "arka-norn", "SKILL.md"), "utf8");

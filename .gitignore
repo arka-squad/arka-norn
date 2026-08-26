@@ -3,6 +3,7 @@ node_modules/
 .DS_Store
 *.log
 coverage/
+test-results/
 .agents/skills/arka-framework-*/
 .agents/skills/arka-norn/
 .agents/skills/arka-fastdev/

@@ -238,7 +238,8 @@ test("le Pilote assisté confirme une prévisualisation puis actualise le détai
     },
   });
 
-  for (let index = 0; index < 8; index += 1) detail.onKey({ kind: "down" });
+  detail.onKey({ kind: "filter" });
+  for (const character of "ouvrir") detail.onKey({ kind: "char", value: character });
   detail.onKey({ kind: "enter" });
   await waitUntil(() => dashboard !== undefined, "ouverture du cockpit d’orchestration");
   dashboard?.onKey({ kind: "enter" });
@@ -288,7 +289,8 @@ test("le détail Project refuse de confirmer une sélection manuelle devenue obs
 
   // This scene still holds its initial manual Project. Confirming the default
   // selection must refresh it instead of persisting manual over automatic.
-  for (let index = 0; index < 6; index += 1) detail.onKey({ kind: "down" });
+  detail.onKey({ kind: "filter" });
+  for (const character of "pilote") detail.onKey({ kind: "char", value: character });
   detail.onKey({ kind: "enter" });
   detail.onKey({ kind: "enter" });
   let output = "";
@@ -374,10 +376,6 @@ test("la composition TUI pilote Home → Project → Feature → scaffold réel"
   const projectScene = container.app.topScene();
   assert.ok(projectScene);
 
-  input.send({ kind: "down" });
-  input.send({ kind: "down" });
-  input.send({ kind: "down" });
-  input.send({ kind: "down" });
   input.send({ kind: "down" });
   input.send({ kind: "down" });
   input.send({ kind: "down" });
@@ -467,10 +465,6 @@ test("la TUI enregistre et sélectionne une identité Agent sans connaissance im
   await waitUntil(() => container.app.topScene() !== home, "ouverture Project pour registre Agent");
   const projectScene = container.app.topScene();
   assert.ok(projectScene);
-  input.send({ kind: "down" });
-  input.send({ kind: "down" });
-  input.send({ kind: "down" });
-  input.send({ kind: "down" });
   input.send({ kind: "down" });
   input.send({ kind: "down" });
   input.send({ kind: "down" });

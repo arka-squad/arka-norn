@@ -48,8 +48,9 @@ import { showHealthReport, showSkillInstallation } from "./tui/skill-scene-contr
 import { createAgentSceneController } from "./tui/agent-scene-controller.js";
 import { createAgentOrchestrationRuntime } from "./agent-orchestration-runtime.js";
 import { createAgentOrchestrationSceneController } from "./tui/agent-orchestration-scene-controller.js";
+import { createFramingRuntime } from "./framing-runtime.js";
 import { FsLocalePreferenceStore } from "../adapters/outbound/filesystem/fs-locale-preference-store.js";
-import { formatNumber, resolveLocale, setActiveLocale, translate } from "../application/localization/locale.js";
+import { activeLocale, formatNumber, resolveLocale, setActiveLocale, translate } from "../application/localization/locale.js";
 
 export interface Container {
   readonly env: Env;
@@ -86,6 +87,7 @@ export function createContainer(env: Env, ui: ContainerUiOptions = {}): Containe
   const scan: ForScan = management.scanFeatures;
 
   const pipeline = createPipelineRuntime(FRAMEWORK_ROOT, { homeDir });
+  const framing = createFramingRuntime({ homeDir, frameworkRoot: FRAMEWORK_ROOT });
   const skillManager = new DirectSkillManager(FRAMEWORK_ROOT, homeDir);
   const localePreferences = new FsLocalePreferenceStore(homeDir);
 
@@ -180,11 +182,9 @@ export function createContainer(env: Env, ui: ContainerUiOptions = {}): Containe
 
   async function openProjectDetail(project: Project): Promise<void> {
     uiState.currentProject = project;
-    const [initialAgents, currentAgent, workflows, defaultWorkflowId] = await Promise.all([
+    const [initialAgents, currentAgent] = await Promise.all([
       management.agents.list(project),
       management.agents.current(project),
-      pipeline.listWorkflows(),
-      pipeline.defaultWorkflowId(),
     ]);
     const initialFeatures = await features.list(project.id);
     const initialMetrics = await loadProjectMetrics(initialFeatures, pipeline, authorRegistryForFeature);
@@ -200,10 +200,6 @@ export function createContainer(env: Env, ui: ContainerUiOptions = {}): Containe
         sessionId: env.agentSessionId.value,
         projects,
         features,
-        workflows: [
-          ...workflows.filter((workflow) => workflow.id === defaultWorkflowId).map((workflow) => ({ id: workflow.id, name: workflow.name, description: workflow.description, isDefault: true })),
-          ...workflows.filter((workflow) => workflow.id !== defaultWorkflowId).map((workflow) => ({ id: workflow.id, name: workflow.name, description: workflow.description, isDefault: false })),
-        ],
         scan,
         redraw: () => app.redraw(),
         onBack: () => app.pop(),
@@ -224,6 +220,23 @@ export function createContainer(env: Env, ui: ContainerUiOptions = {}): Containe
           projectView.setAgents(agents, current?.id.value);
         }),
         onShowProductAdvice: (selected) => orchestrationScenes.showProjectAdvice(selected),
+        onStartFraming: async (selected, outcome) => {
+          const entry = await framing.enter({
+            path: selected.root,
+            newFeatureTitle: outcome,
+            contentLocale: activeLocale(),
+          });
+          app.push(createResultView({
+            title: translate("tui.container.framing.title"),
+            code: 0,
+            output: translate(entry.resumed ? "tui.container.framing.resumed" : "tui.container.framing.created", {
+              title: entry.plan.target.kind === "feature" ? entry.plan.target.workingTitle : entry.project.name,
+              revision: formatNumber(entry.plan.revision),
+            }),
+            onBack: () => {},
+            nextStep: translate("tui.container.framing.next"),
+          }));
+        },
         onOpenOrchestration: () => {
           app.push(createResultView({
             title: translate("tui.container.orchestration23.title"),

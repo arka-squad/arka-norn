@@ -67,8 +67,6 @@ test("ProjectDetail sérialise deux validations Entrée sur une action lente", a
   view.onKey({ kind: "down" });
   view.onKey({ kind: "down" });
   view.onKey({ kind: "down" });
-  view.onKey({ kind: "down" });
-  view.onKey({ kind: "down" });
   view.onKey({ kind: "enter" });
   view.onKey({ kind: "enter" });
   await new Promise((resolve) => setImmediate(resolve));

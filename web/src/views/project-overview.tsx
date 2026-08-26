@@ -2,12 +2,12 @@ import { AlertTriangle, ArrowRight, Boxes, CheckCircle2, FileWarning, GitBranch,
 
 import type { ProjectOverview } from "../../../src/application/web/contracts";
 import { featureRoute, framingRoute, projectRoute } from "../app/router";
+import { pipelineName } from "../app/product-labels";
 import { useBridge } from "../bridge/context";
 import { FramingCard } from "../components/framing-card";
 import { MetricStrip } from "../components/metric-strip";
 import { EmptyState, PageTitle, StatusBadge } from "../components/ui";
 import { useI18n } from "../i18n/i18n";
-import { pipelineName } from "../onboarding/onboarding-model";
 
 export function ProjectOverviewView({ project, navigate }: { readonly project: ProjectOverview; readonly navigate: (path: string) => void }) {
   const { t, date } = useI18n();
@@ -48,7 +48,7 @@ export function FeatureTable({ project, navigate }: { readonly project: ProjectO
   if (project.features.length === 0) return <EmptyState title={t("web.feature.empty")} description={t("web.feature.emptyDetail")} icon={<Boxes size={16} />} />;
   return <div className="feature-index">{project.features.map((feature) => <button key={feature.id} onClick={() => navigate(featureRoute(project.id, feature.id))}>
     <span className="feature-index-icon"><GitBranch size={15} /></span>
-    <span className="feature-index-main"><span><strong>{feature.name}</strong><em>{pipelineName(feature.pipelineId)}</em></span><small>{feature.id}</small></span>
+    <span className="feature-index-main"><span><strong>{feature.name}</strong>{feature.pipelineDefinitionVersion === "legacy-2.0" ? <em className="compatibility-badge">{t("web.feature.legacy")}</em> : null}<em>{pipelineName(feature.pipelineId)}</em></span><small>{feature.id}</small></span>
     <span className={`feature-index-state health-${feature.health}`}><i />{t(feature.status === "completed" ? "web.status.completed" : "web.status.incomplete")}</span>
     <span className="feature-index-meta"><strong>{feature.nextStepId === undefined ? "—" : contractLabel(feature.nextStepId)}</strong><small>{feature.progress.completed}/{feature.progress.required} {t("web.table.progress").toLowerCase()}</small></span>
     <ArrowRight className="feature-index-go" size={16} />

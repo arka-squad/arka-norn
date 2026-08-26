@@ -60,6 +60,7 @@ export function summaryFrom(feature: Feature, report: PipelineReport, documents?
     id: feature.id.value,
     name: feature.name,
     pipelineId: feature.pipelineId,
+    pipelineDefinitionVersion: feature.pipelineDefinitionVersion,
     status: report.overallStatus,
     health: featureHealth(report.overallStatus, invalidDocumentCount),
     progress: { completed: required.filter((step) => step.completionStatus === "completed").length, required: required.length },

@@ -37,32 +37,51 @@ const ROOT = resolve(import.meta.dirname, "..", "..");
 setActiveLocale("fr");
 const theme = createTheme({ NO_COLOR: "1" }, false);
 
-test("l'espace Project sépare Essentiel, standard, FastDev et import puis confirme FastDev au clavier", () => {
+test("l'espace Project ouvre un cadrage sans demander identifiant, dossier ou workflow", async () => {
   const project = projectAt("/workspace/project");
   const features = emptyFeatures();
+  let framed: { project: Project; outcome: string } | undefined;
   let output = "";
   const renderer = createRenderer({ write: (chunk) => { output += chunk; }, isTTY: false, columns: 140 });
-  const view = createProjectDetailView({ project, initialFeatures: [], features, scan: { scan: async () => [] }, redraw() {}, onBack() {} });
+  const view = createProjectDetailView({
+    project,
+    initialFeatures: [],
+    features,
+    scan: { scan: async () => [] },
+    redraw() {},
+    onBack() {},
+    onStartFraming: async (selected, outcome) => { framed = { project: selected, outcome }; },
+  });
   view.render(renderer, theme);
-  assert.match(output, /Créer une Feature - Essential pipeline \(défaut\)/);
-  assert.match(output, /Créer une Feature - Complete pipeline/);
-  assert.match(output, /Créer une Feature - FastDev rework/);
+  assert.match(output, /Cadrer une nouvelle Feature/);
   assert.match(output, /Importer une Feature existante/);
+  assert.doesNotMatch(output, /Essential|Complete|FastDev|workflow sélectionné/i);
 
   output = "";
   view.onKey({ kind: "down" });
-  view.onKey({ kind: "down" });
-  view.onKey({ kind: "down" });
   view.onKey({ kind: "enter" });
   view.render(renderer, theme);
-  assert.match(output, /Quatre documents structurés/);
-  assert.match(output, /seconde passe de développement.*corrections sont requises/);
+  assert.match(output, /Quel résultat utile/);
+  assert.match(output, /calcule l.identifiant, le dossier et le pipeline/);
 
-  output = "";
+  for (const character of "Réduire la friction") view.onKey({ kind: "char", value: character });
   view.onKey({ kind: "enter" });
-  view.render(renderer, theme);
-  assert.match(output, /Créer une Feature - FastDev rework/);
-  assert.match(output, /Workflow : FastDev rework/);
+  await new Promise((resolvePromise) => setImmediate(resolvePromise));
+  assert.equal(framed?.project.id.value, project.id.value);
+  assert.equal(framed?.outcome, "Réduire la friction");
+});
+
+test("le badge Legacy du Project est réservé aux markers v4", () => {
+  const project = projectAt("/workspace/project");
+  const at = new Date("2026-08-20T10:00:00.000Z");
+  const schema3 = Feature.create({ id: FeatureId.of("schema-3"), projectId: project.id, name: "Ancien v3", root: "/workspace/project/schema-3", pipelineId: "arka-norn-essential", schemaVersion: 3, createdAt: at, updatedAt: at });
+  const schema4 = Feature.create({ id: FeatureId.of("schema-4"), projectId: project.id, name: "Legacy v4", root: "/workspace/project/schema-4", pipelineId: "arka-norn-essential", schemaVersion: 4, createdAt: at, updatedAt: at });
+  let output = "";
+  const view = createProjectDetailView({ project, initialFeatures: [schema3, schema4], features: emptyFeatures(), scan: { scan: async () => [] }, redraw() {}, onBack() {} });
+  view.render(createRenderer({ write: (chunk) => { output += chunk; }, isTTY: false, columns: 140 }), theme);
+  assert.equal(output.match(/\[Legacy\]/g)?.length, 1);
+  assert.match(output, /\[Legacy\].*Legacy v4/);
+  assert.doesNotMatch(output, /\[Legacy\].*Ancien v3/);
 });
 
 test("le cockpit FastDev affiche le badge et ouvre l'action guidée principale", async (context) => {
