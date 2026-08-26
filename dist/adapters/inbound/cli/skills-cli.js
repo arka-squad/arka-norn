@@ -17,7 +17,7 @@ import { resolve } from "node:path";
 import { translate } from "../../../application/localization/locale.js";
 import { createSkillCatalogRuntime } from "../../outbound/skills/skill-catalog.js";
 import { detectHostsFiltered, formatHosts, SUPPORTED_HOSTS } from "../../outbound/skills/host-detector.js";
-import { findOrphanSkills, inspectSkills, installSkills } from "../../outbound/skills/skill-installer.js";
+import { findOrphanSkills, inspectGlobalSkills, inspectSkills, installSkills } from "../../outbound/skills/skill-installer.js";
 import { CliUsageError, parseStrictArguments } from "./strict-arguments.js";
 import { jsonEnvelope } from "./cli-envelope.js";
 export function runSkillsCommand(argv, context) {
@@ -120,10 +120,20 @@ function setup(argv, context, json) {
         const data = publicSetupResult({ hosts: hosts.detected.map((h) => h.host), targets: preview, profile, dryRun, plan, doctor: null });
         return envelope("skills.setup", false, data, combinedError === undefined ? [] : [combinedError], json, 70, humanSetupPreview(preview, hosts.detected, profile, plan));
     }
-    const doctorTarget = installProject ? target : context.homeDir;
-    const doctorGlobalHome = installGlobal ? context.homeDir : undefined;
-    const doctorChecks = inspectSkills(context.frameworkRoot, doctorTarget, profile, doctorGlobalHome);
-    const doctorOrphans = findOrphanSkills(context.frameworkRoot, doctorTarget, profile, doctorGlobalHome);
+    let doctorChecks;
+    let doctorOrphans;
+    if (installProject && installGlobal) {
+        doctorChecks = inspectSkills(context.frameworkRoot, target, profile, context.homeDir);
+        doctorOrphans = findOrphanSkills(context.frameworkRoot, target, profile, context.homeDir);
+    }
+    else if (installGlobal) {
+        doctorChecks = inspectGlobalSkills(context.frameworkRoot, context.homeDir, profile);
+        doctorOrphans = findOrphanSkills(context.frameworkRoot, context.homeDir, profile, context.homeDir);
+    }
+    else {
+        doctorChecks = inspectSkills(context.frameworkRoot, target, profile);
+        doctorOrphans = findOrphanSkills(context.frameworkRoot, target, profile);
+    }
     const doctorOk = doctorChecks.every((check) => check.status === "ok") && doctorOrphans.length === 0;
     const data = publicSetupResult({
         hosts: hosts.detected.map((h) => h.host),

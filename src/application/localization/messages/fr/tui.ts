@@ -45,7 +45,7 @@ export const TUI_MESSAGES_FR = {
   "tui.home.help.step1": "Créez ou importez le Project qui porte le produit.",
   "tui.home.help.step2": "Dans le Project, enregistrez votre identité Agent et son périmètre.",
   "tui.home.help.step3": "Créez ou importez une Feature, puis ouvrez son cockpit.",
-  "tui.home.help.step4": "Suivez l’action recommandée, générez un document signé et validez-le.",
+  "tui.home.help.step4": "Suivez l’action recommandée, générez un document publié et validez-le.",
   "tui.home.help.step5": "Consultez Santé si un index, un marker, un lock, l’audit ou une skill est en échec.",
   "tui.home.create.title": "Créer ou importer un Project",
   "tui.home.create.explanation": "Indiquez la racine du produit. Un marker existant sera importé ; sinon `.arka-norn/project.json` sera créé.",
