@@ -10,6 +10,18 @@
     "url": "https://github.com/arka-squad/arka-norn/issues"
   },
   "homepage": "https://github.com/arka-squad/arka-norn#readme",
+  "keywords": [
+    "arka-norn",
+    "norn",
+    "project-tracking",
+    "feature-delivery",
+    "agent-framework",
+    "live-framing",
+    "auditable-workflow",
+    "cli",
+    "tui",
+    "local-first"
+  ],
   "engines": {
     "node": ">=22.13"
   },
