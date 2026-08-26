@@ -55,6 +55,8 @@ test("le store reconstruit le front sans current.json et fusionne deux deltas di
   context.after(() => rmSync(sandbox, { recursive: true, force: true }));
   const runtime = createFramingRuntime({ homeDir: home, frameworkRoot: FRAMEWORK_ROOT });
   const entry = await runtime.enter({ path: projectRoot, contentLocale: "fr" });
+  assert.equal(entry.projectDraft?.materialization, "draft");
+  assert.equal(existsSync(resolve(projectRoot, ".arka-norn")), false);
   const baseRevision = entry.plan.revision;
   const first = delta(entry.plan, "intent.problem", "problem", "La reprise dépend de la session.");
   const second = delta(entry.plan, "intent.desired_effects", "effect", "Le plan porte la reprise.");
@@ -102,6 +104,7 @@ test("une nouvelle Feature n'existe qu'après le plan fondé publié et pointe s
     ],
   });
   plan = await runtime.stabilize({ projectId: entry.project.id.value, framingId: plan.target.framingId, kind: "intent", actorId: "human-owner", fingerprint: framingPlanFingerprint(plan) });
+  assert.equal(existsSync(resolve(projectRoot, ".arka-norn")), false);
   plan = await runtime.applyDelta(entry.project.id.value, plan.target.framingId, {
     schemaVersion: 1, planId: plan.id, baseRevision: plan.revision, reason: "conception et lots",
     operations: [

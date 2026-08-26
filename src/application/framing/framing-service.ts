@@ -15,12 +15,14 @@ import {
   type FramingPlan, type FramingSection, type FramingTarget, type PlanDelta,
 } from "../../domain/framing/framing-plan.js";
 import { FeatureId } from "../../domain/feature/feature-id.js";
-import type { Project } from "../../domain/project/project.js";
+import type { ProjectDraft } from "../../domain/project/project-draft.js";
+import { Project } from "../../domain/project/project.js";
 import { ProjectId } from "../../domain/project/project-id.js";
 import type { ForFraming, FramingEntry, FramingView } from "../../ports/inbound/for-framing.js";
 import type { ForFeatures } from "../../ports/inbound/for-features.js";
 import type { ForProjects } from "../../ports/inbound/for-projects.js";
 import type { FramingStore } from "../../ports/outbound/framing-store.js";
+import type { ProjectDraftStore } from "../../ports/outbound/project-draft-store.js";
 import type { RepositoryProbePort } from "../../ports/outbound/repository-probe.js";
 import { translate, type MessageKey } from "../localization/locale.js";
 
@@ -29,6 +31,7 @@ const execFileAsync = promisify(execFile);
 export interface FramingServiceDependencies {
   readonly projects: ForProjects;
   readonly features: ForFeatures;
+  readonly projectDrafts: ProjectDraftStore;
   readonly store: FramingStore;
   readonly repositoryProbe: RepositoryProbePort;
   readonly now?: () => Date;
@@ -48,10 +51,11 @@ export class FramingService implements ForFraming {
     readonly contentLocale: "en" | "fr";
   }): Promise<FramingEntry> {
     if (input.existingFeatureId !== undefined && input.newFeatureTitle !== undefined) throw new Error("Choose an existing Feature or a new Feature, not both.");
-    const project = await this.locateProject(input.path, true);
+    const context = await this.locateProjectContext(input.path, true);
+    const { project } = context;
     let target = await this.resolveTarget(project, input.existingFeatureId, input.newFeatureTitle);
     const existing = await this.findMatchingPlan(project.id.value, target);
-    if (existing !== undefined) return { project, plan: existing, resumed: true };
+    if (existing !== undefined) return { project, projectDraft: context.draft, plan: existing, resumed: true };
     if (await this.dependencies.store.load(project.id.value, target.framingId) !== undefined) {
       target = { ...target, framingId: `${target.framingId}-${randomUUID().slice(0, 8)}` };
     }
@@ -63,21 +67,31 @@ export class FramingService implements ForFraming {
       repositoryProbe: probe,
       now: this.now(),
     });
-    return { project, plan: await this.dependencies.store.create(plan), resumed: false };
+    return { project, projectDraft: context.draft, plan: await this.dependencies.store.create(plan), resumed: false };
   }
 
   public async locateProject(path: string, initialize: boolean): Promise<Project> {
+    return (await this.locateProjectContext(path, initialize)).project;
+  }
+
+  private async locateProjectContext(path: string, initialize: boolean): Promise<FramingProjectContext> {
     const canonical = await canonicalDirectory(path);
     const indexed = await this.dependencies.projects.list();
     const containing = await selectContainingProject(indexed, canonical);
-    if (containing !== undefined) return containing;
+    if (containing !== undefined) return { project: containing, draft: null };
     const markerRoot = await findMarkerRoot(canonical);
-    if (markerRoot !== undefined) return this.dependencies.projects.importFrom({ root: markerRoot });
+    if (markerRoot !== undefined) return { project: await this.dependencies.projects.importFrom({ root: markerRoot }), draft: null };
+    const containingDraft = await selectContainingDraft(await this.dependencies.projectDrafts.list(), canonical);
+    if (containingDraft !== undefined) {
+      const verified = await this.dependencies.projectDrafts.verify(containingDraft.id);
+      return { project: projectFromDraft(verified), draft: verified };
+    }
     if (!initialize) throw new Error(`No Norn Project contains ${canonical}.`);
     const root = await gitRoot(canonical) ?? canonical;
     const name = basename(root) || "project";
     const id = ProjectId.of(derivedIdentifier(name, root));
-    return this.dependencies.projects.create({ id, name, root, orchestrationMode: "manual" });
+    const resolution = await this.dependencies.projectDrafts.resolve({ id: id.value, name, root, now: this.now() });
+    return { project: projectFromDraft(resolution.draft), draft: resolution.draft };
   }
 
   public list(projectId: string) {
@@ -154,7 +168,7 @@ export class FramingService implements ForFraming {
     const current = await this.show(input.projectId, input.framingId);
     if (framingPlanFingerprint(current) !== input.fingerprint) throw new Error("Framing plan changed before stabilization.");
     if (input.kind === "grounded_plan") {
-      const project = await this.dependencies.projects.show(ProjectId.of(input.projectId));
+      const project = (await this.projectContextById(input.projectId)).project;
       const observed = await this.dependencies.repositoryProbe.inspect({ projectId: project.id.value, projectRoot: project.root });
       if (observed.snapshot.workspaceFingerprint !== current.repositoryProbe.snapshot.workspaceFingerprint) {
         const operations: PlanDelta["operations"] = [
@@ -187,12 +201,43 @@ export class FramingService implements ForFraming {
   public async publish(projectId: string, framingId: string): Promise<FramingPlan> {
     const current = await this.show(projectId, framingId);
     if (current.publication !== null) return current;
-    const project = await this.dependencies.projects.show(ProjectId.of(projectId));
+    const context = await this.projectContextById(projectId);
+    let project = context.project;
     const observed = await this.dependencies.repositoryProbe.inspect({ projectId: project.id.value, projectRoot: project.root });
     if (observed.snapshot.workspaceFingerprint !== current.repositoryProbe.snapshot.workspaceFingerprint) {
       throw new Error("Repository changed after the grounded plan stabilization; publication is refused until a new confrontation is stabilized.");
     }
     const published = await this.dependencies.store.publish({ projectRoot: project.root, plan: current });
+    if (context.draft !== null) {
+      await this.dependencies.projectDrafts.setMaterialization({
+        id: context.draft.id,
+        expectedRootFingerprint: context.draft.rootFingerprint,
+        materialization: "publishing",
+        now: this.now(),
+      });
+      try {
+        project = await this.dependencies.projects.create({
+          id: ProjectId.of(context.draft.id),
+          name: context.draft.name,
+          root: context.draft.root,
+          orchestrationMode: "manual",
+        });
+        await this.dependencies.projectDrafts.setMaterialization({
+          id: context.draft.id,
+          expectedRootFingerprint: context.draft.rootFingerprint,
+          materialization: "materialized",
+          now: this.now(),
+        });
+      } catch (error) {
+        await this.dependencies.projectDrafts.setMaterialization({
+          id: context.draft.id,
+          expectedRootFingerprint: context.draft.rootFingerprint,
+          materialization: "recovery_required",
+          now: this.now(),
+        }).catch(() => undefined);
+        throw error;
+      }
+    }
     await this.materializeDirectFeature(project, current, published);
     const next = markFramingPublished(current, {
       revision: current.revision,
@@ -264,6 +309,18 @@ export class FramingService implements ForFraming {
     if (plan === undefined || plan.publication !== null) return undefined;
     return plan;
   }
+
+  private async projectContextById(projectId: string): Promise<FramingProjectContext> {
+    const materialized = (await this.dependencies.projects.list()).find((project) => project.id.value === projectId);
+    if (materialized !== undefined) return { project: materialized, draft: null };
+    const draft = await this.dependencies.projectDrafts.verify(projectId);
+    return { project: projectFromDraft(draft), draft };
+  }
+}
+
+interface FramingProjectContext {
+  readonly project: Project;
+  readonly draft: ProjectDraft | null;
 }
 
 function activeSnapshotEvidence(plan: FramingPlan): readonly { readonly id: string }[] {
@@ -285,6 +342,24 @@ async function selectContainingProject(projects: readonly Project[], path: strin
     if (path === root || path.startsWith(`${root}${sep}`)) candidates.push({ project, root });
   }
   return candidates.sort((left, right) => right.root.length - left.root.length)[0]?.project;
+}
+
+async function selectContainingDraft(drafts: readonly ProjectDraft[], path: string): Promise<ProjectDraft | undefined> {
+  return drafts.filter((draft) => draft.materialization !== "materialized"
+    && (path === draft.root || path.startsWith(`${draft.root}${sep}`)))
+    .sort((left, right) => right.root.length - left.root.length)[0];
+}
+
+function projectFromDraft(draft: ProjectDraft): Project {
+  return Project.create({
+    id: ProjectId.of(draft.id),
+    name: draft.name,
+    root: draft.root,
+    schemaVersion: 4,
+    orchestrationMode: "manual",
+    createdAt: new Date(draft.createdAt),
+    updatedAt: new Date(draft.updatedAt),
+  });
 }
 
 async function findMarkerRoot(start: string): Promise<string | undefined> {

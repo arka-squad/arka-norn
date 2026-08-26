@@ -4,6 +4,7 @@
  */
 
 import type { Project } from "../../domain/project/project.js";
+import type { ProjectDraft } from "../../domain/project/project-draft.js";
 import type {
   FramingPlan, FramingResumePacket, PlanDelta,
 } from "../../domain/framing/framing-plan.js";
@@ -13,6 +14,7 @@ export type FramingView = "summary" | "plan" | "evidence" | "map";
 
 export interface FramingEntry {
   readonly project: Project;
+  readonly projectDraft: ProjectDraft | null;
   readonly plan: FramingPlan;
   readonly resumed: boolean;
 }

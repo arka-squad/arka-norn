@@ -61,7 +61,7 @@ async function enter(runtime: Runtime, args: Parsed, context: FramingCliContext)
   });
   const projection = runtime.project(entry.plan, "summary");
   return {
-    data: { project: serializeProject(entry.project), resumed: entry.resumed, framing: projection },
+    data: { project: serializeProject(entry.project, entry.projectDraft), resumed: entry.resumed, framing: projection },
     message: `${translate(entry.resumed ? "framing.cli.resumed" : "framing.cli.opened")} — ${humanMessage(entry.plan)}`,
   };
 }
@@ -151,8 +151,15 @@ function success(command: string, data: unknown, message: string, json: boolean)
   return { code: 0, stdout: `${message}\n`, stderr: "" };
 }
 
-function serializeProject(project: Awaited<ReturnType<Runtime["locateProject"]>>) {
-  return { id: project.id.value, name: project.name, root: project.root, orchestrationMode: project.orchestrationMode };
+function serializeProject(project: Awaited<ReturnType<Runtime["locateProject"]>>, draft: Awaited<ReturnType<Runtime["enter"]>>["projectDraft"]) {
+  return {
+    id: project.id.value,
+    name: project.name,
+    root: project.root,
+    orchestrationMode: project.orchestrationMode,
+    lifecycle: draft === null ? "materialized" : "draft",
+    ...(draft === null ? {} : { materialization: draft.materialization, rootFingerprint: draft.rootFingerprint }),
+  };
 }
 
 function humanMessage(plan: FramingPlan): string {

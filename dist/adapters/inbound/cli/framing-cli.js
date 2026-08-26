@@ -51,7 +51,7 @@ async function enter(runtime, args, context) {
     });
     const projection = runtime.project(entry.plan, "summary");
     return {
-        data: { project: serializeProject(entry.project), resumed: entry.resumed, framing: projection },
+        data: { project: serializeProject(entry.project, entry.projectDraft), resumed: entry.resumed, framing: projection },
         message: `${translate(entry.resumed ? "framing.cli.resumed" : "framing.cli.opened")} — ${humanMessage(entry.plan)}`,
     };
 }
@@ -146,8 +146,15 @@ function success(command, data, message, json) {
         return { code: 0, stdout: jsonEnvelope({ command, ok: true, data, message }), stderr: "" };
     return { code: 0, stdout: `${message}\n`, stderr: "" };
 }
-function serializeProject(project) {
-    return { id: project.id.value, name: project.name, root: project.root, orchestrationMode: project.orchestrationMode };
+function serializeProject(project, draft) {
+    return {
+        id: project.id.value,
+        name: project.name,
+        root: project.root,
+        orchestrationMode: project.orchestrationMode,
+        lifecycle: draft === null ? "materialized" : "draft",
+        ...(draft === null ? {} : { materialization: draft.materialization, rootFingerprint: draft.rootFingerprint }),
+    };
 }
 function humanMessage(plan) {
     return translate("framing.cli.context", { target: plan.target.kind === "project" ? "Project" : plan.target.workingTitle, nature: repositoryLabel(plan), action: localizedAction(plan) }, plan.contentLocale);

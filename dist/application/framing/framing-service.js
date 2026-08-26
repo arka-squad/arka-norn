@@ -9,6 +9,7 @@ import { basename, dirname, join, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import { applyFramingDelta, createFramingPlan, createResumePacket, framingPlanFingerprint, markFramingPublished, stabilizeFramingPlan, } from "../../domain/framing/framing-plan.js";
 import { FeatureId } from "../../domain/feature/feature-id.js";
+import { Project } from "../../domain/project/project.js";
 import { ProjectId } from "../../domain/project/project-id.js";
 import { translate } from "../localization/locale.js";
 const execFileAsync = promisify(execFile);
@@ -22,11 +23,12 @@ export class FramingService {
     async enter(input) {
         if (input.existingFeatureId !== undefined && input.newFeatureTitle !== undefined)
             throw new Error("Choose an existing Feature or a new Feature, not both.");
-        const project = await this.locateProject(input.path, true);
+        const context = await this.locateProjectContext(input.path, true);
+        const { project } = context;
         let target = await this.resolveTarget(project, input.existingFeatureId, input.newFeatureTitle);
         const existing = await this.findMatchingPlan(project.id.value, target);
         if (existing !== undefined)
-            return { project, plan: existing, resumed: true };
+            return { project, projectDraft: context.draft, plan: existing, resumed: true };
         if (await this.dependencies.store.load(project.id.value, target.framingId) !== undefined) {
             target = { ...target, framingId: `${target.framingId}-${randomUUID().slice(0, 8)}` };
         }
@@ -38,23 +40,32 @@ export class FramingService {
             repositoryProbe: probe,
             now: this.now(),
         });
-        return { project, plan: await this.dependencies.store.create(plan), resumed: false };
+        return { project, projectDraft: context.draft, plan: await this.dependencies.store.create(plan), resumed: false };
     }
     async locateProject(path, initialize) {
+        return (await this.locateProjectContext(path, initialize)).project;
+    }
+    async locateProjectContext(path, initialize) {
         const canonical = await canonicalDirectory(path);
         const indexed = await this.dependencies.projects.list();
         const containing = await selectContainingProject(indexed, canonical);
         if (containing !== undefined)
-            return containing;
+            return { project: containing, draft: null };
         const markerRoot = await findMarkerRoot(canonical);
         if (markerRoot !== undefined)
-            return this.dependencies.projects.importFrom({ root: markerRoot });
+            return { project: await this.dependencies.projects.importFrom({ root: markerRoot }), draft: null };
+        const containingDraft = await selectContainingDraft(await this.dependencies.projectDrafts.list(), canonical);
+        if (containingDraft !== undefined) {
+            const verified = await this.dependencies.projectDrafts.verify(containingDraft.id);
+            return { project: projectFromDraft(verified), draft: verified };
+        }
         if (!initialize)
             throw new Error(`No Norn Project contains ${canonical}.`);
         const root = await gitRoot(canonical) ?? canonical;
         const name = basename(root) || "project";
         const id = ProjectId.of(derivedIdentifier(name, root));
-        return this.dependencies.projects.create({ id, name, root, orchestrationMode: "manual" });
+        const resolution = await this.dependencies.projectDrafts.resolve({ id: id.value, name, root, now: this.now() });
+        return { project: projectFromDraft(resolution.draft), draft: resolution.draft };
     }
     list(projectId) {
         return this.dependencies.store.list(projectId);
@@ -128,7 +139,7 @@ export class FramingService {
         if (framingPlanFingerprint(current) !== input.fingerprint)
             throw new Error("Framing plan changed before stabilization.");
         if (input.kind === "grounded_plan") {
-            const project = await this.dependencies.projects.show(ProjectId.of(input.projectId));
+            const project = (await this.projectContextById(input.projectId)).project;
             const observed = await this.dependencies.repositoryProbe.inspect({ projectId: project.id.value, projectRoot: project.root });
             if (observed.snapshot.workspaceFingerprint !== current.repositoryProbe.snapshot.workspaceFingerprint) {
                 const operations = [
@@ -161,12 +172,44 @@ export class FramingService {
         const current = await this.show(projectId, framingId);
         if (current.publication !== null)
             return current;
-        const project = await this.dependencies.projects.show(ProjectId.of(projectId));
+        const context = await this.projectContextById(projectId);
+        let project = context.project;
         const observed = await this.dependencies.repositoryProbe.inspect({ projectId: project.id.value, projectRoot: project.root });
         if (observed.snapshot.workspaceFingerprint !== current.repositoryProbe.snapshot.workspaceFingerprint) {
             throw new Error("Repository changed after the grounded plan stabilization; publication is refused until a new confrontation is stabilized.");
         }
         const published = await this.dependencies.store.publish({ projectRoot: project.root, plan: current });
+        if (context.draft !== null) {
+            await this.dependencies.projectDrafts.setMaterialization({
+                id: context.draft.id,
+                expectedRootFingerprint: context.draft.rootFingerprint,
+                materialization: "publishing",
+                now: this.now(),
+            });
+            try {
+                project = await this.dependencies.projects.create({
+                    id: ProjectId.of(context.draft.id),
+                    name: context.draft.name,
+                    root: context.draft.root,
+                    orchestrationMode: "manual",
+                });
+                await this.dependencies.projectDrafts.setMaterialization({
+                    id: context.draft.id,
+                    expectedRootFingerprint: context.draft.rootFingerprint,
+                    materialization: "materialized",
+                    now: this.now(),
+                });
+            }
+            catch (error) {
+                await this.dependencies.projectDrafts.setMaterialization({
+                    id: context.draft.id,
+                    expectedRootFingerprint: context.draft.rootFingerprint,
+                    materialization: "recovery_required",
+                    now: this.now(),
+                }).catch(() => undefined);
+                throw error;
+            }
+        }
         await this.materializeDirectFeature(project, current, published);
         const next = markFramingPublished(current, {
             revision: current.revision,
@@ -236,6 +279,13 @@ export class FramingService {
             return undefined;
         return plan;
     }
+    async projectContextById(projectId) {
+        const materialized = (await this.dependencies.projects.list()).find((project) => project.id.value === projectId);
+        if (materialized !== undefined)
+            return { project: materialized, draft: null };
+        const draft = await this.dependencies.projectDrafts.verify(projectId);
+        return { project: projectFromDraft(draft), draft };
+    }
 }
 function activeSnapshotEvidence(plan) {
     return plan.knowledge["evidence.claims"].filter((item) => item.status === "active"
@@ -256,6 +306,22 @@ async function selectContainingProject(projects, path) {
             candidates.push({ project, root });
     }
     return candidates.sort((left, right) => right.root.length - left.root.length)[0]?.project;
+}
+async function selectContainingDraft(drafts, path) {
+    return drafts.filter((draft) => draft.materialization !== "materialized"
+        && (path === draft.root || path.startsWith(`${draft.root}${sep}`)))
+        .sort((left, right) => right.root.length - left.root.length)[0];
+}
+function projectFromDraft(draft) {
+    return Project.create({
+        id: ProjectId.of(draft.id),
+        name: draft.name,
+        root: draft.root,
+        schemaVersion: 4,
+        orchestrationMode: "manual",
+        createdAt: new Date(draft.createdAt),
+        updatedAt: new Date(draft.updatedAt),
+    });
 }
 async function findMarkerRoot(start) {
     let current = start;

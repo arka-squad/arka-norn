@@ -4,7 +4,7 @@
  */
 
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -28,17 +28,20 @@ test("framing entre dans un dossier vide et reprend depuis le plan sans Feature 
   assert.equal(record(framing.repository).nature, "empty");
   assert.equal(record(framing.nextAction).attention, "agent");
   assert.equal(record(entry.data.project).orchestrationMode, "manual");
+  assert.equal(record(entry.data.project).lifecycle, "draft");
   assert.equal(existsSync(resolve(projectRoot, "features")), false);
-  const marker = JSON.parse(readFileSync(resolve(projectRoot, ".arka-norn", "project.json"), "utf8")) as { readonly id: string };
+  assert.equal(existsSync(resolve(projectRoot, ".arka-norn")), false);
+  const projectId = String(record(entry.data.project).id);
+  assert.equal(existsSync(resolve(home, ".arka-norn", "framing-projects", projectId, "draft.json")), true);
 
-  const resumed = run(["framing", "resume", "project", "--project", marker.id, "--json"], home, projectRoot);
+  const resumed = run(["framing", "resume", "project", "--project", projectId, "--json"], home, projectRoot);
   assert.equal(resumed.status, 0, resumed.stderr);
   const packet = envelope(resumed.stdout).data;
   assert.equal(packet.revision, 1);
   assert.equal(packet.expiresOnRevisionChange, true);
   assert.match(String(packet.summary), /Suite\s*:/u);
 
-  const human = run(["framing", "show", "project", "--project", marker.id, "--view", "plan"], home, projectRoot);
+  const human = run(["framing", "show", "project", "--project", projectId, "--view", "plan"], home, projectRoot);
   assert.equal(human.status, 0, human.stderr);
   assert.match(human.stdout, /révision 1/u);
   assert.doesNotMatch(human.stdout, /\{"schemaVersion"/u);

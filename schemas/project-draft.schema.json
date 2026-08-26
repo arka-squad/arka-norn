@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "project-draft.schema.json",
+  "title": "ProjectDraft v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "name", "root", "orchestrationMode", "createdAt", "updatedAt", "materialization", "rootFingerprint"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "root": { "type": "string", "minLength": 1, "maxLength": 4096 },
+    "orchestrationMode": { "const": "manual" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "materialization": { "enum": ["draft", "publishing", "materialized", "recovery_required"] },
+    "rootFingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  }
+}
