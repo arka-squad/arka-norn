@@ -24,6 +24,8 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
+      - if: runner.os == 'Windows'
+        run: npm run test:orchestration-v23
       - run: npm test
       - run: npm run build
       - run: npm pack --dry-run --ignore-scripts
