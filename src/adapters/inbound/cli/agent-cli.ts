@@ -72,7 +72,7 @@ export async function runAgentCommand(argv: readonly string[], context: AgentCli
     const sessionId = parseSession(args.values.get("session"), context.sessionId);
     const runtime = createManagementRuntime({ homeDir: context.homeDir, sessionId });
     const project = await runtime.projects.show(ProjectId.of(required(args.values, "project")));
-    assertPublicPromptAllowed(action, project.orchestrationMode);
+    assertPublicPromptAllowed(action, project.orchestrationMode, args.positionals[0]);
     let data: unknown;
     switch (action) {
       case "list": {
@@ -156,10 +156,11 @@ export async function runAgentCommand(argv: readonly string[], context: AgentCli
   }
 }
 
-function assertPublicPromptAllowed(action: string, orchestrationMode: string): void {
+function assertPublicPromptAllowed(action: string, orchestrationMode: string, requestedRole?: string): void {
   if (orchestrationMode !== "automatic") return;
-  if (action === "prompt") throw new CliUsageError("agent prompt is unavailable in automatic mode; use the verified orchestration campaign.");
-  if (action === "handoff-prompt" || action === "resume-prompt") throw new CliUsageError("copy/paste handoffs are unavailable in automatic mode; resume the Product campaign instead.");
+  if (action === "handoff-prompt" || action === "resume-prompt") return;
+  if (action === "prompt" && requestedRole?.trim().toLowerCase() === "product") return;
+  if (action === "prompt") throw new CliUsageError("specialist prompts are unavailable in automatic mode; use the verified orchestration campaign after Product framing.");
 }
 
 function specFor(action: string): StrictArgumentSpec {

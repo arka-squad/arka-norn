@@ -1,14 +1,15 @@
 import { AlertTriangle, ArrowRight, FileText } from "lucide-react";
 
-import type { FeatureTrackingView } from "../../../src/application/web/contracts";
+import type { FeatureContinuationView, FeatureTrackingView } from "../../../src/application/web/contracts";
 import { documentRoute, projectRoute } from "../app/router";
 import { MetricStrip } from "../components/metric-strip";
 import { PipelineRail } from "../components/pipeline-rail";
 import { BackButton, EmptyState, PageTitle, StatusBadge } from "../components/ui";
 import { useI18n } from "../i18n/i18n";
 import { pipelineName } from "../onboarding/onboarding-model";
+import { FeatureContinuation } from "./feature-continuation";
 
-export function FeatureView({ feature, navigate }: { readonly feature: FeatureTrackingView; readonly navigate: (path: string) => void }) {
+export function FeatureView({ feature, continuation, navigate }: { readonly feature: FeatureTrackingView; readonly continuation: FeatureContinuationView; readonly navigate: (path: string) => void }) {
   const { t, date, contractLabel } = useI18n();
   return <div className="page feature-page">
     <PageTitle title={feature.name} summary={feature.root} actions={<><BackButton onClick={() => navigate(projectRoute(feature.projectId, "features"))} /><StatusBadge health={feature.health} /></>} />
@@ -20,6 +21,7 @@ export function FeatureView({ feature, navigate }: { readonly feature: FeatureTr
       { label: t("web.feature.anomalies"), value: feature.anomalies.length, tone: feature.anomalies.length > 0 ? "bad" : "good" },
       { label: t("web.feature.updated"), value: date(feature.updatedAt) },
     ]} />
+    <FeatureContinuation continuation={continuation} navigate={navigate} />
     <section className="pipeline-section"><h2>{t("web.feature.pipelineTitle")}</h2><PipelineRail steps={feature.steps} /></section>
     <div className="feature-columns">
       <section><div className="section-heading"><h2>{t("web.feature.documents")}</h2></div>{feature.documents.length === 0 ? <EmptyState title={t("web.document.empty")} description={t("web.document.emptyDetail")} icon={<FileText size={16} />} /> : <div className="document-list">{feature.documents.map((document) => <button key={document.id} onClick={() => navigate(documentRoute(feature.projectId, feature.id, document.id))}><FileText size={18} /><span><strong>{document.title}</strong><small>{contractLabel(document.stepId)}{document.createdAt === undefined ? "" : ` · ${date(document.createdAt)}`}</small></span>{!document.valid ? <AlertTriangle className="danger" size={17} /> : null}<ArrowRight size={16} /></button>)}</div>}</section>

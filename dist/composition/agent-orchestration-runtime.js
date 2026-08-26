@@ -15,7 +15,7 @@
  */
 import { createAgentAdvice, createInitializationPrompt, createProductHandoffPrompt } from "../application/agents/agent-orchestration.js";
 import { formatNumber, translate } from "../application/localization/locale.js";
-import { loadVerifiedFeatureContext } from "./verified-feature-context.js";
+import { assertFeatureContainedInProject, loadVerifiedFeatureContext } from "./verified-feature-context.js";
 export function createAgentOrchestrationRuntime(deps) {
     return {
         async advise(input) {
@@ -34,19 +34,21 @@ export function createAgentOrchestrationRuntime(deps) {
         const feature = input.featureId === undefined ? uniqueFeature(projectFeatures) : await deps.features.show(input.featureId);
         if (feature !== undefined && !feature.belongsTo(project.id))
             throw new Error(`Feature ${feature.id.value} does not belong to Project ${project.id.value}.`);
-        const [agents, sessions, report, preferredSurface] = await Promise.all([
+        const [agents, sessions, preferredSurface] = await Promise.all([
             deps.agents.list(project),
             deps.agents.sessions(project),
-            feature === undefined ? undefined : inspect(feature),
             deps.preferredSurface?.(),
         ]);
+        const report = feature === undefined ? undefined : await inspect(project, feature, agents);
         const warnings = input.featureId === undefined && projectFeatures.length > 1
             ? [translate("orchestration.warning.chooseFeature", { count: formatNumber(projectFeatures.length) })]
             : [];
         return { project, ...(feature === undefined ? {} : { feature }), ...(report === undefined ? {} : { report }), ...(preferredSurface === undefined ? {} : { preferredSurface }), agents, sessions, warnings };
     }
-    async function inspect(feature) {
-        const { authorRegistry } = await loadVerifiedFeatureContext(feature, deps);
+    async function inspect(project, feature, agents) {
+        const authorRegistry = deps.allowEmptyAuthorRegistry === true
+            ? webAuthorRegistry(project, feature, agents)
+            : (await loadVerifiedFeatureContext(feature, deps)).authorRegistry;
         return deps.pipeline.inspect({
             featureRoot: feature.root,
             featureId: feature.id.value,
@@ -55,6 +57,10 @@ export function createAgentOrchestrationRuntime(deps) {
             authorRegistry,
         });
     }
+}
+function webAuthorRegistry(project, feature, agents) {
+    assertFeatureContainedInProject(feature, project);
+    return agents.map((agent) => ({ id: agent.id.value, active: agent.active, authorized: agent.coversFeature(feature.id) }));
 }
 function uniqueFeature(features) {
     return features.length === 1 ? features[0] : undefined;

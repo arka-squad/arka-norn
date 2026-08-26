@@ -8,6 +8,7 @@ import { FsLocalePreferenceStore } from "../adapters/outbound/filesystem/fs-loca
 import { NativeFolderPicker } from "../adapters/outbound/filesystem/native-folder-picker.js";
 import { startWebServer } from "../adapters/inbound/web/web-server.js";
 import { ProjectTrackingService } from "../application/web/project-tracking-service.js";
+import { createAgentOrchestrationRuntime } from "./agent-orchestration-runtime.js";
 import { createDoctorRuntime } from "./doctor-runtime.js";
 import { createManagementRuntime } from "./management-runtime.js";
 import { createPipelineRuntime } from "./pipeline-runtime.js";
@@ -22,6 +23,7 @@ export async function createWebRuntime(options) {
     const service = new ProjectTrackingService({
         management,
         pipeline,
+        agentOrchestration: createAgentOrchestrationRuntime({ ...management, pipeline, preferredSurface: () => Promise.resolve("web"), allowEmptyAuthorRegistry: true }),
         governance: new FsGovernanceStore(),
         preferences,
         folderPicker: options.folderPicker ?? new NativeFolderPicker(),

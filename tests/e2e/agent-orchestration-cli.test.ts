@@ -97,7 +97,8 @@ test("la CLI isole les sessions et livre des prompts Product/spécialistes direc
   assert.equal(handoff.status, 0, handoff.stderr);
   assert.match(handoff.stdout, new RegExp(`Product Agent to reuse: ${product.data.id}`));
   assert.match(handoff.stdout, /audit-navigation: .*_audit_/);
-  assert.match(handoff.stdout, /Do not perform audit, development or QA/);
+  assert.match(handoff.stdout, /Load \$arka-product and execute only concept/);
+  assert.match(handoff.stdout, /do not continue into a second phase/);
   assert.match(handoff.stdout, /cd '.*[\\/]workspace[\\/]product'/);
   assert.doesNotMatch(handoff.stderr, /listFeatures: index entry has no readable marker|norn-test/);
 });

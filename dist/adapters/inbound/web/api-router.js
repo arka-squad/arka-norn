@@ -42,10 +42,9 @@ async function dispatchGet(segments, url, service) {
         return ok(await service.listProjects());
     if (segments.length === 2 && segments[0] === "projects")
         return ok(await service.getProject(id(segments[1])));
-    if (segments.length === 4 && segments[0] === "projects" && segments[2] === "features")
-        return ok(await service.getFeature(id(segments[1]), id(segments[3])));
-    if (segments.length === 6 && segments[0] === "projects" && segments[2] === "features" && segments[4] === "documents")
-        return ok(await service.getDocument(id(segments[1]), id(segments[3]), id(segments[5])));
+    const feature = await dispatchFeatureGet(segments, service);
+    if (feature !== undefined)
+        return feature;
     if (segments.length === 3 && segments[0] === "projects" && segments[2] === "graph") {
         return ok(await service.getGraph(id(segments[1]), url.searchParams.get("featureId") ?? undefined));
     }
@@ -65,6 +64,19 @@ async function dispatchGet(segments, url, service) {
         return ok(await service.inspectDoctor());
     throw new ClientRequestError(404, "not_found");
 }
+async function dispatchFeatureGet(segments, service) {
+    if (segments.length < 4 || segments[0] !== "projects" || segments[2] !== "features")
+        return undefined;
+    const projectId = id(segments[1]);
+    const featureId = id(segments[3]);
+    if (segments.length === 4)
+        return ok(await service.getFeature(projectId, featureId));
+    if (segments.length === 5 && segments[4] === "continuation")
+        return ok(await service.getFeatureContinuation(projectId, featureId));
+    if (segments.length === 6 && segments[4] === "documents")
+        return ok(await service.getDocument(projectId, featureId, id(segments[5])));
+    return undefined;
+}
 async function dispatchPost(request, segments, service) {
     if (same(segments, ["folder-picker"]))
         return ok(await service.pickFolder(await body(request)));
@@ -72,6 +84,9 @@ async function dispatchPost(request, segments, service) {
         return created(await service.createProject(await body(request)));
     if (segments.length === 3 && segments[0] === "projects" && segments[2] === "features") {
         return created(await service.createFeature(id(segments[1]), await body(request)));
+    }
+    if (segments.length === 5 && segments[0] === "projects" && segments[2] === "features" && segments[4] === "product-prompt") {
+        return ok(await service.prepareProductPrompt(id(segments[1]), id(segments[3]), await body(request)));
     }
     if (segments.length === 3 && segments[0] === "projects" && segments[2] === "governance")
         return created(await service.appendGovernance(id(segments[1]), await body(request)));
