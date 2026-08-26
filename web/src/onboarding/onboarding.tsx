@@ -33,6 +33,8 @@ const PIPELINE_COPY = {
   "arka-norn-fastdev": ["web.onboarding.pipeline.fastdev.detail", "web.onboarding.pipeline.fastdev.why"],
   "arka-norn-essential": ["web.onboarding.pipeline.essential.detail", "web.onboarding.pipeline.essential.why"],
   "arka-norn-complete": ["web.onboarding.pipeline.complete.detail", "web.onboarding.pipeline.complete.why"],
+  "arka-norn-essential-2.3": ["web.onboarding.pipeline.essential.detail", "web.onboarding.pipeline.essential.why"],
+  "arka-norn-complete-2.3": ["web.onboarding.pipeline.complete.detail", "web.onboarding.pipeline.complete.why"],
 } as const;
 
 export function Onboarding(props: OnboardingProps) {

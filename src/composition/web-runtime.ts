@@ -15,6 +15,7 @@ import { createAgentOrchestrationRuntime } from "./agent-orchestration-runtime.j
 import { createDoctorRuntime } from "./doctor-runtime.js";
 import { createManagementRuntime } from "./management-runtime.js";
 import { createPipelineRuntime } from "./pipeline-runtime.js";
+import { createFramingRuntime } from "./framing-runtime.js";
 import type { FolderPicker } from "../ports/outbound/folder-picker.js";
 
 export interface WebRuntimeOptions {
@@ -45,6 +46,7 @@ export async function createWebRuntime(options: WebRuntimeOptions): Promise<Runn
     folderPicker: options.folderPicker ?? new NativeFolderPicker(),
     doctor: createDoctorRuntime(options.homeDir, options.cwd),
     homeDir: options.homeDir,
+    framing: createFramingRuntime({ homeDir: options.homeDir, frameworkRoot: options.frameworkRoot }),
     ...(options.environment === undefined ? {} : { environment: options.environment }),
   });
   return startWebServer({

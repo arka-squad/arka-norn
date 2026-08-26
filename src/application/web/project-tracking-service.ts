@@ -20,8 +20,7 @@ import type { FsLocalePreferenceStore } from "../../adapters/outbound/filesystem
 import { resolveLocale, translate } from "../localization/locale.js";
 import { roleForStep } from "../agents/agent-orchestration.js";
 import { projectOrchestration } from "../../domain/orchestration/orchestration-projection.js";
-import { projectCampaignEvents, type CampaignEventProjection } from "../../domain/orchestration/orchestration-event.js";
-import type { CampaignPlan, RunAuthorization, TaskAttempt } from "../../domain/orchestration/orchestration-plan.js";
+import { projectCampaignEvents } from "../../domain/orchestration/orchestration-event.js";
 import { createGovernanceEvent } from "../../domain/governance/governance-event.js";
 import { reduceGovernance } from "../../domain/governance/governance-ledger.js";
 import { FeatureId } from "../../domain/feature/feature-id.js";
@@ -29,12 +28,13 @@ import type { Feature } from "../../domain/feature/feature.js";
 import { createWebOnboardingState } from "../../domain/onboarding/web-onboarding-state.js";
 import { ProjectId } from "../../domain/project/project-id.js";
 import type { Project } from "../../domain/project/project.js";
+import { framingPlanFingerprint } from "../../domain/framing/framing-plan.js";
 import type { DoctorReport, ForDoctor } from "../../ports/inbound/for-doctor.js";
 import type { ForAgentOrchestration } from "../../ports/inbound/for-agent-orchestration.js";
 import type { ForPipeline, PipelineAuthorAuthorization } from "../../ports/inbound/for-pipeline.js";
+import type { ForFraming } from "../../ports/inbound/for-framing.js";
 import type { GovernanceStore } from "../../ports/outbound/governance-store.js";
 import type { FolderPicker } from "../../ports/outbound/folder-picker.js";
-import type { CampaignApplicationArtifact, CampaignResultArtifact } from "../../ports/outbound/orchestration-campaign-v23-store.js";
 import type { ManagementRuntime } from "../../composition/management-runtime.js";
 import type {
   AgentTrackingView,
@@ -43,6 +43,8 @@ import type {
   CreateGovernanceEventInput,
   FeatureContinuationView,
   FeatureTrackingView,
+  FramingDetailView,
+  FramingSummaryView,
   GovernanceEventView,
   GovernanceView,
   HumanDocumentView,
@@ -60,6 +62,8 @@ import type {
   WebPreferences,
 } from "./contracts.js";
 import { createFeatureTrackingView } from "./feature-tracking.js";
+import { framingDetail, framingSummary, revisionMilestone } from "./framing-projection.js";
+import { v23Campaign, v23Dag, v23Tasks } from "./orchestration-v23-projection.js";
 
 interface TrackingServiceOptions {
   readonly management: ManagementRuntime;
@@ -70,6 +74,7 @@ interface TrackingServiceOptions {
   readonly doctor: ForDoctor;
   readonly folderPicker: FolderPicker;
   readonly homeDir: string;
+  readonly framing: ForFraming;
   readonly environment?: Readonly<Record<string, string | undefined>>;
   readonly now?: () => Date;
 }
@@ -104,8 +109,8 @@ export class ProjectTrackingService {
 
   public async getProject(projectId: string): Promise<ProjectOverview> {
     const project = await this.project(projectId);
-    const [features, governance, audits, orchestrations] = await Promise.all([
-      this.options.management.features.list(project.id), this.getGovernance(projectId), this.getAudits(projectId), this.getOrchestrations(projectId),
+    const [features, governance, audits, orchestrations, framings] = await Promise.all([
+      this.options.management.features.list(project.id), this.getGovernance(projectId), this.getAudits(projectId), this.getOrchestrations(projectId), this.listFramings(projectId),
     ]);
     const summaries = await Promise.all(features.map(async (feature) => {
       const report = await this.inspectFeature(project, feature);
@@ -132,13 +137,50 @@ export class ProjectTrackingService {
         activeOrchestrations: orchestrations.filter((item) => item.status === "running" || item.status === "planned" || item.status === "awaiting_approval" || item.status === "awaiting_application" || item.status === "authorized").length,
       },
       features: summaries,
+      ...(framings[0] === undefined ? {} : { framing: framings.find((item) => !item.published) ?? framings[0] }),
     };
   }
 
   public async getFeature(projectId: string, featureId: string): Promise<FeatureTrackingView> {
     const project = await this.project(projectId);
     const feature = await this.feature(project, featureId);
-    return createFeatureTrackingView(feature, await this.inspectFeature(project, feature));
+    const view = await createFeatureTrackingView(feature, await this.inspectFeature(project, feature));
+    const framing = await this.featureFraming(feature);
+    return { ...view, ...(framing === undefined ? {} : { framing }) };
+  }
+
+  public async listFramings(projectId: string): Promise<readonly FramingSummaryView[]> {
+    const references = await this.options.framing.list(projectId);
+    const values: FramingSummaryView[] = [];
+    for (const reference of references) {
+      const plan = await this.options.framing.show(projectId, reference.framingId);
+      values.push(framingSummary(plan));
+    }
+    return values;
+  }
+
+  public async getFraming(projectId: string, framingId: string): Promise<FramingDetailView> {
+    const plan = await this.options.framing.show(projectId, framingId);
+    const history: Array<FramingDetailView["history"][number]> = [];
+    for (let revision = 1; revision <= plan.revision; revision += 1) {
+      const candidate = await this.options.framing.showRevision(projectId, framingId, revision);
+      if (candidate !== undefined) history.push({
+        revision, updatedAt: candidate.updatedAt, fingerprint: framingPlanFingerprint(candidate), milestone: revisionMilestone(candidate),
+      });
+    }
+    return framingDetail(plan, history);
+  }
+
+  public async startFraming(projectId: string, input: { readonly existingFeatureId?: string; readonly newFeatureTitle?: string }): Promise<FramingDetailView> {
+    const project = await this.project(projectId);
+    const preferences = await this.getPreferences();
+    const entry = await this.options.framing.enter({
+      path: project.root,
+      contentLocale: preferences.resolvedLocale,
+      ...(input.existingFeatureId === undefined ? {} : { existingFeatureId: input.existingFeatureId }),
+      ...(input.newFeatureTitle === undefined ? {} : { newFeatureTitle: input.newFeatureTitle }),
+    });
+    return this.getFraming(projectId, entry.plan.target.framingId);
   }
 
   public async getFeatureContinuation(projectId: string, featureId: string): Promise<FeatureContinuationView> {
@@ -492,6 +534,13 @@ export class ProjectTrackingService {
     return feature;
   }
 
+  private async featureFraming(feature: Feature): Promise<FramingDetailView | undefined> {
+    if (feature.framingPlanRef === null) return undefined;
+    const references = await this.options.framing.list(feature.projectId.value);
+    const reference = references.find((item) => item.planId === feature.framingPlanRef?.planId);
+    return reference === undefined ? undefined : this.getFraming(feature.projectId.value, reference.framingId);
+  }
+
   private async inspectFeature(project: Project, feature: Feature) {
     const agents = await this.options.management.agents.list(project);
     const authorRegistry: readonly PipelineAuthorAuthorization[] = agents.map((agent) => ({ id: agent.id.value, active: agent.active, authorized: agent.coversFeature(feature.id) }));
@@ -518,70 +567,6 @@ export class ProjectTrackingService {
     const featurePath = feature.root.slice(project.root.length + 1).replaceAll("\\", "/");
     return { projectId: project.id.value, projectName: project.name, projectRoot: project.root, featureId: feature.id.value, featurePath };
   }
-}
-
-type V23TaskTrackingView = NonNullable<OrchestrationTrackingView["dag"]>["tasks"][number];
-
-function v23Tasks(plan: CampaignPlan, attempts: readonly TaskAttempt[], projection: CampaignEventProjection | undefined): readonly V23TaskTrackingView[] {
-  const latestAttempt = new Map<string, TaskAttempt>();
-  for (const attempt of attempts) latestAttempt.set(attempt.props.taskId, attempt);
-  return plan.tasks.map((task) => {
-    const attempt = latestAttempt.get(task.id)?.props;
-    return {
-      id: task.id,
-      agentId: task.agentId,
-      role: task.role,
-      status: projection?.tasks[task.id] ?? "planned",
-      ...(attempt === undefined ? {} : { profileId: attempt.profileId }),
-      dependencies: [...task.dependencies],
-      readScopes: [...task.readScopes],
-      writeScopes: [...task.writeScopes],
-      proofCount: attempt?.proofReferences.length ?? 0,
-    };
-  });
-}
-
-function v23Dag(
-  plan: CampaignPlan,
-  tasks: readonly V23TaskTrackingView[],
-  result: CampaignResultArtifact | undefined,
-  application: CampaignApplicationArtifact | undefined,
-  authorization: RunAuthorization | undefined,
-): NonNullable<OrchestrationTrackingView["dag"]> {
-  return {
-    planFingerprint: plan.fingerprint,
-    ...(authorization === undefined ? {} : { riskPolicyFingerprint: authorization.props.riskPolicyFingerprint }),
-    tasks,
-    ...(result === undefined ? {} : {
-      risk: { score: result.risk.totalScore, automaticEligible: result.risk.automaticEligible, hardDenials: [...result.risk.hardDenials] },
-      applicationFingerprint: application?.fingerprint ?? result.fingerprint,
-      ...(result.applicationGate === undefined ? {} : { applicationGate: { ...result.applicationGate } }),
-    }),
-    requiresHumanApproval: result !== undefined && result.appliedCommit === undefined && application === undefined,
-    discardedHunkCount: result?.integration.discardedHunks?.length ?? 0,
-  };
-}
-
-function v23Campaign(
-  id: string,
-  status: string,
-  plan: CampaignPlan,
-  projection: CampaignEventProjection | undefined,
-  activeTaskId: string | undefined,
-): NonNullable<OrchestrationTrackingView["campaign"]> {
-  return {
-    id,
-    status,
-    revision: projection?.revision ?? 0,
-    workspaceMode: "isolated",
-    completedMissions: projection?.progress.succeeded ?? 0,
-    maximumMissions: plan.tasks.length,
-    currentStepId: activeTaskId ?? "campaign",
-    decisionCount: 0,
-    ...(status !== "awaiting_application" ? {} : {
-      actionRequired: { kind: "human_application", reason: "Review the risk score and confirmed application fingerprint." },
-    }),
-  };
 }
 
 function eventView(event: ReturnType<typeof reduceGovernance>["history"][number]): GovernanceEventView {

@@ -5,6 +5,8 @@ import type {
   CreateGovernanceEventInput,
   FeatureContinuationView,
   FeatureTrackingView,
+  FramingDetailView,
+  FramingSummaryView,
   GovernanceView,
   HumanDocumentView,
   LiveInvalidation,
@@ -34,6 +36,9 @@ export class HttpNornBridge implements NornBridge {
   public listProjects(): Promise<readonly ProjectListItem[]> { return this.request("/api/v1/projects"); }
   public getProject(projectId: string): Promise<ProjectOverview> { return this.request(`/api/v1/projects/${encode(projectId)}`); }
   public getFeature(projectId: string, featureId: string): Promise<FeatureTrackingView> { return this.request(`/api/v1/projects/${encode(projectId)}/features/${encode(featureId)}`); }
+  public listFramings(projectId: string): Promise<readonly FramingSummaryView[]> { return this.request(`/api/v1/projects/${encode(projectId)}/framing`); }
+  public getFraming(projectId: string, framingId: string): Promise<FramingDetailView> { return this.request(`/api/v1/projects/${encode(projectId)}/framing/${encode(framingId)}`); }
+  public startFraming(projectId: string, input: { readonly existingFeatureId?: string; readonly newFeatureTitle?: string }): Promise<FramingDetailView> { return this.request(`/api/v1/projects/${encode(projectId)}/framing`, "POST", input); }
   public getFeatureContinuation(projectId: string, featureId: string): Promise<FeatureContinuationView> { return this.request(`/api/v1/projects/${encode(projectId)}/features/${encode(featureId)}/continuation`); }
   public prepareProductPrompt(projectId: string, featureId: string, input: { readonly target: ProductPromptTarget; readonly purpose: "next_step" | "resume" }): Promise<ProductPromptView> { return this.request(`/api/v1/projects/${encode(projectId)}/features/${encode(featureId)}/product-prompt`, "POST", input); }
   public getDocument(projectId: string, featureId: string, documentId: string): Promise<HumanDocumentView> { return this.request(`/api/v1/projects/${encode(projectId)}/features/${encode(featureId)}/documents/${encode(documentId)}`); }

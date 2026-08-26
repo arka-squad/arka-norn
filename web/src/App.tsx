@@ -9,7 +9,6 @@ import { useAsync } from "./hooks/use-async";
 import { useLive } from "./hooks/use-live";
 import { I18nProvider, useI18n } from "./i18n/i18n";
 import { AppShell } from "./layout/app-shell";
-import { OnboardingGate } from "./onboarding/onboarding-gate";
 import { isSafeRememberedRoute } from "./onboarding/onboarding-model";
 import { AgentsView } from "./views/agents-view";
 import { AuditsView } from "./views/audits-view";
@@ -21,6 +20,7 @@ import { LiveView } from "./views/live-view";
 import { ProjectOverviewView } from "./views/project-overview";
 import { ProjectsView } from "./views/projects-view";
 import { SettingsView } from "./views/settings-view";
+import { FramingView } from "./views/framing-view";
 
 const RelationshipGraphView = lazy(() => import("./views/relationship-graph"));
 
@@ -77,19 +77,21 @@ function NornApp({ preferences, onPreferences }: { readonly preferences: WebPref
       ? <LoadingState />
       : project.error !== undefined || project.data === undefined
         ? <ErrorState error={project.error} retry={project.reload} />
-        : <ProjectContent projectId={route.projectId} section={route.section} {...(route.featureId === undefined ? {} : { featureId: route.featureId })} {...(route.documentId === undefined ? {} : { documentId: route.documentId })} project={project.data} revision={liveRevision} navigate={navigate} reloadProject={project.reload} preferences={preferences} refreshPreferences={refreshPreferences} />;
+        : <ProjectContent projectId={route.projectId} section={route.section} {...(route.featureId === undefined ? {} : { featureId: route.featureId })} {...(route.documentId === undefined ? {} : { documentId: route.documentId })} {...(route.framingId === undefined ? {} : { framingId: route.framingId })} {...(route.framingView === undefined ? {} : { framingView: route.framingView })} project={project.data} revision={liveRevision} navigate={navigate} reloadProject={project.reload} preferences={preferences} refreshPreferences={refreshPreferences} />;
   const shell = <AppShell route={route} {...(project.data === undefined ? {} : { project: project.data })} live={live} navigate={navigate}>
     {navigationRecovered ? <div className="navigation-recovery" role="status">{t("web.navigation.recovered")}</div> : null}
     {content}
   </AppShell>;
-  return <OnboardingGate preferences={preferences} onPreferences={onPreferences} navigate={navigate}>{shell}</OnboardingGate>;
+  return shell;
 }
 
 function ProjectContent(props: {
   readonly projectId: string;
-  readonly section: "overview" | "features" | "documents" | "decisions" | "audits" | "agents" | "live" | "graph" | "settings";
+  readonly section: "overview" | "framing" | "features" | "documents" | "decisions" | "audits" | "agents" | "live" | "graph" | "settings";
   readonly featureId?: string;
   readonly documentId?: string;
+  readonly framingId?: string;
+  readonly framingView?: "plan" | "evidence" | "map" | "history";
   readonly project: Awaited<ReturnType<NornBridge["getProject"]>>;
   readonly revision: number;
   readonly navigate: (path: string) => void;
@@ -100,6 +102,7 @@ function ProjectContent(props: {
   if (props.featureId !== undefined) {
     return <FeatureContent projectId={props.projectId} featureId={props.featureId} {...(props.documentId === undefined ? {} : { documentId: props.documentId })} revision={props.revision} navigate={props.navigate} {...(props.preferences.humanProfile === undefined ? {} : { humanProfileId: props.preferences.humanProfile.id })} />;
   }
+  if (props.section === "framing" && props.framingId !== undefined) return <FramingContent projectId={props.projectId} framingId={props.framingId} view={props.framingView ?? "plan"} revision={props.revision} navigate={props.navigate} />;
   if (props.section === "overview") return <ProjectOverviewView project={props.project} navigate={props.navigate} />;
   if (props.section === "features") return <FeaturesView project={props.project} navigate={props.navigate} onCreated={props.reloadProject} />;
   if (props.section === "documents") return <DocumentsContent project={props.project} revision={props.revision} navigate={props.navigate} />;
@@ -109,6 +112,12 @@ function ProjectContent(props: {
   if (props.section === "live") return <LiveContent projectId={props.projectId} revision={props.revision} />;
   if (props.section === "graph") return <GraphContent project={props.project} revision={props.revision} />;
   return <SettingsView preferences={props.preferences} onChanged={props.refreshPreferences} />;
+}
+
+function FramingContent({ projectId, framingId, view, revision, navigate }: { readonly projectId: string; readonly framingId: string; readonly view: "plan" | "evidence" | "map" | "history"; readonly revision: number; readonly navigate: (path: string) => void }) {
+  const bridge = useBridge();
+  const framing = useAsync(() => bridge.getFraming(projectId, framingId), [bridge, projectId, framingId, revision]);
+  return dataView(framing, (data) => <FramingView projectId={projectId} framing={data} view={view} navigate={navigate} />);
 }
 
 function FeatureContent({ projectId, featureId, documentId, revision, navigate, humanProfileId }: { readonly projectId: string; readonly featureId: string; readonly documentId?: string; readonly revision: number; readonly navigate: (path: string) => void; readonly humanProfileId?: string }) {
@@ -191,6 +200,7 @@ async function resolveRememberedPath(bridge: NornBridge, remembered: string): Pr
     const target = parseRoutePath(remembered);
     if (target.projectId === undefined) return { path: "/projects", recovered: remembered !== "/projects" };
     const project = await bridge.getProject(target.projectId);
+    if (target.framingId !== undefined) await bridge.getFraming(project.id, target.framingId);
     if (target.featureId !== undefined) {
       if (!project.features.some((feature) => feature.id === target.featureId)) return { path: projectRoute(project.id), recovered: true };
       if (target.documentId !== undefined) {

@@ -38,6 +38,7 @@ export interface ProjectOverview {
     readonly activeOrchestrations: number;
   };
   readonly features: readonly FeatureSummary[];
+  readonly framing?: FramingSummaryView;
 }
 
 export interface FeatureSummary {
@@ -60,6 +61,51 @@ export interface FeatureTrackingView extends FeatureSummary {
   readonly steps: readonly TrackingStep[];
   readonly documents: readonly HumanDocumentView[];
   readonly anomalies: readonly TrackingAnomaly[];
+  readonly pipelineDefinitionVersion?: "legacy-2.0" | "2.3";
+  readonly framing?: FramingDetailView;
+}
+
+export interface FramingSummaryView {
+  readonly planId: string;
+  readonly framingId: string;
+  readonly targetKind: "project" | "feature";
+  readonly targetTitle: string;
+  readonly revision: number;
+  readonly repositoryNature: "empty" | "skeleton" | "implemented" | "indeterminate";
+  readonly attention: "agent" | "human_substance" | "human_stabilization" | "worker" | "complete" | "recoverable_failure";
+  readonly published: boolean;
+  readonly summary: string;
+  readonly nextMove: string;
+  readonly recommendedPipelineId: string | null;
+  readonly updatedAt: string;
+}
+
+export interface FramingDetailView extends FramingSummaryView {
+  readonly resumeContext: string;
+  readonly sections: readonly {
+    readonly id: string;
+    readonly title: string;
+    readonly items: readonly { readonly id: string; readonly text: string; readonly source: string; readonly active: boolean }[];
+  }[];
+  readonly evidence: {
+    readonly snapshot: string;
+    readonly gitCommit: string | null;
+    readonly inventory: {
+      readonly files: number;
+      readonly sourceFiles: number;
+      readonly testFiles: number;
+      readonly manifestFiles: number;
+      readonly constraintFiles: number;
+    };
+    readonly claims: readonly { readonly id: string; readonly text: string; readonly reference: string }[];
+    readonly limitations: readonly string[];
+  };
+  readonly decomposition: null | {
+    readonly kind: "features" | "lots";
+    readonly entries: readonly { readonly id: string; readonly title: string; readonly outcome: string; readonly dependsOn: readonly string[] }[];
+  };
+  readonly history: readonly { readonly revision: number; readonly updatedAt: string; readonly fingerprint: string; readonly milestone: string }[];
+  readonly stabilizations: readonly { readonly label: string; readonly confirmedAt: string; readonly actorId: string; readonly fingerprint: string }[];
 }
 
 export type ProductPromptTarget = "chatgpt" | "claude";
@@ -332,6 +378,9 @@ export interface NornBridge {
   listProjects(): Promise<readonly ProjectListItem[]>;
   getProject(projectId: string): Promise<ProjectOverview>;
   getFeature(projectId: string, featureId: string): Promise<FeatureTrackingView>;
+  listFramings(projectId: string): Promise<readonly FramingSummaryView[]>;
+  getFraming(projectId: string, framingId: string): Promise<FramingDetailView>;
+  startFraming(projectId: string, input: { readonly existingFeatureId?: string; readonly newFeatureTitle?: string }): Promise<FramingDetailView>;
   getFeatureContinuation(projectId: string, featureId: string): Promise<FeatureContinuationView>;
   prepareProductPrompt(projectId: string, featureId: string, input: { readonly target: ProductPromptTarget; readonly purpose: "next_step" | "resume" }): Promise<ProductPromptView>;
   getDocument(projectId: string, featureId: string, documentId: string): Promise<HumanDocumentView>;

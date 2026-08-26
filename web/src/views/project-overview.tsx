@@ -1,7 +1,9 @@
 import { AlertTriangle, ArrowRight, Boxes, CheckCircle2, FileWarning, GitBranch, GitPullRequest, Radio } from "lucide-react";
 
 import type { ProjectOverview } from "../../../src/application/web/contracts";
-import { featureRoute, projectRoute } from "../app/router";
+import { featureRoute, framingRoute, projectRoute } from "../app/router";
+import { useBridge } from "../bridge/context";
+import { FramingCard } from "../components/framing-card";
 import { MetricStrip } from "../components/metric-strip";
 import { EmptyState, PageTitle, StatusBadge } from "../components/ui";
 import { useI18n } from "../i18n/i18n";
@@ -9,9 +11,11 @@ import { pipelineName } from "../onboarding/onboarding-model";
 
 export function ProjectOverviewView({ project, navigate }: { readonly project: ProjectOverview; readonly navigate: (path: string) => void }) {
   const { t, date } = useI18n();
+  const bridge = useBridge();
   const attention = project.features.filter((feature) => feature.health !== "healthy");
   return <div className="page">
     <PageTitle title={project.name} summary={project.root} actions={<StatusBadge health={project.health} />} />
+    <FramingCard {...(project.framing === undefined ? { onStart: async () => { const framing = await bridge.startFraming(project.id, {}); navigate(framingRoute(project.id, framing.framingId)); } } : { framing: project.framing, onOpen: () => navigate(framingRoute(project.id, project.framing!.framingId)) })} startLabel={t("web.framing.frameProject")} />
     <MetricStrip items={[
       { label: t("web.project.features"), value: project.counts.features },
       { label: t("web.project.completed"), value: project.counts.completedFeatures, tone: "good" },

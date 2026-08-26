@@ -9,13 +9,15 @@ describe("generated Web contracts", () => {
     expect(Object.keys(catalogs.fr).sort()).toEqual(Object.keys(catalogs.en).sort());
   });
 
-  it("ships the three canonical workflows with Essential as default", () => {
+  it("keeps historical workflows and exposes the 2.3 delivery routes", () => {
     expect(contracts.appVersion).toBe(packageManifest.version);
     expect(contracts.defaultPipelineId).toBe("arka-norn-essential");
     expect(contracts.pipelines.map((pipeline) => pipeline.id)).toEqual([
       "arka-norn-complete",
       "arka-norn-essential",
       "arka-norn-fastdev",
+      "arka-norn-essential-2.3",
+      "arka-norn-complete-2.3",
     ]);
   });
 });

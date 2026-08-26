@@ -53,6 +53,8 @@ async function dispatch(
 async function dispatchGet(segments: readonly string[], url: URL, service: ProjectTrackingService) {
   if (same(segments, ["projects"])) return ok(await service.listProjects());
   if (segments.length === 2 && segments[0] === "projects") return ok(await service.getProject(id(segments[1])));
+  if (segments.length === 3 && segments[0] === "projects" && segments[2] === "framing") return ok(await service.listFramings(id(segments[1])));
+  if (segments.length === 4 && segments[0] === "projects" && segments[2] === "framing") return ok(await service.getFraming(id(segments[1]), id(segments[3])));
   const feature = await dispatchFeatureGet(segments, service);
   if (feature !== undefined) return feature;
   if (segments.length === 3 && segments[0] === "projects" && segments[2] === "graph") {
@@ -84,6 +86,8 @@ async function dispatchPost(request: IncomingMessage, segments: readonly string[
   if (segments.length === 3 && segments[0] === "projects" && segments[2] === "features") {
     return created(await service.createFeature(id(segments[1]), await body(request)));
   }
+  const framing = await dispatchFramingPost(request, segments, service);
+  if (framing !== undefined) return framing;
   if (segments.length === 5 && segments[0] === "projects" && segments[2] === "features" && segments[4] === "product-prompt") {
     return ok(await service.prepareProductPrompt(id(segments[1]), id(segments[3]), await body(request)));
   }
@@ -91,21 +95,37 @@ async function dispatchPost(request: IncomingMessage, segments: readonly string[
   if (segments.length === 4 && segments[0] === "projects" && segments[2] === "audits" && segments[3] === "prepare") {
     return created(await service.prepareAudit(id(segments[1]), await body(request)));
   }
-  if (segments.length === 5 && segments[0] === "projects" && segments[2] === "audits") {
-    const projectId = id(segments[1]);
-    const auditId = id(segments[3]);
-    const action = segments[4];
-    if (action === "start") {
-      const input = await body<{ readonly confirmation?: unknown }>(request);
-      if (typeof input.confirmation !== "string") throw new ClientRequestError(400, "confirmation_required");
-      return ok(await service.startAudit(projectId, auditId, input.confirmation));
-    }
-    if (action === "finalize") return ok(await service.finalizeAudit(projectId, auditId));
-    if (action === "cancel") return ok(await service.cancelAudit(projectId, auditId));
-    if (action === "resume") return ok(await service.resumeAudit(projectId, auditId));
-  }
+  const audit = await dispatchAuditPost(request, segments, service);
+  if (audit !== undefined) return audit;
   if (same(segments, ["doctor", "repair"])) return ok(await service.repairDoctor(await body(request)));
   throw new ClientRequestError(404, "not_found");
+}
+
+async function dispatchFramingPost(request: IncomingMessage, segments: readonly string[], service: ProjectTrackingService) {
+  if (segments.length !== 3 || segments[0] !== "projects" || segments[2] !== "framing") return undefined;
+  const input = await body<{ readonly existingFeatureId?: unknown; readonly newFeatureTitle?: unknown }>(request);
+  if (input.existingFeatureId !== undefined && typeof input.existingFeatureId !== "string") throw new ClientRequestError(400, "invalid_feature");
+  if (input.newFeatureTitle !== undefined && (typeof input.newFeatureTitle !== "string" || input.newFeatureTitle.trim().length === 0 || input.newFeatureTitle.length > 256)) throw new ClientRequestError(400, "invalid_title");
+  return created(await service.startFraming(id(segments[1]), {
+    ...(typeof input.existingFeatureId === "string" ? { existingFeatureId: id(input.existingFeatureId) } : {}),
+    ...(typeof input.newFeatureTitle === "string" ? { newFeatureTitle: input.newFeatureTitle.trim() } : {}),
+  }));
+}
+
+async function dispatchAuditPost(request: IncomingMessage, segments: readonly string[], service: ProjectTrackingService) {
+  if (segments.length !== 5 || segments[0] !== "projects" || segments[2] !== "audits") return undefined;
+  const projectId = id(segments[1]);
+  const auditId = id(segments[3]);
+  const action = segments[4];
+  if (action === "start") {
+    const input = await body<{ readonly confirmation?: unknown }>(request);
+    if (typeof input.confirmation !== "string") throw new ClientRequestError(400, "confirmation_required");
+    return ok(await service.startAudit(projectId, auditId, input.confirmation));
+  }
+  if (action === "finalize") return ok(await service.finalizeAudit(projectId, auditId));
+  if (action === "cancel") return ok(await service.cancelAudit(projectId, auditId));
+  if (action === "resume") return ok(await service.resumeAudit(projectId, auditId));
+  return undefined;
 }
 
 export function sendJson(response: ServerResponse, status: number, data: unknown, locale: Locale = "en"): void {
