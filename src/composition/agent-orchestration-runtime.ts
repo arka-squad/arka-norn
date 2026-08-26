@@ -22,7 +22,7 @@ import type { ForAgents } from "../ports/inbound/for-agents.js";
 import type { ForFeatures } from "../ports/inbound/for-features.js";
 import type { ForPipeline } from "../ports/inbound/for-pipeline.js";
 import type { ForProjects } from "../ports/inbound/for-projects.js";
-import { loadVerifiedFeatureContext } from "./verified-feature-context.js";
+import { assertFeatureContainedInProject, loadVerifiedFeatureContext } from "./verified-feature-context.js";
 
 export function createAgentOrchestrationRuntime(deps: {
   readonly agents: ForAgents;
@@ -30,6 +30,7 @@ export function createAgentOrchestrationRuntime(deps: {
   readonly features: ForFeatures;
   readonly pipeline: ForPipeline;
   readonly preferredSurface?: () => Promise<"web" | "tui" | "cli">;
+  readonly allowEmptyAuthorRegistry?: boolean;
 }): ForAgentOrchestration {
   return {
     async advise(input) {
@@ -48,20 +49,22 @@ export function createAgentOrchestrationRuntime(deps: {
     const projectFeatures = await deps.features.list(project.id);
     const feature = input.featureId === undefined ? uniqueFeature(projectFeatures) : await deps.features.show(input.featureId);
     if (feature !== undefined && !feature.belongsTo(project.id)) throw new Error(`Feature ${feature.id.value} does not belong to Project ${project.id.value}.`);
-    const [agents, sessions, report, preferredSurface] = await Promise.all([
+    const [agents, sessions, preferredSurface] = await Promise.all([
       deps.agents.list(project),
       deps.agents.sessions(project),
-      feature === undefined ? undefined : inspect(feature),
       deps.preferredSurface?.(),
     ]);
+    const report = feature === undefined ? undefined : await inspect(project, feature, agents);
     const warnings = input.featureId === undefined && projectFeatures.length > 1
       ? [translate("orchestration.warning.chooseFeature", { count: formatNumber(projectFeatures.length) })]
       : [];
     return { project, ...(feature === undefined ? {} : { feature }), ...(report === undefined ? {} : { report }), ...(preferredSurface === undefined ? {} : { preferredSurface }), agents, sessions, warnings };
   }
 
-  async function inspect(feature: Feature) {
-    const { authorRegistry } = await loadVerifiedFeatureContext(feature, deps);
+  async function inspect(project: Awaited<ReturnType<ForProjects["show"]>>, feature: Feature, agents: Awaited<ReturnType<ForAgents["list"]>>) {
+    const authorRegistry = deps.allowEmptyAuthorRegistry === true
+      ? webAuthorRegistry(project, feature, agents)
+      : (await loadVerifiedFeatureContext(feature, deps)).authorRegistry;
     return deps.pipeline.inspect({
       featureRoot: feature.root,
       featureId: feature.id.value,
@@ -70,6 +73,15 @@ export function createAgentOrchestrationRuntime(deps: {
       authorRegistry,
     });
   }
+}
+
+function webAuthorRegistry(
+  project: Awaited<ReturnType<ForProjects["show"]>>,
+  feature: Feature,
+  agents: Awaited<ReturnType<ForAgents["list"]>>,
+) {
+  assertFeatureContainedInProject(feature, project);
+  return agents.map((agent) => ({ id: agent.id.value, active: agent.active, authorized: agent.coversFeature(feature.id) }));
 }
 
 function uniqueFeature(features: readonly Feature[]): Feature | undefined {

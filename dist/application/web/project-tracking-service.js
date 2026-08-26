@@ -88,6 +88,69 @@ export class ProjectTrackingService {
         const feature = await this.feature(project, featureId);
         return createFeatureTrackingView(feature, await this.inspectFeature(project, feature));
     }
+    async getFeatureContinuation(projectId, featureId) {
+        const advice = await this.options.agentOrchestration.advise({ projectId: ProjectId.of(projectId), featureId: FeatureId.of(featureId) });
+        const requiredRole = advice.frameworkContext?.expectedRole;
+        const product = advice.productPrincipal;
+        const blocked = product.status === "conflict";
+        const kind = advice.nextStepId === undefined
+            ? "complete"
+            : blocked ? "blocked" : requiredRole === "product" ? "product" : "specialist";
+        return {
+            projectId,
+            featureId,
+            orchestrationMode: advice.orchestrationMode,
+            phase: advice.phase,
+            ...(advice.nextStepId === undefined ? {} : { nextStepId: advice.nextStepId }),
+            ...(requiredRole === undefined ? {} : { requiredRole }),
+            kind,
+            product: {
+                sessionId: "main",
+                status: product.status,
+                ...(product.agentId === undefined ? {} : { agentId: product.agentId }),
+            },
+            canPrepareProduct: !blocked && requiredRole === "product" && advice.nextStepId !== undefined,
+            canResumeProduct: !blocked && product.agentId !== undefined,
+        };
+    }
+    async prepareProductPrompt(projectId, featureId, input) {
+        if (!["chatgpt", "claude"].includes(input.target))
+            throw new Error("Unsupported Product prompt target.");
+        if (!["next_step", "resume"].includes(input.purpose))
+            throw new Error("Unsupported Product prompt purpose.");
+        const ids = { projectId: ProjectId.of(projectId), featureId: FeatureId.of(featureId) };
+        const advice = await this.options.agentOrchestration.advise(ids);
+        const requiredRole = advice.frameworkContext?.expectedRole;
+        if (advice.productPrincipal.status === "conflict")
+            throw new Error("The main Product session has an identity conflict.");
+        if (input.purpose === "next_step" && (requiredRole !== "product" || advice.nextStepId === undefined)) {
+            throw new Error("The next verified step does not belong to Product.");
+        }
+        if (input.purpose === "resume" && advice.productPrincipal.agentId === undefined) {
+            throw new Error("No Product identity is available to resume.");
+        }
+        const existing = advice.productPrincipal.agentId !== undefined;
+        const prepared = existing
+            ? await this.options.agentOrchestration.productHandoffPrompt(ids)
+            : await this.options.agentOrchestration.initializationPrompt({
+                ...ids,
+                role: "product",
+                provider: input.target === "chatgpt" ? "ChatGPT" : "Claude.ai",
+                mode: "execute",
+            });
+        return {
+            projectId,
+            featureId,
+            sessionId: "main",
+            target: input.target,
+            targetUrl: input.target === "chatgpt" ? "https://chatgpt.com/" : "https://claude.ai/new",
+            purpose: input.purpose,
+            reusesAgent: existing,
+            ...(advice.productPrincipal.agentId === undefined ? {} : { agentId: advice.productPrincipal.agentId }),
+            ...(input.purpose === "next_step" && advice.nextStepId !== undefined ? { expectedStepId: advice.nextStepId } : {}),
+            prompt: prepared.prompt,
+        };
+    }
     async getDocument(projectId, featureId, documentId) {
         const feature = await this.getFeature(projectId, featureId);
         const document = feature.documents.find((candidate) => candidate.id === documentId);

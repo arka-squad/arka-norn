@@ -113,10 +113,16 @@ function ProjectContent(props: {
 
 function FeatureContent({ projectId, featureId, documentId, revision, navigate, humanProfileId }: { readonly projectId: string; readonly featureId: string; readonly documentId?: string; readonly revision: number; readonly navigate: (path: string) => void; readonly humanProfileId?: string }) {
   const bridge = useBridge();
-  const feature = useAsync(() => bridge.getFeature(projectId, featureId), [bridge, projectId, featureId, revision]);
+  const feature = useAsync(async () => {
+    const [tracking, continuation] = await Promise.all([
+      bridge.getFeature(projectId, featureId),
+      bridge.getFeatureContinuation(projectId, featureId),
+    ]);
+    return { tracking, continuation };
+  }, [bridge, projectId, featureId, revision]);
   return dataView(feature, (data) => {
-    if (documentId === undefined) return <FeatureView feature={data} navigate={navigate} />;
-    const document = data.documents.find((item) => item.id === documentId);
+    if (documentId === undefined) return <FeatureView feature={data.tracking} continuation={data.continuation} navigate={navigate} />;
+    const document = data.tracking.documents.find((item) => item.id === documentId);
     return document === undefined ? <ErrorState /> : <DocumentReadingView document={document} projectId={projectId} featureId={featureId} {...(humanProfileId === undefined ? {} : { humanProfileId })} navigate={navigate} />;
   });
 }

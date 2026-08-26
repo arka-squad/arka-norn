@@ -204,9 +204,9 @@ test("les adaptateurs CLI Project, Feature, Agent, Pipeline et FastDev couvrent 
   assert.equal((await runAgentCommand(["sessions", "--project", "quality-project", "--json"], agent)).code, 0);
   assert.equal((await runAgentCommand(["use", AUTHOR, "--project", "quality-project", "--json"], agent)).code, 0);
   assert.equal((await runAgentCommand(["advise", "--project", "quality-project", "--feature", "quality-feature", "--json"], agent)).code, 0);
-  assert.equal((await runAgentCommand(["prompt", "product", "--project", "quality-project", "--feature", "quality-feature", "--provider", "Codex", "--mode", "execute", "--json"], agent)).code, 64);
+  assert.equal((await runAgentCommand(["prompt", "product", "--project", "quality-project", "--feature", "quality-feature", "--provider", "Codex", "--mode", "execute", "--json"], agent)).code, 0);
   assert.equal((await runAgentCommand(["prompt", "audit", "--project", "quality-project", "--feature", "quality-feature", "--session", "audit-quality", "--mode", "prepare", "--json"], agent)).code, 64);
-  assert.equal((await runAgentCommand(["handoff-prompt", "--project", "quality-project", "--feature", "quality-feature", "--agent", AUTHOR, "--json"], agent)).code, 64);
+  assert.equal((await runAgentCommand(["handoff-prompt", "--project", "quality-project", "--feature", "quality-feature", "--agent", AUTHOR, "--json"], agent)).code, 0);
   assert.equal((await runAgentCommand([
     "replace", "Claude_audit_20260820", "--project", "quality-project", "--provider", "OpenAI", "--role", "audit", "--id", "OpenAI_audit_20260820", "--json",
   ], agent)).code, 0);

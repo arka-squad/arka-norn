@@ -30,6 +30,7 @@ import { createWebOnboardingState } from "../../domain/onboarding/web-onboarding
 import { ProjectId } from "../../domain/project/project-id.js";
 import type { Project } from "../../domain/project/project.js";
 import type { DoctorReport, ForDoctor } from "../../ports/inbound/for-doctor.js";
+import type { ForAgentOrchestration } from "../../ports/inbound/for-agent-orchestration.js";
 import type { ForPipeline, PipelineAuthorAuthorization } from "../../ports/inbound/for-pipeline.js";
 import type { GovernanceStore } from "../../ports/outbound/governance-store.js";
 import type { FolderPicker } from "../../ports/outbound/folder-picker.js";
@@ -40,6 +41,7 @@ import type {
   AuditRunView,
   AuditTrackingView,
   CreateGovernanceEventInput,
+  FeatureContinuationView,
   FeatureTrackingView,
   GovernanceEventView,
   GovernanceView,
@@ -49,6 +51,8 @@ import type {
   ProjectOverview,
   ProjectRelationshipGraph,
   PrepareAuditInput,
+  ProductPromptTarget,
+  ProductPromptView,
   RelationshipEdge,
   RelationshipNode,
   SaveWebPreferencesInput,
@@ -60,6 +64,7 @@ import { createFeatureTrackingView } from "./feature-tracking.js";
 interface TrackingServiceOptions {
   readonly management: ManagementRuntime;
   readonly pipeline: ForPipeline;
+  readonly agentOrchestration: ForAgentOrchestration;
   readonly governance: GovernanceStore;
   readonly preferences: FsLocalePreferenceStore;
   readonly doctor: ForDoctor;
@@ -134,6 +139,72 @@ export class ProjectTrackingService {
     const project = await this.project(projectId);
     const feature = await this.feature(project, featureId);
     return createFeatureTrackingView(feature, await this.inspectFeature(project, feature));
+  }
+
+  public async getFeatureContinuation(projectId: string, featureId: string): Promise<FeatureContinuationView> {
+    const advice = await this.options.agentOrchestration.advise({ projectId: ProjectId.of(projectId), featureId: FeatureId.of(featureId) });
+    const requiredRole = advice.frameworkContext?.expectedRole;
+    const product = advice.productPrincipal;
+    const blocked = product.status === "conflict";
+    const kind = advice.nextStepId === undefined
+      ? "complete"
+      : blocked ? "blocked" : requiredRole === "product" ? "product" : "specialist";
+    return {
+      projectId,
+      featureId,
+      orchestrationMode: advice.orchestrationMode,
+      phase: advice.phase,
+      ...(advice.nextStepId === undefined ? {} : { nextStepId: advice.nextStepId }),
+      ...(requiredRole === undefined ? {} : { requiredRole }),
+      kind,
+      product: {
+        sessionId: "main",
+        status: product.status,
+        ...(product.agentId === undefined ? {} : { agentId: product.agentId }),
+      },
+      canPrepareProduct: !blocked && requiredRole === "product" && advice.nextStepId !== undefined,
+      canResumeProduct: !blocked && product.agentId !== undefined,
+    };
+  }
+
+  public async prepareProductPrompt(
+    projectId: string,
+    featureId: string,
+    input: { readonly target: ProductPromptTarget; readonly purpose: "next_step" | "resume" },
+  ): Promise<ProductPromptView> {
+    if (!(["chatgpt", "claude"] as const).includes(input.target)) throw new Error("Unsupported Product prompt target.");
+    if (!(["next_step", "resume"] as const).includes(input.purpose)) throw new Error("Unsupported Product prompt purpose.");
+    const ids = { projectId: ProjectId.of(projectId), featureId: FeatureId.of(featureId) };
+    const advice = await this.options.agentOrchestration.advise(ids);
+    const requiredRole = advice.frameworkContext?.expectedRole;
+    if (advice.productPrincipal.status === "conflict") throw new Error("The main Product session has an identity conflict.");
+    if (input.purpose === "next_step" && (requiredRole !== "product" || advice.nextStepId === undefined)) {
+      throw new Error("The next verified step does not belong to Product.");
+    }
+    if (input.purpose === "resume" && advice.productPrincipal.agentId === undefined) {
+      throw new Error("No Product identity is available to resume.");
+    }
+    const existing = advice.productPrincipal.agentId !== undefined;
+    const prepared = existing
+      ? await this.options.agentOrchestration.productHandoffPrompt(ids)
+      : await this.options.agentOrchestration.initializationPrompt({
+        ...ids,
+        role: "product",
+        provider: input.target === "chatgpt" ? "ChatGPT" : "Claude.ai",
+        mode: "execute",
+      });
+    return {
+      projectId,
+      featureId,
+      sessionId: "main",
+      target: input.target,
+      targetUrl: input.target === "chatgpt" ? "https://chatgpt.com/" : "https://claude.ai/new",
+      purpose: input.purpose,
+      reusesAgent: existing,
+      ...(advice.productPrincipal.agentId === undefined ? {} : { agentId: advice.productPrincipal.agentId }),
+      ...(input.purpose === "next_step" && advice.nextStepId !== undefined ? { expectedStepId: advice.nextStepId } : {}),
+      prompt: prepared.prompt,
+    };
   }
 
   public async getDocument(projectId: string, featureId: string, documentId: string): Promise<HumanDocumentView> {

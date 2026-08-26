@@ -3,6 +3,7 @@ import type {
   AuditTrackingView,
   AuditRunView,
   CreateGovernanceEventInput,
+  FeatureContinuationView,
   FeatureTrackingView,
   GovernanceView,
   HumanDocumentView,
@@ -10,6 +11,8 @@ import type {
   NornBridge,
   OrchestrationTrackingView,
   PrepareAuditInput,
+  ProductPromptTarget,
+  ProductPromptView,
   ProjectListItem,
   ProjectOverview,
   ProjectRelationshipGraph,
@@ -31,6 +34,8 @@ export class HttpNornBridge implements NornBridge {
   public listProjects(): Promise<readonly ProjectListItem[]> { return this.request("/api/v1/projects"); }
   public getProject(projectId: string): Promise<ProjectOverview> { return this.request(`/api/v1/projects/${encode(projectId)}`); }
   public getFeature(projectId: string, featureId: string): Promise<FeatureTrackingView> { return this.request(`/api/v1/projects/${encode(projectId)}/features/${encode(featureId)}`); }
+  public getFeatureContinuation(projectId: string, featureId: string): Promise<FeatureContinuationView> { return this.request(`/api/v1/projects/${encode(projectId)}/features/${encode(featureId)}/continuation`); }
+  public prepareProductPrompt(projectId: string, featureId: string, input: { readonly target: ProductPromptTarget; readonly purpose: "next_step" | "resume" }): Promise<ProductPromptView> { return this.request(`/api/v1/projects/${encode(projectId)}/features/${encode(featureId)}/product-prompt`, "POST", input); }
   public getDocument(projectId: string, featureId: string, documentId: string): Promise<HumanDocumentView> { return this.request(`/api/v1/projects/${encode(projectId)}/features/${encode(featureId)}/documents/${encode(documentId)}`); }
   public getGraph(projectId: string, featureId?: string): Promise<ProjectRelationshipGraph> {
     const query = featureId === undefined ? "" : `?featureId=${encode(featureId)}`;

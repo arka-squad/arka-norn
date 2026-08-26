@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.3.1 - 2026-08-26
+
+### Fixed
+
+- The first Product-owned framing step is now reachable in automatic Projects instead of being blocked behind the validated Feature Brief that it must produce.
+- First-run onboarding opens the created Feature, states that framing remains to be done and presents one explicit next action.
+- Norn Web can prepare a bounded Product continuation context for ChatGPT or Claude.ai without exposing raw JSON or silently sending content to an external service.
+- An existing main Product identity is reused when its provider conversation was lost; a missing first Product can be initialized without weakening author validation for existing signed documents.
+- Specialist prompts remain unavailable in automatic mode until the verified orchestration DAG can take over.
+
+### Distribution
+
+- Package and manifest versions are 2.3.1.
+
 ## 2.3.0 - 2026-08-25
 
 ### Changed

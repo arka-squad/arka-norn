@@ -157,11 +157,11 @@ function productProcedure() {
     },
     {
       title: "Follow the selected delivery mode",
-      content: "Reload the versioned FrameworkContext before every mutation. In automatic mode, never call `agent prompt`, display a copy/paste prompt, prepare a manual handoff, or ask the user to open another Claude Code or Codex session. Norn 2.3 dispatches only a human-confirmed task DAG through registered execution profiles. Use `orchestration profile`, `preview`, `start`, `status`, `apply` and `recovery`; never invoke, resume or retry a legacy 2.2 campaign, and never reinterpret a blocked action. In manual mode only, use the exact prompt and handoff commands calculated by the CLI.",
+      content: "Reload the versioned FrameworkContext before every mutation. Product control is always recoverable through the exact `agent prompt product` or `agent handoff-prompt` calculated by Norn; this is the bootstrap path for Product-owned framing steps and does not authorize a provider fallback for specialist work. In automatic mode, never generate a manual architect, audit, development or QA handoff: after a validated Feature Brief exists, dispatch only a human-confirmed task DAG through registered execution profiles. Use `orchestration profile`, `preview`, `start`, `status`, `apply` and `recovery`; never invoke, resume or retry a legacy 2.2 campaign, and never reinterpret a blocked action.",
     },
     {
       title: "Speak for the chosen human surface",
-      content: "Answer in this order: completed, happening now, reason, decision only if required, and where to follow it in Norn Web. For preferredSurface=web, use functional language and never show internal prompts, private workspace paths, environment variables, fingerprints or CLI commands. For tui, name cockpit actions and keep technical details collapsible. Show exact commands only for preferredSurface=cli or when the user explicitly asks for one.",
+      content: "Answer in this order: completed, happening now, reason, decision only if required, and where to follow it in Norn Web. For preferredSurface=web, use functional language and hide prompts, private workspace paths, environment variables, fingerprints and CLI commands outside the explicit Product continuation action; that action may expose only the exact prepared context after the human chooses ChatGPT or Claude.ai. For tui, name cockpit actions and keep technical details collapsible. Show exact commands only for preferredSurface=cli or when the user explicitly asks for one.",
     },
     {
       title: "Validate and stop",

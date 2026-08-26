@@ -62,6 +62,38 @@ export interface FeatureTrackingView extends FeatureSummary {
   readonly anomalies: readonly TrackingAnomaly[];
 }
 
+export type ProductPromptTarget = "chatgpt" | "claude";
+
+export interface FeatureContinuationView {
+  readonly projectId: string;
+  readonly featureId: string;
+  readonly orchestrationMode: "manual" | "automatic";
+  readonly phase: string;
+  readonly nextStepId?: string;
+  readonly requiredRole?: "product" | "architecte" | "audit" | "dev" | "qa";
+  readonly kind: "complete" | "product" | "specialist" | "blocked";
+  readonly product: {
+    readonly sessionId: "main";
+    readonly status: "ready" | "unbound" | "missing" | "conflict";
+    readonly agentId?: string;
+  };
+  readonly canPrepareProduct: boolean;
+  readonly canResumeProduct: boolean;
+}
+
+export interface ProductPromptView {
+  readonly projectId: string;
+  readonly featureId: string;
+  readonly sessionId: "main";
+  readonly target: ProductPromptTarget;
+  readonly targetUrl: string;
+  readonly purpose: "next_step" | "resume";
+  readonly reusesAgent: boolean;
+  readonly agentId?: string;
+  readonly expectedStepId?: string;
+  readonly prompt: string;
+}
+
 export interface TrackingStep {
   readonly id: string;
   readonly order: number;
@@ -300,6 +332,8 @@ export interface NornBridge {
   listProjects(): Promise<readonly ProjectListItem[]>;
   getProject(projectId: string): Promise<ProjectOverview>;
   getFeature(projectId: string, featureId: string): Promise<FeatureTrackingView>;
+  getFeatureContinuation(projectId: string, featureId: string): Promise<FeatureContinuationView>;
+  prepareProductPrompt(projectId: string, featureId: string, input: { readonly target: ProductPromptTarget; readonly purpose: "next_step" | "resume" }): Promise<ProductPromptView>;
   getDocument(projectId: string, featureId: string, documentId: string): Promise<HumanDocumentView>;
   getGraph(projectId: string, featureId?: string): Promise<ProjectRelationshipGraph>;
   getGovernance(projectId: string): Promise<GovernanceView>;

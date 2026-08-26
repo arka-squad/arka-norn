@@ -56,7 +56,7 @@ test("le conseil Essentiel dérive le rôle de l'action et route vers la skill g
   ]);
 });
 
-test("le mode automatique ne propose jamais de prompt à copier ni de préparation parallèle", () => {
+test("le mode automatique garde la reprise Product mais ne propose aucun prompt spécialiste", () => {
   const automaticProject = Project.create({
     id: PROJECT_ID,
     name: "Arka Norn",
@@ -75,6 +75,9 @@ test("le mode automatique ne propose jamais de prompt à copier ni de préparati
   assert.doesNotMatch(JSON.stringify(advice.recommendations), /agent prompt|--mode prepare/);
   assert.match(advice.productNextAction, /Norn Web/);
   assert.doesNotMatch(advice.productNextAction, /prompt|command|arka-norn/iu);
+  assert.ok(advice.frameworkContext?.allowedActions.includes("agent.prompt.product"));
+  assert.ok(advice.frameworkContext?.allowedActions.includes("agent.handoff-prompt"));
+  assert.ok(advice.frameworkContext?.forbiddenActions.includes("specialist_manual_provider_handoff"));
 });
 
 test("un prompt spécialisé interdit d'exécuter une phase qui ne lui appartient pas", () => {
@@ -120,6 +123,29 @@ test("le Product principal est stable dans main et son prompt de reprise conserv
   assert.match(handoff.prompt, /cd '\/workspace\/arka-norn'/);
   assert.match(handoff.prompt, /agent sessions --project arka-norn/);
   assert.match(handoff.prompt, /Do not perform audit, development or QA/);
+});
+
+test("la reprise Product exécute le cadrage Product même en mode automatique", () => {
+  const automaticProject = Project.create({
+    id: PROJECT_ID,
+    name: "Arka Norn",
+    root: "/workspace/arka-norn",
+    schemaVersion: 4,
+    orchestrationMode: "automatic",
+    createdAt: AT,
+    updatedAt: AT,
+  });
+  const productReport: PipelineReport = {
+    ...report("concept", "Framing"),
+    nextActions: [{ kind: "create_document", stepId: "concept", phase: "Framing", reason: "Calculated step" }],
+  };
+  const state = { ...stateFor(productReport), project: automaticProject };
+  const advice = createAgentAdvice(state);
+  const handoff = createProductHandoffPrompt(state);
+
+  assert.equal(advice.frameworkContext?.expectedRole, "product");
+  assert.match(handoff.prompt, /Load \$arka-product and execute only concept/);
+  assert.match(handoff.prompt, /do not continue into a second phase/);
 });
 
 test("une liaison main non Product est signalée comme conflit", () => {

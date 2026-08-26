@@ -64,7 +64,7 @@ export function createAgentAdvice(state) {
         productPrincipal: product,
         productNextAction: productNextAction(state, requiredRole, next?.stepId),
         recommendations,
-        ...(state.project.orchestrationMode === "manual" ? { handoffPromptCommand: `arka-norn agent handoff-prompt --project ${state.project.id.value}${featureId === undefined ? "" : ` --feature ${featureId}`}` } : {}),
+        handoffPromptCommand: `arka-norn agent handoff-prompt --project ${state.project.id.value}${featureId === undefined ? "" : ` --feature ${featureId}`}`,
         frameworkContext: adviceFrameworkContext(state, next, requiredRole, product.agentId),
         warnings,
     };
@@ -81,8 +81,10 @@ function adviceFrameworkContext(state, next, requiredRole, productAgentId) {
         pipelineState: { phase: next?.phase ?? "Project organization", ...(next === undefined ? {} : { nextStepId: next.stepId }) },
         ...(requiredRole === undefined ? {} : { expectedRole: requiredRole, expectedSkill: ROLE_POLICIES[requiredRole].skill }),
         workspace: { logicalRoot: state.project.root, realization: automatic ? "domain_managed" : "project" },
-        allowedActions: automatic ? ["orchestration.status", "orchestration.preview", "orchestration.start"] : ["agent.prompt", "agent.handoff-prompt"],
-        forbiddenActions: automatic ? ["agent.prompt", "agent.handoff-prompt", "manual_provider_handoff"] : ["orchestration.start_without_confirmation"],
+        allowedActions: automatic
+            ? ["agent.prompt.product", "agent.handoff-prompt", "orchestration.status", "orchestration.preview", "orchestration.start"]
+            : ["agent.prompt", "agent.handoff-prompt"],
+        forbiddenActions: automatic ? ["specialist_manual_provider_handoff"] : ["orchestration.start_without_confirmation"],
         capabilities: requiredRole === "audit" ? ["read_workspace", "submit_evidence"] : ["read_workspace", "propose_change", "run_recipe", "submit_evidence"],
         decisionGate: next?.decisionGate ?? "human_decision",
         surfaceHints: { preferred: state.preferredSurface ?? "web", webRoute: automatic ? `/projects/${encodeURIComponent(state.project.id.value)}/live` : `/projects/${encodeURIComponent(state.project.id.value)}/${featureId === undefined ? "overview" : `features/${encodeURIComponent(featureId)}`}` },
@@ -136,6 +138,7 @@ export function createProductHandoffPrompt(state, requestedAgentId) {
     if (!agent.active || roleCategory(agent.role) !== "product")
         throw new InvalidAgentOptionError("product", `Agent ${agent.id.value} is not an active main Product Agent`);
     const advice = createAgentAdvice(state);
+    const productOwnsNext = advice.frameworkContext?.expectedRole === "product" && advice.nextStepId !== undefined;
     const feature = state.feature;
     const documents = state.report?.steps.flatMap((step) => step.documents.filter((document) => document.valid).map((document) => document.filePath)) ?? [];
     const sessionLines = state.sessions.map((binding) => `- ${binding.sessionId.value}: ${binding.agent.id.value} (${binding.agent.role}, ${binding.agent.active ? "active" : "inactive"})`);
@@ -167,8 +170,12 @@ export function createProductHandoffPrompt(state, requestedAgentId) {
             `5. Run arka-norn pipeline status ${feature.id.value}, then arka-norn pipeline next ${feature.id.value}.`,
             `6. Run arka-norn agent advise --project ${state.project.id.value} --feature ${feature.id.value}.`,
         ]),
-        "7. Stay in the Product role: organization, product decisions, prioritization and handoffs. Do not perform audit, development or QA for dedicated profiles.",
-        "8. Summarize verified state, advise the next action and provide Agent prompts. Trust the CLI if it contradicts this prompt.",
+        productOwnsNext
+            ? `7. Load $arka-product and execute only ${advice.nextStepId}; do not continue into a second phase.`
+            : "7. Stay in the Product role: organization, product decisions, prioritization and handoffs. Do not perform audit, development or QA for dedicated profiles.",
+        productOwnsNext
+            ? "8. Finish with the signed document, its validation result and the newly observed next action. Trust the CLI if it contradicts this prompt."
+            : "8. Summarize verified state, advise the next action and provide Agent prompts. Trust the CLI if it contradicts this prompt.",
     ].join("\n");
     return {
         schemaVersion: 1,

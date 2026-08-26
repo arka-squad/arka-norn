@@ -3,7 +3,7 @@ import { ArrowLeft, Check, CheckCircle2, FolderKanban, Info, ShieldCheck, Sparkl
 
 import type { FeatureTrackingView, ProjectListItem, ProjectOverview, WebPreferences } from "../../../src/application/web/contracts";
 import type { WebOnboardingDraft, WebOnboardingProgress, WebOnboardingStep } from "../../../src/domain/onboarding/web-onboarding-state";
-import { projectRoute } from "../app/router";
+import { featureRoute } from "../app/router";
 import { useBridge } from "../bridge/context";
 import { AdvancedFields, FieldHint, FolderPickerField, FormError } from "../components/guided-form";
 import { Button, StatusBadge } from "../components/ui";
@@ -172,7 +172,7 @@ export function Onboarding(props: OnboardingProps) {
         projectId: selectedProject.id,
         featureId: created.id,
         draft: { projectName: selectedProject.name, projectId: selectedProject.id, projectRoot: selectedProject.root, featureName: created.name, featureId: created.id, pipelineId: created.pipelineId },
-        lastRoute: projectRoute(selectedProject.id),
+        lastRoute: featureRoute(selectedProject.id, created.id),
       });
     } catch { setError(t("web.onboarding.error")); }
     finally { setBusy(false); setOperation(undefined); }
@@ -184,7 +184,7 @@ export function Onboarding(props: OnboardingProps) {
     setOperation(t("web.onboarding.saving"));
     setError(undefined);
     try {
-      const path = projectRoute(progress.projectId);
+      const path = featureRoute(progress.projectId, progress.featureId);
       const saved = await bridge.savePreferences({ onboarding: { ...progress, status: "completed", step: 4, lastRoute: path } });
       props.navigate(path);
       props.onPreferences(saved);
@@ -299,7 +299,7 @@ function SummaryStep(props: { readonly project: ProjectListItem | undefined; rea
       <div><dt>{t("web.onboarding.summary.documents")}</dt><dd>{props.feature.documentCount}</dd></div>
     </dl>}
     <FormError message={props.error} />
-    <Button variant="primary" disabled={props.busy || props.feature === undefined} onClick={props.onFinish}>{t("web.action.openOverview")}</Button>
+    <Button variant="primary" disabled={props.busy || props.feature === undefined} onClick={props.onFinish}>{t("web.action.continueFraming")}</Button>
   </StepFrame>;
 }
 
