@@ -21,6 +21,12 @@ export class LiveWatcher {
         await this.refreshContexts();
         this.watcher = chokidar.watch(this.watchPaths(), {
             ignoreInitial: true,
+            // libuv's recursive fs-event backend can abort the process on Windows
+            // when a watched directory is replaced by an atomic write. Polling keeps
+            // the daemon alive while preserving the same bounded path set.
+            usePolling: process.platform === "win32",
+            interval: process.platform === "win32" ? 250 : 100,
+            binaryInterval: process.platform === "win32" ? 250 : 300,
             awaitWriteFinish: { stabilityThreshold: 180, pollInterval: 50 },
             ignored: (path) => /(?:\.tmp|\.lock|\.DS_Store)$/.test(path),
         });

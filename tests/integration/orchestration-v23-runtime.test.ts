@@ -71,7 +71,8 @@ test("trois tâches à scopes disjoints s'exécutent en parallèle puis attenden
     prepare: async (value) => ({ profileId: value.id, command: "/usr/bin/true", home, environment: {}, fingerprint: "a".repeat(64) }),
     preflight: async (value) => ({ profileId: value.id, healthy: true, code: "profile_valid", message: "ready", runtimeFingerprint: "b".repeat(64) }),
   };
-  const runtime = createOrchestrationV23Runtime({ projects: management.projects, features: management.features, agents: management.agents, configurations, campaigns: new FsOrchestrationCampaignV23Store(home), events: new FsOrchestrationEventStore(home), git: new GitWorktreeWorkspaceAdapter(home), profiles: profileRuntime, worker, now: () => at });
+  const campaigns = new FsOrchestrationCampaignV23Store(home);
+  const runtime = createOrchestrationV23Runtime({ projects: management.projects, features: management.features, agents: management.agents, configurations, campaigns, events: new FsOrchestrationEventStore(home), git: new GitWorktreeWorkspaceAdapter(home), profiles: profileRuntime, worker, now: () => at });
   const unassigned = await runtime.preview({ projectId: project.id, featureId: feature.id });
   assert.equal(unassigned.eligible, false);
   assert.equal(unassigned.issues[0]?.code, "agent_scope_unavailable");
@@ -85,7 +86,8 @@ test("trois tâches à scopes disjoints s'exécutent en parallèle puis attenden
   const run = await runtime.start({ projectId: project.id, previewFingerprint: preview.plan!.fingerprint, actor: "Jeremy", profileByRole: { development: profile.id, integrator: profile.id }, allowCommits: true, applyMode: "human", automaticRiskThreshold: 20, maxParallel: 3, budgetMode: "observe", budgetLimits: [], openBarProfiles: [profile.id], riskPolicyFingerprint: preview.riskPolicyFingerprint });
   assert.equal(maximumActive, 3, JSON.stringify(run.projection));
   assert.equal(run.projection.status, "awaiting_application");
-  assert.deepEqual(run.projection.progress, { attempted: 3, succeeded: 3, failed: 0 });
+  const attemptDiagnostics = (await campaigns.loadAttempts(project.id.value, run.campaignId)).map((attempt) => ({ taskId: attempt.props.taskId, status: attempt.props.status, failureCode: attempt.props.failureCode }));
+  assert.deepEqual(run.projection.progress, { attempted: 3, succeeded: 3, failed: 0 }, JSON.stringify(attemptDiagnostics));
   assert.equal(run.artifact?.commits.length, 3);
   assert.equal(run.artifact?.applicationGate?.code, "human_policy");
   assert.equal(git(root, ["rev-parse", "HEAD"]), preview.plan!.props.snapshot.commit);

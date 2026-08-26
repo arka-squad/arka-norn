@@ -64,6 +64,7 @@ test("l’accueil crée un Project lorsque la racine ne contient aucun marker", 
 
   const marker = resolve(projectRoot, ".arka-norn", "project.json");
   await waitUntil(async () => (await management.projects.list()).length === 1, "indexation du Project créé");
+  await waitUntil(() => renderScene(home).includes("Project créé"), "fin auditée de la création du Project");
   const [project] = await management.projects.list();
   assert.equal(existsSync(marker), true);
   assert.equal(project?.root, realpathSync.native(projectRoot));
@@ -94,6 +95,7 @@ test("l’accueil TUI demande puis enregistre le mode d’orchestration pour un 
   home.onKey({ kind: "enter" });
 
   await waitUntil(async () => (await management.projects.list()).length === 1, "indexation du Project automatique");
+  await waitUntil(() => renderScene(home).includes("Project créé"), "fin auditée de la création du Project automatique");
   const [project] = await management.projects.list();
   assert.equal(project?.orchestrationMode, "automatic");
 });
@@ -124,7 +126,7 @@ test("le détail TUI permet de basculer explicitement le mode Project", async (c
   await waitUntil(() => renderScene(view).includes("Nouvel état : activé"), "sélection du mode Project automatique");
   view.onKey({ kind: "enter" });
 
-  await waitUntil(async () => (await management.projects.show(ProjectId.of("project"))).orchestrationMode === "automatic", "bascule du mode Project");
+  await waitUntil(() => renderScene(view).includes("Pilote assisté activé"), "fin auditée de la bascule du mode Project");
   const updated = await management.projects.show(ProjectId.of("project"));
   assert.equal(updated.orchestrationMode, "automatic");
 });

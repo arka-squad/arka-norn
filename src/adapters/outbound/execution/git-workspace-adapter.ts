@@ -24,6 +24,7 @@ export class GitWorktreeWorkspaceAdapter implements GitWorkspacePort {
   private readonly gitCommand: string;
   private readonly worktreeRoot: string;
   private readonly gitHome: string;
+  private mutationTail: Promise<void> = Promise.resolve();
 
   public constructor(private readonly homeDir: string, options: { readonly gitCommand?: string } = {}) {
     this.gitCommand = options.gitCommand ?? "git";
@@ -96,9 +97,6 @@ export class GitWorktreeWorkspaceAdapter implements GitWorkspacePort {
       await assertSafeChangedPath(workspace.path, path);
       await assertNoSecretContent(workspace.path, path);
     }
-    await this.git(workspace.path, ["add", "-A", "--", ...task.writeScopes]);
-    const staged = splitZero((await this.git(workspace.path, ["diff", "--cached", "--name-only", "-z"])).stdout);
-    if (staged.length !== changedPaths.length || staged.some((path) => !changedPaths.includes(path))) throw new Error("Task staging did not preserve the validated change set.");
     const evidenceFingerprint = hash(JSON.stringify([...input.proofReferences].sort()));
     const message = [
       `norn(${task.id}): validated task result`,
@@ -111,8 +109,13 @@ export class GitWorktreeWorkspaceAdapter implements GitWorkspacePort {
       `Norn-Execution: ${input.executionId}`,
       `Norn-Evidence: ${evidenceFingerprint}`,
     ].join("\n");
-    await this.git(workspace.path, ["commit", "--no-verify", "--no-gpg-sign", "-m", message], gitIdentity("arka.norn"));
-    const commit = (await this.git(workspace.path, ["rev-parse", "HEAD"])).stdout.trim();
+    const commit = await this.serializeMutation(async () => {
+      await this.git(workspace.path, ["add", "-A", "--", ...task.writeScopes]);
+      const staged = splitZero((await this.git(workspace.path, ["diff", "--cached", "--name-only", "-z"])).stdout);
+      if (staged.length !== changedPaths.length || staged.some((path) => !changedPaths.includes(path))) throw new Error("Task staging did not preserve the validated change set.");
+      await this.git(workspace.path, ["commit", "--no-verify", "--no-gpg-sign", "-m", message], gitIdentity("arka.norn"));
+      return (await this.git(workspace.path, ["rev-parse", "HEAD"])).stdout.trim();
+    });
     return Object.freeze({ taskId: task.id, branch: workspace.branch, commit, changedPaths: Object.freeze(changedPaths), evidenceFingerprint });
   }
 
@@ -288,7 +291,7 @@ export class GitWorktreeWorkspaceAdapter implements GitWorkspacePort {
     const emptyConfig = join(this.gitHome, "empty.gitconfig");
     await mkdir(hooksPath, { recursive: true, mode: 0o700 });
     await writeFile(emptyConfig, "", { flag: "a", mode: 0o600 });
-    const hardened = ["-c", `core.hooksPath=${hooksPath}`, "-c", "core.fsmonitor=false", "-c", "protocol.file.allow=never", "-c", "protocol.ext.allow=never", ...args];
+    const hardened = ["-c", `core.hooksPath=${hooksPath}`, "-c", "core.fsmonitor=false", "-c", "gc.auto=0", "-c", "maintenance.auto=false", "-c", "protocol.file.allow=never", "-c", "protocol.ext.allow=never", ...args];
     const result = await run(this.gitCommand, hardened, cwd, {
       HOME: this.gitHome,
       USERPROFILE: this.gitHome,
@@ -304,6 +307,18 @@ export class GitWorktreeWorkspaceAdapter implements GitWorkspacePort {
     });
     if (!allowedCodes.includes(result.code)) throw new Error(`Git command failed (${String(result.code)}): ${sanitize(result.stderr || result.stdout)}`);
     return result;
+  }
+
+  private async serializeMutation<T>(operation: () => Promise<T>): Promise<T> {
+    const previous = this.mutationTail;
+    let release = (): void => undefined;
+    this.mutationTail = new Promise<void>((resolvePromise) => { release = resolvePromise; });
+    await previous;
+    try {
+      return await operation();
+    } finally {
+      release();
+    }
   }
 }
 
