@@ -168,15 +168,27 @@ test("les adaptateurs CLI Project, Feature, Agent, Pipeline et FastDev couvrent 
   assert.equal((await runManagementCommand(["depot", "scan", fixture.projectRoot, "--json"], management)).code, 0);
   assert.equal((await runManagementCommand(["project", "reconcile", fixture.projectRoot, "--json"], management)).code, 0);
 
+  mkdirSync(join(fixture.featureRoot, ".arka-norn"), { recursive: true });
+  writeFileSync(join(fixture.featureRoot, ".arka-norn", "feature.json"), JSON.stringify({
+    schemaVersion: 4,
+    id: "quality-feature",
+    projectId: "quality-project",
+    name: "Quality Feature",
+    pipelineId: "arka-norn-complete",
+    documentContractVersion: 5,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }, null, 2));
   assert.equal((await runManagementCommand([
-    "feature", "create", "Quality Feature", "--project", "quality-project", "--id", "quality-feature", "--path", fixture.featureRoot, "--workflow", "standard", "--json",
+    "feature", "import", fixture.featureRoot, "--project", "quality-project", "--json",
   ], management)).code, 0);
   assert.equal((await runManagementCommand(["feature", "list", "--project", "quality-project", "--json"], management)).code, 0);
+  const fastdev = json<{ readonly id: string }>(await runFastDevCommand([
+    "start", "quality-feature", "--project", "quality-project", "--json",
+  ], pipeline));
   assert.equal((await runManagementCommand(["feature", "show", "quality-feature", "--json"], management)).code, 0);
   const featureUse = await runManagementCommand(["feature", "use", "quality-feature", "--json"], management);
   if (featureUse.code !== 0) throw new Error(featureUse.stdout || featureUse.stderr);
-  const setWorkflow = await runManagementCommand(["feature", "set-workflow", "quality-feature", "--workflow", "standard", "--json"], management);
-  if (setWorkflow.code !== 0) throw new Error(setWorkflow.stdout || setWorkflow.stderr);
   const featureScan = await runManagementCommand(["feature", "scan", "--project", "quality-project", "--path", fixture.projectRoot, "--json"], management);
   if (featureScan.code !== 0) throw new Error(featureScan.stdout || featureScan.stderr);
   const reconciled = await runManagementCommand(["feature", "reconcile", "--project", "quality-project", "--json"], management);
@@ -197,6 +209,13 @@ test("les adaptateurs CLI Project, Feature, Agent, Pipeline et FastDev couvrent 
     "--features", "quality-feature", "--paths", "features/quality", "--responsibilities", "preuves", "--session", "audit-quality", "--json",
   ], agent));
   assert.equal(audit.data.id, "Claude_audit_20260820");
+  assert.equal((await runFastDevCommand(["status", fastdev.data.id, "--json"], pipeline)).code, 2);
+  assert.equal((await runFastDevCommand(["status", fastdev.data.id], pipeline)).code, 2);
+  assert.equal((await runFastDevCommand(["next", fastdev.data.id, "--json"], pipeline)).code, 2);
+  assert.equal((await runFastDevCommand(["next", fastdev.data.id], pipeline)).code, 2);
+  assert.equal((await runFastDevCommand(["unknown", "--json"], pipeline)).code, 64);
+  const setWorkflow = await runManagementCommand(["feature", "set-workflow", "quality-feature", "--workflow", "standard", "--json"], management);
+  if (setWorkflow.code !== 0) throw new Error(setWorkflow.stdout || setWorkflow.stderr);
   assert.equal((await runAgentCommand(["list", "--project", "quality-project", "--active", "--json"], agent)).code, 0);
   assert.equal((await runAgentCommand(["list", "--project", "quality-project"], agent)).code, 0);
   assert.equal((await runAgentCommand(["show", AUTHOR, "--project", "quality-project", "--json"], agent)).code, 0);
@@ -230,15 +249,6 @@ test("les adaptateurs CLI Project, Feature, Agent, Pipeline et FastDev couvrent 
   assert.equal((await runPipelineCommand(["scaffold", "concept", "--feature", "quality-feature", "--agent", AUTHOR, "--output", join(fixture.featureRoot, "concept.json"), "--json"], pipeline)).code, 0);
   assert.equal((await runPipelineCommand(["validate", "quality-feature", "--document", "concept.json", "--json"], pipeline)).code, 3);
   assert.equal((await runPipelineCommand(["unknown", "--json"], pipeline)).code, 64);
-
-  const fastdev = json<{ readonly id: string }>(await runFastDevCommand([
-    "start", "Fast Quality", "--project", "quality-project", "--path", join(fixture.projectRoot, "features", "fast-quality"), "--json",
-  ], pipeline));
-  assert.equal((await runFastDevCommand(["status", fastdev.data.id, "--json"], pipeline)).code, 2);
-  assert.equal((await runFastDevCommand(["status", fastdev.data.id], pipeline)).code, 2);
-  assert.equal((await runFastDevCommand(["next", fastdev.data.id, "--json"], pipeline)).code, 2);
-  assert.equal((await runFastDevCommand(["next", fastdev.data.id], pipeline)).code, 2);
-  assert.equal((await runFastDevCommand(["unknown", "--json"], pipeline)).code, 64);
 });
 
 test("CLI help documents structural validation and the Project audit v5", () => {

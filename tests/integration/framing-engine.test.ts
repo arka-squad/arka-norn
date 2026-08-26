@@ -131,6 +131,10 @@ test("une nouvelle Feature n'existe qu'après le plan fondé publié et pointe s
   const taskPlans = await loadTaskPlans(feature, entry.project, await management.agents.list(entry.project));
   assert.deepEqual(taskPlans.tasks.map((task) => task.id), ["lot-store"]);
   assert.deepEqual(taskPlans.tasks[0]?.writeScopes, ["src/framing"]);
+  await assert.rejects(
+    loadTaskPlans(feature.withPipelineId("arka-norn-complete-2.3", new Date()), entry.project, await management.agents.list(entry.project)),
+    /Feature pipeline does not match the delivery route calculated/u,
+  );
   const publicationRef = marker["framingPlanRef"] as Record<string, unknown>;
   const publishedPath = resolve(projectRoot, String(publicationRef["relativePath"]));
   const tampered = JSON.parse(readFileSync(publishedPath, "utf8")) as { knowledge: Record<string, Array<{ statement: string }>> };

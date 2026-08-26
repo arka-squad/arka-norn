@@ -38,6 +38,7 @@ import { createContainer } from "../../src/composition/container.ts";
 import { createManagementRuntime } from "../../src/composition/management-runtime.ts";
 import { readEnv } from "../../src/composition/env.ts";
 import type { ForOrchestration, OrchestrationStatus } from "../../src/ports/inbound/for-orchestration.ts";
+import { writeLegacyFeatureMarker } from "../helpers/legacy-feature.ts";
 
 setActiveLocale("fr");
 
@@ -350,7 +351,8 @@ test("la composition TUI pilote Home → Project → Feature → scaffold réel"
 
   const management = createManagementRuntime({ homeDir: sandbox, sessionId: AgentSessionId.of("dev-feature") });
   const project = await management.projects.create({ id: ProjectId.of("project"), name: "Project", root: projectRoot });
-  await management.features.create({ id: FeatureId.of("feature"), projectId: project.id, name: "Feature", root: featureRoot });
+  writeLegacyFeatureMarker({ root: featureRoot, id: "feature", projectId: project.id.value, name: "Feature" });
+  await management.features.importFrom({ projectId: project.id, root: featureRoot });
   const author = await management.agents.register({ project, provider: "Codex", role: "dev", featureIds: [FeatureId.of("feature")] });
 
   const input = controlledInput();
@@ -416,7 +418,8 @@ test("la TUI refuse d'inspecter une Feature marquée sans registre Agent", async
 
   const management = createManagementRuntime({ homeDir: sandbox });
   const project = await management.projects.create({ id: ProjectId.of("project"), name: "Project", root: projectRoot });
-  await management.features.create({ id: FeatureId.of("feature"), projectId: project.id, name: "Feature", root: featureRoot });
+  writeLegacyFeatureMarker({ root: featureRoot, id: "feature", projectId: project.id.value, name: "Feature" });
+  await management.features.importFrom({ projectId: project.id, root: featureRoot });
 
   let output = "";
   const renderer = createRenderer({ write: (chunk) => { output += chunk; }, isTTY: false, columns: 120 });

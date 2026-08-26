@@ -45,6 +45,9 @@ async function loadPublishedLotTasks(feature, project) {
     if (plan.id !== reference.planId || plan.revision !== reference.revision || framingPlanFingerprint(plan) !== reference.fingerprint) {
         throw new Error("framing_plan_divergent: Feature marker does not reference the exact published plan revision.");
     }
+    if (plan.derivedState.recommendedPipelineId !== feature.pipelineId) {
+        throw new Error("framing_plan_divergent: Feature pipeline does not match the delivery route calculated by its published plan.");
+    }
     if (plan.target.projectId !== project.id.value || plan.stabilizations.groundedPlan === null || plan.target.kind !== "feature" || plan.decomposition?.kind !== "feature_lots") {
         throw new Error("framing_plan_unpublished: orchestration requires a grounded Feature plan decomposed into Lots.");
     }

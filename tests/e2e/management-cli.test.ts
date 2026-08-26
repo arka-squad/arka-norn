@@ -21,6 +21,8 @@ import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 
+import { writeLegacyFeatureMarker } from "../helpers/legacy-feature.ts";
+
 const ROOT = resolve(import.meta.dirname, "..", "..");
 const BIN = resolve(ROOT, "bin", "arka-norn.mjs");
 
@@ -58,10 +60,17 @@ test("la CLI couvre le cycle Project/Feature et reconstruit les index", (context
   assert.match(legacy.json.display.warnings[0] ?? "", /deprecated/);
 
   const featureRoot = resolve(projectRoot, "secure-cockpit");
-  const feature = run<{ readonly projectId: string }>(["feature", "create", "Secure cockpit", "--project", "product", "--id", "secure-cockpit", "--path", featureRoot, "--workflow", "complete", "--json"], home, workspace);
+  const refused = run(["feature", "create", "Secure cockpit", "--project", "product", "--id", "secure-cockpit", "--path", featureRoot, "--workflow", "complete", "--json"], home, workspace);
+  assert.equal(refused.status, 3, refused.stderr);
+  assert.equal(refused.json.errors[0], "framing_required");
+  assert.equal(existsSync(resolve(featureRoot, ".arka-norn", "feature.json")), false);
+  const legacyMarkerPath = writeLegacyFeatureMarker({ root: featureRoot, id: "secure-cockpit", projectId: "product", name: "Secure cockpit", pipelineId: "arka-norn-complete" });
+  const legacyMarkerBytes = readFileSync(legacyMarkerPath, "utf8");
+  const feature = run<{ readonly projectId: string }>(["feature", "import", featureRoot, "--project", "product", "--json"], home, workspace);
   assert.equal(feature.status, 0, feature.stderr);
   assert.equal(feature.json.data.projectId, "product");
   assert.equal(run<{ readonly root: string }>(["feature", "show", "secure-cockpit", "--json"], home, workspace).json.data.root, realpathSync.native(featureRoot));
+  assert.equal(readFileSync(legacyMarkerPath, "utf8"), legacyMarkerBytes);
   assert.equal(run(["feature", "use", "secure-cockpit", "--json"], home, workspace).status, 0);
 
   const agent = run<{ readonly id: string; readonly active: boolean }>([
@@ -163,7 +172,8 @@ test("forget --yes --force retire un cache orphelin sans supprimer le dossier m√
   assert.equal(missingDelegationChoice.status, 64);
   assert.match(missingDelegationChoice.json.display.errors[0] ?? "", /--orchestration-mode is required/);
   assert.equal(run(["project", "add", projectRoot, "--id", "product", "--name", "Product", "--orchestration-mode", "manual", "--json"], home, workspace).status, 0);
-  assert.equal(run(["feature", "create", "Orphan feature", "--project", "product", "--id", "orphan-feature", "--path", featureRoot, "--json"], home, workspace).status, 0);
+  writeLegacyFeatureMarker({ root: featureRoot, id: "orphan-feature", projectId: "product", name: "Orphan feature" });
+  assert.equal(run(["feature", "import", featureRoot, "--project", "product", "--json"], home, workspace).status, 0);
 
   rmSync(resolve(featureRoot, ".arka-norn"), { recursive: true, force: true });
   assert.equal(run(["feature", "forget", "orphan-feature", "--yes", "--json"], home, workspace).status, 4);
@@ -202,8 +212,10 @@ test("feature list --project n'hydrate pas les markers d'un autre Project", (con
 
   assert.equal(run(["project", "add", alphaRoot, "--id", "alpha", "--name", "Alpha", "--orchestration-mode", "manual", "--json"], home, workspace).status, 0);
   assert.equal(run(["project", "add", betaRoot, "--id", "beta", "--name", "Beta", "--orchestration-mode", "manual", "--json"], home, workspace).status, 0);
-  assert.equal(run(["feature", "create", "Alpha feature", "--project", "alpha", "--id", "alpha-feature", "--path", alphaFeatureRoot, "--json"], home, workspace).status, 0);
-  assert.equal(run(["feature", "create", "norn-test", "--project", "beta", "--id", "norn-test", "--path", betaFeatureRoot, "--json"], home, workspace).status, 0);
+  writeLegacyFeatureMarker({ root: alphaFeatureRoot, id: "alpha-feature", projectId: "alpha", name: "Alpha feature" });
+  writeLegacyFeatureMarker({ root: betaFeatureRoot, id: "norn-test", projectId: "beta", name: "norn-test" });
+  assert.equal(run(["feature", "import", alphaFeatureRoot, "--project", "alpha", "--json"], home, workspace).status, 0);
+  assert.equal(run(["feature", "import", betaFeatureRoot, "--project", "beta", "--json"], home, workspace).status, 0);
   rmSync(resolve(betaFeatureRoot, ".arka-norn"), { recursive: true, force: true });
 
   const listed = run<readonly { readonly id: string }[]>(["feature", "list", "--project", "alpha", "--json"], home, workspace);
@@ -254,9 +266,8 @@ test("the Project audit v5 scaffold is signed, confined and distinct from a Feat
   assert.equal(existsSync(resolve(nestedProjectRoot, "project-audit.json")), false);
 
   const featureRoot = resolve(projectRoot, "feature");
-  assert.equal(run([
-    "feature", "create", "Feature", "--project", "product", "--id", "feature", "--path", featureRoot, "--json",
-  ], home, projectRoot).status, 0);
+  writeLegacyFeatureMarker({ root: featureRoot, id: "feature", projectId: "product", name: "Feature" });
+  assert.equal(run(["feature", "import", featureRoot, "--project", "product", "--json"], home, projectRoot).status, 0);
   const insideFeature = "feature/project-audit.json";
   const rejectedInsideFeature = run([
     "scaffold", "current_state_audit", insideFeature, "--project", "product", "--agent", author.json.data.id, "--json",

@@ -13,8 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { createHash } from "node:crypto";
-import { resolve } from "node:path";
 import { createManagementRuntime } from "../../../composition/management-runtime.js";
 import { createPipelineRuntime } from "../../../composition/pipeline-runtime.js";
 import { loadVerifiedFeatureContext } from "../../../composition/verified-feature-context.js";
@@ -45,26 +43,32 @@ export async function runGuidedFeatureCommand(argv, context, config) {
     }
 }
 async function start(argv, context, config, json) {
-    const parsed = parseStrictArguments(argv, { options: { project: "string", path: "string", json: "boolean" }, minPositionals: 1, maxPositionals: 1 });
+    const parsed = parseStrictArguments(argv, { options: { project: "string", json: "boolean" }, minPositionals: 1, maxPositionals: 1 });
     const projectValue = parsed.values.get("project");
     if (projectValue === undefined)
         throw new CliUsageError(`${config.commandName} start requires --project <id>`);
     const management = createManagementRuntime({ homeDir: context.homeDir });
     const projectId = ProjectId.of(projectValue);
-    const project = await management.projects.show(projectId);
-    const name = parsed.positionals[0];
-    const root = resolve(context.cwd, parsed.values.get("path") ?? resolve(project.root, slugify(name)));
-    const id = FeatureId.of(`${slugify(name).slice(0, 54)}-${createHash("sha256").update(root).digest("hex").slice(0, 8)}`);
-    const pipelineId = (await createPipelineRuntime(context.frameworkRoot, { homeDir: context.homeDir }).showWorkflow(config.workflowAlias)).id;
-    if (pipelineId !== config.pipelineId)
-        throw new Error(`Workflow ${config.workflowAlias} resolved to ${pipelineId}, expected ${config.pipelineId}.`);
-    const feature = await management.features.create({ id, projectId, name, root, pipelineId });
-    const data = serializeFeature(feature);
+    const featureId = FeatureId.of(parsed.positionals[0]);
+    const feature = await management.features.show(featureId);
+    if (!feature.projectId.equals(projectId))
+        throw new CliUsageError(`Feature ${feature.id.value} does not belong to Project ${projectId.value}.`);
+    const pipeline = createPipelineRuntime(context.frameworkRoot, { homeDir: context.homeDir });
+    const selected = await pipeline.showWorkflow(config.workflowAlias);
+    if (selected.id !== config.pipelineId)
+        throw new Error(`Workflow ${config.workflowAlias} resolved to ${selected.id}, expected ${config.pipelineId}.`);
+    const workflows = await pipeline.listWorkflows();
+    const updated = await management.features.setWorkflow({
+        id: featureId,
+        pipelineId: selected.id,
+        recognizedDocumentTypes: [...new Set([...workflows.flatMap((item) => item.steps.map((step) => step.id)), "handoff"])],
+    });
+    const data = serializeFeature(updated);
     const human = [
-        `${config.displayName.toUpperCase()} created: ${feature.name}`,
-        `Feature: ${feature.id.value}`,
+        `${config.displayName.toUpperCase()} rework started: ${updated.name}`,
+        `Feature: ${updated.id.value}`,
         `Journey: ${config.journey}`,
-        `Next: arka-norn ${config.commandName} next ${feature.id.value}`,
+        `Next: arka-norn ${config.commandName} next ${updated.id.value}`,
     ].join("\n");
     return json ? envelope(`${config.commandName}.start`, data) : { code: 0, stdout: `${human}\n`, stderr: "" };
 }
@@ -108,12 +112,6 @@ async function inspect(action, argv, context, config, json) {
         ].join("\n") + "\n",
         stderr: "",
     };
-}
-function slugify(value) {
-    const slug = value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-    if (slug.length === 0)
-        throw new CliUsageError("name cannot produce a valid identifier");
-    return slug;
 }
 function serializeFeature(feature) {
     return { id: feature.id.value, projectId: feature.projectId.value, name: feature.name, root: feature.root, pipelineId: feature.pipelineId };

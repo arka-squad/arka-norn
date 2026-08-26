@@ -52,7 +52,7 @@ export function Onboarding(props: OnboardingProps) {
   const [projectRoot, setProjectRoot] = useState(progress.draft?.projectRoot ?? "");
   const [featureName, setFeatureName] = useState(progress.draft?.featureName ?? "");
   const [featureId, setFeatureId] = useState(progress.draft?.featureId ?? "");
-  const [pipelineId, setPipelineId] = useState(progress.draft?.pipelineId ?? contracts.defaultPipelineId);
+  const [pipelineId, setPipelineId] = useState(progress.draft?.pipelineId ?? contracts.compatibilityFallbackPipelineId);
   const [feature, setFeature] = useState<FeatureTrackingView>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
@@ -279,7 +279,7 @@ function FeatureStep(props: { readonly project: ProjectListItem; readonly name: 
         const selected = pipeline.id === props.pipelineId;
         return <label key={pipeline.id} className={selected ? "selected" : ""}>
           <input type="radio" name="onboarding-workflow" checked={selected} onChange={() => props.onPipeline(pipeline.id)} />
-          <span><strong>{pipeline.name}</strong>{pipeline.id === contracts.defaultPipelineId ? <em>{t("web.onboarding.feature.recommended")}</em> : null}</span>
+          <span><strong>{pipeline.name}</strong></span>
           <p>{t(copy[0])}</p><small>{t(copy[1])}</small>
         </label>;
       })}</div>

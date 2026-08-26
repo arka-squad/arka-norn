@@ -21,6 +21,8 @@ import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 
+import { writeLegacyFeatureMarker } from "../helpers/legacy-feature.ts";
+
 const ROOT = resolve(import.meta.dirname, "..", "..");
 const BIN = resolve(ROOT, "bin", "arka-norn.mjs");
 
@@ -34,7 +36,7 @@ test("workflow and FastDev expose deterministic human and JSON flows", (context)
   const workflows = run<readonly { readonly id: string }[]>(["workflow", "list", "--json"], home, projectRoot);
   assert.equal(workflows.status, 0, workflows.stderr);
   assert.deepEqual(workflows.json.data.map((workflow) => workflow.id), [
-    "arka-norn-complete", "arka-norn-essential", "arka-norn-fastdev", "arka-norn-essential-2.3", "arka-norn-complete-2.3",
+    "arka-norn-complete-2.3", "arka-norn-essential-2.3", "arka-norn-complete", "arka-norn-essential", "arka-norn-fastdev",
   ]);
   const shown = run<{ readonly id: string; readonly steps: readonly { readonly id: string }[] }>(["workflow", "show", "fastdev", "--json"], home, projectRoot);
   assert.equal(shown.json.data.id, "arka-norn-fastdev");
@@ -42,8 +44,11 @@ test("workflow and FastDev expose deterministic human and JSON flows", (context)
   assert.equal(run(["workflow", "show", "../../evil", "--json"], home, projectRoot).status, 3);
 
   assert.equal(run(["project", "add", projectRoot, "--id", "project", "--name", "Project", "--orchestration-mode", "manual", "--json"], home, projectRoot).status, 0);
+  const featureRoot = resolve(projectRoot, "repair-navigation");
+  writeLegacyFeatureMarker({ root: featureRoot, id: "repair-navigation", projectId: "project", name: "Repair navigation" });
+  assert.equal(run(["feature", "import", featureRoot, "--project", "project", "--json"], home, projectRoot).status, 0);
   const started = run<{ readonly id: string; readonly pipelineId: string; readonly root: string }>([
-    "fastdev", "start", "Repair navigation", "--project", "project", "--json",
+    "fastdev", "start", "repair-navigation", "--project", "project", "--json",
   ], home, projectRoot);
   assert.equal(started.status, 0, started.stderr);
   assert.equal(started.json.data.pipelineId, "arka-norn-fastdev");
@@ -87,7 +92,8 @@ test("set-workflow est autorisé uniquement avant le premier document reconnu", 
   mkdirSync(projectRoot, { recursive: true });
   context.after(() => rmSync(sandbox, { recursive: true, force: true }));
   assert.equal(run(["project", "add", projectRoot, "--id", "project", "--orchestration-mode", "manual", "--json"], home, projectRoot).status, 0);
-  assert.equal(run(["feature", "create", "Feature", "--project", "project", "--id", "feature", "--path", featureRoot, "--json"], home, projectRoot).status, 0);
+  writeLegacyFeatureMarker({ root: featureRoot, id: "feature", projectId: "project", name: "Feature" });
+  assert.equal(run(["feature", "import", featureRoot, "--project", "project", "--json"], home, projectRoot).status, 0);
   const changed = run<{ readonly pipelineId: string }>(["feature", "set-workflow", "feature", "--workflow", "fastdev", "--json"], home, projectRoot);
   assert.equal(changed.status, 0, changed.stderr);
   assert.equal(changed.json.data.pipelineId, "arka-norn-fastdev");

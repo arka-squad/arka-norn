@@ -21,6 +21,8 @@ import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 
+import { writeLegacyFeatureMarker } from "../helpers/legacy-feature.ts";
+
 const ROOT = resolve(import.meta.dirname, "..", "..");
 const BIN = resolve(ROOT, "bin", "arka-norn.mjs");
 
@@ -34,12 +36,14 @@ test("la CLI isole les sessions et livre des prompts Product/spécialistes direc
   context.after(() => rmSync(sandbox, { recursive: true, force: true }));
 
   assert.equal(run(["project", "add", projectRoot, "--id", "product", "--name", "Product", "--orchestration-mode", "manual", "--json"], home, workspace).status, 0);
-  assert.equal(run(["feature", "create", "Navigation", "--project", "product", "--id", "navigation", "--path", featureRoot, "--workflow", "standard", "--json"], home, workspace).status, 0);
+  writeLegacyFeatureMarker({ root: featureRoot, id: "navigation", projectId: "product", name: "Navigation", pipelineId: "arka-norn-complete" });
+  assert.equal(run(["feature", "import", featureRoot, "--project", "product", "--json"], home, workspace).status, 0);
   const otherProjectRoot = resolve(workspace, "other-product");
   const orphanRoot = resolve(otherProjectRoot, "norn-test");
   mkdirSync(otherProjectRoot, { recursive: true });
   assert.equal(run(["project", "add", otherProjectRoot, "--id", "other-product", "--name", "Other Product", "--orchestration-mode", "manual", "--json"], home, workspace).status, 0);
-  assert.equal(run(["feature", "create", "norn-test", "--project", "other-product", "--id", "norn-test", "--path", orphanRoot, "--workflow", "standard", "--json"], home, workspace).status, 0);
+  writeLegacyFeatureMarker({ root: orphanRoot, id: "norn-test", projectId: "other-product", name: "norn-test", pipelineId: "arka-norn-complete" });
+  assert.equal(run(["feature", "import", orphanRoot, "--project", "other-product", "--json"], home, workspace).status, 0);
   rmSync(resolve(orphanRoot, ".arka-norn"), { recursive: true, force: true });
 
   const bootstrap = json<{ readonly id: string }>(run([

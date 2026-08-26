@@ -25,13 +25,13 @@ import { createOrchestrationRuntime, type OrchestrationWorkerLaunch } from "../.
 import { FsOrchestrationWorkerStateStore, type OrchestrationWorkerState } from "../../src/adapters/outbound/filesystem/fs-orchestration-worker-state-store.ts";
 import { FsOrchestrationPolicyStore } from "../../src/adapters/outbound/filesystem/fs-orchestration-policy-store.ts";
 import { AgentSessionId } from "../../src/domain/agent/agent-session-id.ts";
-import { FeatureId } from "../../src/domain/feature/feature-id.ts";
 import { ProjectId } from "../../src/domain/project/project-id.ts";
 import { ExecutionPolicy, type ExecutionProviderHealth } from "../../src/domain/orchestration/execution-policy.ts";
 import type { AgentInitializationPrompt, AgentOrchestrationAdvice, ForAgentOrchestration, ProductHandoffPrompt } from "../../src/ports/inbound/for-agent-orchestration.ts";
 import type { ForPipeline, PipelineDocumentValidation, PipelineScaffoldResult } from "../../src/ports/inbound/for-pipeline.ts";
 import type { AgentExecutionMission, AgentExecutionOutcome, AgentExecutionPort } from "../../src/ports/outbound/agent-execution-port.ts";
 import type { Clock } from "../../src/ports/outbound/clock.ts";
+import { writeLegacyFeatureMarker } from "../helpers/legacy-feature.ts";
 
 const ROOT = resolve(import.meta.dirname, "..", "..");
 const CAPABILITIES = ["inspect_workspace", "modify_workspace", "read_pipeline"] as const;
@@ -484,13 +484,8 @@ async function createHarness(
     root: projectRoot,
     orchestrationMode: "automatic",
   });
-  const feature = await management.features.create({
-    id: FeatureId.of("feature"),
-    projectId: project.id,
-    name: "Feature",
-    root: featureRoot,
-    pipelineId: "arka-norn-default",
-  });
+  writeLegacyFeatureMarker({ root: featureRoot, id: "feature", projectId: project.id.value, name: "Feature", pipelineId: "arka-norn-default" });
+  const feature = await management.features.importFrom({ projectId: project.id, root: featureRoot });
   const agentManagement = runtimeOptions.agentRole === "audit"
     ? createManagementRuntime({ homeDir: home, sessionId: AgentSessionId.of("audit-feature") })
     : management;

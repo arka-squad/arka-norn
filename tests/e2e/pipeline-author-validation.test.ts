@@ -21,6 +21,8 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
 
+import { writeLegacyFeatureMarker } from "../helpers/legacy-feature.ts";
+
 const ROOT = resolve(import.meta.dirname, "..", "..");
 const BIN = resolve(ROOT, "bin", "arka-norn.mjs");
 
@@ -211,9 +213,8 @@ function createManagedFeature(context: { after(callback: () => void): void }): M
   context.after(() => rmSync(sandbox, { recursive: true, force: true }));
 
   assert.equal(run(["project", "add", projectRoot, "--id", "product", "--name", "Product", "--orchestration-mode", "manual", "--json"], home, workspace).status, 0);
-  assert.equal(run([
-    "feature", "create", "Feature", "--project", "product", "--id", "feature", "--path", featureRoot, "--workflow", "standard", "--json",
-  ], home, workspace).status, 0);
+  writeLegacyFeatureMarker({ root: featureRoot, id: "feature", projectId: "product", name: "Feature", pipelineId: "arka-norn-complete" });
+  assert.equal(run(["feature", "import", featureRoot, "--project", "product", "--json"], home, workspace).status, 0);
   const author = runJson<{ readonly id: string }>([
     "agent", "register", "--project", "product", "--provider", "Codex", "--role", "dev",
     "--features", "feature", "--session", "dev-feature", "--json",

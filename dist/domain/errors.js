@@ -92,6 +92,11 @@ export class FeatureWorkflowImmutableError extends DomainError {
         super("FEATURE_WORKFLOW_IMMUTABLE", `Feature "${id}" already contains pipeline document type "${documentType}"; its workflow is immutable.`);
     }
 }
+export class FramingRequiredError extends DomainError {
+    constructor() {
+        super("FRAMING_REQUIRED", "A new Feature requires a published framing plan. Use 'arka-norn framing enter . --new-feature <outcome>' first.");
+    }
+}
 export class InvalidProjectIdError extends DomainError {
     constructor(value, reason) {
         super("INVALID_PROJECT_ID", `Invalid project id "${value}": ${reason}`);

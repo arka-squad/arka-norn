@@ -29,6 +29,7 @@ export type DomainErrorCode =
   | "FEATURE_NOT_FOUND"
   | "FEATURE_MARKER_NOT_FOUND"
   | "FEATURE_WORKFLOW_IMMUTABLE"
+  | "FRAMING_REQUIRED"
   | "INVALID_PROJECT_ID"
   | "INVALID_PROJECT_OPTION"
   | "PROJECT_ALREADY_EXISTS"
@@ -137,6 +138,12 @@ export class FeatureMarkerNotFoundError extends DomainError {
 export class FeatureWorkflowImmutableError extends DomainError {
   public constructor(id: string, documentType: string) {
     super("FEATURE_WORKFLOW_IMMUTABLE", `Feature "${id}" already contains pipeline document type "${documentType}"; its workflow is immutable.`);
+  }
+}
+
+export class FramingRequiredError extends DomainError {
+  public constructor() {
+    super("FRAMING_REQUIRED", "A new Feature requires a published framing plan. Use 'arka-norn framing enter . --new-feature <outcome>' first.");
   }
 }
 

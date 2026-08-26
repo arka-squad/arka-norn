@@ -13,17 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { FeatureAlreadyExistsError, FeatureNotFoundError } from "../../domain/errors.js";
+import { FeatureAlreadyExistsError, FeatureNotFoundError, FramingRequiredError, InvalidFeatureOptionError } from "../../domain/errors.js";
 import { Feature } from "../../domain/feature/feature.js";
-import { DEFAULT_PIPELINE_ID } from "../../domain/shared/marker-formats.js";
 import { loadFeatureWithinProject, loadProjectForFeature } from "./_shared/verified-feature.js";
 export function createFeatureUseCaseFactory(deps) {
     const { featureStore, indexStore, clock, logger } = deps;
     return async (input) => {
         const project = await loadProjectForFeature(deps, input.projectId);
         const confined = await deps.pathPolicy.assertContained(project.root, input.root);
-        if (!(await deps.filesystem.exists(confined.child)))
-            await deps.filesystem.mkdir(confined.child, { recursive: true });
+        if (input.framingPlanRef === undefined) {
+            throw new FramingRequiredError();
+        }
+        if (input.pipelineId === undefined) {
+            throw new InvalidFeatureOptionError("pipelineId", "a framed Feature requires the delivery route calculated by its published plan");
+        }
         if (await featureStore.exists(confined.child)) {
             const existing = await loadFeatureWithinProject(deps, confined.child);
             if (!existing.id.equals(input.id)) {
@@ -31,6 +34,9 @@ export function createFeatureUseCaseFactory(deps) {
             }
             if (!existing.belongsTo(input.projectId))
                 throw new FeatureNotFoundError(`${existing.id.value}: project mismatch`);
+            if (existing.schemaVersion !== 5 || existing.pipelineId !== input.pipelineId || existing.framingPlanRef === null || !sameFramingReference(existing.framingPlanRef, input.framingPlanRef)) {
+                throw new FeatureAlreadyExistsError(existing.root);
+            }
             const indexed = await indexStore.find(existing.id);
             if (indexed === undefined) {
                 await indexStore.add({
@@ -53,20 +59,19 @@ export function createFeatureUseCaseFactory(deps) {
             }
             return existing;
         }
-        const defaultPipelineId = deps.resolveDefaultPipelineId === undefined
-            ? DEFAULT_PIPELINE_ID
-            : await deps.resolveDefaultPipelineId();
+        if (!(await deps.filesystem.exists(confined.child)))
+            await deps.filesystem.mkdir(confined.child, { recursive: true });
         const now = clock.now();
-        const framed = input.framingPlanRef !== undefined;
         const feature = Feature.create({
             id: input.id,
             projectId: input.projectId,
             name: input.name,
             root: confined.child,
-            pipelineId: input.pipelineId ?? defaultPipelineId,
-            schemaVersion: framed ? 5 : 4,
+            pipelineId: input.pipelineId,
+            schemaVersion: 5,
             documentContractVersion: 5,
-            ...(framed ? { pipelineDefinitionVersion: input.pipelineDefinitionVersion ?? "2.3", framingPlanRef: input.framingPlanRef } : {}),
+            pipelineDefinitionVersion: input.pipelineDefinitionVersion ?? "2.3",
+            framingPlanRef: input.framingPlanRef,
             createdAt: now,
             updatedAt: now,
         });
@@ -80,5 +85,11 @@ export function createFeatureUseCaseFactory(deps) {
         });
         return feature;
     };
+}
+function sameFramingReference(left, right) {
+    return left.planId === right.planId
+        && left.revision === right.revision
+        && left.fingerprint === right.fingerprint
+        && left.relativePath === right.relativePath;
 }
 //# sourceMappingURL=create-feature.js.map

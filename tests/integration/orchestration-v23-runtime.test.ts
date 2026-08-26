@@ -18,11 +18,11 @@ import { createManagementRuntime } from "../../src/composition/management-runtim
 import { createOrchestrationV23Runtime } from "../../src/composition/orchestration-v23-runtime.ts";
 import { ExecutionProfile } from "../../src/domain/orchestration/execution-profile.ts";
 import { OrchestrationConfiguration } from "../../src/domain/orchestration/orchestration-configuration.ts";
-import { FeatureId } from "../../src/domain/feature/feature-id.ts";
 import { AgentSessionId } from "../../src/domain/agent/agent-session-id.ts";
 import { ProjectId } from "../../src/domain/project/project-id.ts";
 import type { ExecutionProfileRuntimePort } from "../../src/ports/outbound/execution-profile-runtime.ts";
 import type { TaskWorkerPort } from "../../src/ports/outbound/task-worker.ts";
+import { writeLegacyFeatureMarker } from "../helpers/legacy-feature.ts";
 
 test("trois tâches à scopes disjoints s'exécutent en parallèle puis attendent le gate humain", async (context) => {
   const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-v23-runtime-"));
@@ -34,8 +34,8 @@ test("trois tâches à scopes disjoints s'exécutent en parallèle puis attenden
   const management = createManagementRuntime({ homeDir: home, sessionId: AgentSessionId.of("development-parallel") });
   const project = await management.projects.create({ id: ProjectId.of("project"), name: "Project", root, orchestrationMode: "automatic" });
   const featureRoot = join(root, "features", "parallel");
-  mkdirSync(featureRoot, { recursive: true });
-  const feature = await management.features.create({ id: FeatureId.of("parallel-feature"), projectId: project.id, name: "Parallel", root: featureRoot });
+  writeLegacyFeatureMarker({ root: featureRoot, id: "parallel-feature", projectId: project.id.value, name: "Parallel" });
+  const feature = await management.features.importFrom({ projectId: project.id, root: featureRoot });
   writeFileSync(join(featureRoot, "feature_brief.json"), JSON.stringify({
     batches: [
       { id: "docs", title: "docs", depends_on: [] },

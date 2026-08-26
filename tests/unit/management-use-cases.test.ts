@@ -96,8 +96,35 @@ test("tous les cas d'usage Feature fonctionnent derrière des ports fake", async
   const deps = harness.featureDeps;
   const id = FeatureId.of("feature-alpha");
 
-  const created = await createFeatureUseCaseFactory(deps)({ id, projectId, name: "Feature Alpha", root: "/work/project/feature" });
+  await assert.rejects(
+    createFeatureUseCaseFactory(deps)({ id, projectId, name: "Feature Alpha", root: "/work/project/feature" }),
+    (error: unknown) => error instanceof Error && "code" in error && error.code === "FRAMING_REQUIRED",
+  );
+  assert.equal(harness.features.has("/work/project/feature"), false);
+  const created = await createFeatureUseCaseFactory(deps)({
+    id, projectId, name: "Feature Alpha", root: "/work/project/feature",
+    pipelineId: "arka-norn-essential-2.3",
+    framingPlanRef: {
+      planId: "plan-alpha",
+      revision: 1,
+      fingerprint: "0".repeat(64),
+      relativePath: ".arka-norn/plans/plan-alpha.json",
+    },
+  });
   assert.equal(created.projectId.value, projectId.value);
+  assert.equal(await createFeatureUseCaseFactory(deps)({
+    id, projectId, name: "Feature Alpha", root: "/work/project/feature",
+    pipelineId: created.pipelineId,
+    framingPlanRef: created.framingPlanRef!,
+  }), created);
+  await assert.rejects(
+    createFeatureUseCaseFactory(deps)({
+      id, projectId, name: "Feature Alpha", root: "/work/project/feature",
+      pipelineId: created.pipelineId,
+      framingPlanRef: { ...created.framingPlanRef!, revision: 2 },
+    }),
+    (error: unknown) => error instanceof Error && "code" in error && error.code === "FEATURE_ALREADY_EXISTS",
+  );
   assert.deepEqual(await listFeaturesUseCaseFactory(deps)(), [created]);
   assert.equal((await showFeatureUseCaseFactory(deps)(id)).name, "Feature Alpha");
 
@@ -258,6 +285,8 @@ function featureProps(feature: Feature) {
   return {
     id: feature.id, projectId: feature.projectId, name: feature.name,
     pipelineId: feature.pipelineId, schemaVersion: feature.schemaVersion,
+    pipelineDefinitionVersion: feature.pipelineDefinitionVersion,
+    ...(feature.framingPlanRef === null ? {} : { framingPlanRef: feature.framingPlanRef }),
     createdAt: feature.createdAt, updatedAt: feature.updatedAt,
   };
 }

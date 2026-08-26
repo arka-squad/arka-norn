@@ -121,8 +121,7 @@ async function executeFeature(action, args, runtime, context) {
             const name = args.positionals[0];
             const root = resolve(context.cwd, args.values.get("path") ?? resolve(project.root, slugify(name)));
             const id = FeatureId.of(args.values.get("id") ?? deriveId(name, root));
-            const pipelineId = await resolveWorkflowId(args.values.get("workflow"));
-            return serializeFeature(await runtime.features.create({ id, projectId, name, root, pipelineId }));
+            return serializeFeature(await runtime.features.create({ id, projectId, name, root }));
         }
         case "import": {
             requirePositionals(args, 1);
@@ -257,8 +256,9 @@ function scalar(value) {
 function failure(command, error, json, warnings) {
     const message = error instanceof Error ? error.message : String(error);
     const code = errorCode(error);
+    const machineErrorCode = error instanceof DomainError ? error.code.toLowerCase() : "management_command_failed";
     if (json)
-        return { code, stdout: jsonEnvelope({ command, ok: false, data: null, errors: [message], warnings, errorCode: "management_command_failed" }), stderr: "" };
+        return { code, stdout: jsonEnvelope({ command, ok: false, data: null, errors: [message], warnings, errorCode: machineErrorCode }), stderr: "" };
     return { code, stdout: "", stderr: `${translate("common.error", { message })}\n` };
 }
 function errorCode(error) {
@@ -280,9 +280,4 @@ function errorCode(error) {
 class UsageError extends Error {
 }
 const FRAMEWORK_ROOT = resolve(import.meta.dirname, "..", "..", "..", "..");
-async function resolveWorkflowId(workflow) {
-    return workflow === undefined
-        ? await createPipelineRuntime(FRAMEWORK_ROOT).defaultWorkflowId()
-        : (await createPipelineRuntime(FRAMEWORK_ROOT).showWorkflow(workflow)).id;
-}
 //# sourceMappingURL=management-cli.js.map
