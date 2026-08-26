@@ -132,7 +132,8 @@ function setup(argv: readonly string[], context: SkillsCliContext, json: boolean
 
   if (!ok) {
     const data = publicSetupResult({ hosts: hosts.detected.map((h) => h.host), targets: preview, profile, dryRun, plan, doctor: null });
-    return envelope("skills.setup", false, data, combinedError === undefined ? [] : [combinedError], json, 70, humanSetupPreview(preview, hosts.detected, profile, plan));
+    const failureCode = results.find((result) => !result.ok)?.code ?? 70;
+    return envelope("skills.setup", false, data, combinedError === undefined ? [] : [combinedError], json, failureCode, humanSetupPreview(preview, hosts.detected, profile, plan));
   }
 
   let doctorChecks: readonly { readonly name: string; readonly status: "ok" | "missing" | "divergent"; readonly files: readonly unknown[] }[];

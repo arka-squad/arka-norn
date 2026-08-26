@@ -118,7 +118,8 @@ function setup(argv, context, json) {
     const plan = results.flatMap((r) => r.plan);
     if (!ok) {
         const data = publicSetupResult({ hosts: hosts.detected.map((h) => h.host), targets: preview, profile, dryRun, plan, doctor: null });
-        return envelope("skills.setup", false, data, combinedError === undefined ? [] : [combinedError], json, 70, humanSetupPreview(preview, hosts.detected, profile, plan));
+        const failureCode = results.find((result) => !result.ok)?.code ?? 70;
+        return envelope("skills.setup", false, data, combinedError === undefined ? [] : [combinedError], json, failureCode, humanSetupPreview(preview, hosts.detected, profile, plan));
     }
     let doctorChecks;
     let doctorOrphans;
