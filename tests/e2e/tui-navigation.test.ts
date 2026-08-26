@@ -377,6 +377,8 @@ test("la composition TUI pilote Home → Project → Feature → scaffold réel"
   input.send({ kind: "down" });
   input.send({ kind: "down" });
   input.send({ kind: "down" });
+  input.send({ kind: "down" });
+  input.send({ kind: "down" });
   input.send({ kind: "enter" });
   await waitUntil(() => container.app.topScene() !== projectScene, "ouverture Feature");
   const featureScene = container.app.topScene();
@@ -462,6 +464,8 @@ test("la TUI enregistre et sélectionne une identité Agent sans connaissance im
   await waitUntil(() => container.app.topScene() !== home, "ouverture Project pour registre Agent");
   const projectScene = container.app.topScene();
   assert.ok(projectScene);
+  input.send({ kind: "down" });
+  input.send({ kind: "down" });
   input.send({ kind: "down" });
   input.send({ kind: "down" });
   input.send({ kind: "down" });

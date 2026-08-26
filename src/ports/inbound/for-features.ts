@@ -15,6 +15,7 @@
  */
 
 import type { Feature } from "../../domain/feature/feature.js";
+import type { FeatureFramingPlanRef } from "../../domain/feature/feature.js";
 import type { FeatureId } from "../../domain/feature/feature-id.js";
 import type { ProjectId } from "../../domain/project/project-id.js";
 
@@ -24,6 +25,8 @@ export interface CreateFeatureInput {
   readonly name: string;
   readonly root: string;
   readonly pipelineId?: string;
+  readonly pipelineDefinitionVersion?: "legacy-2.0" | "2.3";
+  readonly framingPlanRef?: FeatureFramingPlanRef;
 }
 
 export interface ImportFeatureInput {

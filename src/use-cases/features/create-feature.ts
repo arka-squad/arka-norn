@@ -63,14 +63,16 @@ export function createFeatureUseCaseFactory(deps: FeaturesDeps): CreateFeatureUs
       ? DEFAULT_PIPELINE_ID
       : await deps.resolveDefaultPipelineId();
     const now = clock.now();
+    const framed = input.framingPlanRef !== undefined;
     const feature = Feature.create({
       id: input.id,
       projectId: input.projectId,
       name: input.name,
       root: confined.child,
       pipelineId: input.pipelineId ?? defaultPipelineId,
-      schemaVersion: 4,
+      schemaVersion: framed ? 5 : 4,
       documentContractVersion: 5,
+      ...(framed ? { pipelineDefinitionVersion: input.pipelineDefinitionVersion ?? "2.3", framingPlanRef: input.framingPlanRef } : {}),
       createdAt: now,
       updatedAt: now,
     });

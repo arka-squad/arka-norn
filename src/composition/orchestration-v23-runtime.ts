@@ -5,7 +5,7 @@
 
 import { createHash } from "node:crypto";
 
-import type { FeatureId } from "../domain/feature/feature-id.js";
+import { FeatureId } from "../domain/feature/feature-id.js";
 import type { ExecutionProfile } from "../domain/orchestration/execution-profile.js";
 import { CampaignBudget } from "../domain/orchestration/orchestration-budget.js";
 import { projectCampaignEvents, type CampaignEvent, type CampaignEventKind, type CampaignEventProjection } from "../domain/orchestration/orchestration-event.js";
@@ -118,6 +118,11 @@ export function createOrchestrationV23Runtime(deps: {
       if (project.orchestrationMode !== "automatic" || configuration?.automaticEnabled !== true) throw new Error("Norn 2.3 automatic orchestration is not activated for this Project.");
       const plan = await deps.campaigns.findPlanByFingerprint(project.id.value, input.previewFingerprint);
       if (plan === undefined) throw new Error("The confirmed campaign plan fingerprint was not found.");
+      const feature = await deps.features.show(featureIdOf(plan.props.featureId));
+      const refreshed = await loadTaskPlans(feature, project, await deps.agents.list(project));
+      if (stableTaskInputs(refreshed) !== stableTaskInputs({ tasks: plan.tasks, integrationAgentId: plan.props.integrationAgentId })) {
+        throw new Error("The Feature framing plan, Lots or Agent assignments changed after preview; authorize a new preview fingerprint.");
+      }
       if (input.riskPolicyFingerprint !== policyFingerprint(configuration.props.riskPolicy)) throw new Error("The Project risk policy changed after preview.");
       const configuredProfiles = new Map(configuration.profiles.map((profile) => [profile.id, profile]));
       const selectedIds = [...new Set(Object.values(input.profileByRole))];
@@ -386,7 +391,18 @@ function authorizationFingerprint(value: unknown): string { return digest(JSON.s
 function resultFingerprint(value: unknown): string { return digest(JSON.stringify(value, dateReplacer)); }
 function newCampaignId(featureId: string, at: Date): string { const feature = featureId.toLocaleLowerCase("en").replace(/[^a-z0-9._-]+/gu, "-").slice(0, 72); return `campaign-${feature}-${at.getTime().toString(36)}`; }
 function classifyWorkspaceError(error: unknown): string { const message = safeMessage(error); return /limit|too large|exceed/iu.test(message) ? "workspace_limit" : "workspace_unavailable"; }
-function classifyPlanningError(error: unknown): string { const message = safeMessage(error); if (message.startsWith("agent_scope_ambiguous")) return "agent_scope_ambiguous"; if (message.startsWith("agent_scope_unavailable")) return "agent_scope_unavailable"; if (message.startsWith("scope_unresolvable")) return "scope_unresolvable"; return "task_plan_invalid"; }
+function classifyPlanningError(error: unknown): string { const message = safeMessage(error); if (message.startsWith("agent_scope_ambiguous")) return "agent_scope_ambiguous"; if (message.startsWith("agent_scope_unavailable")) return "agent_scope_unavailable"; if (message.startsWith("scope_unresolvable")) return "scope_unresolvable"; if (message.startsWith("framing_plan_unpublished")) return "framing_plan_unpublished"; if (message.startsWith("framing_plan_divergent")) return "framing_plan_divergent"; return "task_plan_invalid"; }
+function featureIdOf(value: string): FeatureId { return FeatureId.of(value); }
+function stableTaskInputs(value: { readonly tasks: readonly TaskPlan[]; readonly integrationAgentId: string }): string {
+  return JSON.stringify({ integrationAgentId: value.integrationAgentId, tasks: value.tasks.map((task) => ({
+    ...task,
+    dependencies: [...task.dependencies],
+    readScopes: [...task.readScopes],
+    writeScopes: [...task.writeScopes],
+    deliverables: [...task.deliverables],
+    validations: [...task.validations],
+  })) });
+}
 function determineApplicationGate(input: Parameters<typeof runCampaign>[0], riskEligible: boolean, priorityFallback: boolean): ApplicationGate | undefined {
   if (input.authorization.props.applyMode !== "automatic") return { code: "human_policy", message: "The run authorization requires human application." };
   if (!input.plan.props.snapshot.clean) return { code: "dirty_snapshot", message: "The campaign snapshot contains authorized local changes and cannot be applied automatically." };

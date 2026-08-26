@@ -3,20 +3,9 @@
   "$id": "feature-marker.schema.json",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "schemaVersion",
-    "id",
-    "projectId",
-    "name",
-    "pipelineId",
-    "createdAt",
-    "updatedAt",
-    "documentContractVersion"
-  ],
+  "required": ["schemaVersion", "id", "projectId", "name", "pipelineId", "createdAt", "updatedAt", "documentContractVersion"],
   "properties": {
-    "schemaVersion": {
-      "const": 4
-    },
+    "schemaVersion": { "enum": [4, 5] },
     "id": {
       "type": "string",
       "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
@@ -44,7 +33,29 @@
     },
     "documentContractVersion": {
       "const": 5
+    },
+    "pipelineDefinitionVersion": { "const": "2.3" },
+    "framingPlanRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["planId", "revision", "fingerprint", "relativePath"],
+      "properties": {
+        "planId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$" },
+        "revision": { "type": "integer", "minimum": 1 },
+        "fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "relativePath": { "type": "string", "pattern": "^\\.arka-norn/plans/" }
+      }
     }
   },
+  "allOf": [
+    {
+      "if": { "properties": { "schemaVersion": { "const": 5 } }, "required": ["schemaVersion"] },
+      "then": {
+        "properties": { "pipelineDefinitionVersion": true, "framingPlanRef": true },
+        "required": ["pipelineDefinitionVersion", "framingPlanRef"]
+      },
+      "else": { "properties": { "pipelineDefinitionVersion": false, "framingPlanRef": false } }
+    }
+  ],
   "title": "Feature Marker"
 }

@@ -32,6 +32,20 @@
       "name": "FastDev",
       "description": "Short controlled workflow for bounded fixes, refactors and UX improvements.",
       "definition": "pipelines/arka-norn-fastdev.json"
+    },
+    {
+      "id": "arka-norn-essential-2.3",
+      "aliases": ["essential-2.3"],
+      "name": "Essential 2.3",
+      "description": "Delivery pipeline for a grounded framing plan: development, audit and validation.",
+      "definition": "pipelines/arka-norn-essential-2.3.json"
+    },
+    {
+      "id": "arka-norn-complete-2.3",
+      "aliases": ["complete-2.3"],
+      "name": "Complete 2.3",
+      "description": "Delivery pipeline for a grounded higher-risk plan, with optional technical artifacts only when consumed.",
+      "definition": "pipelines/arka-norn-complete-2.3.json"
     }
   ]
 }

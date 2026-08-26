@@ -1,0 +1,115 @@
+{
+  "$id": "pipelines/arka-norn-complete-2.3.json",
+  "schemaVersion": 3,
+  "pipelineId": "arka-norn-complete-2.3",
+  "version": "2.3.0",
+  "name": "Complete 2.3",
+  "description": "Higher-risk delivery after a grounded framing plan.",
+  "steps": [
+    {
+      "id": "technical_contract_appendix",
+      "decisionGate": "continue",
+      "order": 1,
+      "schema": "schemas/technical-contract-appendix.schema.json",
+      "required": false,
+      "multiple": false,
+      "dependsOn": []
+    },
+    {
+      "id": "frozen_invariants",
+      "decisionGate": "continue",
+      "order": 2,
+      "schema": "schemas/frozen-invariants.schema.json",
+      "required": false,
+      "multiple": false,
+      "dependsOn": []
+    },
+    {
+      "id": "debt_register",
+      "decisionGate": "continue",
+      "order": 3,
+      "schema": "schemas/debt-register.schema.json",
+      "required": false,
+      "multiple": false,
+      "dependsOn": []
+    },
+    {
+      "id": "agent_task",
+      "decisionGate": "continue",
+      "order": 4,
+      "schema": "schemas/agent-task.schema.json",
+      "required": false,
+      "multiple": true,
+      "dependsOn": []
+    },
+    {
+      "id": "technical_integration_specification",
+      "decisionGate": "continue",
+      "order": 5,
+      "schema": "schemas/technical-integration-specification.schema.json",
+      "required": false,
+      "multiple": false,
+      "dependsOn": []
+    },
+    {
+      "id": "development_report",
+      "decisionGate": "continue",
+      "order": 6,
+      "schema": "schemas/development-report.schema.json",
+      "required": true,
+      "multiple": true,
+      "dependsOn": [],
+      "businessPolicy": {
+        "type": "delivery",
+        "verdictField": "status",
+        "passValues": ["delivered"],
+        "inProgressValues": ["partial"]
+      }
+    },
+    {
+      "id": "delivery_audit",
+      "decisionGate": "continue",
+      "order": 7,
+      "schema": "schemas/delivery-audit.schema.json",
+      "required": true,
+      "multiple": true,
+      "dependsOn": ["development_report"],
+      "loopTo": "development_report",
+      "businessPolicy": {
+        "type": "audit_then_fix",
+        "targetStep": "development_report",
+        "targetDocumentField": "development_report_id",
+        "verdictField": "verdict",
+        "passValues": ["pass"],
+        "failValues": ["corrections_required", "blocked"],
+        "retryStep": "development_report"
+      }
+    },
+    {
+      "id": "delivery_validation",
+      "decisionGate": "human_decision",
+      "order": 8,
+      "schema": "schemas/delivery-validation.schema.json",
+      "required": true,
+      "multiple": true,
+      "dependsOn": ["development_report", "delivery_audit"],
+      "loopTo": "development_report",
+      "businessPolicy": {
+        "type": "review_latest",
+        "targetStep": "development_report",
+        "targetDocumentField": "development_report_id",
+        "verdictField": "verdict",
+        "passValues": ["pass"],
+        "failValues": ["fail"],
+        "inProgressValues": ["partial"],
+        "retryStep": "development_report"
+      }
+    }
+  ],
+  "transversal": {
+    "handoff": {
+      "schema": "schemas/handoff.schema.json",
+      "description": "Optional handoff between agents or providers."
+    }
+  }
+}

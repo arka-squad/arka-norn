@@ -79,6 +79,8 @@ writeJson(resolve(root, "pipelines", "catalog.json"), {
     { id: "arka-norn-complete", aliases: ["complete", "standard", "arka-norn-default"], name: "Complete", description: definitions[0].description, definition: "pipeline.json" },
     { id: "arka-norn-essential", aliases: ["essential", "essentiel", "arka-norn-essentiel"], name: "Essential", description: definitions[1].description, definition: "pipelines/arka-norn-essential.json" },
     { id: "arka-norn-fastdev", aliases: ["fastdev"], name: "FastDev", description: definitions[2].description, definition: "pipelines/arka-norn-fastdev.json" },
+    { id: "arka-norn-essential-2.3", aliases: ["essential-2.3"], name: "Essential 2.3", description: "Delivery pipeline for a grounded framing plan: development, audit and validation.", definition: "pipelines/arka-norn-essential-2.3.json" },
+    { id: "arka-norn-complete-2.3", aliases: ["complete-2.3"], name: "Complete 2.3", description: "Delivery pipeline for a grounded higher-risk plan, with optional technical artifacts only when consumed.", definition: "pipelines/arka-norn-complete-2.3.json" },
   ],
 });
 
@@ -98,9 +100,28 @@ function transformSchema(source, outputName) {
   const schemaVersion = transformed.properties?.schema_version;
   if (schemaVersion !== undefined) transformed.properties.schema_version = { const: 5 };
   if (outputName === "feature-marker.schema.json") {
-    transformed.properties.schemaVersion = { const: 4 };
+    transformed.properties.schemaVersion = { enum: [4, 5] };
     transformed.properties.documentContractVersion = { const: 5 };
+    transformed.properties.pipelineDefinitionVersion = { const: "2.3" };
+    transformed.properties.framingPlanRef = {
+      type: "object", additionalProperties: false,
+      required: ["planId", "revision", "fingerprint", "relativePath"],
+      properties: {
+        planId: { type: "string", pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$" },
+        revision: { type: "integer", minimum: 1 },
+        fingerprint: { type: "string", pattern: "^[a-f0-9]{64}$" },
+        relativePath: { type: "string", pattern: "^\\.arka-norn/plans/" },
+      },
+    };
     transformed.required = [...transformed.required, "documentContractVersion"];
+    transformed.allOf = [{
+      if: { properties: { schemaVersion: { const: 5 } }, required: ["schemaVersion"] },
+      then: {
+        properties: { pipelineDefinitionVersion: true, framingPlanRef: true },
+        required: ["pipelineDefinitionVersion", "framingPlanRef"],
+      },
+      else: { properties: { pipelineDefinitionVersion: false, framingPlanRef: false } },
+    }];
   }
   return transformed;
 }

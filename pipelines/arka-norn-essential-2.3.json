@@ -1,0 +1,70 @@
+{
+  "$id": "pipelines/arka-norn-essential-2.3.json",
+  "schemaVersion": 3,
+  "pipelineId": "arka-norn-essential-2.3",
+  "version": "2.3.0",
+  "name": "Essential 2.3",
+  "description": "Delivery starts after a grounded framing plan.",
+  "steps": [
+    {
+      "id": "development_report",
+      "decisionGate": "continue",
+      "order": 1,
+      "schema": "schemas/development-report.schema.json",
+      "required": true,
+      "multiple": true,
+      "dependsOn": [],
+      "businessPolicy": {
+        "type": "delivery",
+        "verdictField": "status",
+        "passValues": ["delivered"],
+        "inProgressValues": ["partial"]
+      }
+    },
+    {
+      "id": "delivery_audit",
+      "decisionGate": "continue",
+      "order": 2,
+      "schema": "schemas/delivery-audit.schema.json",
+      "required": true,
+      "multiple": true,
+      "dependsOn": ["development_report"],
+      "loopTo": "development_report",
+      "businessPolicy": {
+        "type": "audit_then_fix",
+        "targetStep": "development_report",
+        "targetDocumentField": "development_report_id",
+        "verdictField": "verdict",
+        "passValues": ["pass"],
+        "failValues": ["corrections_required", "blocked"],
+        "retryStep": "development_report"
+      }
+    },
+    {
+      "id": "delivery_validation",
+      "decisionGate": "human_decision",
+      "order": 3,
+      "schema": "schemas/delivery-validation.schema.json",
+      "required": true,
+      "multiple": true,
+      "dependsOn": ["development_report", "delivery_audit"],
+      "loopTo": "development_report",
+      "businessPolicy": {
+        "type": "review_latest",
+        "targetStep": "development_report",
+        "targetDocumentField": "development_report_id",
+        "verdictField": "verdict",
+        "passValues": ["pass"],
+        "failValues": ["fail"],
+        "inProgressValues": ["partial"],
+        "retryStep": "development_report"
+      }
+    }
+  ],
+  "transversal": {
+    "handoff": {
+      "schema": "schemas/handoff.schema.json",
+      "description": "Optional handoff between agents or providers."
+    }
+  }
+}

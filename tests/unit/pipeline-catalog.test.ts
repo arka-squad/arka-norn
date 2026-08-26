@@ -27,13 +27,15 @@ const ROOT = resolve(import.meta.dirname, "..", "..");
 test("the catalog resolves canonical and deprecated pipeline aliases", async () => {
   const source = new FsPipelineDocumentSource(ROOT);
   const catalog = await source.loadCatalog();
-  assert.equal(catalog.pipelines.length, 3);
+  assert.equal(catalog.pipelines.length, 5);
   assert.equal(catalog.defaultPipelineId, "arka-norn-essential");
   assert.equal((await source.loadDefinition("complete")).pipelineId, "arka-norn-complete");
   assert.equal((await source.loadDefinition("standard")).pipelineId, "arka-norn-complete");
   assert.equal((await source.loadDefinition("essential")).pipelineId, "arka-norn-essential");
   assert.equal((await source.loadDefinition("essentiel")).pipelineId, "arka-norn-essential");
   assert.equal((await source.loadDefinition("fastdev")).pipelineId, "arka-norn-fastdev");
+  assert.equal((await source.loadDefinition("essential-2.3")).pipelineId, "arka-norn-essential-2.3");
+  assert.equal((await source.loadDefinition("complete-2.3")).pipelineId, "arka-norn-complete-2.3");
   assert.equal((await createPipelineRuntime(ROOT).showWorkflow()).id, "arka-norn-essential");
   await assert.rejects(source.loadDefinition("../../tmp/evil"), /Unknown pipeline id/);
 });
