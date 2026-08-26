@@ -29,7 +29,8 @@ Documents et santé :
   migrate [--target <path>] [--dry-run|--apply]
 
 Maintenance :
-  install [--target <repo>] [--global] [--profile <profil>]
+  setup [--target <repo>] [--global] [--project] [--host codex|claude|all] [--profile <profil>]
+  install (alias de setup)
   skills <list|install|doctor>
   selftest
   guide

@@ -18,7 +18,8 @@ import { resolve } from "node:path";
 
 import { translate } from "../../../application/localization/locale.js";
 import { createSkillCatalogRuntime } from "../../outbound/skills/skill-catalog.js";
-import { findOrphanSkills, inspectSkills, installSkills, type SkillInstallOutcome } from "../../outbound/skills/skill-installer.js";
+import { detectHostsFiltered, formatHosts, SUPPORTED_HOSTS, type HostDetection, type SupportedHost } from "../../outbound/skills/host-detector.js";
+import { findOrphanSkills, inspectGlobalSkills, inspectSkills, installSkills, type SkillInstallOutcome } from "../../outbound/skills/skill-installer.js";
 import type { CliExecution } from "./cli-execution.js";
 import { CliUsageError, parseStrictArguments } from "./strict-arguments.js";
 import { jsonEnvelope } from "./cli-envelope.js";
@@ -34,7 +35,7 @@ export function runSkillsCommand(argv: readonly string[], context: SkillsCliCont
   const rest = argv.slice(1);
   const json = rest.includes("--json");
   try {
-    if (action === "install") return install(rest, context, json);
+    if (action === "install" || action === "setup") return setup(rest, context, json);
     const parsed = parseStrictArguments(rest, {
       options: { target: "string", profile: "string", installed: "boolean", global: "boolean", json: "boolean" },
       minPositionals: 0,
@@ -75,36 +76,146 @@ export function runSkillsCommand(argv: readonly string[], context: SkillsCliCont
   }
 }
 
-function install(argv: readonly string[], context: SkillsCliContext, json: boolean): CliExecution {
+function setup(argv: readonly string[], context: SkillsCliContext, json: boolean): CliExecution {
   const parsed = parseStrictArguments(argv, {
-    options: { global: "boolean", "dry-run": "boolean", force: "boolean", json: "boolean", target: "string", profile: "string" },
+    options: {
+      global: "boolean",
+      project: "boolean",
+      host: "string",
+      "dry-run": "boolean",
+      force: "boolean",
+      json: "boolean",
+      target: "string",
+      profile: "string",
+    },
     minPositionals: 0,
     maxPositionals: 0,
   });
-  const result = installSkills(context.frameworkRoot, {
-    target: resolve(context.cwd, parsed.values.get("target") ?? context.cwd),
-    profile: parsed.values.get("profile") ?? "all",
-    global: parsed.booleans.has("global"),
-    globalHome: context.homeDir,
-    dryRun: parsed.booleans.has("dry-run"),
-    force: parsed.booleans.has("force"),
+  const hostFilter = parseHostFilter(parsed.values.get("host"));
+  const hosts = detectHostsFiltered(hostFilter ?? "all");
+  if (hosts.detected.length === 0) {
+    const data = { hosts: { requested: hostFilter ?? "all", detected: hosts.detected.map((h) => h.host), supported: SUPPORTED_HOSTS } };
+    const message = translate("cli.setup.noHost", { hosts: SUPPORTED_HOSTS.join(", ") });
+    return envelope("skills.setup", false, data, [message], json, 2, `${translate("cli.setup.header")}\n${message}`);
+  }
+
+  const target = resolve(context.cwd, parsed.values.get("target") ?? context.cwd);
+  const profile = parsed.values.get("profile") ?? "all";
+  const globalFlag = parsed.booleans.has("global");
+  const projectFlag = parsed.booleans.has("project");
+  const dryRun = parsed.booleans.has("dry-run");
+  const force = parsed.booleans.has("force");
+
+  // Par défaut, setup installe dans le project courant ; --project le force explicitement.
+  const installProject = !globalFlag || projectFlag;
+  const installGlobal = globalFlag;
+
+  const targets: string[] = [];
+  if (installProject) targets.push(target);
+  if (installGlobal) targets.push(context.homeDir);
+
+  const preview = targets.length === 0
+    ? [translate("cli.setup.targetProject", { target })]
+    : targets.map((t) => translate(t === context.homeDir ? "cli.setup.targetGlobal" : "cli.setup.targetProject", { target: t }));
+
+  const results: SkillInstallOutcome[] = [];
+  if (installProject) {
+    results.push(installSkills(context.frameworkRoot, { target, profile, dryRun, force }));
+  }
+  if (installGlobal) {
+    results.push(installSkills(context.frameworkRoot, { target, profile, global: true, globalHome: context.homeDir, dryRun, force }));
+  }
+
+  const ok = results.every((r) => r.ok);
+  const combinedError = results.map((r) => r.error).filter(Boolean).join("; ") || undefined;
+  const plan = results.flatMap((r) => r.plan);
+
+  if (!ok) {
+    const data = publicSetupResult({ hosts: hosts.detected.map((h) => h.host), targets: preview, profile, dryRun, plan, doctor: null });
+    return envelope("skills.setup", false, data, combinedError === undefined ? [] : [combinedError], json, 70, humanSetupPreview(preview, hosts.detected, profile, plan));
+  }
+
+  let doctorChecks: readonly { readonly name: string; readonly status: "ok" | "missing" | "divergent"; readonly files: readonly unknown[] }[];
+  let doctorOrphans: readonly { readonly name: string; readonly location: string }[];
+  if (installProject && installGlobal) {
+    doctorChecks = inspectSkills(context.frameworkRoot, target, profile, context.homeDir);
+    doctorOrphans = findOrphanSkills(context.frameworkRoot, target, profile, context.homeDir);
+  } else if (installGlobal) {
+    doctorChecks = inspectGlobalSkills(context.frameworkRoot, context.homeDir, profile);
+    doctorOrphans = findOrphanSkills(context.frameworkRoot, context.homeDir, profile, context.homeDir);
+  } else {
+    doctorChecks = inspectSkills(context.frameworkRoot, target, profile);
+    doctorOrphans = findOrphanSkills(context.frameworkRoot, target, profile);
+  }
+  const doctorOk = doctorChecks.every((check) => check.status === "ok") && doctorOrphans.length === 0;
+
+  const data = publicSetupResult({
+    hosts: hosts.detected.map((h) => h.host),
+    targets: preview,
+    profile,
+    dryRun,
+    plan,
+    doctor: { checks: doctorChecks, orphans: doctorOrphans, ok: doctorOk },
   });
-  const data = publicInstallResult(result);
+
   const human = [
-    `${result.dryRun ? "Plan" : "Installation"} — ${result.skills.length} skill(s), profil ${result.profile}`,
-    ...data.plan.map((item) => `  ${item.action.padEnd(9)} ${item.file}`),
+    humanSetupPreview(preview, hosts.detected, profile, plan),
+    "",
+    translate("cli.setup.hostsDetected", { hosts: formatHosts(hosts.detected) }),
+    ...doctorChecks.map((check) => `  ${check.status.toUpperCase().padEnd(9)} ${check.name}`),
+    ...doctorOrphans.map((orphan) => `  WARN      ${orphan.name} — ${orphan.location}`),
+    "",
+    doctorOk ? translate("cli.setup.ready") : translate("cli.setup.doctorWarning"),
   ].join("\n");
-  return envelope("skills.install", result.ok, data, result.error === undefined ? [] : [result.error], json, result.code, human);
+
+  const errors = doctorOk ? [] : [translate("cli.setup.doctorWarning")];
+  const code = dryRun ? 0 : doctorOk ? 0 : 3;
+  return envelope("skills.setup", ok && doctorOk, data, errors, json, code, human);
 }
 
-function publicInstallResult(result: SkillInstallOutcome) {
+function humanSetupPreview(targets: readonly string[], hosts: readonly HostDetection[], profile: string, plan: readonly { readonly action: string; readonly file: string }[]): string {
+  const lines = [
+    translate("cli.setup.header"),
+    translate("cli.setup.hostsDetected", { hosts: formatHosts(hosts) }),
+    ...targets.map((t) => `  ${t}`),
+    translate("cli.setup.profile", { profile }),
+  ];
+  if (plan.length > 0) {
+    lines.push(translate("cli.setup.plan"));
+    for (const item of plan) lines.push(`  ${item.action.padEnd(9)} ${item.file}`);
+  }
+  return lines.join("\n");
+}
+
+function parseHostFilter(value: string | undefined): SupportedHost | "all" | undefined {
+  if (value === undefined) return undefined;
+  const normalized = value.toLowerCase();
+  if (normalized === "all") return "all";
+  if (SUPPORTED_HOSTS.includes(normalized as SupportedHost)) return normalized as SupportedHost;
+  throw new CliUsageError(translate("cli.setup.unknownHost", { host: value, hosts: SUPPORTED_HOSTS.join(", ") }));
+}
+
+interface SetupPublicResult {
+  readonly hosts: readonly string[];
+  readonly targets: readonly string[];
+  readonly profile: string;
+  readonly dryRun: boolean;
+  readonly plan: readonly { readonly action: string; readonly file: string }[];
+  readonly doctor: { readonly ok: boolean; readonly checks: readonly unknown[]; readonly orphans: readonly unknown[] } | null;
+}
+
+function publicSetupResult(result: SetupPublicResult): unknown {
   return {
-    dryRun: result.dryRun,
+    hosts: result.hosts,
+    targets: result.targets,
     profile: result.profile,
-    skills: result.skills,
-    plan: result.plan.map((item) => ({ file: item.file, action: item.action })),
+    dryRun: result.dryRun,
+    plan: result.plan,
+    doctor: result.doctor,
   };
 }
+
+
 
 function success(command: string, data: unknown, json: boolean, human: string): CliExecution {
   return envelope(command, true, data, [], json, 0, human);

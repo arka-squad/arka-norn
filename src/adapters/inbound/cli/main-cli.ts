@@ -140,8 +140,12 @@ async function runLocalizedCli(argv: readonly string[], homeDir: string, env: Re
       case "doctor":
         result = await runDoctorCommand(rest, { cwd: env.cwd, homeDir });
         break;
+      case "setup":
+        result = runSkillsCommand(["setup", ...rest], { cwd: env.cwd, homeDir, frameworkRoot: FRAMEWORK_ROOT });
+        break;
       case "install":
-        result = runSkillsCommand(["install", ...rest], { cwd: env.cwd, homeDir, frameworkRoot: FRAMEWORK_ROOT });
+        result = runSkillsCommand(["setup", ...rest], { cwd: env.cwd, homeDir, frameworkRoot: FRAMEWORK_ROOT });
+        compatibilityWarnings.push("'install' is an alias for 'setup'; use 'arka-norn setup'.");
         break;
       case "skills":
         result = runSkillsCommand(rest, { cwd: env.cwd, homeDir, frameworkRoot: FRAMEWORK_ROOT });
