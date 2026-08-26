@@ -19,7 +19,7 @@ import { FeatureAlreadyExistsError, FeatureMarkerNotFoundError, PathSecurityErro
 import { FeatureId } from "../../../domain/feature/feature-id.js";
 import { Feature } from "../../../domain/feature/feature.js";
 import { ProjectId } from "../../../domain/project/project-id.js";
-import { isFeatureMarkerV3, isFeatureMarkerV4, planFeatureMarkerMigration, } from "../../../domain/shared/marker-formats.js";
+import { isFeatureMarkerV3, isFeatureMarkerV4, isFeatureMarkerV5, planFeatureMarkerMigration, } from "../../../domain/shared/marker-formats.js";
 import { readJson, writeJsonAtomic } from "./_shared/atomic-json.js";
 import { FsPathPolicy } from "./fs-path-policy.js";
 export class FsFeatureStore {
@@ -47,7 +47,7 @@ export class FsFeatureStore {
         const value = await readJson(markerPath(root));
         if (value === undefined)
             throw new FeatureMarkerNotFoundError(root);
-        const marker = isFeatureMarkerV4(value) || isFeatureMarkerV3(value) ? value : planFeatureMarkerMigration(value).output;
+        const marker = isFeatureMarkerV5(value) || isFeatureMarkerV4(value) || isFeatureMarkerV3(value) ? value : planFeatureMarkerMigration(value).output;
         const canonicalRoot = await this.paths.assertMarkerRoot(root, root);
         return Feature.create({
             id: FeatureId.of(marker.id),
@@ -56,7 +56,8 @@ export class FsFeatureStore {
             root: canonicalRoot,
             pipelineId: marker.pipelineId,
             schemaVersion: marker.schemaVersion,
-            documentContractVersion: marker.schemaVersion === 4 ? marker.documentContractVersion : 3,
+            documentContractVersion: marker.schemaVersion === 3 ? 3 : marker.documentContractVersion,
+            ...(marker.schemaVersion === 5 ? { pipelineDefinitionVersion: marker.pipelineDefinitionVersion, framingPlanRef: marker.framingPlanRef } : {}),
             createdAt: new Date(marker.createdAt),
             updatedAt: new Date(marker.updatedAt),
         });
@@ -76,6 +77,11 @@ function serialize(feature) {
         createdAt: feature.createdAt.toISOString(),
         updatedAt: feature.updatedAt.toISOString(),
     };
+    if (feature.schemaVersion === 5) {
+        if (feature.framingPlanRef === null)
+            throw new Error("Feature v5 requires its framing plan reference.");
+        return { schemaVersion: 5, ...common, documentContractVersion: 5, pipelineDefinitionVersion: "2.3", framingPlanRef: feature.framingPlanRef };
+    }
     return feature.schemaVersion === 4
         ? { schemaVersion: 4, ...common, documentContractVersion: 5 }
         : { schemaVersion: 3, ...common };

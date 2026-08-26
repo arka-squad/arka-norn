@@ -3,15 +3,74 @@
  * Licensed under the Apache License, Version 2.0
  */
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
-import { relative } from "node:path";
+import { lstat, readFile, realpath } from "node:fs/promises";
+import { relative, resolve, sep } from "node:path";
+import { assertPlan, framingPlanFingerprint } from "../domain/framing/framing-plan.js";
 import { CampaignPlan } from "../domain/orchestration/orchestration-plan.js";
 export async function loadTaskPlans(feature, project, agents) {
-    const brief = await loadBrief(feature, project);
-    const proposed = serializeOverlaps(assignScopes(brief));
+    const proposed = serializeOverlaps(feature.schemaVersion === 5
+        ? await loadPublishedLotTasks(feature, project)
+        : assignScopes(await loadBrief(feature, project)));
     const tasks = proposed.map((task) => Object.freeze({ ...task, agentId: assignedAgent(agents, feature, task.role, task.writeScopes, task.id).id.value }));
     const integrationAgentId = assignedAgent(agents, feature, "integrator", ["."], "integration").id.value;
     return Object.freeze({ tasks: Object.freeze(tasks), integrationAgentId });
+}
+async function loadPublishedLotTasks(feature, project) {
+    const reference = feature.framingPlanRef;
+    if (reference === null)
+        throw new Error("framing_plan_unpublished: Feature v5 has no published framing plan reference.");
+    const candidate = resolve(project.root, reference.relativePath);
+    if (candidate !== project.root && !candidate.startsWith(`${project.root}${sep}`))
+        throw new Error("framing_plan_divergent: published plan path escapes the Project.");
+    const stat = await lstat(candidate).catch(() => undefined);
+    if (stat === undefined || !stat.isFile() || stat.isSymbolicLink())
+        throw new Error("framing_plan_unpublished: exact published framing plan is unavailable.");
+    const canonicalProject = await realpath(project.root);
+    const canonicalCandidate = await realpath(candidate);
+    if (!canonicalCandidate.startsWith(`${canonicalProject}${sep}`))
+        throw new Error("framing_plan_divergent: published plan resolves outside the Project.");
+    let plan;
+    try {
+        plan = JSON.parse(await readFile(canonicalCandidate, "utf8"));
+    }
+    catch {
+        throw new Error("framing_plan_divergent: published plan is not valid JSON.");
+    }
+    try {
+        assertPlan(plan);
+    }
+    catch {
+        throw new Error("framing_plan_divergent: published plan contract is invalid.");
+    }
+    if (plan.id !== reference.planId || plan.revision !== reference.revision || framingPlanFingerprint(plan) !== reference.fingerprint) {
+        throw new Error("framing_plan_divergent: Feature marker does not reference the exact published plan revision.");
+    }
+    if (plan.target.projectId !== project.id.value || plan.stabilizations.groundedPlan === null || plan.target.kind !== "feature" || plan.decomposition?.kind !== "feature_lots") {
+        throw new Error("framing_plan_unpublished: orchestration requires a grounded Feature plan decomposed into Lots.");
+    }
+    return plan.decomposition.lots.map(lotTask);
+}
+function lotTask(lot, index, lots) {
+    const id = normalizeId(lot.id);
+    const readScopes = lot.readScopes.length === 0 ? ["."] : lot.readScopes.map(requireSafeScope);
+    const writeScopes = lot.writeScopes.map(requireSafeScope);
+    if (writeScopes.length === 0)
+        throw new Error(`scope_unresolvable: framing Lot ${id} has no write scope.`);
+    const validations = Object.entries(lot.acceptanceProofs)
+        .flatMap(([kind, proofs]) => proofs.map((proof) => `${kind}: ${proof}`));
+    if (validations.length === 0)
+        throw new Error(`framing_plan_divergent: framing Lot ${id} has no acceptance proof.`);
+    return {
+        id,
+        role: "development",
+        requiredProfile: executionRequirement(),
+        priority: lots.length - index,
+        dependencies: lot.dependsOn.map(normalizeId),
+        readScopes,
+        writeScopes,
+        deliverables: [`${lot.title}: ${lot.objective}`, `Observable effect: ${lot.observableEffect}`],
+        validations,
+    };
 }
 export function createCampaignPlan(input) {
     const unsigned = {
@@ -139,6 +198,8 @@ function scopesOverlap(left, right) { return left.some((a) => right.some((b) => 
 function scopeFromArea(value) { return value.split(/\s+\(/u)[0].trim().replaceAll("\\", "/").replace(/\/\*$/u, ""); }
 function tokens(value) { return new Set(value.toLocaleLowerCase("en").split(/[^a-z0-9]+/u).filter((entry) => entry.length >= 3)); }
 function safeScope(value) { return value === "." || (value.length > 0 && value.length <= 512 && !value.startsWith("/") && value.split("/").every((part) => part !== "" && part !== "." && part !== "..")); }
+function requireSafeScope(value) { const normalized = value.replaceAll("\\", "/"); if (!safeScope(normalized))
+    throw new Error(`scope_unresolvable: unsafe framing scope ${value}.`); return normalized; }
 function normalizeId(value) { const normalized = value.toLocaleLowerCase("en").replace(/[^a-z0-9._-]+/gu, "-").replace(/^-+|-+$/gu, "").slice(0, 100); if (!/^[a-z0-9]/u.test(normalized))
     throw new Error("Feature Brief batch id is invalid."); return normalized; }
 function normalizeRole(value) { return value.toLocaleLowerCase("en").replace(/[^a-z0-9]+/gu, "-").replace(/^-+|-+$/gu, ""); }

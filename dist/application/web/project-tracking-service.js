@@ -23,7 +23,10 @@ import { reduceGovernance } from "../../domain/governance/governance-ledger.js";
 import { FeatureId } from "../../domain/feature/feature-id.js";
 import { createWebOnboardingState } from "../../domain/onboarding/web-onboarding-state.js";
 import { ProjectId } from "../../domain/project/project-id.js";
+import { framingPlanFingerprint } from "../../domain/framing/framing-plan.js";
 import { createFeatureTrackingView } from "./feature-tracking.js";
+import { framingDetail, framingSummary, revisionMilestone } from "./framing-projection.js";
+import { v23Campaign, v23Dag, v23Tasks } from "./orchestration-v23-projection.js";
 export class ProjectTrackingService {
     options;
     executions = new FsExecutionRegistryStore();
@@ -53,8 +56,8 @@ export class ProjectTrackingService {
     }
     async getProject(projectId) {
         const project = await this.project(projectId);
-        const [features, governance, audits, orchestrations] = await Promise.all([
-            this.options.management.features.list(project.id), this.getGovernance(projectId), this.getAudits(projectId), this.getOrchestrations(projectId),
+        const [features, governance, audits, orchestrations, framings] = await Promise.all([
+            this.options.management.features.list(project.id), this.getGovernance(projectId), this.getAudits(projectId), this.getOrchestrations(projectId), this.listFramings(projectId),
         ]);
         const summaries = await Promise.all(features.map(async (feature) => {
             const report = await this.inspectFeature(project, feature);
@@ -81,12 +84,47 @@ export class ProjectTrackingService {
                 activeOrchestrations: orchestrations.filter((item) => item.status === "running" || item.status === "planned" || item.status === "awaiting_approval" || item.status === "awaiting_application" || item.status === "authorized").length,
             },
             features: summaries,
+            ...(framings[0] === undefined ? {} : { framing: framings.find((item) => !item.published) ?? framings[0] }),
         };
     }
     async getFeature(projectId, featureId) {
         const project = await this.project(projectId);
         const feature = await this.feature(project, featureId);
-        return createFeatureTrackingView(feature, await this.inspectFeature(project, feature));
+        const view = await createFeatureTrackingView(feature, await this.inspectFeature(project, feature));
+        const framing = await this.featureFraming(feature);
+        return { ...view, ...(framing === undefined ? {} : { framing }) };
+    }
+    async listFramings(projectId) {
+        const references = await this.options.framing.list(projectId);
+        const values = [];
+        for (const reference of references) {
+            const plan = await this.options.framing.show(projectId, reference.framingId);
+            values.push(framingSummary(plan));
+        }
+        return values;
+    }
+    async getFraming(projectId, framingId) {
+        const plan = await this.options.framing.show(projectId, framingId);
+        const history = [];
+        for (let revision = 1; revision <= plan.revision; revision += 1) {
+            const candidate = await this.options.framing.showRevision(projectId, framingId, revision);
+            if (candidate !== undefined)
+                history.push({
+                    revision, updatedAt: candidate.updatedAt, fingerprint: framingPlanFingerprint(candidate), milestone: revisionMilestone(candidate),
+                });
+        }
+        return framingDetail(plan, history);
+    }
+    async startFraming(projectId, input) {
+        const project = await this.project(projectId);
+        const preferences = await this.getPreferences();
+        const entry = await this.options.framing.enter({
+            path: project.root,
+            contentLocale: preferences.resolvedLocale,
+            ...(input.existingFeatureId === undefined ? {} : { existingFeatureId: input.existingFeatureId }),
+            ...(input.newFeatureTitle === undefined ? {} : { newFeatureTitle: input.newFeatureTitle }),
+        });
+        return this.getFraming(projectId, entry.plan.target.framingId);
     }
     async getFeatureContinuation(projectId, featureId) {
         const advice = await this.options.agentOrchestration.advise({ projectId: ProjectId.of(projectId), featureId: FeatureId.of(featureId) });
@@ -419,6 +457,13 @@ export class ProjectTrackingService {
             throw new Error("Feature belongs to another Project.");
         return feature;
     }
+    async featureFraming(feature) {
+        if (feature.framingPlanRef === null)
+            return undefined;
+        const references = await this.options.framing.list(feature.projectId.value);
+        const reference = references.find((item) => item.planId === feature.framingPlanRef?.planId);
+        return reference === undefined ? undefined : this.getFraming(feature.projectId.value, reference.framingId);
+    }
     async inspectFeature(project, feature) {
         const agents = await this.options.management.agents.list(project);
         const authorRegistry = agents.map((agent) => ({ id: agent.id.value, active: agent.active, authorized: agent.coversFeature(feature.id) }));
@@ -444,54 +489,6 @@ export class ProjectTrackingService {
         const featurePath = feature.root.slice(project.root.length + 1).replaceAll("\\", "/");
         return { projectId: project.id.value, projectName: project.name, projectRoot: project.root, featureId: feature.id.value, featurePath };
     }
-}
-function v23Tasks(plan, attempts, projection) {
-    const latestAttempt = new Map();
-    for (const attempt of attempts)
-        latestAttempt.set(attempt.props.taskId, attempt);
-    return plan.tasks.map((task) => {
-        const attempt = latestAttempt.get(task.id)?.props;
-        return {
-            id: task.id,
-            agentId: task.agentId,
-            role: task.role,
-            status: projection?.tasks[task.id] ?? "planned",
-            ...(attempt === undefined ? {} : { profileId: attempt.profileId }),
-            dependencies: [...task.dependencies],
-            readScopes: [...task.readScopes],
-            writeScopes: [...task.writeScopes],
-            proofCount: attempt?.proofReferences.length ?? 0,
-        };
-    });
-}
-function v23Dag(plan, tasks, result, application, authorization) {
-    return {
-        planFingerprint: plan.fingerprint,
-        ...(authorization === undefined ? {} : { riskPolicyFingerprint: authorization.props.riskPolicyFingerprint }),
-        tasks,
-        ...(result === undefined ? {} : {
-            risk: { score: result.risk.totalScore, automaticEligible: result.risk.automaticEligible, hardDenials: [...result.risk.hardDenials] },
-            applicationFingerprint: application?.fingerprint ?? result.fingerprint,
-            ...(result.applicationGate === undefined ? {} : { applicationGate: { ...result.applicationGate } }),
-        }),
-        requiresHumanApproval: result !== undefined && result.appliedCommit === undefined && application === undefined,
-        discardedHunkCount: result?.integration.discardedHunks?.length ?? 0,
-    };
-}
-function v23Campaign(id, status, plan, projection, activeTaskId) {
-    return {
-        id,
-        status,
-        revision: projection?.revision ?? 0,
-        workspaceMode: "isolated",
-        completedMissions: projection?.progress.succeeded ?? 0,
-        maximumMissions: plan.tasks.length,
-        currentStepId: activeTaskId ?? "campaign",
-        decisionCount: 0,
-        ...(status !== "awaiting_application" ? {} : {
-            actionRequired: { kind: "human_application", reason: "Review the risk score and confirmed application fingerprint." },
-        }),
-    };
 }
 function eventView(event) {
     return { ...event, targets: event.targets, author: event.author };

@@ -49,7 +49,10 @@ export async function runSelftest() {
   const pipeline = createPipelineRuntime(FRAMEWORK_ROOT, { homeDir: path.join(sandbox, "home") });
   try {
     const workflows = await pipeline.listWorkflows();
-    check("catalog contains Complete, Essential and FastDev", workflows.length === 3 && workflows.every((workflow) => workflow.id in EXAMPLES));
+    const workflowIds = new Set(workflows.map((workflow) => workflow.id));
+    check("catalog contains legacy and 2.3 delivery workflows", [
+      "arka-norn-complete", "arka-norn-essential", "arka-norn-fastdev", "arka-norn-essential-2.3", "arka-norn-complete-2.3",
+    ].every((id) => workflowIds.has(id)));
     check("Essential is the default workflow", await pipeline.defaultWorkflowId() === "arka-norn-essential");
 
     console.log("\n=== Canonical v5 scaffolds ===");
@@ -64,11 +67,10 @@ export async function runSelftest() {
     }
 
     console.log("\n=== Distributed examples ===");
-    for (const workflow of workflows) {
-      const example = EXAMPLES[workflow.id];
+    for (const [pipelineId, example] of Object.entries(EXAMPLES)) {
       for (const file of example.files) {
-        const result = await pipeline.validate({ filePath: path.join(FRAMEWORK_ROOT, "examples", example.directory, file), pipelineId: workflow.id, documentContractVersion: 5 });
-        check(`${workflow.id}/${file} validates`, result.valid, JSON.stringify(result.errors));
+        const result = await pipeline.validate({ filePath: path.join(FRAMEWORK_ROOT, "examples", example.directory, file), pipelineId, documentContractVersion: 5 });
+        check(`${pipelineId}/${file} validates`, result.valid, JSON.stringify(result.errors));
       }
     }
 

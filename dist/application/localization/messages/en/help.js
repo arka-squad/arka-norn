@@ -4,6 +4,7 @@ Without a command, arka-norn opens the interactive TUI.
 Use arka-norn guide for a verified walkthrough.
 
 Management:
+  framing <enter|show|resume|list>     Frame or resume a Project or Feature before delivery.
   project <list|add|import|scan|show|use|forget|reconcile|set-orchestration-mode>
   feature <list|create|import|scan|show|use|forget|reconcile|set-workflow>
   orchestration <profile|preview|start|status|apply|recovery>
@@ -38,37 +39,25 @@ Maintenance:
 `;
 export const CLI_GUIDE_EN = `arka-norn guided start
 
-1. Verify health
-   arka-norn doctor
+1. Enter or resume framing from the current directory
+   arka-norn framing enter .
+   arka-norn framing resume
 
-2. Resolve the Project
-   arka-norn project scan <root>
-   arka-norn project list
+   To frame a new Feature without creating it first:
+   arka-norn framing enter . --new-feature "Expected outcome"
 
-   Optional: start Project tracking
+2. Continue from the calculated next action
+   arka-norn framing show --view plan
+
+   Norn keeps the live plan outside the repository. The Agent asks only when
+   continuing would invent substance. There are exactly two stabilizations.
+
+3. Optional: follow the Project in Web
    arka-norn web start
    arka-norn web status
 
-3. Register the main Product identity
-   arka-norn agent register --project <project-id> --provider "Codex CLI" --role product --session main
-   arka-norn agent current --project <project-id> --session main
-
-4. Open or create the Feature
-   arka-norn feature list --project <project-id>
-   arka-norn workflow list
-   arka-norn feature create "Name" --project <project-id> --path <directory>
-
-5. Read the calculated role and next action
+4. After publication, read the delivery action
    arka-norn agent advise --project <project-id> --feature <feature-id>
    arka-norn pipeline next <feature-id>
-
-6. Create and validate one signed document
-   arka-norn pipeline scaffold <step-id> --feature <feature-id> --session <session-id>
-   arka-norn pipeline validate <feature-id> --document <file.json>
-
-7. Prepare a Product handoff before changing context
-   arka-norn agent handoff-prompt --project <project-id> --feature <feature-id>
-
-Never guess a Project, Feature, Agent, session or next step. list, show, current, sessions, advise and next are the sources of truth.
 `;
 //# sourceMappingURL=help.js.map

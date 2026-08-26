@@ -3,6 +3,7 @@
  * Licensed under the Apache License, Version 2.0
  */
 import { createHash } from "node:crypto";
+import { FeatureId } from "../domain/feature/feature-id.js";
 import { CampaignBudget } from "../domain/orchestration/orchestration-budget.js";
 import { projectCampaignEvents } from "../domain/orchestration/orchestration-event.js";
 import { RunAuthorization, TaskAttempt } from "../domain/orchestration/orchestration-plan.js";
@@ -57,6 +58,11 @@ export function createOrchestrationV23Runtime(deps) {
             const plan = await deps.campaigns.findPlanByFingerprint(project.id.value, input.previewFingerprint);
             if (plan === undefined)
                 throw new Error("The confirmed campaign plan fingerprint was not found.");
+            const feature = await deps.features.show(featureIdOf(plan.props.featureId));
+            const refreshed = await loadTaskPlans(feature, project, await deps.agents.list(project));
+            if (stableTaskInputs(refreshed) !== stableTaskInputs({ tasks: plan.tasks, integrationAgentId: plan.props.integrationAgentId })) {
+                throw new Error("The Feature framing plan, Lots or Agent assignments changed after preview; authorize a new preview fingerprint.");
+            }
             if (input.riskPolicyFingerprint !== policyFingerprint(configuration.props.riskPolicy))
                 throw new Error("The Project risk policy changed after preview.");
             const configuredProfiles = new Map(configuration.profiles.map((profile) => [profile.id, profile]));
@@ -349,7 +355,20 @@ function classifyWorkspaceError(error) { const message = safeMessage(error); ret
 function classifyPlanningError(error) { const message = safeMessage(error); if (message.startsWith("agent_scope_ambiguous"))
     return "agent_scope_ambiguous"; if (message.startsWith("agent_scope_unavailable"))
     return "agent_scope_unavailable"; if (message.startsWith("scope_unresolvable"))
-    return "scope_unresolvable"; return "task_plan_invalid"; }
+    return "scope_unresolvable"; if (message.startsWith("framing_plan_unpublished"))
+    return "framing_plan_unpublished"; if (message.startsWith("framing_plan_divergent"))
+    return "framing_plan_divergent"; return "task_plan_invalid"; }
+function featureIdOf(value) { return FeatureId.of(value); }
+function stableTaskInputs(value) {
+    return JSON.stringify({ integrationAgentId: value.integrationAgentId, tasks: value.tasks.map((task) => ({
+            ...task,
+            dependencies: [...task.dependencies],
+            readScopes: [...task.readScopes],
+            writeScopes: [...task.writeScopes],
+            deliverables: [...task.deliverables],
+            validations: [...task.validations],
+        })) });
+}
 function determineApplicationGate(input, riskEligible, priorityFallback) {
     if (input.authorization.props.applyMode !== "automatic")
         return { code: "human_policy", message: "The run authorization requires human application." };

@@ -22,6 +22,8 @@ export class Feature {
     pipelineId;
     schemaVersion;
     documentContractVersion;
+    pipelineDefinitionVersion;
+    framingPlanRef;
     createdAt;
     updatedAt;
     constructor(props) {
@@ -31,7 +33,9 @@ export class Feature {
         this.root = props.root;
         this.pipelineId = props.pipelineId;
         this.schemaVersion = props.schemaVersion;
-        this.documentContractVersion = props.documentContractVersion ?? (props.schemaVersion === 4 ? 5 : 3);
+        this.documentContractVersion = props.documentContractVersion ?? (props.schemaVersion === 3 ? 3 : 5);
+        this.pipelineDefinitionVersion = props.pipelineDefinitionVersion ?? (props.schemaVersion === 5 ? "2.3" : "legacy-2.0");
+        this.framingPlanRef = props.framingPlanRef ?? null;
         this.createdAt = new Date(props.createdAt.getTime());
         this.updatedAt = new Date(props.updatedAt.getTime());
     }
@@ -43,12 +47,30 @@ export class Feature {
         Feature.validateName(props.name);
         Feature.validateRoot(props.root);
         Feature.validatePipelineId(props.pipelineId);
+        Feature.validateFramingContract(props);
         Feature.validateDate(props.createdAt, "createdAt");
         Feature.validateDate(props.updatedAt, "updatedAt");
         if (props.updatedAt.getTime() < props.createdAt.getTime()) {
             throw new InvalidFeatureOptionError("updatedAt", "must not be earlier than createdAt");
         }
         return new Feature(props);
+    }
+    static validateFramingContract(props) {
+        if (props.schemaVersion === 5) {
+            if (props.pipelineDefinitionVersion !== "2.3" || props.framingPlanRef === undefined) {
+                throw new InvalidFeatureOptionError("framingPlanRef", "schema v5 requires a published framing plan and pipeline definition 2.3");
+            }
+            if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/u.test(props.framingPlanRef.planId)
+                || !Number.isInteger(props.framingPlanRef.revision) || props.framingPlanRef.revision < 1
+                || !/^[a-f0-9]{64}$/u.test(props.framingPlanRef.fingerprint)
+                || !props.framingPlanRef.relativePath.startsWith(".arka-norn/plans/")) {
+                throw new InvalidFeatureOptionError("framingPlanRef", "must identify an exact published plan revision");
+            }
+            return;
+        }
+        if (props.framingPlanRef !== undefined || (props.pipelineDefinitionVersion !== undefined && props.pipelineDefinitionVersion !== "legacy-2.0")) {
+            throw new InvalidFeatureOptionError("pipelineDefinitionVersion", "legacy Feature markers cannot claim a 2.3 framing plan");
+        }
     }
     static validateName(name) {
         if (typeof name !== "string" || name.trim().length === 0) {
@@ -104,6 +126,8 @@ export class Feature {
             pipelineId: this.pipelineId,
             schemaVersion: this.schemaVersion,
             documentContractVersion: this.documentContractVersion,
+            pipelineDefinitionVersion: this.pipelineDefinitionVersion,
+            ...(this.framingPlanRef === null ? {} : { framingPlanRef: this.framingPlanRef }),
             createdAt: this.createdAt,
             updatedAt: this.updatedAt,
         };

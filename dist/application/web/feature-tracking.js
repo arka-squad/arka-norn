@@ -27,6 +27,7 @@ export async function createFeatureTrackingView(feature, report) {
         root: feature.root,
         projectId: feature.projectId.value,
         documentContractVersion: feature.documentContractVersion,
+        pipelineDefinitionVersion: feature.pipelineDefinitionVersion,
         steps: report.steps.map((step) => ({
             id: step.id,
             order: step.order,

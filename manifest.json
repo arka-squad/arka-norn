@@ -2,8 +2,8 @@
   "$schema": "manifest.json",
   "schemaVersion": 3,
   "name": "arka-norn",
-  "version": "2.3.1",
-  "description": "Local Project tracking for Features, Pipelines, signed documents, human governance, audits and observed orchestration runs.",
+  "version": "2.3.2",
+  "description": "Local live framing, Project tracking, signed evidence and auditable delivery orchestration.",
   "locales": {
     "canonical": "en",
     "supported": [
@@ -14,7 +14,7 @@
     "preference": "$ARKA_NORN_HOME/.arka-norn/preferences.json"
   },
   "domain": {
-    "relation": "Project -> Feature -> Pipeline -> Document/Run",
+    "relation": "Project -> Framing Plan -> Feature -> Lot -> Pipeline/Run",
     "projectMarker": ".arka-norn/project.json",
     "featureMarker": ".arka-norn/feature.json",
     "agentRegistry": ".arka-norn/agents.json",
@@ -23,6 +23,9 @@
   "contracts": {
     "pipeline": "pipeline.json",
     "pipelineCatalog": "pipelines/catalog.json",
+    "framingPlan": "schemas/framing-plan.schema.json",
+    "framingDelta": "schemas/framing-delta.schema.json",
+    "repositoryProbe": "schemas/repository-probe.schema.json",
     "essentialPipeline": "pipelines/arka-norn-essential.json",
     "fastdevPipeline": "pipelines/arka-norn-fastdev.json",
     "legacyContracts": "schemas/legacy/fr/",
@@ -49,6 +52,7 @@
     "locale": "arka-norn locale <show|set auto|en|fr>",
     "project": "arka-norn project <list|add|import|scan|show|use|forget|reconcile>",
     "feature": "arka-norn feature <list|create|import|scan|show|use|forget|reconcile|set-workflow>",
+    "framing": "arka-norn framing <enter|show|resume|list>",
     "agent": "arka-norn agent <list|register|show|current|use|sessions|advise|prompt|handoff-prompt|deactivate|replace>",
     "pipeline": "arka-norn pipeline <status|next|scaffold|validate>",
     "workflow": "arka-norn workflow <list|show>",

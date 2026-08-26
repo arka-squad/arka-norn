@@ -1,5 +1,33 @@
 # Changelog
 
+## 2.3.2 - 2026-08-26
+
+### Added
+
+- Added a live framing engine that starts from any folder and frames either a Project or a not-yet-materialized Feature.
+- Added deterministic `empty`, `skeleton`, `implemented` and `indeterminate` repository probes with content snapshots, exact inventories and explicit unsafe-state signals.
+- Added immutable framing events and revisions under `$ARKA_NORN_HOME`, atomic pointer reconstruction, revision-checked local deltas and expurgated resume packets.
+- Added Project-to-Feature and Feature-to-Lot decompositions, signed plan publication and exact v5 Feature references.
+- Added `framing enter|show|resume|list` plus private broker mutations for connected Agents.
+- Added Norn Web Plan, Evidence, Map and History views and a result-only “frame a new Feature” entry.
+
+### Changed
+
+- Framing now precedes delivery pipelines and contains exactly two human stabilizations: technical confrontation and final publication.
+- The primary Agent skill resumes from the live plan rather than a provider session and never audits an empty repository.
+- New v5 Features use the 2.3 Essential or Complete delivery definitions after an exact grounded publication; v4 Features keep their historical workflows.
+- Norn Web no longer requires the identity-to-workflow onboarding wizard before the user can enter the Product.
+
+### Security
+
+- Agent deltas cannot set authority, derived state, stabilizations or publication, and unknown contract fields are rejected.
+- Source facts require the current repository snapshot and `file:line`; absence claims require an inventory attestation.
+- Published plan divergence, scope escape, symlinks, submodules and silent worker profile fallback block downstream orchestration.
+
+### Distribution
+
+- Package and manifest versions are 2.3.2.
+
 ## 2.3.1 - 2026-08-26
 
 ### Fixed

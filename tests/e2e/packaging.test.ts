@@ -78,6 +78,8 @@ test("un consumer vierge installe le tarball sans node_modules du worktree", asy
   assert.ok(packagedPaths.includes("dist/composition/pipeline-runtime.js"));
   assert.ok(packagedPaths.includes("dist/adapters/inbound/cli/main-cli.js"));
   assert.ok(packagedPaths.includes("dist/composition/web-process-manager.js"));
+  assert.ok(packagedPaths.includes("dist/composition/framing-runtime.js"));
+  assert.ok(packagedPaths.includes("dist/adapters/outbound/filesystem/fs-framing-store.js"));
   assert.ok(packagedPaths.includes("dist/adapters/outbound/filesystem/fs-web-server-state-store.js"));
   assert.ok(packagedPaths.includes("dist/web/index.html"));
   assert.ok(packagedPaths.includes("skills-src/catalog/skills.json"));
@@ -86,11 +88,18 @@ test("un consumer vierge installe le tarball sans node_modules du worktree", asy
   assert.ok(packagedPaths.includes("skills-src/arka-essential.json"));
   assert.ok(packagedPaths.includes("pipelines/arka-norn-fastdev.json"));
   assert.ok(packagedPaths.includes("pipelines/arka-norn-essential.json"));
+  assert.ok(packagedPaths.includes("pipelines/arka-norn-essential-2.3.json"));
+  assert.ok(packagedPaths.includes("pipelines/arka-norn-complete-2.3.json"));
   assert.ok(packagedPaths.includes("schemas/feature-brief.schema.json"));
+  assert.ok(packagedPaths.includes("schemas/framing-plan.schema.json"));
+  assert.ok(packagedPaths.includes("schemas/framing-delta.schema.json"));
+  assert.ok(packagedPaths.includes("schemas/repository-probe.schema.json"));
   assert.ok(packagedPaths.includes("docs/essential.md"));
   assert.ok(packagedPaths.includes("docs/developer-guide.md"));
   assert.ok(packagedPaths.includes("docs/web.md"));
   assert.ok(packagedPaths.includes("docs/user-guide.md"));
+  assert.ok(packagedPaths.includes("docs/norn-framing-contract-proposal.md"));
+  assert.ok(packagedPaths.includes("docs/migration-2.3.2.md"));
   assert.equal(packagedPaths.some((file) => file.startsWith("tests/") || file.startsWith(".input/") || file.startsWith("src/") || file.endsWith(".docx")), false);
 
   const productionTree = runNpm(["ls", "--omit=dev", "--all", "--parseable"], { cwd: ROOT, encoding: "utf8" });

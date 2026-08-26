@@ -158,6 +158,27 @@ export function isFeatureMarkerV4(value) {
         && value.documentContractVersion === 5
         && hasOnlyKeys(value, ["schemaVersion", "id", "projectId", "name", "pipelineId", "documentContractVersion", "createdAt", "updatedAt"]);
 }
+export function isFeatureMarkerV5(value) {
+    return isRecord(value)
+        && value.schemaVersion === 5
+        && hasCommonPortableFields(value)
+        && isValidId(value.projectId)
+        && typeof value.pipelineId === "string"
+        && /^[a-z0-9][a-z0-9._-]{0,127}$/u.test(value.pipelineId)
+        && value.documentContractVersion === 5
+        && value.pipelineDefinitionVersion === "2.3"
+        && isFramingPlanRef(value.framingPlanRef)
+        && hasOnlyKeys(value, ["schemaVersion", "id", "projectId", "name", "pipelineId", "documentContractVersion", "pipelineDefinitionVersion", "framingPlanRef", "createdAt", "updatedAt"]);
+}
+function isFramingPlanRef(value) {
+    return isRecord(value)
+        && typeof value.planId === "string"
+        && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/u.test(value.planId)
+        && Number.isInteger(value.revision) && Number(value.revision) >= 1
+        && typeof value.fingerprint === "string" && /^[a-f0-9]{64}$/u.test(value.fingerprint)
+        && typeof value.relativePath === "string" && value.relativePath.startsWith(".arka-norn/plans/")
+        && hasOnlyKeys(value, ["planId", "revision", "fingerprint", "relativePath"]);
+}
 function unchanged(kind, version, output) {
     return { kind, fromVersion: version, toVersion: version, changed: false, output, warnings: [] };
 }
