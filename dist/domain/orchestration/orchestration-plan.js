@@ -199,7 +199,15 @@ function validateScopes(scopes, allowEmpty) {
 function safeScope(value) { return value === "." || (value.length <= 512 && !value.startsWith("/") && !value.includes("\\") && value.split("/").every((part) => part !== "" && part !== "." && part !== "..")); }
 function validateProfileRequirement(value) { if (value.transports.length === 0 || new Set(value.transports).size !== value.transports.length || value.transports.some((transport) => !isExecutionTransport(transport)) || value.capabilities.length === 0 || new Set(value.capabilities).size !== value.capabilities.length || value.capabilities.some((capability) => !["inspect_workspace", "modify_workspace", "run_commands", "read_pipeline"].includes(capability)))
     throw new TypeError("Task execution profile requirement is invalid."); }
-function safePath(value) { return value.startsWith("/") && value.length <= 2048 && !/[\u0000-\u001f\u007f]/u.test(value); }
+function safePath(value) {
+    if (value.length === 0 || value.length > 2048 || /[\u0000-\u001f\u007f]/u.test(value))
+        return false;
+    const normalized = value.replaceAll("\\", "/");
+    const rootLength = /^[A-Za-z]:\//u.test(normalized) ? 3 : normalized.startsWith("/") ? normalized.match(/^\/+/u)?.[0]?.length ?? 0 : 0;
+    if (rootLength === 0 || normalized.slice(rootLength).length === 0)
+        return false;
+    return normalized.slice(rootLength).split("/").every((part) => part !== "." && part !== "..");
+}
 function containsScope(parent, child) { return parent === "." || parent === child || child.startsWith(`${parent}/`); }
 function scopesOverlap(left, right) { return containsScope(left, right) || containsScope(right, left); }
 function uniqueIds(values, maximum) { return values.length <= maximum && new Set(values).size === values.length && values.every((value) => safeId(value, 100)); }

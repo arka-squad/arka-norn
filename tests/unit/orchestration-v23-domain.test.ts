@@ -109,6 +109,21 @@ test("une tentative réussie exige commit et preuve", () => {
   }));
 });
 
+test("une tentative accepte un worktree absolu Windows sans accepter un chemin relatif ou traversant", () => {
+  const base = {
+    schemaVersion: 1 as const,
+    id: "attempt-docs-1",
+    taskId: "docs",
+    profileId: "opencodex-zai",
+    status: "prepared" as const,
+    branch: "norn/campaign/docs",
+    proofReferences: [],
+  };
+  assert.equal(TaskAttempt.create({ ...base, worktree: "D:\\a\\_temp\\norn\\worktrees\\campaign\\docs" }).props.worktree, "D:\\a\\_temp\\norn\\worktrees\\campaign\\docs");
+  assert.throws(() => TaskAttempt.create({ ...base, worktree: "D:relative\\docs" }), /worktree or branch/u);
+  assert.throws(() => TaskAttempt.create({ ...base, worktree: "D:\\a\\..\\escape" }), /worktree or branch/u);
+});
+
 test("la projection événementielle ne compte comme terminées que les tâches réussies", () => {
   const events: CampaignEvent[] = [
     event(1, "campaign_planned"),
