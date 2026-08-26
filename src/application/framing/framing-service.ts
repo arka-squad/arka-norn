@@ -23,6 +23,7 @@ import type { ForFeatures } from "../../ports/inbound/for-features.js";
 import type { ForProjects } from "../../ports/inbound/for-projects.js";
 import type { FramingStore } from "../../ports/outbound/framing-store.js";
 import type { ProjectDraftStore } from "../../ports/outbound/project-draft-store.js";
+import type { ProjectPublicationStore } from "../../ports/outbound/project-publication-store.js";
 import type { RepositoryProbePort } from "../../ports/outbound/repository-probe.js";
 import { translate, type MessageKey } from "../localization/locale.js";
 
@@ -32,6 +33,7 @@ export interface FramingServiceDependencies {
   readonly projects: ForProjects;
   readonly features: ForFeatures;
   readonly projectDrafts: ProjectDraftStore;
+  readonly projectPublications: ProjectPublicationStore;
   readonly store: FramingStore;
   readonly repositoryProbe: RepositoryProbePort;
   readonly now?: () => Date;
@@ -216,37 +218,10 @@ export class FramingService implements ForFraming {
     if (observed.snapshot.workspaceFingerprint !== current.repositoryProbe.snapshot.workspaceFingerprint) {
       throw new Error("Repository changed after the grounded plan stabilization; publication is refused until a new confrontation is stabilized.");
     }
-    const published = await this.dependencies.store.publish({ projectRoot: project.root, plan: current });
-    if (context.draft !== null) {
-      await this.dependencies.projectDrafts.setMaterialization({
-        id: context.draft.id,
-        expectedRootFingerprint: context.draft.rootFingerprint,
-        materialization: "publishing",
-        now: this.now(),
-      });
-      try {
-        project = await this.dependencies.projects.create({
-          id: ProjectId.of(context.draft.id),
-          name: context.draft.name,
-          root: context.draft.root,
-          orchestrationMode: "manual",
-        });
-        await this.dependencies.projectDrafts.setMaterialization({
-          id: context.draft.id,
-          expectedRootFingerprint: context.draft.rootFingerprint,
-          materialization: "materialized",
-          now: this.now(),
-        });
-      } catch (error) {
-        await this.dependencies.projectDrafts.setMaterialization({
-          id: context.draft.id,
-          expectedRootFingerprint: context.draft.rootFingerprint,
-          materialization: "recovery_required",
-          now: this.now(),
-        }).catch(() => undefined);
-        throw error;
-      }
-    }
+    const published = context.draft === null
+      ? await this.dependencies.store.publish({ projectRoot: project.root, plan: current })
+      : await this.dependencies.projectPublications.publish({ draft: context.draft, plan: current, now: this.now() });
+    if (context.draft !== null) project = await this.dependencies.projects.importFrom({ root: context.draft.root });
     await this.materializeDirectFeature(project, current, published);
     const next = markFramingPublished(current, {
       revision: current.revision,

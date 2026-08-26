@@ -25,7 +25,7 @@ export interface DoctorCheck {
 
 export interface DoctorRepair {
   readonly target: string;
-  readonly action: "backup_and_reset" | "chmod_0600" | "remove_abandoned_lock";
+  readonly action: "backup_and_reset" | "chmod_0600" | "remove_abandoned_lock" | "recover_project_publication";
   readonly applied: boolean;
   readonly backupPath?: string;
 }

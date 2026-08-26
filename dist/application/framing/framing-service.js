@@ -185,38 +185,11 @@ export class FramingService {
         if (observed.snapshot.workspaceFingerprint !== current.repositoryProbe.snapshot.workspaceFingerprint) {
             throw new Error("Repository changed after the grounded plan stabilization; publication is refused until a new confrontation is stabilized.");
         }
-        const published = await this.dependencies.store.publish({ projectRoot: project.root, plan: current });
-        if (context.draft !== null) {
-            await this.dependencies.projectDrafts.setMaterialization({
-                id: context.draft.id,
-                expectedRootFingerprint: context.draft.rootFingerprint,
-                materialization: "publishing",
-                now: this.now(),
-            });
-            try {
-                project = await this.dependencies.projects.create({
-                    id: ProjectId.of(context.draft.id),
-                    name: context.draft.name,
-                    root: context.draft.root,
-                    orchestrationMode: "manual",
-                });
-                await this.dependencies.projectDrafts.setMaterialization({
-                    id: context.draft.id,
-                    expectedRootFingerprint: context.draft.rootFingerprint,
-                    materialization: "materialized",
-                    now: this.now(),
-                });
-            }
-            catch (error) {
-                await this.dependencies.projectDrafts.setMaterialization({
-                    id: context.draft.id,
-                    expectedRootFingerprint: context.draft.rootFingerprint,
-                    materialization: "recovery_required",
-                    now: this.now(),
-                }).catch(() => undefined);
-                throw error;
-            }
-        }
+        const published = context.draft === null
+            ? await this.dependencies.store.publish({ projectRoot: project.root, plan: current })
+            : await this.dependencies.projectPublications.publish({ draft: context.draft, plan: current, now: this.now() });
+        if (context.draft !== null)
+            project = await this.dependencies.projects.importFrom({ root: context.draft.root });
         await this.materializeDirectFeature(project, current, published);
         const next = markFramingPublished(current, {
             revision: current.revision,

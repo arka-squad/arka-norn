@@ -21,12 +21,25 @@ import { inspectFileLock, repairAbandonedFileLock } from "./_shared/file-lock.js
 import { isFeatureIndexFile, isIndexFile, isProjectIndexFile } from "./_shared/index-codec.js";
 import { FsAgentHealthInspector } from "./fs-agent-health-inspector.js";
 import { FsAuditTrail } from "./fs-audit-trail.js";
+import { FsFramingStore } from "./fs-framing-store.js";
+import { FsProjectDraftStore } from "./fs-project-draft-store.js";
+import { FsProjectIndexStore } from "./fs-project-index-store.js";
+import { FsProjectPublicationStore } from "./fs-project-publication-store.js";
 export class FsDoctor {
     home;
     agents;
+    publications;
     constructor(homeDir, targetDir) {
         this.home = homeDir;
         this.agents = new FsAgentHealthInspector(homeDir, targetDir);
+        const drafts = new FsProjectDraftStore(homeDir);
+        const framing = new FsFramingStore(homeDir);
+        this.publications = new FsProjectPublicationStore({
+            homeDir,
+            drafts,
+            framing,
+            projectIndex: new FsProjectIndexStore({ homeDir }),
+        });
     }
     async inspectIndex(kind, repair, apply) {
         const target = join(this.home, ".arka-norn", "index", `${kind}.json`);
@@ -60,7 +73,7 @@ export class FsDoctor {
         }
     }
     async inspectRuntime(repair, apply) {
-        const [projectMarkers, featureMarkers, agentRegistries, agentSession, projectContext, locks, audit] = await Promise.all([
+        const [projectMarkers, featureMarkers, agentRegistries, agentSession, projectContext, locks, audit, publications] = await Promise.all([
             this.inspectMarkers("projects"),
             this.inspectMarkers("features"),
             this.agents.inspectRegistries(),
@@ -68,8 +81,9 @@ export class FsDoctor {
             this.agents.inspectProjectContext(),
             this.inspectLocks(repair, apply),
             this.inspectAudit(),
+            this.inspectPublications(repair, apply),
         ]);
-        return [projectMarkers, featureMarkers, agentRegistries, agentSession, projectContext, ...locks, audit];
+        return [projectMarkers, featureMarkers, agentRegistries, agentSession, projectContext, ...locks, audit, ...publications];
     }
     async inspectMarkers(kind) {
         const target = join(this.home, ".arka-norn", "index", `${kind}.json`);
@@ -151,6 +165,47 @@ export class FsDoctor {
         const health = await new FsAuditTrail(this.home).inspect();
         return { check: { id: "audit.trail", status: health.ok ? "pass" : "fail", message: health.message, repairable: false } };
     }
+    async inspectPublications(repair, apply) {
+        const journals = await this.publications.list().catch((error) => error instanceof Error ? error : new Error(String(error)));
+        if (journals instanceof Error) {
+            return [{
+                    check: {
+                        id: "framing.publications",
+                        status: "fail",
+                        message: `publication journal unreadable: ${boundedMessage(journals)}`,
+                        repairable: false,
+                    },
+                }];
+        }
+        if (journals.length === 0) {
+            return [{ check: { id: "framing.publications", status: "pass", message: "no Project publication requires recovery", repairable: false } }];
+        }
+        return Promise.all(journals.map(async (journal) => {
+            let inspection = await this.publications.inspect(journal.projectId);
+            let applied = false;
+            if (!inspection.healthy && inspection.recoverable && repair && apply) {
+                await this.publications.recover(journal.projectId, new Date());
+                inspection = await this.publications.inspect(journal.projectId);
+                applied = inspection.healthy;
+            }
+            const repairable = !inspection.healthy && inspection.recoverable;
+            return {
+                check: {
+                    id: `framing.publication.${journal.projectId}`,
+                    status: inspection.healthy ? "pass" : "fail",
+                    message: inspection.message,
+                    repairable,
+                },
+                ...(!repair || !repairable && !applied ? {} : {
+                    repair: {
+                        target: join(this.home, ".arka-norn", "framing-projects", journal.projectId, "publication.json"),
+                        action: "recover_project_publication",
+                        applied,
+                    },
+                }),
+            };
+        }));
+    }
     async invalidIndex(kind, target, reason, repair, apply) {
         let backupPath;
         if (repair && apply) {
@@ -188,5 +243,8 @@ async function readJsonUnknown(path) {
 }
 function isNodeError(error, code) {
     return error instanceof Error && "code" in error && error.code === code;
+}
+function boundedMessage(error) {
+    return error.message.replace(/[\r\n\t]+/gu, " ").slice(0, 512) || "unknown publication journal error";
 }
 //# sourceMappingURL=fs-doctor.js.map

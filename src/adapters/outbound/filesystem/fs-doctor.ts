@@ -24,14 +24,27 @@ import { inspectFileLock, repairAbandonedFileLock } from "./_shared/file-lock.js
 import { isFeatureIndexFile, isIndexFile, isProjectIndexFile } from "./_shared/index-codec.js";
 import { FsAgentHealthInspector } from "./fs-agent-health-inspector.js";
 import { FsAuditTrail } from "./fs-audit-trail.js";
+import { FsFramingStore } from "./fs-framing-store.js";
+import { FsProjectDraftStore } from "./fs-project-draft-store.js";
+import { FsProjectIndexStore } from "./fs-project-index-store.js";
+import { FsProjectPublicationStore } from "./fs-project-publication-store.js";
 
 export class FsDoctor implements DoctorIndexInspector {
   private readonly home: string;
   private readonly agents: FsAgentHealthInspector;
+  private readonly publications: FsProjectPublicationStore;
 
   public constructor(homeDir: string, targetDir?: string) {
     this.home = homeDir;
     this.agents = new FsAgentHealthInspector(homeDir, targetDir);
+    const drafts = new FsProjectDraftStore(homeDir);
+    const framing = new FsFramingStore(homeDir);
+    this.publications = new FsProjectPublicationStore({
+      homeDir,
+      drafts,
+      framing,
+      projectIndex: new FsProjectIndexStore({ homeDir }),
+    });
   }
 
   public async inspectIndex(kind: "projects" | "features", repair: boolean, apply: boolean): Promise<IndexInspection> {
@@ -63,7 +76,7 @@ export class FsDoctor implements DoctorIndexInspector {
   }
 
   public async inspectRuntime(repair: boolean, apply: boolean): Promise<readonly IndexInspection[]> {
-    const [projectMarkers, featureMarkers, agentRegistries, agentSession, projectContext, locks, audit] = await Promise.all([
+    const [projectMarkers, featureMarkers, agentRegistries, agentSession, projectContext, locks, audit, publications] = await Promise.all([
       this.inspectMarkers("projects"),
       this.inspectMarkers("features"),
       this.agents.inspectRegistries(),
@@ -71,8 +84,9 @@ export class FsDoctor implements DoctorIndexInspector {
       this.agents.inspectProjectContext(),
       this.inspectLocks(repair, apply),
       this.inspectAudit(),
+      this.inspectPublications(repair, apply),
     ]);
-    return [projectMarkers, featureMarkers, agentRegistries, agentSession, projectContext, ...locks, audit];
+    return [projectMarkers, featureMarkers, agentRegistries, agentSession, projectContext, ...locks, audit, ...publications];
   }
 
   private async inspectMarkers(kind: "projects" | "features"): Promise<IndexInspection> {
@@ -156,6 +170,48 @@ export class FsDoctor implements DoctorIndexInspector {
     return { check: { id: "audit.trail", status: health.ok ? "pass" : "fail", message: health.message, repairable: false } };
   }
 
+  private async inspectPublications(repair: boolean, apply: boolean): Promise<readonly IndexInspection[]> {
+    const journals = await this.publications.list().catch((error: unknown) => error instanceof Error ? error : new Error(String(error)));
+    if (journals instanceof Error) {
+      return [{
+        check: {
+          id: "framing.publications",
+          status: "fail",
+          message: `publication journal unreadable: ${boundedMessage(journals)}`,
+          repairable: false,
+        },
+      }];
+    }
+    if (journals.length === 0) {
+      return [{ check: { id: "framing.publications", status: "pass", message: "no Project publication requires recovery", repairable: false } }];
+    }
+    return Promise.all(journals.map(async (journal) => {
+      let inspection = await this.publications.inspect(journal.projectId);
+      let applied = false;
+      if (!inspection.healthy && inspection.recoverable && repair && apply) {
+        await this.publications.recover(journal.projectId, new Date());
+        inspection = await this.publications.inspect(journal.projectId);
+        applied = inspection.healthy;
+      }
+      const repairable = !inspection.healthy && inspection.recoverable;
+      return {
+        check: {
+          id: `framing.publication.${journal.projectId}`,
+          status: inspection.healthy ? "pass" as const : "fail" as const,
+          message: inspection.message,
+          repairable,
+        },
+        ...(!repair || !repairable && !applied ? {} : {
+          repair: {
+            target: join(this.home, ".arka-norn", "framing-projects", journal.projectId, "publication.json"),
+            action: "recover_project_publication" as const,
+            applied,
+          },
+        }),
+      };
+    }));
+  }
+
   private async invalidIndex(kind: string, target: string, reason: string, repair: boolean, apply: boolean): Promise<IndexInspection> {
     let backupPath: string | undefined;
     if (repair && apply) {
@@ -195,4 +251,8 @@ async function readJsonUnknown(path: string): Promise<unknown> {
 
 function isNodeError(error: unknown, code: string): boolean {
   return error instanceof Error && "code" in error && error.code === code;
+}
+
+function boundedMessage(error: Error): string {
+  return error.message.replace(/[\r\n\t]+/gu, " ").slice(0, 512) || "unknown publication journal error";
 }
