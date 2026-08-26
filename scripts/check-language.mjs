@@ -13,6 +13,7 @@ const allowedPrefixes = [
   `schemas${sep}legacy${sep}fr${sep}`,
   `pipelines${sep}legacy${sep}fr${sep}`,
   `web${sep}src${sep}generated${sep}locales${sep}fr.ts`,
+  `docs${sep}legacy${sep}fr${sep}`,
 ];
 
 const frenchSignals = [

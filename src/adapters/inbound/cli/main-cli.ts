@@ -35,6 +35,7 @@ import { runAuditCommand } from "./audit-cli.js";
 import { extractGlobalOptions } from "./global-options.js";
 import { runLocaleCommand } from "./locale-cli.js";
 import { runWebCommand } from "./web-cli.js";
+import { runFramingCommand } from "./framing-cli.js";
 import { FsLocalePreferenceStore } from "../../outbound/filesystem/fs-locale-preference-store.js";
 import { resolveLocale, runWithLocale, translate } from "../../../application/localization/locale.js";
 import { jsonEnvelope, type CliDiagnostic } from "./cli-envelope.js";
@@ -101,6 +102,9 @@ async function runLocalizedCli(argv: readonly string[], homeDir: string, env: Re
         break;
       case "orchestration":
         result = await runOrchestrationCommand(rest, { homeDir, cwd: env.cwd, frameworkRoot: FRAMEWORK_ROOT, environment: process.env });
+        break;
+      case "framing":
+        result = await runFramingCommand(rest, { homeDir, cwd: env.cwd, frameworkRoot: FRAMEWORK_ROOT });
         break;
       case "pipeline":
         result = await runPipelineCommand(rest, pipelineContext);

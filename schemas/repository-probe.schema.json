@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "repository-probe.schema.json",
+  "title": "RepositoryProbe v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "projectId", "projectRoot", "scopePaths", "nature", "snapshot", "inventory", "inventoryFingerprint", "reasons", "observedAt"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "projectId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
+    "projectRoot": { "type": "string", "minLength": 1 },
+    "scopePaths": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+    "nature": { "enum": ["empty", "skeleton", "implemented", "indeterminate"] },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gitCommit", "workspaceFingerprint"],
+      "properties": {
+        "gitCommit": { "type": ["string", "null"], "pattern": "^[a-f0-9]{40,64}$" },
+        "workspaceFingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "inventory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["files", "sourceFiles", "testFiles", "manifestFiles", "constraintFiles", "symlinks", "submodules", "truncated", "ignoredRoots"],
+      "properties": {
+        "files": { "type": "integer", "minimum": 0 },
+        "sourceFiles": { "type": "integer", "minimum": 0 },
+        "testFiles": { "type": "integer", "minimum": 0 },
+        "manifestFiles": { "type": "integer", "minimum": 0 },
+        "constraintFiles": { "type": "integer", "minimum": 0 },
+        "symlinks": { "type": "integer", "minimum": 0 },
+        "submodules": { "type": "integer", "minimum": 0 },
+        "truncated": { "type": "boolean" },
+        "ignoredRoots": { "type": "array", "uniqueItems": true, "items": { "type": "string" } }
+      }
+    },
+    "inventoryFingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "reasons": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "evidenceRef"],
+        "properties": {
+          "code": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+          "evidenceRef": { "type": "string", "minLength": 1, "maxLength": 512 }
+        }
+      }
+    },
+    "observedAt": { "type": "string", "format": "date-time" }
+  }
+}

@@ -10,6 +10,7 @@ import { TUI_VIEW_MESSAGES_FR } from "./fr/tui-views.js";
 import { TUI_ORCHESTRATION_MESSAGES_FR } from "./fr/tui-orchestration.js";
 import { TUI_ACTION_MESSAGES_FR } from "./fr/tui-actions.js";
 import { WEB_MESSAGES_FR } from "./fr/web.js";
+import { FRAMING_MESSAGES_FR } from "./fr/framing.js";
 
 export const FR_MESSAGES: Readonly<Record<keyof typeof EN_MESSAGES, string>> = {
   ...COMMON_MESSAGES_FR,
@@ -23,4 +24,5 @@ export const FR_MESSAGES: Readonly<Record<keyof typeof EN_MESSAGES, string>> = {
   ...AUDIT_MESSAGES_FR,
   ...ORCHESTRATION_MESSAGES_FR,
   ...WEB_MESSAGES_FR,
+  ...FRAMING_MESSAGES_FR,
 };

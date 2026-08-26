@@ -120,15 +120,15 @@ test("scaffold refuse l'écrasement sans --force", (context) => {
   assert.equal(forced.status, 0, forced.stderr);
 });
 
-test("guide accompagne le parcours Project → Agent → Feature sans argument caché", () => {
+test("guide accompagne le cadrage vivant puis le passage explicite en livraison", () => {
   const guide = runCli(["guide"]);
   assert.equal(guide.status, 0, guide.stderr);
-  assert.match(guide.stdout, /Register the main Product identity/);
-  assert.match(guide.stdout, /agent current/);
+  assert.match(guide.stdout, /Enter or resume framing from the current directory/);
+  assert.match(guide.stdout, /exactly two stabilizations/);
+  assert.match(guide.stdout, /framing resume/);
+  assert.match(guide.stdout, /framing show/);
   assert.match(guide.stdout, /agent advise/);
-  assert.match(guide.stdout, /agent handoff-prompt/);
   assert.match(guide.stdout, /pipeline next/);
-  assert.match(guide.stdout, /Never guess/i);
   const agentHelp = runCli(["agent", "help"]);
   assert.equal(agentHelp.status, 0, agentHelp.stderr);
   assert.match(agentHelp.stdout, /agent replace/);

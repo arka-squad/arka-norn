@@ -70,10 +70,10 @@ test("install déploie réellement chaque skill dans un target et un home tempor
     resolve(home, ".codex", "skills", "arka-norn", "SKILL.md"),
   ]) {
     const content = readFileSync(globalNorn, "utf8");
-    assert.match(content, /locale show --json/, globalNorn);
-    assert.match(content, /content_locale/, globalNorn);
-    assert.match(content, /pipeline next <feature> --json/, globalNorn);
-    assert.match(content, /Do not execute a second phase/, globalNorn);
+    assert.match(content, /framing enter/, globalNorn);
+    assert.match(content, /framing resume/, globalNorn);
+    assert.match(content, /two stabilizations/, globalNorn);
+    assert.match(content, /Do not expose raw JSON/, globalNorn);
   }
 
   const healthy = spawnSync(process.execPath, [BIN, "skills", "doctor", "--target", target, "--profile", "all", "--global", "--json"], {

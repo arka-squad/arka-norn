@@ -1,0 +1,24 @@
+/*
+ * Copyright 2026 Arka Labs
+ * Licensed under the Apache License, Version 2.0
+ */
+
+import { FramingService } from "../application/framing/framing-service.js";
+import { FsFramingStore } from "../adapters/outbound/filesystem/fs-framing-store.js";
+import { FsRepositoryProbe } from "../adapters/outbound/filesystem/fs-repository-probe.js";
+import type { ForFraming } from "../ports/inbound/for-framing.js";
+
+import { createManagementRuntime } from "./management-runtime.js";
+
+export function createFramingRuntime(options: {
+  readonly homeDir: string;
+  readonly frameworkRoot?: string;
+}): ForFraming {
+  const management = createManagementRuntime(options);
+  return new FramingService({
+    projects: management.projects,
+    features: management.features,
+    store: new FsFramingStore(options.homeDir),
+    repositoryProbe: new FsRepositoryProbe(),
+  });
+}

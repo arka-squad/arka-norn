@@ -71,12 +71,16 @@ test("les skills audit, dev et QA générés portent un workflow exécutable san
   const concept = skill(target, "arka-framework-concept");
   const dev = skill(target, "arka-framework-development");
   const qa = skill(target, "arka-framework-qa-review");
-  for (const rendered of [audit, bootstrap, fastdev, product, concept, dev, qa]) {
+  for (const rendered of [audit, fastdev, product, concept, dev, qa]) {
     assert.match(rendered, /locale show --json/);
     assert.match(rendered, /content_locale/);
     assert.match(rendered, /(?:pipeline|essential|fastdev) next <feature>.*--json/);
     assert.match(rendered, /Do not execute a second phase/);
   }
+  assert.match(bootstrap, /framing enter/);
+  assert.match(bootstrap, /framing resume/);
+  assert.match(bootstrap, /two stabilizations/);
+  assert.match(bootstrap, /Do not expose raw JSON/);
   assert.match(dev, /development_report/);
   assert.match(qa, /qa_review/);
   assert.doesNotMatch(`${audit}${dev}${qa}`, /\/Users\/|À_REMPLIR|TO_FILL/);

@@ -14,7 +14,7 @@ const all = ["all"];
 const core = ["all", "core", "delivery", "product", "architecture", "audit", "dev", "qa"];
 
 const skills = [
-  skill("arka-norn", "Arka Norn bootstrap", "Initialize the Product Agent and verified Project context.", "core.bootstrap", core, "2.1.0"),
+  framingSkill(),
   skill("arka-audit", "Arka repository audit", "Run a transverse repository audit outside a Feature Pipeline.", "transversal.audit", ["all", "core", "product", "architecture", "audit"]),
   skill("arka-product", "Arka Product control", "Coordinate Product decisions, roles, prompts and handoffs.", "core.product", ["all", "core", "delivery", "product"], "2.1.0"),
   guided("arka-fastdev", "FastDev guided rework", "fastdev", "arka-norn-fastdev", ["rework_brief", "development_report", "delivery_audit", "delivery_validation"], ["all", "core", "delivery", "audit", "dev", "qa"]),
@@ -60,7 +60,7 @@ for (const config of skills) {
 
 const catalog = {
   schemaVersion: 2,
-  catalogVersion: "2.1.0",
+  catalogVersion: "2.3.2",
   profiles: {
     all: "21 skills: complete catalog",
     core: "10 bootstrap and Product control skills",
@@ -83,7 +83,20 @@ function guided(name, title, command, pipelineId, steps, profiles) {
   return { name, title, summary: `Execute exactly one calculated ${title} phase.`, step: `core.${command}`, profiles, version: "2.1.0", mode: "guided", command, pipelineId, steps };
 }
 
+function framingSkill() {
+  return {
+    name: "arka-norn",
+    title: "Arka Norn framing",
+    summary: "Enter or resume the live framing plan for a Project or Feature.",
+    step: "core.bootstrap",
+    profiles: core,
+    version: "2.3.2",
+    mode: "framing",
+  };
+}
+
 function definitionFor(config) {
+  if (config.mode === "framing") return framingDefinition(config);
   const useWhen = config.mode === "guided"
     ? `Use when a Feature uses ${config.pipelineId}, or when \`arka-norn ${config.command} next\` identifies the next phase.`
     : `Use when the verified Pipeline action or Product handoff assigns the ${config.step} responsibility.`;
@@ -117,6 +130,66 @@ function definitionFor(config) {
     ],
     procedure: procedureFor(config),
     outputFormat: "Report the verified Project, Feature, Agent/session, locale, executed phase, signed document, validation result, evidence and observed next command. Do not execute a second phase in the same invocation.",
+  };
+}
+
+function framingDefinition(config) {
+  return {
+    name: config.name,
+    repoTitle: config.title,
+    globalTitle: `Skill - ${config.title}`,
+    summary: config.summary,
+    useWhen: "Use when a user launches Norn from a folder, wants to define a Project, create a Feature, frame an outcome, or resume an interrupted framing.",
+    doNotUseWhen: "Do not start a legacy Pipeline or repository audit before the framing controller asks for technical confrontation.",
+    triggers: "Use from any current directory. A Feature, workflow, Agent identity and prior session are not prerequisites. English triggers include frame, create a feature, resume the project and launch Norn. French triggers include cadrer, créer une feature, reprendre le projet and lancer Norn.",
+    interface: {
+      displayName: "Arka Norn framing",
+      shortDescription: "Build and resume a live Project or Feature plan.",
+      defaultPrompt: "Use $arka-norn to enter or resume the live framing plan from the current directory.",
+    },
+    allowedTools: ["Read", "Bash", "Grep", "Glob"],
+    whenToUse: [
+      "The user wants to frame or resume a Project or Feature.",
+      "The current folder may be empty, skeletal, implemented or not initialized.",
+    ],
+    whenNotToUse: [
+      "A verified delivery Pipeline already assigns another exact phase.",
+      "The user only requests an unrelated read-only repository audit.",
+    ],
+    inputs: [
+      { required: false, name: "path", description: "Folder to enter; defaults to the current directory." },
+      { required: false, name: "feature", description: "Existing Feature id, only when the user explicitly refers to one." },
+      { required: false, name: "new_feature_title", description: "Working outcome title; this does not create a Feature." },
+    ],
+    inputNotes: "The live plan is the memory. Never require or reconstruct an old chat session. Never ask for an id, directory or workflow that Norn can calculate.",
+    references: [
+      "`{{FRAMEWORK_DIR}}/schemas/framing-plan.schema.json` - live plan contract",
+      "`{{FRAMEWORK_DIR}}/schemas/framing-delta.schema.json` - private broker delta contract",
+      "`{{FRAMEWORK_DIR}}/docs/norn-framing-contract-proposal.md` - framing method and authority rules",
+    ],
+    procedure: [
+      {
+        title: "Enter and restate",
+        content: "Run `arka-norn framing enter [path] --json`, adding `--feature <id>` or `--new-feature <working title>` only when the user's intent already distinguishes them. Restate what the current plan says and make every deduction visible and correctable.",
+      },
+      {
+        title: "Advance the live plan",
+        content: "While attention is `agent`, continue the conversation and submit only local `PlanDelta` operations through the private broker. Ask one open question only when continuing would invent human substance. Do not stop after a stored delta; report storage only after the returned revision confirms it.",
+      },
+      {
+        title: "Respect the two stabilizations",
+        content: "When attention becomes `human_stabilization`, explain what the stabilization authorizes and request it once. The first authorizes the repository probe and technical confrontation. The second binds the exact grounded revision, decomposition and selected delivery route. No document, worker or provider change adds another gate.",
+      },
+      {
+        title: "Ground by repository nature",
+        content: "For `empty`, design greenfield and never run an audit. For `skeleton`, read only manifests and constraints. For `implemented`, first read code structure and public surfaces without product intent, then confront the findings. A blind reader runs only through an explicitly selected enabled ExecutionProfile 2.3 after its exact preflight succeeds; never switch provider or model silently. If no isolated reader is available, return a recoverable failure or transport the expurgated resume packet instead of pretending the intent-aware Agent performed a blind read. For `indeterminate`, state reduced authority and recover observability. Source facts require snapshot plus file:line; absence claims require the inventory attestation.",
+      },
+      {
+        title: "Resume and hand off",
+        content: "Use `arka-norn framing resume [target] --json` whenever context changes. Transport the expurgated resume packet, never provider configuration or conversation verbatim. After the second stabilization, publish through the broker and follow the calculated delivery entry.",
+      },
+    ],
+    outputFormat: "Keep the user's result, current understanding, visible deductions and immediate next move in view. Do not expose raw JSON or enum labels as primary prose. Report revision and fingerprint when a stabilization or publication depends on them.",
   };
 }
 

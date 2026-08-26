@@ -91,7 +91,8 @@ test("every definition is English, locale-aware and constrained to one verified 
     assert.ok(definition.outputFormat.length > 10);
   }
   const byName = new Map(definitions.map((definition) => [definition.name, JSON.stringify(definition)]));
-  for (const content of byName.values()) {
+  for (const [name, content] of byName) {
+    if (name === "arka-norn") continue;
     assert.match(content, /locale show --json/);
     assert.match(content, /content_locale/);
     assert.match(content, /(?:pipeline|essential|fastdev) next.*--json/);
@@ -101,6 +102,9 @@ test("every definition is English, locale-aware and constrained to one verified 
   assert.match(byName.get("arka-essential") ?? "", /feature_brief/);
   assert.match(byName.get("arka-framework-development") ?? "", /development_report/);
   assert.match(byName.get("arka-framework-qa-review") ?? "", /qa_review/);
+  assert.match(byName.get("arka-norn") ?? "", /framing enter/);
+  assert.match(byName.get("arka-norn") ?? "", /PlanDelta/);
+  assert.match(byName.get("arka-norn") ?? "", /two stabilizations/);
 });
 
 test("le catalogue reste vérifiable après une conversion Git en CRLF", (context) => {
@@ -132,20 +136,20 @@ test("les rendus Agents ont un frontmatter YAML sûr et une description UI born�
     assert.match(JSON.parse(defaultLine.slice("  default_prompt: ".length)) as string, new RegExp(`\\$${definition.name}`));
     assert.match(runtime.renderGlobalSkillMd(definition), new RegExp(`version: ${definition.catalog.version.replaceAll(".", "\\.")}`));
   }
-  assert.match(runtime.renderOpenaiYaml(runtime.definitions.find((definition) => definition.name === "arka-norn")!), /Arka Norn bootstrap/);
+  assert.match(runtime.renderOpenaiYaml(runtime.definitions.find((definition) => definition.name === "arka-norn")!), /Arka Norn framing/);
 });
 
-test("the global arka-norn rendering uses the canonical locale-aware phase gate", () => {
+test("the global arka-norn rendering uses the canonical live framing journey", () => {
   const runtime = createSkillCatalogRuntime(ROOT);
   const definition = runtime.definitions.find((item) => item.name === "arka-norn");
   assert.ok(definition);
   const rendered = runtime.renderGlobalSkillMd(definition);
 
-  assert.match(rendered, /locale show --json/);
-  assert.match(rendered, /Machine-readable CLI data is the source of truth/);
-  assert.match(rendered, /pipeline next <feature> --json/);
-  assert.match(rendered, /signed and mechanically validated artifact/);
-  assert.match(rendered, /Do not execute a second phase/);
+  assert.match(rendered, /framing enter/);
+  assert.match(rendered, /framing resume/);
+  assert.match(rendered, /two stabilizations/);
+  assert.match(rendered, /never provider configuration or conversation verbatim/);
+  assert.match(rendered, /Do not expose raw JSON/);
 });
 
 test("the global Product rendering preserves Product bootstrap and isolates specialist orchestration", () => {

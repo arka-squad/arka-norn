@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "framing-plan.schema.json",
+  "title": "FramingPlan v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "target", "revision", "previousRevision", "contentLocale", "knowledge", "repositoryProbe", "decomposition", "stabilizations", "publication", "derivedState", "createdAt", "updatedAt"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "$ref": "#/$defs/id" },
+    "target": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "projectId", "framingId"],
+          "properties": {
+            "kind": { "const": "project" },
+            "projectId": { "$ref": "#/$defs/projectId" },
+            "framingId": { "$ref": "#/$defs/id" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "projectId", "framingId", "origin", "featureId", "workingTitle"],
+          "properties": {
+            "kind": { "const": "feature" },
+            "projectId": { "$ref": "#/$defs/projectId" },
+            "framingId": { "$ref": "#/$defs/id" },
+            "origin": { "enum": ["existing", "new"] },
+            "featureId": { "type": ["string", "null"], "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
+            "workingTitle": { "type": "string", "minLength": 1, "maxLength": 256 }
+          }
+        }
+      ]
+    },
+    "revision": { "type": "integer", "minimum": 1 },
+    "previousRevision": { "type": ["integer", "null"], "minimum": 1 },
+    "contentLocale": { "enum": ["en", "fr"] },
+    "knowledge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "intent.definition", "intent.problem", "intent.desired_effects", "intent.non_negotiable_rules",
+        "intent.exact_objective", "intent.capabilities", "intent.included", "intent.excluded",
+        "intent.behaviors", "decisions", "evidence.claims", "solution.context", "solution.reuse",
+        "solution.design", "solution.risks"
+      ],
+      "properties": {
+        "intent.definition": { "$ref": "#/$defs/knowledgeList" },
+        "intent.problem": { "$ref": "#/$defs/knowledgeList" },
+        "intent.desired_effects": { "$ref": "#/$defs/knowledgeList" },
+        "intent.non_negotiable_rules": { "$ref": "#/$defs/knowledgeList" },
+        "intent.exact_objective": { "$ref": "#/$defs/knowledgeList" },
+        "intent.capabilities": { "$ref": "#/$defs/knowledgeList" },
+        "intent.included": { "$ref": "#/$defs/knowledgeList" },
+        "intent.excluded": { "$ref": "#/$defs/knowledgeList" },
+        "intent.behaviors": { "$ref": "#/$defs/knowledgeList" },
+        "decisions": { "$ref": "#/$defs/knowledgeList" },
+        "evidence.claims": { "$ref": "#/$defs/knowledgeList" },
+        "solution.context": { "$ref": "#/$defs/knowledgeList" },
+        "solution.reuse": { "$ref": "#/$defs/knowledgeList" },
+        "solution.design": { "$ref": "#/$defs/knowledgeList" },
+        "solution.risks": { "$ref": "#/$defs/knowledgeList" }
+      }
+    },
+    "repositoryProbe": { "$ref": "repository-probe.schema.json" },
+    "decomposition": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "framing-delta.schema.json#/$defs/decomposition" }
+      ]
+    },
+    "stabilizations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["intent", "groundedPlan"],
+      "properties": {
+        "intent": { "$ref": "#/$defs/nullableStabilization" },
+        "groundedPlan": { "$ref": "#/$defs/nullableStabilization" }
+      }
+    },
+    "publication": { "$ref": "#/$defs/nullablePublication" },
+    "derivedState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repositoryNature", "productClarity", "grounding", "planAuthority", "recommendedPipelineId", "nextAction"],
+      "properties": {
+        "repositoryNature": { "enum": ["empty", "skeleton", "implemented", "indeterminate"] },
+        "productClarity": { "enum": ["emerging", "stabilized"] },
+        "grounding": { "enum": ["not_applicable", "pending", "in_progress", "complete", "degraded"] },
+        "planAuthority": { "enum": ["conversational", "intent_stabilized", "grounded", "consumable", "degraded"] },
+        "recommendedPipelineId": { "type": ["string", "null"], "enum": ["arka-norn-essential-2.3", "arka-norn-complete-2.3", null] },
+        "nextAction": { "$ref": "#/$defs/action" }
+      }
+    },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$" },
+    "projectId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" },
+    "knowledgeList": { "type": "array", "items": { "$ref": "#/$defs/knowledge" } },
+    "knowledge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "statement", "provenance", "status", "introducedInRevision", "supersededInRevision", "supersededBy"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "statement": { "type": "string", "minLength": 1, "maxLength": 4000 },
+        "provenance": { "$ref": "framing-delta.schema.json#/$defs/provenance" },
+        "status": { "enum": ["active", "superseded"] },
+        "introducedInRevision": { "type": "integer", "minimum": 1 },
+        "supersededInRevision": { "type": ["integer", "null"], "minimum": 1 },
+        "supersededBy": { "type": ["string", "null"] },
+        "blocksProgress": { "type": "boolean" },
+        "dependsOn": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/id" } }
+      }
+    },
+    "nullableStabilization": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "revision", "fingerprint", "actorId", "confirmedAt"],
+          "properties": {
+            "kind": { "enum": ["intent", "grounded_plan"] },
+            "revision": { "type": "integer", "minimum": 1 },
+            "fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+            "actorId": { "$ref": "#/$defs/id" },
+            "confirmedAt": { "type": "string", "format": "date-time" }
+          }
+        }
+      ]
+    },
+    "nullablePublication": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["revision", "fingerprint", "relativePath", "publishedAt"],
+          "properties": {
+            "revision": { "type": "integer", "minimum": 1 },
+            "fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+            "relativePath": { "type": "string", "pattern": "^\\.arka-norn/plans/" },
+            "publishedAt": { "type": "string", "format": "date-time" }
+          }
+        }
+      ]
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "attention", "humanSummary"],
+      "properties": {
+        "kind": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "attention": { "enum": ["agent", "human_substance", "human_stabilization", "worker", "complete", "recoverable_failure"] },
+        "humanSummary": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "workerRole": { "enum": ["technical_reader", "technical_designer"] }
+      }
+    }
+  }
+}

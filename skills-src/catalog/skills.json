@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "catalogVersion": "2.1.0",
+  "catalogVersion": "2.3.2",
   "profiles": {
     "all": "21 skills: complete catalog",
     "core": "10 bootstrap and Product control skills",
@@ -14,9 +14,9 @@
   "skills": [
     {
       "name": "arka-norn",
-      "version": "2.1.0",
+      "version": "2.3.2",
       "source": "arka-norn.json",
-      "checksum": "bd34becc6e57e69c5eda1e3e4a6cae236bacb376660e7d126d2168f0160124ff",
+      "checksum": "259c765ae7e66ee11e8a901ede4d99892144ab92d8c6b580b02a3f9608cc9395",
       "step": "core.bootstrap",
       "profiles": [
         "all",

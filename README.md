@@ -2,7 +2,7 @@
 
 arka.norn is a local Project tracking and delivery framework for Features, signed documents, human decisions, evidence and auditable workflows. `arka-norn` is its command. It provides a Project manager Web interface, an interactive TUI and a scriptable CLI without making an external SaaS the source of truth.
 
-Version 2.3 replaces automatic orchestration with a confirmed task DAG: one Agent identity, execution profile, branch, private Git worktree, scope and evidence set per task. Legacy 2.2 campaigns are inspection-only, while manual Project workflows remain available. English remains canonical for contracts and machine data.
+Version 2.3.2 adds a live framing engine before delivery. The same resumable plan frames a Project into Feature candidates or a Feature into Lots, then hands one exact signed revision to the 2.3 delivery DAG. Legacy 2.2 campaigns are inspection-only, while existing v4 Features keep their historical workflows. English remains canonical for contracts and machine data.
 
 ## Requirements
 
@@ -27,6 +27,25 @@ Open the cockpit:
 node bin/arka-norn.mjs
 ```
 
+## Live framing
+
+Start from the current folder. A Feature, workflow, Agent identity and previous chat session are not entry requirements.
+
+```bash
+arka-norn framing enter .
+arka-norn framing enter . --new-feature "The outcome to deliver"
+arka-norn framing show --view plan
+arka-norn framing show --view evidence
+arka-norn framing show --view map
+arka-norn framing resume
+```
+
+The connected Agent updates the plan through bounded local deltas while the public CLI and Web interface expose human projections. The plan, not the chat, is the recovery source. Work in progress remains under `$ARKA_NORN_HOME/framing`; only a twice-stabilized signed revision is published under the Project's `.arka-norn/plans` directory.
+
+There are exactly two human stabilizations. The first authorizes repository grounding. The second binds publication, decomposition and the calculated delivery route. An empty repository is never audited: it moves to explicitly greenfield design. Implemented code receives an intent-blind structural reading before targeted confrontation.
+
+Project plans produce Feature candidates without creating them in bulk. Feature plans produce bounded Lots with scopes, dependencies and functional, UX, code and security proofs. A directly framed new Feature is materialized only after publication.
+
 Open Project tracking in the browser:
 
 ```bash
@@ -40,11 +59,11 @@ node bin/arka-norn.mjs web stop
 
 From a source checkout, the equivalent shortcuts are `npm run web:start`, `npm run web:status`, `npm run web:restart` and `npm run web:stop`.
 
-The Web interface presents Project health, Feature paths, every signed document in a human layout, decisions, audits, registered Agents and live Norn orchestration state. New users follow four guided steps: local identity, existing Project, first Feature and verified summary. It remains read-only for orchestration. The CLI owns profile registration, preview, run authorization, recovery and application; the TUI cannot relaunch quarantined 2.2 campaigns.
+The Web interface presents Project health, active framing, Feature paths, signed documents, decisions, audits, registered Agents and live Norn orchestration state. A Project prioritizes its current framing card; Plan, Evidence, Map and History remain available after a provider or session change. Starting a new Feature asks only for its expected outcome. The CLI owns profile registration, preview, run authorization, recovery and application; the TUI cannot relaunch quarantined 2.2 campaigns.
 
 Its interface uses the official Arka Labs mark, compact Project rail, product surfaces, Poppins and JetBrains Mono in both dark and light themes. Light sand is reserved for layout chrome while working content remains white; primary commands stay neutral and Arka red identifies the product. Signed documents are grouped by Feature and Pipeline order, retain replaced revisions, and receive an editorial EN/FR reading view with a contract-derived header, navigable dependencies and human-readable provenance. Read-only technical JSON remains available through progressive disclosure.
 
-Project and Feature creation are guided for non-developers. Folder locations use the operating system's native picker instead of editable path fields, while generated identifiers and advanced technical values stay out of the primary flow.
+Project entry and Feature framing are guided for non-developers. Generated identifiers, folder choices, workflows and advanced technical values stay out of the primary framing flow.
 
 ## Safe automatic orchestration
 
@@ -88,8 +107,10 @@ Machine JSON always uses canonical English values. Only its `display` block vari
 
 | Workflow | Use it for | Required path |
 | --- | --- | --- |
-| Essential | New, well-understood Features. This is the default. | `feature_brief -> development_report -> delivery_audit -> delivery_validation` |
-| Complete | Uncertain scope, new architecture, critical migrations or broad contracts. | Concept, plan, evidence, invariants, tasks, specification, delivery and QA |
+| Essential 2.3 | New grounded Features with bounded Lots. | `development_report -> delivery_audit -> delivery_validation` |
+| Complete 2.3 | Grounded higher-risk Features whose downstream consumers require technical artifacts. | Required technical contracts, delivery, audit and validation |
+| Essential legacy | Existing well-understood v4 Features. | `feature_brief -> development_report -> delivery_audit -> delivery_validation` |
+| Complete legacy | Existing v4 Features with the historical full document chain. | Concept, plan, evidence, invariants, tasks, specification, delivery and QA |
 | FastDev | Small, bounded corrections and refactors. | `rework_brief -> development_report -> delivery_audit -> delivery_validation` |
 
 `technical_contract_appendix` is optional in Essential. Delivery audits can require a corrective `development_report`; validation always targets the latest report.
@@ -103,16 +124,17 @@ arka-norn essential next <feature-id> --session <session-id> --json
 
 Deprecated aliases `standard` and `essentiel` remain accepted with warnings throughout 2.x. Existing legacy Features continue on their French v3 contract until explicitly migrated.
 
-## Verified Flow
+## Verified flow
 
 ```bash
-arka-norn project add /workspace/product --id product --orchestration-mode manual
-arka-norn agent register --project product --provider "Codex CLI" --role product --session main
-arka-norn feature create "Filter Features" --project product
+cd /workspace/product
+arka-norn framing enter . --new-feature "Filter Features by status"
+arka-norn framing resume
+arka-norn framing show --view plan
+
+# After the connected Agent obtains the second stabilization and publishes:
 arka-norn agent advise --project product --feature filter-features
 arka-norn pipeline next filter-features --json
-arka-norn pipeline scaffold feature_brief --feature filter-features --session main
-arka-norn pipeline validate filter-features --document feature_brief.json --json
 ```
 
 A v5 document uses English field names and declares the prose locale:
@@ -141,6 +163,8 @@ arka-norn migrate --target /workspace/product/feature --apply
 ```
 
 Migration validates the whole Feature first, creates backups, preserves identity and graph relations, translates fields and enums, records the source version and SHA-256, and commits the marker last. Unknown, mixed or ambiguous contracts stop the entire operation. Repeating a successful migration is a no-op.
+
+Framing does not silently migrate existing Feature markers. Marker v4 remains on its historical pipeline; marker v5 requires `pipelineDefinitionVersion: 2.3` and an exact `framingPlanRef`. See [Migration to live framing](docs/migration-2.3.2.md).
 
 ## JSON API
 
@@ -182,6 +206,9 @@ Scripts must depend on `data`, stable diagnostic codes and parameters, never on 
 - [Architecture](docs/architecture.md)
 - [Security](docs/security.md)
 - [Troubleshooting](docs/troubleshooting.md)
+- [Live framing contract](docs/norn-framing-contract-proposal.md)
+- [Framing Product and UX method](docs/norn-framing-method-research.md)
+- [Migration to live framing](docs/migration-2.3.2.md)
 
 Canonical examples are under `examples/feature-complete`, `examples/feature-essential`, `examples/feature-fastdev` and `examples/project-audit-v5`.
 

@@ -1,15 +1,15 @@
 {
   "name": "arka-norn",
-  "repoTitle": "Arka Norn bootstrap",
-  "globalTitle": "Skill - Arka Norn bootstrap",
-  "summary": "Initialize the Product Agent and verified Project context.",
-  "useWhen": "Use when the verified Pipeline action or Product handoff assigns the core.bootstrap responsibility.",
-  "doNotUseWhen": "Do not use for a different calculated phase, an unverified Agent scope, or to bypass schema and business validation.",
-  "triggers": "Use when the verified Pipeline action or Product handoff assigns the core.bootstrap responsibility. English triggers include \"continue the Feature\" and \"run the next phase\". French triggers include \"continuer la Feature\" and \"exécuter la prochaine étape\". Resolve locale, Project, Feature, Agent and phase through the CLI before acting.",
+  "repoTitle": "Arka Norn framing",
+  "globalTitle": "Skill - Arka Norn framing",
+  "summary": "Enter or resume the live framing plan for a Project or Feature.",
+  "useWhen": "Use when a user launches Norn from a folder, wants to define a Project, create a Feature, frame an outcome, or resume an interrupted framing.",
+  "doNotUseWhen": "Do not start a legacy Pipeline or repository audit before the framing controller asks for technical confrontation.",
+  "triggers": "Use from any current directory. A Feature, workflow, Agent identity and prior session are not prerequisites. English triggers include frame, create a feature, resume the project and launch Norn. French triggers include cadrer, créer une feature, reprendre le projet and lancer Norn.",
   "interface": {
-    "displayName": "Arka Norn bootstrap",
-    "shortDescription": "Initialize the Product Agent and verified Project context.",
-    "defaultPrompt": "Use $arka-norn to execute only the currently calculated phase."
+    "displayName": "Arka Norn framing",
+    "shortDescription": "Build and resume a live Project or Feature plan.",
+    "defaultPrompt": "Use $arka-norn to enter or resume the live framing plan from the current directory."
   },
   "allowedTools": [
     "Read",
@@ -18,53 +18,57 @@
     "Glob"
   ],
   "whenToUse": [
-    "Use when the verified Pipeline action or Product handoff assigns the core.bootstrap responsibility.",
-    "The work must produce one signed and mechanically validated artifact."
+    "The user wants to frame or resume a Project or Feature.",
+    "The current folder may be empty, skeletal, implemented or not initialized."
   ],
   "whenNotToUse": [
-    "Do not use for a different calculated phase, an unverified Agent scope, or to bypass schema and business validation.",
-    "The current Agent identity or session cannot be verified."
+    "A verified delivery Pipeline already assigns another exact phase.",
+    "The user only requests an unrelated read-only repository audit."
   ],
   "inputs": [
     {
-      "required": true,
-      "name": "feature",
-      "description": "Exact managed Feature identifier."
-    },
-    {
-      "required": true,
-      "name": "session_id",
-      "description": "Specialized Agent session supplied by Product control."
+      "required": false,
+      "name": "path",
+      "description": "Folder to enter; defaults to the current directory."
     },
     {
       "required": false,
-      "name": "agent_id",
-      "description": "Explicit active identity; otherwise use the Project session binding."
+      "name": "feature",
+      "description": "Existing Feature id, only when the user explicitly refers to one."
+    },
+    {
+      "required": false,
+      "name": "new_feature_title",
+      "description": "Working outcome title; this does not create a Feature."
     }
   ],
-  "inputNotes": "Never infer the phase from filenames. Machine-readable CLI data is the source of truth.",
+  "inputNotes": "The live plan is the memory. Never require or reconstruct an old chat session. Never ask for an id, directory or workflow that Norn can calculate.",
   "references": [
-    "`{{FRAMEWORK_DIR}}/docs/agent-guide.md` - Agent protocol and locale behavior",
-    "`{{FRAMEWORK_DIR}}/schemas/` - canonical v5 document contracts",
-    "`{{FRAMEWORK_DIR}}/pipelines/catalog.json` - canonical workflow catalog"
+    "`{{FRAMEWORK_DIR}}/schemas/framing-plan.schema.json` - live plan contract",
+    "`{{FRAMEWORK_DIR}}/schemas/framing-delta.schema.json` - private broker delta contract",
+    "`{{FRAMEWORK_DIR}}/docs/norn-framing-contract-proposal.md` - framing method and authority rules"
   ],
   "procedure": [
     {
-      "title": "Resolve locale and verified context",
-      "content": "Run `arka-norn locale show --json`, `feature show`, `agent current` and `agent sessions`. Reply in the active display locale. Keep contract keys in English and set `content_locale` to the prose locale."
+      "title": "Enter and restate",
+      "content": "Run `arka-norn framing enter [path] --json`, adding `--feature <id>` or `--new-feature <working title>` only when the user's intent already distinguishes them. Restate what the current plan says and make every deduction visible and correctable."
     },
     {
-      "title": "Read one calculated action",
-      "content": "Run `arka-norn pipeline next <feature> --json`. Use its stable codes, parameters, expected artifact and suggested command without guessing from display prose. Stop if the action is null."
+      "title": "Advance the live plan",
+      "content": "While attention is `agent`, continue the conversation and submit only local `PlanDelta` operations through the private broker. Ask one open question only when continuing would invent human substance. Do not stop after a stored delta; report storage only after the returned revision confirms it."
     },
     {
-      "title": "Produce the bounded artifact",
-      "content": "Execute only the proposed scaffold command. Replace every sentinel, preserve the specialized session, satisfy code, functional, UX and security evidence where applicable, and never modify another documentary phase."
+      "title": "Respect the two stabilizations",
+      "content": "When attention becomes `human_stabilization`, explain what the stabilization authorizes and request it once. The first authorizes the repository probe and technical confrontation. The second binds the exact grounded revision, decomposition and selected delivery route. No document, worker or provider change adds another gate."
     },
     {
-      "title": "Validate and stop",
-      "content": "Run `arka-norn pipeline validate <feature> --document <file> --json`, then rerun `arka-norn pipeline next <feature> --json` only to observe the transition. Report the next action without executing it."
+      "title": "Ground by repository nature",
+      "content": "For `empty`, design greenfield and never run an audit. For `skeleton`, read only manifests and constraints. For `implemented`, first read code structure and public surfaces without product intent, then confront the findings. A blind reader runs only through an explicitly selected enabled ExecutionProfile 2.3 after its exact preflight succeeds; never switch provider or model silently. If no isolated reader is available, return a recoverable failure or transport the expurgated resume packet instead of pretending the intent-aware Agent performed a blind read. For `indeterminate`, state reduced authority and recover observability. Source facts require snapshot plus file:line; absence claims require the inventory attestation."
+    },
+    {
+      "title": "Resume and hand off",
+      "content": "Use `arka-norn framing resume [target] --json` whenever context changes. Transport the expurgated resume packet, never provider configuration or conversation verbatim. After the second stabilization, publish through the broker and follow the calculated delivery entry."
     }
   ],
-  "outputFormat": "Report the verified Project, Feature, Agent/session, locale, executed phase, signed document, validation result, evidence and observed next command. Do not execute a second phase in the same invocation."
+  "outputFormat": "Keep the user's result, current understanding, visible deductions and immediate next move in view. Do not expose raw JSON or enum labels as primary prose. Report revision and fingerprint when a stabilization or publication depends on them."
 }

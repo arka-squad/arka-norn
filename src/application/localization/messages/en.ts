@@ -9,6 +9,7 @@ import { TUI_VIEW_MESSAGES } from "./en/tui-views.js";
 import { TUI_ORCHESTRATION_MESSAGES } from "./en/tui-orchestration.js";
 import { TUI_ACTION_MESSAGES } from "./en/tui-actions.js";
 import { WEB_MESSAGES } from "./en/web.js";
+import { FRAMING_MESSAGES } from "./en/framing.js";
 
 export const EN_MESSAGES = {
   ...COMMON_MESSAGES,
@@ -22,4 +23,5 @@ export const EN_MESSAGES = {
   ...AUDIT_MESSAGES,
   ...ORCHESTRATION_MESSAGES,
   ...WEB_MESSAGES,
+  ...FRAMING_MESSAGES,
 } as const;

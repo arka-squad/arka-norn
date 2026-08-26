@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "framing-resume-packet.schema.json",
+  "title": "FramingResumePacket v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "planId", "target", "revision", "summary", "nextAction", "fingerprint", "expiresOnRevisionChange"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "planId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$" },
+    "target": { "$ref": "framing-plan.schema.json#/properties/target" },
+    "revision": { "type": "integer", "minimum": 1 },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 4000 },
+    "nextAction": { "$ref": "framing-plan.schema.json#/$defs/action" },
+    "fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "expiresOnRevisionChange": { "const": true }
+  }
+}

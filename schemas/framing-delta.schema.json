@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "framing-delta.schema.json",
+  "title": "PlanDelta v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "planId", "baseRevision", "operations", "reason"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "planId": { "$ref": "#/$defs/id" },
+    "baseRevision": { "type": "integer", "minimum": 1 },
+    "reason": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["op", "section", "value"],
+            "properties": {
+              "op": { "const": "upsert_knowledge" },
+              "section": { "$ref": "#/$defs/section" },
+              "value": { "$ref": "#/$defs/knowledgeInput" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["op", "section", "id", "supersededBy"],
+            "properties": {
+              "op": { "const": "supersede_knowledge" },
+              "section": { "$ref": "#/$defs/section" },
+              "id": { "$ref": "#/$defs/id" },
+              "supersededBy": { "$ref": "#/$defs/id" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["op", "value"],
+            "properties": {
+              "op": { "const": "record_probe" },
+              "value": { "$ref": "repository-probe.schema.json" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["op", "id", "supersededBy"],
+            "properties": {
+              "op": { "const": "invalidate_evidence" },
+              "id": { "$ref": "#/$defs/id" },
+              "supersededBy": { "$ref": "#/$defs/id" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["op", "value"],
+            "properties": {
+              "op": { "const": "propose_decomposition" },
+              "value": { "$ref": "#/$defs/decomposition" }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$" },
+    "section": {
+      "enum": [
+        "intent.definition", "intent.problem", "intent.desired_effects", "intent.non_negotiable_rules",
+        "intent.exact_objective", "intent.capabilities", "intent.included", "intent.excluded",
+        "intent.behaviors", "decisions", "evidence.claims", "solution.context", "solution.reuse",
+        "solution.design", "solution.risks"
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "reference"],
+      "properties": {
+        "kind": { "enum": ["human_decision", "agent_deduction", "source_fact", "inventory_fact", "technical_design", "recommendation", "open"] },
+        "reference": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "snapshotFingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "path": { "type": "string", "minLength": 1 },
+        "lineStart": { "type": "integer", "minimum": 1 },
+        "lineEnd": { "type": "integer", "minimum": 1 },
+        "inventoryFingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "knowledgeInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "statement", "provenance"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "statement": { "type": "string", "minLength": 1, "maxLength": 4000 },
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "blocksProgress": { "type": "boolean" },
+        "dependsOn": { "$ref": "#/$defs/idArray" }
+      }
+    },
+    "decomposition": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "features"],
+          "properties": {
+            "kind": { "const": "project_features" },
+            "features": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/featureCandidate" } }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "lots"],
+          "properties": {
+            "kind": { "const": "feature_lots" },
+            "lots": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/lot" } }
+          }
+        }
+      ]
+    },
+    "featureCandidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidateId", "title", "observableOutcome", "acceptanceScenario", "included", "excluded", "dependsOn", "cohesionRationale"],
+      "properties": {
+        "candidateId": { "$ref": "#/$defs/id" },
+        "title": { "type": "string", "minLength": 1 },
+        "observableOutcome": { "type": "string", "minLength": 1 },
+        "acceptanceScenario": { "type": "string", "minLength": 1 },
+        "included": { "$ref": "#/$defs/stringArray" },
+        "excluded": { "$ref": "#/$defs/stringArray" },
+        "dependsOn": { "$ref": "#/$defs/idArray" },
+        "cohesionRationale": { "type": "string", "minLength": 1 }
+      }
+    },
+    "lot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "objective", "observableEffect", "readScopes", "writeScopes", "dependsOn", "acceptanceProofs"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "title": { "type": "string", "minLength": 1 },
+        "objective": { "type": "string", "minLength": 1 },
+        "observableEffect": { "type": "string", "minLength": 1 },
+        "readScopes": { "$ref": "#/$defs/stringArray" },
+        "writeScopes": { "$ref": "#/$defs/stringArray" },
+        "dependsOn": { "$ref": "#/$defs/idArray" },
+        "acceptanceProofs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["functional", "ux", "code", "security"],
+          "properties": {
+            "functional": { "$ref": "#/$defs/stringArray" },
+            "ux": { "$ref": "#/$defs/stringArray" },
+            "code": { "$ref": "#/$defs/stringArray" },
+            "security": { "$ref": "#/$defs/stringArray" }
+          }
+        }
+      }
+    },
+    "stringArray": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "idArray": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/id" } }
+  }
+}

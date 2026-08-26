@@ -83,10 +83,10 @@ test("skills global installe et diagnostique les 21 rendus sans masquer une dive
   assert.equal(plan.plan.length, 21 * 6);
 
   const nornGlobal = readFileSync(resolve(home, ".claude", "skills", "arka-norn", "SKILL.md"), "utf8");
-  assert.match(nornGlobal, /locale show --json/);
-  assert.match(nornGlobal, /content_locale/);
-  assert.match(nornGlobal, /pipeline next <feature> --json/);
-  assert.match(nornGlobal, /Do not execute a second phase/);
+  assert.match(nornGlobal, /framing enter/);
+  assert.match(nornGlobal, /framing resume/);
+  assert.match(nornGlobal, /two stabilizations/);
+  assert.match(nornGlobal, /Do not expose raw JSON/);
 
   const productGlobal = readFileSync(resolve(home, ".claude", "skills", "arka-product", "SKILL.md"), "utf8");
   assert.match(productGlobal, /Reply in the active display locale/);
