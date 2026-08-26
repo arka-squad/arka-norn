@@ -115,15 +115,13 @@ The frontend consumes the official Arka Labs tokens and local brand assets from 
 
 ## Local Agent execution
 
-Automatic `claude` and `codex` targets are local CLI adapters, not API-key adapters. Provider health resolves the installed executable, captures its sanitized `--version` output and hashes its real path/stat/version identity. Preview fingerprints and campaigns persist that identity; resume fails after a CLI replacement.
+`ExecutionProfile` separates transport, gateway, provider, model, external credential reference, capabilities, egress and native cost units. `LocalExecutionProfileRuntimeAdapter` resolves the executable, creates a minimal private `HOME` and controlled `PATH`, maps only the referenced credential and fingerprints the exact runtime used by preview. Never forward `process.env`, a general-purpose user home or a complete provider configuration.
 
-The detached worker receives a private `HOME`, controlled `PATH`, locale/temp values and only the provider-specific authentication directory (`CLAUDE_CONFIG_DIR` or `CODEX_HOME`) when it exists. Never forward `process.env`, a real general-purpose home or an API key for local CLI providers. Claude Code runs in safe mode with only the arka.norn MCP tools. Codex uses `exec --ephemeral`, read-only sandboxing, ignored user rules and disabled shell/multi-agent/browser/app tools.
-
-`OrchestrationWorkspace` owns the Git-independent baseline, isolated mirror and atomic apply/rollback. Keep Project private state, secrets, symlinks, build output and nested repository metadata outside mirrors. Applying a diff must verify the entire real baseline so an unrelated human edit causes a global conflict.
+`GitWorktreeWorkspaceAdapter` builds a private snapshot with a temporary Git index, then owns one branch and worktree per task plus the integration branch. It must never modify the user's branch, index or working tree during preparation. Keep Git hooks, global/system configuration, external filters, unsafe protocols, submodules, Project private state, secrets and symlinks outside the execution path. Automatic application requires an unchanged clean baseline and a fast-forward.
 
 The provider never edits the workspace directly. `scripts/orchestration-tool-server.mjs` is the only mutation and evidence broker. Add tools only with structured schemas, scope/revision validation, bounded output, redaction and a mechanical receipt. Repository recipes belong in `scripts/orchestration-recipe-runner.mjs` and must use pinned Docker/Podman images, no network and no host fallback.
 
-`OrchestrationCampaign` is the durable human control envelope; `OrchestrationProjection` is the single presentation contract for Product, Web, TUI and CLI. Do not infer actions in an adapter. All mutations require the expected revision; confirmation actions also require their object fingerprint. Keep provider permission, Product decision, retry and diff application as distinct actions.
+`CampaignPlan`, `RunAuthorization`, `TaskAttempt` and the immutable campaign event journal are the durable control contracts. The filesystem stores one atomic event or attempt revision per file and reconstructs status from those records. Do not infer success from process liveness. Profile, scope, budget, risk policy and plan changes require a new fingerprint and authorization; legacy 2.2 state is inspection/import-only.
 
 Keep manual prompt generation outside the automatic execution path. A JSON advice response with `orchestrationMode: automatic` must contain only `delivery: orchestrated` recommendations and must not contain `agent prompt` or a `prepare` recommendation.
 

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { readdirSync } from "node:fs";
+import { readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
@@ -40,6 +40,7 @@ if (failures > 0) {
 console.log(`${files.length} fichier(s) JavaScript vérifié(s).`);
 
 function collectMjs(directory) {
+  if (!statSync(directory, { throwIfNoEntry: false })?.isDirectory()) return [];
   const entries = readdirSync(directory, { withFileTypes: true });
   const out = [];
   for (const entry of entries) {

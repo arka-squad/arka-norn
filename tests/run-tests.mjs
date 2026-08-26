@@ -26,7 +26,9 @@ const PROJECT_ROOT = resolve(TEST_ROOT, "..");
 const requestedSuite = process.argv[2];
 const suites = requestedSuite ? [requestedSuite] : ["unit", "integration", "e2e"];
 
-const files = suites.flatMap((suite) => collectTests(join(TEST_ROOT, suite)));
+const files = requestedSuite === "cli-coverage"
+  ? [...collectTests(join(TEST_ROOT, "unit")), ...collectTests(join(TEST_ROOT, "e2e")).filter((file) => file.endsWith("-cli.test.ts") || file.endsWith("/cli.test.ts"))]
+  : suites.flatMap((suite) => collectTests(join(TEST_ROOT, suite)));
 if (files.length === 0) {
   console.error(`Aucun test TypeScript trouvé pour : ${suites.join(", ")}`);
   process.exit(1);

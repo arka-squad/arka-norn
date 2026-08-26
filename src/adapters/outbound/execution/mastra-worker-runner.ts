@@ -37,6 +37,9 @@ export interface MastraWorkerPayload {
 
 export interface MastraWorkerFailure {
   readonly code: string;
+  readonly message?: string;
+  readonly exitCode?: number;
+  readonly stderrExcerpt?: string;
 }
 
 export interface MastraWorkerResult {
@@ -210,19 +213,31 @@ function parseWorkerResult(stdout: string): MastraWorkerResult | undefined {
     const sessionId = value["sessionId"];
     const failure = value["failure"];
     if (output !== undefined && typeof output !== "string") return undefined;
-    if (receipts !== undefined && (!Array.isArray(receipts) || receipts.length > 100 || receipts.some((receipt) => typeof receipt !== "string" || !/^receipt-[A-Za-z0-9-]{1,160}$/u.test(receipt)))) return undefined;
+    if (!validReceipts(receipts)) return undefined;
     if (sessionId !== undefined && typeof sessionId !== "string") return undefined;
-    if (failure !== undefined && (!isRecord(failure) || typeof failure["code"] !== "string")) return undefined;
+    const parsedFailure = parseFailure(failure);
+    if (parsedFailure === null) return undefined;
     return {
       status,
       ...(output === undefined ? {} : { output }),
-      ...(receipts === undefined ? {} : { receipts: receipts as string[] }),
+      ...(receipts === undefined ? {} : { receipts }),
       ...(sessionId === undefined ? {} : { sessionId }),
-      ...(failure === undefined ? {} : { failure: { code: failure["code"] as string } }),
+      ...(parsedFailure === undefined ? {} : { failure: parsedFailure }),
     };
   } catch {
     return undefined;
   }
+}
+
+function validReceipts(value: unknown): value is readonly string[] | undefined { return value === undefined || (Array.isArray(value) && value.length <= 100 && value.every((receipt) => typeof receipt === "string" && /^receipt-[A-Za-z0-9-]{1,160}$/u.test(receipt))); }
+
+function parseFailure(value: unknown): MastraWorkerFailure | undefined | null {
+  if (value === undefined) return undefined;
+  if (!isRecord(value) || typeof value["code"] !== "string") return null;
+  if (value["message"] !== undefined && typeof value["message"] !== "string") return null;
+  if (value["exitCode"] !== undefined && (typeof value["exitCode"] !== "number" || !Number.isInteger(value["exitCode"]) || value["exitCode"] < 0)) return null;
+  if (value["stderrExcerpt"] !== undefined && (typeof value["stderrExcerpt"] !== "string" || value["stderrExcerpt"].length > 1_000)) return null;
+  return { code: value["code"], ...(typeof value["message"] === "string" ? { message: value["message"] } : {}), ...(typeof value["exitCode"] === "number" ? { exitCode: value["exitCode"] } : {}), ...(typeof value["stderrExcerpt"] === "string" ? { stderrExcerpt: value["stderrExcerpt"] } : {}) };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

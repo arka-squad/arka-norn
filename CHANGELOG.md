@@ -1,5 +1,37 @@
 # Changelog
 
+## 2.3.0 - 2026-08-25
+
+### Changed
+
+- Automatic orchestration is replaced by a signed task DAG. Every task receives a dedicated branch, Git worktree, execution profile, read/write scopes and mechanical evidence.
+- Project orchestration configuration uses schema 4. Legacy automatic campaigns are inspection/import-only and can never be resumed or retried.
+- Provider/model selection is explicit per role through execution profiles. OpenCodex is the first generic gateway adapter and runs from a minimal private home.
+- Campaign state is an append-only event journal with an atomically reconstructible projection, accurate task counters and retained recovery artifacts.
+- Parallelism defaults to three tasks and only applies to dependency-ready tasks with disjoint write scopes.
+- Norn, not the agent, creates validated commits with campaign, task, role, profile, execution and evidence trailers.
+- Integration conflicts receive a dedicated integrator task. A deterministic priority fallback records discarded hunks, always requires a human gate and is never auto-applied.
+- Automatic application is capped at risk score 20, rejects global denials and requires an unchanged clean baseline with fast-forward application.
+- Norn Web presents the DAG, task scopes, profiles, proofs, risk and application gate as human-readable rows.
+
+### Added
+
+- `orchestration profile register|show|doctor`.
+- `orchestration recovery inspect|quarantine|restore|import-legacy` with confirmation fingerprints.
+- Budget modes `admission`, `hard-stop` and `observe`, plus explicit open-bar profile allowlists.
+- Hardened private Git snapshots that preserve the user's branch, index and working tree.
+
+### Security
+
+- Git runs with structured arguments, disabled hooks, disabled global/system configuration and forbidden external filters/submodules.
+- Agents have no native shell, Git, network, commit, publish or sub-agent authority; changes and containerized recipes pass through the Norn broker.
+- Credentials remain external references and provider diagnostics retain only bounded, redacted stderr excerpts.
+- Held GitNexus data is restored only when its SHA-256 matches the confirmed recovery manifest and the original target is free.
+
+### Release
+
+- Package and manifest versions are 2.3.0.
+
 Notable changes to arka-norn are recorded here. The project follows semantic versioning.
 
 ## 2.2.7 - 2026-08-25

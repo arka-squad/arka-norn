@@ -17,7 +17,7 @@
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { test } from "node:test";
 
 import { createMastraExecutionPort } from "../../src/adapters/outbound/execution/mastra-agent-execution-adapter.ts";
@@ -158,7 +158,10 @@ test("Claude Code CLI réutilise uniquement sa configuration locale sans exposer
   assert.equal(launch.payload.command, process.execPath);
   assert.notEqual(launch.environment["HOME"], workspace);
   assert.notEqual(launch.environment["CLAUDE_CONFIG_DIR"], realpathSync(claudeConfig));
-  assert.match(launch.environment["CLAUDE_CONFIG_DIR"] ?? "", /arka-norn-mastra-.+\/auth\/claude$/u);
+  const isolatedClaudeConfig = launch.environment["CLAUDE_CONFIG_DIR"]!;
+  assert.equal(basename(isolatedClaudeConfig), "claude");
+  assert.equal(basename(dirname(isolatedClaudeConfig)), "auth");
+  assert.match(basename(dirname(dirname(isolatedClaudeConfig))), /^arka-norn-mastra-/u);
   assert.equal(readFileSync(join(launch.environment["CLAUDE_CONFIG_DIR"]!, ".credentials.json"), "utf8"), "{\"oauth\":\"bounded-test-value\"}\n");
   assert.equal(launch.environment["ANTHROPIC_API_KEY"], undefined);
   assert.equal(JSON.stringify(launch.payload).includes("Read the bounded workspace."), true);

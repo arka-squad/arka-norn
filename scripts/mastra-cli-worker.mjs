@@ -42,7 +42,12 @@ try {
   if (cancelled) {
     writeWorkerResult({ status: "cancelled", failure: { code: "CANCELLED" } });
   } else if (result.code !== 0) {
-    writeWorkerResult({ status: "failed", failure: { code: request.provider === "claude-cli" ? "CLAUDE_CLI_FAILED" : "CODEX_CLI_FAILED" } });
+    writeWorkerResult({ status: "failed", failure: {
+      code: request.provider === "claude-cli" ? "CLAUDE_CLI_FAILED" : "CODEX_CLI_FAILED",
+      message: "The provider CLI exited unsuccessfully.",
+      exitCode: result.code,
+      stderrExcerpt: redact(result.stderr),
+    } });
   } else {
     writeWorkerResult({
       status: "completed",
@@ -80,7 +85,8 @@ async function runCli(input) {
     : codexArguments(input, toolArguments);
   await mkdir(receiptDirectory, { recursive: true, mode: 0o700 });
   return new Promise((resolve, reject) => {
-    providerProcess = spawn(input.command, args, {
+    const invocation = nodeInvocation(input.command, args);
+    providerProcess = spawn(invocation.command, invocation.args, {
       cwd: input.workspace,
       env: providerEnvironment(input.provider),
       stdio: ["pipe", "pipe", "pipe"],
@@ -104,10 +110,17 @@ async function runCli(input) {
   });
 }
 
+function nodeInvocation(command, args) {
+  return /\.(?:cjs|mjs|js)$/iu.test(command)
+    ? { command: process.execPath, args: [command, ...args] }
+    : { command, args };
+}
+
 function providerEnvironment(provider) {
   const common = ["PATH", "HOME", "USERPROFILE", "TMPDIR", "TMP", "TEMP", "LANG", "LC_ALL", "LC_CTYPE", "TERM", "NO_COLOR", "TZ", "SystemRoot", "SYSTEMROOT"];
   const specific = provider === "claude-cli" ? ["CLAUDE_CONFIG_DIR"] : ["CODEX_HOME"];
-  return Object.fromEntries([...common, ...specific]
+  const credentials = ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY", "KIMI_MODEL_API_KEY"];
+  return Object.fromEntries([...common, ...specific, ...credentials]
     .map((name) => [name, process.env[name]])
     .filter((entry) => entry[1] !== undefined));
 }
@@ -144,11 +157,11 @@ function codexArguments(input, toolArguments) {
     "--disable", "browser_use",
     "--disable", "computer_use",
     "--disable", "apps",
+    "--strict-config",
     "--config", `mcp_servers.norn.command=${JSON.stringify(process.execPath)}`,
     "--config", `mcp_servers.norn.args=${JSON.stringify(toolArguments)}`,
     "exec",
     "--ephemeral",
-    "--ignore-user-config",
     "--ignore-rules",
     "--color", "never",
     "-",
@@ -178,3 +191,9 @@ function claudeResult(stdout) {
 }
 
 class OutputLimitError extends Error {}
+
+function redact(value) {
+  return value.replace(/(?:Bearer\s+|sk-)[A-Za-z0-9._-]+/gu, "[REDACTED]")
+    .replace(/((?:api[_ -]?key|access[_ -]?token|password|secret))\s*[:=]\s*\S+/giu, "$1=[REDACTED]")
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]+/gu, " ").trim().slice(0, 1_000);
+}

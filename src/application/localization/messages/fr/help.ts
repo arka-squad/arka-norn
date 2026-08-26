@@ -6,7 +6,7 @@ Utilisez arka-norn guide pour un parcours vérifié.
 Gestion :
   project <list|add|import|scan|show|use|forget|reconcile|set-orchestration-mode>
   feature <list|create|import|scan|show|use|forget|reconcile|set-workflow>
-  orchestration <configure|preview|start|status|cancel|approve|retry>
+  orchestration <profile|preview|start|status|apply|recovery>
   agent <list|register|show|current|use|sessions|advise|prompt|handoff-prompt|deactivate|replace>
   pipeline <status|next|scaffold|validate>
   workflow <list|show>

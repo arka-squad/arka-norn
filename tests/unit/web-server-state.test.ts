@@ -26,7 +26,7 @@ test("Web server state is private, validated and removed only by its owner", asy
 
   await store.save(state);
   assert.deepEqual(await store.load(), state);
-  assert.equal(statSync(store.path()).mode & 0o777, 0o600);
+  if (process.platform !== "win32") assert.equal(statSync(store.path()).mode & 0o777, 0o600);
   await store.remove(9999);
   assert.deepEqual(await store.load(), state);
   await store.remove(1234);

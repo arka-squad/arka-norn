@@ -177,5 +177,8 @@ export const TUI_ACTION_MESSAGES_FR: Readonly<Record<keyof typeof TUI_ACTION_MES
   "tui.agentAdvice.nextPrompt": "ouvrez ce prompt dans une nouvelle session Agent ; cette session vérifiera elle-même chaque identifiant",
   "tui.container.agentRequired.title": "Identité Agent requise",
   "tui.container.agentRequired.output": "Aucun Agent actif n’est sélectionné pour ce Project. Revenez au Project, ouvrez le registre Agents, puis enregistrez ou sélectionnez votre identité avant de générer un document.\n",
+  "tui.container.orchestration23.title": "Orchestration Norn 2.3",
+  "tui.container.orchestration23.output": "L’ancien cockpit assisté est en lecture seule et ne peut relancer aucune campagne 2.2. Configurez les profils, prévisualisez le DAG de tâches et confirmez le run avec la CLI d’orchestration Norn 2.3. La progression et les preuves restent visibles dans Norn Web.\n",
+  "tui.container.orchestration23.next": "Lancez arka-norn orchestration --help",
   "tui.container.skillsSummary": "Project {projectHealthy}/{projectTotal} - Global {globalHealthy}/{globalTotal}",
 };

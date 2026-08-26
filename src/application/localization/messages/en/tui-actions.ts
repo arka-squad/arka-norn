@@ -177,5 +177,8 @@ export const TUI_ACTION_MESSAGES = {
   "tui.agentAdvice.nextPrompt": "open this prompt in a new Agent session; that session will verify every identifier",
   "tui.container.agentRequired.title": "Agent identity required",
   "tui.container.agentRequired.output": "No active Agent is selected for this Project. Return to the Project, open the Agent registry, then register or select your identity before generating a document.\n",
+  "tui.container.orchestration23.title": "Norn 2.3 orchestration",
+  "tui.container.orchestration23.output": "The former assisted cockpit is read-only and cannot relaunch a 2.2 campaign. Configure profiles, preview the task DAG and confirm the run through the Norn 2.3 orchestration CLI. Campaign progress and evidence remain visible in Norn Web.\n",
+  "tui.container.orchestration23.next": "Run arka-norn orchestration --help",
   "tui.container.skillsSummary": "Project {projectHealthy}/{projectTotal} - Global {globalHealthy}/{globalTotal}",
 } as const;

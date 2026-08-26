@@ -68,7 +68,7 @@ The server runs in the background and survives the launching terminal. `arka-nor
 
 The Web interface is designed for Project managers rather than Agent operators. It shows aggregate Project state, Feature Pipelines, all signed and legacy documents in a human layout, linked evidence, open decisions, corrections, risks, audits, registered Agent identities and observed Norn campaigns.
 
-Create Projects and Features, record governance decisions, run verified audits and apply Doctor repairs after reviewing a dry run. Framework documents remain immutable. Orchestration mutations are intentionally absent from Web; use the Product Agent or TUI, and use CLI only for expert automation.
+Create Projects and Features, record governance decisions, run verified audits and apply Doctor repairs after reviewing a dry run. Framework documents remain immutable. Orchestration mutations are intentionally absent from Web. Use the Norn 2.3 CLI to register profiles, confirm plans and apply candidates; the TUI retains manual workflow controls but cannot relaunch a quarantined 2.2 campaign.
 
 Use **New Project** or **New Feature** for a guided creation flow. Select folders with the native system picker rather than typing filesystem paths. Norn proposes the technical identifier and Feature location automatically; expand technical details only when those defaults must change. Each workflow option explains its intended scope before you confirm.
 
@@ -78,11 +78,11 @@ In Settings, choose Web, TUI or CLI as the preferred tracking surface. Web is th
 
 ## Automatic Product delivery
 
-For an automatic Project, tell the Product what outcome you want. Product verifies the Project and Feature, prepares a bounded campaign and explains the recommended local assistant and workspace mode. You do not copy a prompt or open a separate Agent session.
+For an automatic Project, tell the Product what outcome you want. Product verifies the Project and Feature, prepares a bounded task DAG and explains the profiles, scopes, risks, budget and parallelism that require confirmation. You do not copy a prompt or open a separate Agent session.
 
-Follow progress in the Project **Live** view. The page explains the current phase, evidence, affected files, risks and any genuine decision. An isolated campaign changes only a private mirror until you review and apply its diff. A direct campaign writes through the broker, but tests and builds still require Docker or Podman and never execute on the host.
+Follow progress in the Project **Live** view. The page explains the DAG, evidence, affected scopes, risks and any genuine application gate. Every automatic task runs in a private Git worktree; direct automatic writes no longer exist. Tests and builds require a pinned Docker or Podman recipe without network and never fall back to the host.
 
-When Product asks for a decision, choose on the functional issue rather than approving an opaque provider permission. A stale decision is refused and replaced by the current situation. Cancel retains an isolated mirror for seven days; abandon discards it.
+When Product asks for a decision, choose on the functional issue rather than approving an opaque provider permission. A stale plan, profile or policy fingerprint is refused. Failed and interrupted worktrees, branches, attempts and evidence are retained for explicit recovery; Norn never deletes them merely because of their location or age.
 
 ## Work on one step
 

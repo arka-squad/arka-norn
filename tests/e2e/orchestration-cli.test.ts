@@ -49,7 +49,13 @@ test("la CLI refuse les arguments ambigus des commandes d'orchestration", async 
   assert.match(result.stderr, /unknown option/);
 });
 
-test("la CLI exige l'assistant, le modèle et l'aperçu avant de pouvoir lancer", async (context) => {
+test("le point d'entrée worker 2.2 reste gelé après mise à niveau", async () => {
+  const result = await runOrchestrationCommand(["_worker", "--project", "project", "--execution", "legacy-execution"], { homeDir: "/tmp/unused", cwd: "/tmp", frameworkRoot: ROOT, environment: {} });
+  assert.equal(result.code, 3);
+  assert.match(result.stderr, /cannot be started or resumed/u);
+});
+
+test("la CLI met le moteur automatique 2.2 en quarantaine et conserve le démarrage manuel", async (context) => {
   const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-orchestration-cli-choice-"));
   const home = resolve(sandbox, "home");
   const projectRoot = resolve(sandbox, "project");
@@ -59,15 +65,11 @@ test("la CLI exige l'assistant, le modèle et l'aperçu avant de pouvoir lancer"
   await management.projects.create({ id: ProjectId.of("project"), name: "Project", root: projectRoot, orchestrationMode: "manual" });
   const cliContext = { homeDir: home, cwd: projectRoot, frameworkRoot: ROOT, environment: {} };
 
-  const configured = await runOrchestrationCommand([
+  const retiredConfiguration = await runOrchestrationCommand([
     "configure", "--project", "project", "--provider", "kimi", "--model", "kimi-coding", "--workspace", "isolated", "--json",
   ], cliContext);
-  assert.equal(configured.code, 0, configured.stderr);
-  const policy = JSON.parse(configured.stdout) as {
-    readonly data: { readonly schemaVersion: number; readonly providers: readonly { readonly provider: string; readonly models: readonly { readonly id: string }[] }[] };
-  };
-  assert.equal(policy.data.schemaVersion, 3);
-  assert.deepEqual(policy.data.providers.find((provider) => provider.provider === "kimi")?.models, [{ id: "kimi-coding", enabled: true, priority: 1000 }]);
+  assert.equal(retiredConfiguration.code, 3, retiredConfiguration.stderr);
+  assert.match(retiredConfiguration.stdout, /Legacy automatic configuration was removed/u);
 
   const incompleteStart = await runOrchestrationCommand([
     "start", "--project", "project", "--feature", "feature", "--provider", "claude", "--model", "claude-test", "--json",
@@ -75,9 +77,4 @@ test("la CLI exige l'assistant, le modèle et l'aperçu avant de pouvoir lancer"
   assert.equal(incompleteStart.code, 64);
   assert.match(incompleteStart.stdout, /--preview is required/);
 
-  const invalidProvider = await runOrchestrationCommand([
-    "configure", "--project", "project", "--provider", "unknown", "--model", "model", "--json",
-  ], cliContext);
-  assert.equal(invalidProvider.code, 64);
-  assert.match(invalidProvider.stdout, /claude, codex, kimi, zai/);
 });
