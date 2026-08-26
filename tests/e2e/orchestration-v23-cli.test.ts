@@ -20,13 +20,11 @@ test("la CLI 2.3 enregistre et diagnostique un profil OpenCodex sans persister l
   const home = resolve(sandbox, "home");
   const projectRoot = resolve(sandbox, "project");
   const catalog = resolve(sandbox, "catalog.json");
-  const command = resolve(sandbox, "codex-wrapper");
+  const command = resolve(sandbox, "codex-wrapper.cjs");
   mkdirSync(projectRoot, { recursive: true });
   writeFileSync(catalog, '{"models":[{"slug":"zai/glm-5.2"}]}\n', "utf8");
-  writeFileSync(command, `#!/bin/sh
-if [ "$1" = "--version" ]; then printf 'codex-cli 0.200.0\\n'; exit 0; fi
-printf 'NORN_PREFLIGHT_OK\\n'
-exit 0
+  writeFileSync(command, `if (process.argv[2] === "--version") console.log("codex-cli 0.200.0");
+else console.log("NORN_PREFLIGHT_OK");
 `, "utf8");
   chmodSync(command, 0o755);
   context.after(() => rmSync(sandbox, { recursive: true, force: true }));

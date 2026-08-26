@@ -83,18 +83,16 @@ test("le worker Node reçoit un environnement isolé sans secret hérité", asyn
 test("les workers locaux lancent Claude Code CLI et Codex CLI sans clé API ni prompt à copier", async (context) => {
   const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-local-cli-integration-"));
   const workspace = join(sandbox, "workspace");
-  const claude = join(sandbox, "claude");
-  const codex = join(sandbox, "codex");
+  const claude = join(sandbox, "claude.mjs");
+  const codex = join(sandbox, "codex.mjs");
   mkdirSync(workspace);
   writeFileSync(claude, [
-    "#!/usr/bin/env node",
     "let raw = '';",
     "for await (const chunk of process.stdin) raw += String(chunk);",
     "const result = JSON.stringify({ result: `CLAUDE:${raw}:${process.env.ANTHROPIC_API_KEY ?? 'subscription'}`, is_error: false });",
     "process.stdout.write(result);",
   ].join("\n"));
   writeFileSync(codex, [
-    "#!/usr/bin/env node",
     "let raw = '';",
     "for await (const chunk of process.stdin) raw += String(chunk);",
     "process.stdout.write(JSON.stringify({ raw, args: process.argv.slice(2), auth: process.env.OPENAI_API_KEY ?? 'subscription' }));",

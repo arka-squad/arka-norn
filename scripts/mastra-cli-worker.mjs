@@ -85,7 +85,8 @@ async function runCli(input) {
     : codexArguments(input, toolArguments);
   await mkdir(receiptDirectory, { recursive: true, mode: 0o700 });
   return new Promise((resolve, reject) => {
-    providerProcess = spawn(input.command, args, {
+    const invocation = nodeInvocation(input.command, args);
+    providerProcess = spawn(invocation.command, invocation.args, {
       cwd: input.workspace,
       env: providerEnvironment(input.provider),
       stdio: ["pipe", "pipe", "pipe"],
@@ -107,6 +108,12 @@ async function runCli(input) {
     providerProcess.once("close", async (code) => resolve({ code: code ?? 1, stdout, stderr, receipts: await receiptIds(receiptDirectory) }));
     providerProcess.stdin.end(input.mission);
   });
+}
+
+function nodeInvocation(command, args) {
+  return /\.(?:cjs|mjs|js)$/iu.test(command)
+    ? { command: process.execPath, args: [command, ...args] }
+    : { command, args };
 }
 
 function providerEnvironment(provider) {

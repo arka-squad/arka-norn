@@ -21,7 +21,7 @@ test("le préflight OpenCodex utilise un HOME privé, le catalogue contrôlé et
   const home = join(sandbox, "home");
   const workspace = join(sandbox, "workspace");
   const catalog = join(sandbox, "catalog.json");
-  const command = join(sandbox, "codex-wrapper");
+  const command = join(sandbox, "codex-wrapper.cjs");
   mkdirSync(workspace, { recursive: true });
   writeFileSync(catalog, `${JSON.stringify({ models: [{ slug: "zai/glm-5.2" }] })}\n`, "utf8");
   writeFileSync(command, wrapperSource(), "utf8");
@@ -50,7 +50,7 @@ test("un échec modèle conserve le code et un stderr expurgé", async (context)
   const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-v23-profile-failure-"));
   const workspace = join(sandbox, "workspace");
   const catalog = join(sandbox, "catalog.json");
-  const command = join(sandbox, "codex-wrapper");
+  const command = join(sandbox, "codex-wrapper.cjs");
   mkdirSync(workspace, { recursive: true });
   writeFileSync(catalog, `${JSON.stringify({ models: [{ slug: "missing/model" }] })}\n`, "utf8");
   writeFileSync(command, wrapperSource(true), "utf8");
@@ -69,7 +69,7 @@ test("une référence de credential absente bloque avant le lancement du CLI", a
   const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-v23-profile-credential-"));
   const workspace = join(sandbox, "workspace");
   const catalog = join(sandbox, "catalog.json");
-  const command = join(sandbox, "codex-wrapper");
+  const command = join(sandbox, "codex-wrapper.cjs");
   mkdirSync(workspace, { recursive: true });
   writeFileSync(catalog, "{\"models\":[]}\n", "utf8");
   writeFileSync(command, wrapperSource(), "utf8");
@@ -84,9 +84,9 @@ test("le worker OpenCodex reçoit uniquement le credential résolu du profil", a
   const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-v23-worker-credential-"));
   const home = join(sandbox, "home");
   const workspace = join(sandbox, "workspace");
-  const command = join(sandbox, "codex-worker");
+  const command = join(sandbox, "codex-worker.cjs");
   mkdirSync(workspace, { recursive: true });
-  writeFileSync(command, "#!/usr/bin/env node\nif (process.env.OPENAI_API_KEY !== 'profile-secret' || process.env.UNSCOPED_SECRET) process.exit(40); process.stdin.resume(); process.stdin.on('end', () => process.stdout.write('OK'));\n", "utf8");
+  writeFileSync(command, "if (process.env.OPENAI_API_KEY !== 'profile-secret' || process.env.UNSCOPED_SECRET) process.exit(40); process.stdin.resume(); process.stdin.on('end', () => process.stdout.write('OK'));\n", "utf8");
   chmodSync(command, 0o755);
   context.after(() => rmSync(sandbox, { recursive: true, force: true }));
   const profile = ExecutionProfile.create({ schemaVersion: 1, id: "codex-credential", transport: "codex-cli", provider: "openai", model: "gpt-5", credentialRef: { kind: "environment", name: "PROFILE_SOURCE", environmentVariable: "OPENAI_API_KEY" }, capabilities: ["inspect_workspace", "modify_workspace"], egressHosts: [], costMeter: { kind: "unknown", observable: false }, enabled: true, createdAt: at, updatedAt: at });
@@ -115,8 +115,7 @@ function opencodexProfile(catalogRef: string): ExecutionProfile {
 }
 
 function wrapperSource(fail = false): string {
-  return `#!/usr/bin/env node
-const fs = require("node:fs");
+  return `const fs = require("node:fs");
 const args = process.argv.slice(2);
 if (args[0] === "--version") { console.log("codex-cli 0.200.0"); process.exit(0); }
 if (args.includes("--ignore-user-config")) { console.error("forbidden ignore-user-config"); process.exit(41); }

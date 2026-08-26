@@ -99,9 +99,11 @@ L’application automatique est impossible si le run ne l’autorise pas, si le 
 
 Les scénarios couvrent notamment : dépôt propre/sale, non suivis acceptés/refusés, cache GitNexus, worktree tiers, trois tâches réellement parallèles, collisions de scope, intégrateur et fallback, OpenCodex avec `zai/glm-5.2`, wrapper npm dont `node` est hors du répertoire CLI, secrets, symlinks, submodules, hooks, filtres externes, diagnostics expurgés, budgets, refus d’application, import legacy, corruption d’artefact et reprise après crash.
 
+La première matrice distante a en outre révélé des hypothèses POSIX que les contrôles locaux ne montraient pas. Le candidat corrige désormais la résolution de Git sous Windows sans réintroduire la configuration globale, utilise des répertoires privés portables pour les hooks et la configuration Git, résout les shims npm Windows vers leur entrée Node bornée sans `shell`, exécute les wrappers JavaScript via `process.execPath`, et transporte les répertoires temporaires et variables système minimales dans le HOME isolé. Les assertions de chemins et de modes de fichier distinguent les séparateurs et le modèle ACL Windows. La suite locale post-correction est de nouveau PASS — 304/304.
+
 ## Frontière de livraison et déploiement
 
-Le moteur, ses contrats, sa CLI, son interface, ses tests et le runbook de release sont livrés. Les opérations suivantes restent volontairement non exécutées dans ce lot de développement : quarantaine de l’état réel de l’utilisateur, campagne réelle multi-provider, campagne documentaire Cortex Deck, activation d’un Project, commit/push Git, tag `v2.3.0` et publication npm.
+Le moteur, ses contrats, sa CLI, son interface, ses tests et le runbook de release sont livrés. La branche et son premier commit candidat ont été poussés et la PR de livraison a été ouverte. Les opérations suivantes restent volontairement non exécutées tant que la matrice distante corrigée n’est pas verte : quarantaine de l’état réel de l’utilisateur, campagne réelle multi-provider, campagne documentaire Cortex Deck, activation d’un Project, fusion sur `main`, tag `v2.3.0` et publication npm.
 
 Ces opérations nécessitent les validations humaines et l’ordre de déploiement du runbook : preview hostile, dépôt témoin mono-tâche, DAG synthétique multi-provider, copie propre de Cortex Deck, activation Project par Project, puis publication après une nouvelle exécution de `release:verify` sur le commit candidat.
 

@@ -2,11 +2,11 @@
  * Copyright 2026 Arka Labs
  * Licensed under the Apache License, Version 2.0
  */
-import { access, chmod, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, chmod, mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
-import { basename, dirname, isAbsolute, join } from "node:path";
+import { basename, delimiter, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { writeFileAtomic } from "../filesystem/_shared/atomic-json.js";
 const MAX_OUTPUT_BYTES = 512 * 1024;
 const MAX_CATALOG_BYTES = 8 * 1024 * 1024;
@@ -31,14 +31,18 @@ export class LocalExecutionProfileRuntimeAdapter {
         const home = join(this.homeDir, ".arka-norn", "runtime-profiles", props.id, fingerprint.slice(0, 16));
         await mkdir(home, { recursive: true, mode: 0o700 });
         const credential = await this.resolveCredential(profile);
+        const temporaryDirectory = join(home, "tmp");
         const runtimeEnvironment = {
             HOME: home,
             USERPROFILE: home,
             PATH: controlledPath(command),
             LANG: "C.UTF-8",
             LC_ALL: "C.UTF-8",
-            TMPDIR: join(home, "tmp"),
+            TMPDIR: temporaryDirectory,
+            TMP: temporaryDirectory,
+            TEMP: temporaryDirectory,
             NO_COLOR: "1",
+            ...windowsRuntimeEnvironment(),
             ...credential,
         };
         await mkdir(runtimeEnvironment["TMPDIR"], { recursive: true, mode: 0o700 });
@@ -167,11 +171,18 @@ export class LocalExecutionProfileRuntimeAdapter {
             catch {
                 throw coded("runtime_dependency_missing", `Configured runtime is not executable: ${basename(configured)}.`);
             }
-            return configured;
+            try {
+                return await normalizeExecutable(configured);
+            }
+            catch {
+                throw coded("runtime_dependency_missing", `Configured runtime is not executable: ${basename(configured)}.`);
+            }
         }
         const name = transport === "codex-cli" ? "codex" : transport === "claude-cli" ? "claude" : transport === "gemini-cli" ? "gemini" : "arka-norn-api-runtime";
+        const configuredPath = this.environment[process.platform === "win32" ? "Path" : "PATH"] ?? this.environment["PATH"];
+        const searchDirectories = [...SAFE_PATH, dirname(process.execPath), ...(configuredPath === undefined ? [] : configuredPath.split(delimiter))];
         try {
-            return await findExecutable(name, [...SAFE_PATH, dirname(process.execPath)]);
+            return await normalizeExecutable(await findExecutable(name, searchDirectories));
         }
         catch {
             throw coded("runtime_dependency_missing", `Runtime dependency is missing: ${name}.`);
@@ -180,20 +191,60 @@ export class LocalExecutionProfileRuntimeAdapter {
 }
 async function boundedRead(path, maximum) { const value = await readFile(path); if (value.byteLength > maximum)
     throw new Error("file too large"); return value.toString("utf8"); }
-async function findExecutable(name, directories) { for (const directory of directories) {
-    const candidate = join(directory, name);
-    try {
-        await access(candidate, constants.X_OK);
-        return candidate;
+async function findExecutable(name, directories) {
+    const extensions = process.platform === "win32" ? ["", ".exe", ".cmd", ".bat"] : [""];
+    for (const directory of [...new Set(directories.filter((value) => value.length > 0))]) {
+        for (const extension of extensions) {
+            const candidate = join(directory, `${name}${extension}`);
+            try {
+                await access(candidate, constants.X_OK);
+                return candidate;
+            }
+            catch {
+                continue;
+            }
+        }
     }
-    catch {
-        continue;
+    throw new Error(`Executable ${name} was not found.`);
+}
+async function normalizeExecutable(command) {
+    const resolved = await realpath(command);
+    if (!(await stat(resolved)).isFile())
+        throw new Error("Runtime command is not a regular file.");
+    if (process.platform !== "win32" || extname(resolved).toLowerCase() !== ".cmd")
+        return resolved;
+    const raw = await boundedRead(resolved, 64 * 1024);
+    const matches = [...raw.matchAll(/"%dp0%\\([^"\r\n]+?\.(?:cjs|mjs|js))"/giu)];
+    for (const match of matches) {
+        const suffix = match[1];
+        if (suffix === undefined)
+            continue;
+        const candidate = resolve(dirname(resolved), ...suffix.split(/[\\/]+/u));
+        const relation = relative(dirname(resolved), candidate);
+        if (relation === ".." || relation.startsWith(`..${sep}`) || isAbsolute(relation))
+            continue;
+        try {
+            const script = await realpath(candidate);
+            if ((await stat(script)).isFile())
+                return script;
+        }
+        catch {
+            continue;
+        }
     }
-} throw new Error(`Executable ${name} was not found.`); }
-function controlledPath(command) { return [...new Set([dirname(command), dirname(process.execPath), ...SAFE_PATH])].join(":"); }
+    throw new Error("Windows command shim does not expose a bounded Node entrypoint.");
+}
+function controlledPath(command) { return [...new Set([dirname(command), dirname(process.execPath), ...SAFE_PATH])].join(delimiter); }
+function windowsRuntimeEnvironment() {
+    if (process.platform !== "win32")
+        return {};
+    const systemRoot = process.env["SystemRoot"] ?? process.env["SYSTEMROOT"];
+    return systemRoot === undefined ? {} : { SystemRoot: systemRoot, SYSTEMROOT: systemRoot };
+}
 async function run(command, args, cwd, environment) {
     return new Promise((resolvePromise, reject) => {
-        const child = spawn(command, args, { cwd, env: { ...environment }, stdio: ["ignore", "pipe", "pipe"], shell: false });
+        const invocation = nodeInvocation(command, args);
+        const child = spawn(invocation.command, invocation.args, { cwd, env: { ...environment }, stdio: ["ignore", "pipe", "pipe"], shell: false, windowsHide: true });
         let stdout = "";
         let stderr = "";
         const append = (value, chunk) => { const next = value + chunk.toString("utf8"); if (Buffer.byteLength(next) > MAX_OUTPUT_BYTES) {
@@ -205,6 +256,11 @@ async function run(command, args, cwd, environment) {
         child.on("error", reject);
         child.on("close", (code) => resolvePromise({ code: code ?? 1, stdout, stderr }));
     });
+}
+function nodeInvocation(command, args) {
+    return /\.(?:cjs|mjs|js)$/iu.test(command)
+        ? { command: process.execPath, args: [command, ...args] }
+        : { command, args };
 }
 function result(profileId, healthy, code, message, processResult) { return Object.freeze({ profileId, healthy, code, message, exitCode: processResult.code, ...(processResult.stderr.trim() === "" ? {} : { stderrExcerpt: sanitize(processResult.stderr) }) }); }
 function failure(profileId, error) { const value = error instanceof ProfileRuntimeError ? error : coded("runtime_failed", error instanceof Error ? error.message : String(error)); return Object.freeze({ profileId, healthy: false, code: value.code, message: value.message }); }

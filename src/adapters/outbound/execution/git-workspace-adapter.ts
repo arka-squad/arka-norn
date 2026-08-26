@@ -5,8 +5,8 @@
 
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
-import { lstat, mkdir, readFile, realpath } from "node:fs/promises";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { lstat, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
+import { delimiter, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import type { BaseSnapshot, TaskPlan } from "../../../domain/orchestration/orchestration-plan.js";
 import type { ChangeOperation, RiskChange } from "../../../domain/orchestration/orchestration-risk.js";
@@ -284,24 +284,39 @@ export class GitWorktreeWorkspaceAdapter implements GitWorkspacePort {
 
   private async git(cwd: string, args: readonly string[], extraEnvironment: Readonly<Record<string, string>> = {}, allowedCodes: readonly number[] = [0]): Promise<GitResult> {
     await mkdir(this.gitHome, { recursive: true, mode: 0o700 });
-    const hardened = ["-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "-c", "protocol.file.allow=never", "-c", "protocol.ext.allow=never", ...args];
+    const hooksPath = join(this.gitHome, "disabled-hooks");
+    const emptyConfig = join(this.gitHome, "empty.gitconfig");
+    await mkdir(hooksPath, { recursive: true, mode: 0o700 });
+    await writeFile(emptyConfig, "", { flag: "a", mode: 0o600 });
+    const hardened = ["-c", `core.hooksPath=${hooksPath}`, "-c", "core.fsmonitor=false", "-c", "protocol.file.allow=never", "-c", "protocol.ext.allow=never", ...args];
     const result = await run(this.gitCommand, hardened, cwd, {
       HOME: this.gitHome,
       USERPROFILE: this.gitHome,
-      PATH: "/usr/local/bin:/usr/bin:/bin",
       LANG: "C",
       LC_ALL: "C",
       GIT_CONFIG_NOSYSTEM: "1",
-      GIT_CONFIG_GLOBAL: "/dev/null",
+      GIT_CONFIG_GLOBAL: emptyConfig,
       GIT_TERMINAL_PROMPT: "0",
-      GIT_ASKPASS: "/usr/bin/false",
-      GIT_SSH_COMMAND: "/usr/bin/false",
+      GCM_INTERACTIVE: "never",
       GIT_OPTIONAL_LOCKS: "0",
+      ...gitSystemEnvironment(),
       ...extraEnvironment,
     });
     if (!allowedCodes.includes(result.code)) throw new Error(`Git command failed (${String(result.code)}): ${sanitize(result.stderr || result.stdout)}`);
     return result;
   }
+}
+
+function gitSystemEnvironment(): Record<string, string> {
+  if (process.platform !== "win32") return { PATH: ["/usr/local/bin", "/opt/homebrew/bin", "/usr/bin", "/bin"].join(delimiter) };
+  const result: Record<string, string> = {};
+  const path = process.env["Path"] ?? process.env["PATH"];
+  if (path !== undefined) result["Path"] = path;
+  for (const name of ["SystemRoot", "SYSTEMROOT", "ComSpec", "TEMP", "TMP"] as const) {
+    const value = process.env[name];
+    if (value !== undefined) result[name] = value;
+  }
+  return result;
 }
 
 async function run(command: string, args: readonly string[], cwd: string, environment: Readonly<Record<string, string>>): Promise<GitResult> {

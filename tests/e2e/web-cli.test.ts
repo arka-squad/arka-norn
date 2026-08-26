@@ -4,7 +4,7 @@
  */
 
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -73,7 +73,9 @@ function run(args: readonly string[], home: string) {
     encoding: "utf8",
     env: { ...process.env, ARKA_NORN_HOME: home, LANG: "en_US.UTF-8" },
   });
-  assert.equal(result.status, 0, `${args.join(" ")}\n${result.stdout}\n${result.stderr}`);
+  const logPath = join(home, ".arka-norn", "web", "server.log");
+  const serverLog = existsSync(logPath) ? readFileSync(logPath, "utf8") : "";
+  assert.equal(result.status, 0, `${args.join(" ")}\n${result.stdout}\n${result.stderr}\n${serverLog}`);
   return result;
 }
 
