@@ -1,15 +1,16 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { LockKeyhole } from "lucide-react";
 
 import type { FeatureTrackingView, LiveInvalidation, NornBridge, ProjectOverview, WebPreferences } from "../../src/application/web/contracts";
-import { documentRoute, featureRoute, parseRoutePath, projectRoute, routePath, useRoute } from "./app/router";
+import { documentRoute, framingRoute, projectRoute, routePath, useRoute } from "./app/router";
 import { BridgeContext, useBridge } from "./bridge/context";
 import { DocumentRenderer } from "./components/document-renderer";
-import { ErrorState, LoadingState } from "./components/ui";
+import { EmptyState, ErrorState, LoadingState } from "./components/ui";
 import { useAsync } from "./hooks/use-async";
 import { useLive } from "./hooks/use-live";
 import { I18nProvider, useI18n } from "./i18n/i18n";
 import { AppShell } from "./layout/app-shell";
-import { isSafeRememberedRoute } from "./app/navigation-memory";
+import { isSafeRememberedRoute, resolveRememberedPath } from "./app/navigation-memory";
 import { AgentsView } from "./views/agents-view";
 import { AuditsView } from "./views/audits-view";
 import { DocumentsView } from "./views/documents-view";
@@ -96,6 +97,9 @@ function ProjectContent(props: {
   readonly preferences: WebPreferences;
   readonly refreshPreferences: () => void;
 }) {
+  if (props.project.lifecycle === "draft" && props.section !== "overview" && props.section !== "framing") {
+    return <DraftUnavailable project={props.project} navigate={props.navigate} />;
+  }
   if (props.featureId !== undefined) {
     return <FeatureContent projectId={props.projectId} featureId={props.featureId} {...(props.documentId === undefined ? {} : { documentId: props.documentId })} revision={props.revision} navigate={props.navigate} {...(props.preferences.humanProfile === undefined ? {} : { humanProfileId: props.preferences.humanProfile.id })} />;
   }
@@ -109,6 +113,11 @@ function ProjectContent(props: {
   if (props.section === "live") return <LiveContent projectId={props.projectId} revision={props.revision} />;
   if (props.section === "graph") return <GraphContent project={props.project} revision={props.revision} />;
   return <SettingsView preferences={props.preferences} onChanged={props.refreshPreferences} />;
+}
+
+function DraftUnavailable({ project, navigate }: { readonly project: ProjectOverview; readonly navigate: (path: string) => void }) {
+  const { t } = useI18n();
+  return <div className="page"><EmptyState title={t("web.project.draftTitle")} description={t("web.project.markerRequired")} icon={<LockKeyhole size={17} />} action={<button className="button primary" onClick={() => navigate(project.framing === undefined ? projectRoute(project.id) : framingRoute(project.id, project.framing.framingId))}>{t("web.action.continueFraming")}</button>} /></div>;
 }
 
 function FramingContent({ projectId, framingId, view, revision, navigate }: { readonly projectId: string; readonly framingId: string; readonly view: "plan" | "evidence" | "map" | "history"; readonly revision: number; readonly navigate: (path: string) => void }) {
@@ -190,24 +199,4 @@ function dataView<T>(state: { readonly data?: T; readonly loading: boolean; read
   if (state.loading && state.data === undefined) return <LoadingState />;
   if (state.error !== undefined || state.data === undefined) return <ErrorState error={state.error} retry={state.reload} />;
   return render(state.data);
-}
-
-async function resolveRememberedPath(bridge: NornBridge, remembered: string): Promise<{ readonly path: string; readonly recovered: boolean }> {
-  try {
-    const target = parseRoutePath(remembered);
-    if (target.projectId === undefined) return { path: "/projects", recovered: remembered !== "/projects" };
-    const project = await bridge.getProject(target.projectId);
-    if (target.framingId !== undefined) await bridge.getFraming(project.id, target.framingId);
-    if (target.featureId !== undefined) {
-      if (!project.features.some((feature) => feature.id === target.featureId)) return { path: projectRoute(project.id), recovered: true };
-      if (target.documentId !== undefined) {
-        const feature = await bridge.getFeature(project.id, target.featureId);
-        if (!feature.documents.some((document) => document.id === target.documentId)) return { path: featureRoute(project.id, target.featureId), recovered: true };
-      }
-    }
-    const normalized = routePath(target);
-    return { path: normalized, recovered: normalized !== remembered };
-  } catch {
-    return { path: "/projects", recovered: true };
-  }
 }

@@ -1,9 +1,10 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import type { ProjectOverview } from "../../../src/application/web/contracts";
+import type { NornBridge, ProjectOverview } from "../../../src/application/web/contracts";
+import { BridgeContext } from "../bridge/context";
 import { I18nProvider } from "../i18n/i18n";
-import { FeatureTable } from "./project-overview";
+import { FeatureTable, ProjectOverviewView } from "./project-overview";
 
 const project: ProjectOverview = {
   id: "norn",
@@ -11,6 +12,8 @@ const project: ProjectOverview = {
   root: "/products/norn",
   health: "healthy",
   orchestrationMode: "manual",
+  lifecycle: "materialized",
+  availability: { markerReady: true, reason: null },
   coverage: { tracked: 1, total: 1 },
   freshness: { observedAt: "2026-08-25T00:00:00Z", stale: false },
   counts: { features: 1, completedFeatures: 0, blockedFeatures: 0, invalidDocuments: 0, openDecisions: 0, openCorrections: 0, audits: 0, activeOrchestrations: 0 },
@@ -40,5 +43,29 @@ describe("FeatureTable", () => {
     const html = renderToStaticMarkup(<I18nProvider initialLocale="fr"><FeatureTable project={legacy} navigate={() => undefined} /></I18nProvider>);
     expect(html.match(/compatibility-badge/g)).toHaveLength(1);
     expect(html).toContain("Legacy");
+  });
+
+  it("keeps a ProjectDraft focused on its resumable framing and hides marker mutations", () => {
+    const draft: ProjectOverview = {
+      ...project,
+      lifecycle: "draft",
+      materialization: "draft",
+      health: "attention",
+      availability: { markerReady: false, reason: "framing_publication_required" },
+      coverage: { tracked: 0, total: 0 },
+      counts: { features: 0, completedFeatures: 0, blockedFeatures: 0, invalidDocuments: 0, openDecisions: 0, openCorrections: 0, audits: 0, activeOrchestrations: 0 },
+      features: [],
+      framing: {
+        planId: "plan-project", framingId: "project", targetKind: "project", targetTitle: "Norn", revision: 2,
+        repositoryNature: "implemented", attention: "agent", published: false, summary: "Plan vivant",
+        nextMove: "Confronter le plan", recommendedPipelineId: null, updatedAt: "2026-08-26T00:00:00Z",
+      },
+    };
+    const bridge = { startFraming: () => Promise.reject(new Error("not used")) } as unknown as NornBridge;
+    const html = renderToStaticMarkup(<BridgeContext.Provider value={bridge}><I18nProvider initialLocale="fr"><ProjectOverviewView project={draft} navigate={() => undefined} /></I18nProvider></BridgeContext.Provider>);
+    expect(html).toContain("Ce Project est encore en cadrage");
+    expect(html).toContain("Plan vivant");
+    expect(html).not.toContain("feature-index");
+    expect(html).not.toContain("compact-summary");
   });
 });

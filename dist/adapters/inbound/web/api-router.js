@@ -84,6 +84,12 @@ async function dispatchFeatureGet(segments, service) {
 async function dispatchPost(request, segments, service) {
     if (same(segments, ["folder-picker"]))
         return ok(await service.pickFolder(await body(request)));
+    if (same(segments, ["framing", "enter"])) {
+        const input = await body(request);
+        if (typeof input.root !== "string" || input.root.trim().length === 0 || input.root.length > 4_096)
+            throw new ClientRequestError(400, "invalid_root");
+        return created(await service.enterProjectFraming({ root: input.root.trim() }));
+    }
     if (same(segments, ["projects"]))
         return created(await service.createProject(await body(request)));
     if (segments.length === 3 && segments[0] === "projects" && segments[2] === "features") {

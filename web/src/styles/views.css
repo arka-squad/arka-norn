@@ -7,6 +7,14 @@
 .project-main small { color: var(--text-muted); font-family: var(--font-mono); font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .project-meta { align-items: flex-end; }
 .project-meta small { color: var(--text-muted); font-size: 10px; }
+.project-main strong { display: flex; align-items: center; gap: 8px; }
+.project-draft-badge { display: inline-flex; align-items: center; min-height: 20px; padding: 1px 7px; border: 1px solid color-mix(in srgb, var(--amber) 32%, transparent); border-radius: 999px; color: var(--amber); font-family: var(--font-mono); font-size: 9px; font-style: normal; letter-spacing: .04em; text-transform: uppercase; }
+.draft-project-state { display: flex; align-items: flex-start; gap: 13px; padding: 16px 18px; border: 1px solid color-mix(in srgb, var(--amber) 28%, var(--border)); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--amber) 5%, var(--surface)); }
+.draft-project-state svg { flex: 0 0 auto; color: var(--amber); }
+.draft-project-state h2 { margin: 0 0 5px; font-size: 15px; }
+.draft-project-state p { margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.55; }
+.draft-project-state.recovery { border-color: color-mix(in srgb, var(--red) 32%, var(--border)); background: color-mix(in srgb, var(--red) 5%, var(--surface)); }
+.draft-project-state.recovery svg { color: var(--red); }
 .overview-bands { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(250px, .7fr); gap: 34px; margin-bottom: 32px; }
 .overview-section { min-width: 0; }
 .attention-list button, .document-list button { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 59px; padding: 10px 8px; border: 0; border-bottom: 1px solid var(--border); background: transparent; cursor: pointer; text-align: left; }

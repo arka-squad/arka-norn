@@ -35,6 +35,7 @@ import { MissionOrder } from "../../src/domain/orchestration/mission-order.ts";
 import { ProjectId } from "../../src/domain/project/project-id.ts";
 
 import { createContainer } from "../../src/composition/container.ts";
+import { createFramingRuntime } from "../../src/composition/framing-runtime.ts";
 import { createManagementRuntime } from "../../src/composition/management-runtime.ts";
 import { readEnv } from "../../src/composition/env.ts";
 import type { ForOrchestration, OrchestrationStatus } from "../../src/ports/inbound/for-orchestration.ts";
@@ -42,16 +43,18 @@ import { writeLegacyFeatureMarker } from "../helpers/legacy-feature.ts";
 
 setActiveLocale("fr");
 
-test("l’accueil crée un Project lorsque la racine ne contient aucun marker", async (context) => {
+test("l’accueil ouvre un ProjectDraft sans marker lorsque la racine est vierge", async (context) => {
   const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-tui-create-project-"));
   const projectRoot = resolve(sandbox, "product");
   mkdirSync(projectRoot, { recursive: true });
   context.after(() => rmSync(sandbox, { recursive: true, force: true }));
 
   const management = createManagementRuntime({ homeDir: sandbox });
+  const framing = createFramingRuntime({ homeDir: sandbox, frameworkRoot: resolve(import.meta.dirname, "..", "..") });
   const home = createHomeView({
     initialProjects: [],
     projects: management.projects,
+    framing,
     scan: management.scanProjects,
     cwd: projectRoot,
     contextRoot: projectRoot,
@@ -60,45 +63,47 @@ test("l’accueil crée un Project lorsque la racine ne contient aucun marker", 
 
   home.onKey({ kind: "enter" });
   home.onKey({ kind: "enter" });
-  await waitForOrchestrationMode(home);
-  home.onKey({ kind: "enter" });
 
   const marker = resolve(projectRoot, ".arka-norn", "project.json");
-  await waitUntil(async () => (await management.projects.list()).length === 1, "indexation du Project créé");
-  await waitUntil(() => renderScene(home).includes("Project créé"), "fin auditée de la création du Project");
-  const [project] = await management.projects.list();
-  assert.equal(existsSync(marker), true);
-  assert.equal(project?.root, realpathSync.native(projectRoot));
-  assert.equal(project?.name, "product");
-  assert.equal(project?.orchestrationMode, "manual");
+  await waitUntil(async () => (await framing.listProjectDrafts()).length === 1, "persistance du ProjectDraft");
+  await waitUntil(() => renderScene(home).includes("Cadrage Project ouvert"), "fin auditée de l’entrée cadrage");
+  const [draft] = await framing.listProjectDrafts();
+  assert.equal(existsSync(marker), false);
+  assert.equal(draft?.root, realpathSync.native(projectRoot));
+  assert.equal(draft?.name, "product");
+  assert.equal(draft?.orchestrationMode, "manual");
+  assert.equal((await management.projects.list()).length, 0);
 });
 
-test("l’accueil TUI demande puis enregistre le mode d’orchestration pour un nouveau Project", async (context) => {
+test("l’accueil TUI projette un draft et reprend son cadrage sans ouvrir les mutations Project", async (context) => {
   const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-tui-orchestration-mode-"));
   const projectRoot = resolve(sandbox, "product");
   mkdirSync(projectRoot, { recursive: true });
   context.after(() => rmSync(sandbox, { recursive: true, force: true }));
 
   const management = createManagementRuntime({ homeDir: sandbox });
+  const framing = createFramingRuntime({ homeDir: sandbox, frameworkRoot: resolve(import.meta.dirname, "..", "..") });
+  const entry = await framing.enter({ path: projectRoot, contentLocale: "fr" });
+  let opened = "";
   const home = createHomeView({
     initialProjects: [],
+    initialDrafts: await framing.listProjectDrafts(),
     projects: management.projects,
+    framing,
     scan: management.scanProjects,
     cwd: projectRoot,
     contextRoot: projectRoot,
     redraw() {},
+    onOpenDraft: (draft, plan) => { opened = `${draft.id}:${plan.id}`; },
   });
 
-  home.onKey({ kind: "enter" });
-  home.onKey({ kind: "enter" });
-  await waitForOrchestrationMode(home);
   home.onKey({ kind: "down" });
   home.onKey({ kind: "enter" });
 
-  await waitUntil(async () => (await management.projects.list()).length === 1, "indexation du Project automatique");
-  await waitUntil(() => renderScene(home).includes("Project créé"), "fin auditée de la création du Project automatique");
-  const [project] = await management.projects.list();
-  assert.equal(project?.orchestrationMode, "automatic");
+  await waitUntil(() => opened.length > 0, "reprise du cadrage ProjectDraft");
+  assert.equal(opened, `${entry.project.id.value}:${entry.plan.id}`);
+  assert.match(renderScene(home), /Cadrage en cours.*brouillon privé/su);
+  assert.equal((await management.projects.list()).length, 0);
 });
 
 test("le détail TUI permet de basculer explicitement le mode Project", async (context) => {
@@ -528,15 +533,4 @@ async function waitUntil(predicate: () => boolean | Promise<boolean>, label: str
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 10));
   }
   throw new Error(`Timeout TUI : ${label}`);
-}
-
-async function waitForOrchestrationMode(home: ReturnType<typeof createHomeView>): Promise<void> {
-  let output = "";
-  const renderer = createRenderer({ write: (chunk) => { output += chunk; }, isTTY: false, columns: 120 });
-  const theme = createTheme({ NO_COLOR: "1" }, false);
-  await waitUntil(() => {
-    output = "";
-    home.render(renderer, theme);
-    return output.includes("Niveau de délégation");
-  }, "choix du mode d’orchestration");
 }

@@ -53,7 +53,7 @@ test("la vraie vue d'accueil expose uniquement le vocabulaire Project", () => {
 
   view.render(renderer, createTheme({ NO_COLOR: "1" }, false));
   assert.match(output, /Projects/);
-  assert.match(output, /Créer ou importer un Project/);
+  assert.match(output, /Cadrer ou importer un Project/);
   assert.doesNotMatch(output, /Dépôt|dépôt/);
   assert.match(output, /Santé du système/);
   assert.match(output, /Installer ou réparer les skills/);

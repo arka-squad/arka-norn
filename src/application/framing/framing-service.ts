@@ -74,6 +74,15 @@ export class FramingService implements ForFraming {
     return (await this.locateProjectContext(path, initialize)).project;
   }
 
+  public async listProjectDrafts(): Promise<readonly ProjectDraft[]> {
+    return (await this.dependencies.projectDrafts.list()).filter((draft) => draft.materialization !== "materialized");
+  }
+
+  public async showProjectDraft(projectId: string): Promise<ProjectDraft | undefined> {
+    const draft = await this.dependencies.projectDrafts.load(projectId);
+    return draft?.materialization === "materialized" ? undefined : draft;
+  }
+
   private async locateProjectContext(path: string, initialize: boolean): Promise<FramingProjectContext> {
     const canonical = await canonicalDirectory(path);
     const indexed = await this.dependencies.projects.list();
@@ -81,7 +90,7 @@ export class FramingService implements ForFraming {
     if (containing !== undefined) return { project: containing, draft: null };
     const markerRoot = await findMarkerRoot(canonical);
     if (markerRoot !== undefined) return { project: await this.dependencies.projects.importFrom({ root: markerRoot }), draft: null };
-    const containingDraft = await selectContainingDraft(await this.dependencies.projectDrafts.list(), canonical);
+    const containingDraft = selectContainingDraft(await this.dependencies.projectDrafts.list(), canonical);
     if (containingDraft !== undefined) {
       const verified = await this.dependencies.projectDrafts.verify(containingDraft.id);
       return { project: projectFromDraft(verified), draft: verified };
@@ -344,7 +353,7 @@ async function selectContainingProject(projects: readonly Project[], path: strin
   return candidates.sort((left, right) => right.root.length - left.root.length)[0]?.project;
 }
 
-async function selectContainingDraft(drafts: readonly ProjectDraft[], path: string): Promise<ProjectDraft | undefined> {
+function selectContainingDraft(drafts: readonly ProjectDraft[], path: string): ProjectDraft | undefined {
   return drafts.filter((draft) => draft.materialization !== "materialized"
     && (path === draft.root || path.startsWith(`${draft.root}${sep}`)))
     .sort((left, right) => right.root.length - left.root.length)[0];

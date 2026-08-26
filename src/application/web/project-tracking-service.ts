@@ -64,6 +64,7 @@ import type {
 import { createFeatureTrackingView } from "./feature-tracking.js";
 import { framingDetail, framingSummary, revisionMilestone } from "./framing-projection.js";
 import { v23Campaign, v23Dag, v23Tasks } from "./orchestration-v23-projection.js";
+import { createProjectDraftListItem, createProjectDraftOverview } from "./project-draft-projection.js";
 
 interface TrackingServiceOptions {
   readonly management: ManagementRuntime;
@@ -97,18 +98,35 @@ export class ProjectTrackingService {
   }
 
   public async listProjects(): Promise<readonly ProjectListItem[]> {
-    const projects = await this.options.management.projects.list();
-    return Promise.all(projects.map(async (project) => {
+    const [projects, drafts] = await Promise.all([
+      this.options.management.projects.list(),
+      this.options.framing.listProjectDrafts(),
+    ]);
+    const materialized = await Promise.all(projects.map(async (project) => {
       const overview = await this.getProject(project.id.value);
       return {
         id: project.id.value, name: project.name, root: project.root, featureCount: overview.counts.features,
-        health: overview.health, updatedAt: project.updatedAt.toISOString(),
-      };
+        health: overview.health, updatedAt: project.updatedAt.toISOString(), lifecycle: "materialized" as const,
+        ...(overview.framing === undefined ? {} : { framing: overview.framing }),
+      } satisfies ProjectListItem;
     }));
+    const projectedDrafts = await Promise.all(drafts.map(async (draft) => {
+      const framing = await this.latestFraming(draft.id);
+      return createProjectDraftListItem(draft, framing);
+    }));
+    return [...materialized, ...projectedDrafts].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
   }
 
   public async getProject(projectId: string): Promise<ProjectOverview> {
-    const project = await this.project(projectId);
+    const project = (await this.options.management.projects.list()).find((candidate) => candidate.id.value === projectId);
+    if (project === undefined) {
+      const draft = await this.options.framing.showProjectDraft(projectId);
+      if (draft === undefined) {
+        await this.project(projectId);
+        throw new Error("Unreachable Project resolution.");
+      }
+      return createProjectDraftOverview(draft, await this.latestFraming(draft.id));
+    }
     const [features, governance, audits, orchestrations, framings] = await Promise.all([
       this.options.management.features.list(project.id), this.getGovernance(projectId), this.getAudits(projectId), this.getOrchestrations(projectId), this.listFramings(projectId),
     ]);
@@ -124,6 +142,8 @@ export class ProjectTrackingService {
       root: project.root,
       health,
       orchestrationMode: project.orchestrationMode,
+      lifecycle: "materialized",
+      availability: { markerReady: true, reason: null },
       coverage: { tracked: summaries.length, total: features.length },
       freshness: { observedAt: observedAt.toISOString(), stale: false },
       counts: {
@@ -139,6 +159,15 @@ export class ProjectTrackingService {
       features: summaries,
       ...(framings[0] === undefined ? {} : { framing: framings.find((item) => !item.published) ?? framings[0] }),
     };
+  }
+
+  public async enterProjectFraming(input: { readonly root: string }): Promise<ProjectOverview> {
+    if (typeof input.root !== "string" || input.root.trim().length === 0 || input.root.length > 4_096) {
+      throw new Error("A valid Project root is required for framing.");
+    }
+    const preferences = await this.getPreferences();
+    const entry = await this.options.framing.enter({ path: input.root, contentLocale: preferences.resolvedLocale });
+    return this.getProject(entry.project.id.value);
   }
 
   public async getFeature(projectId: string, featureId: string): Promise<FeatureTrackingView> {
@@ -172,15 +201,21 @@ export class ProjectTrackingService {
   }
 
   public async startFraming(projectId: string, input: { readonly existingFeatureId?: string; readonly newFeatureTitle?: string }): Promise<FramingDetailView> {
-    const project = await this.project(projectId);
+    const draft = await this.options.framing.showProjectDraft(projectId);
+    const root = draft?.root ?? (await this.project(projectId)).root;
     const preferences = await this.getPreferences();
     const entry = await this.options.framing.enter({
-      path: project.root,
+      path: root,
       contentLocale: preferences.resolvedLocale,
       ...(input.existingFeatureId === undefined ? {} : { existingFeatureId: input.existingFeatureId }),
       ...(input.newFeatureTitle === undefined ? {} : { newFeatureTitle: input.newFeatureTitle }),
     });
     return this.getFraming(projectId, entry.plan.target.framingId);
+  }
+
+  private async latestFraming(projectId: string): Promise<FramingSummaryView | undefined> {
+    const values = await this.listFramings(projectId);
+    return values.find((item) => !item.published) ?? values[0];
   }
 
   public async getFeatureContinuation(projectId: string, featureId: string): Promise<FeatureContinuationView> {

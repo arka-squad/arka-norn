@@ -88,7 +88,8 @@ export function AppShell({ route, project, live, navigate, children }: PropsWith
           <div className="rail-project"><p title={project?.name}>{project?.name ?? route.projectId}</p><span><b>{contracts.appVersion}</b>{project === undefined ? null : <small>{project.features.reduce((total, feature) => total + feature.documentCount, 0)} {t("web.document.countMany")}</small>}</span></div>
           {NAVIGATION.map(([section, Icon, label]) => {
             const count = navigationCount(section, project);
-            return <button key={section} className={route.section === section ? "nav-item active" : "nav-item"} title={t(label)} onClick={() => navigate(projectRoute(route.projectId!, section))}><Icon size={15} /><span>{t(label)}</span>{count === undefined ? null : <small>{count}</small>}</button>;
+            const disabled = navigationDisabled(section, project);
+            return <button key={section} className={route.section === section ? "nav-item active" : "nav-item"} title={disabled ? t("web.project.markerRequired") : t(label)} disabled={disabled} onClick={() => navigate(projectRoute(route.projectId!, section))}><Icon size={15} /><span>{t(label)}</span>{count === undefined ? null : <small>{count}</small>}</button>;
           })}
         </div>}
       </nav>
@@ -112,15 +113,15 @@ export function AppShell({ route, project, live, navigate, children }: PropsWith
       <main><div className="route-stage" key={routeKey(route)}>{children}</div></main>
     </div>
     {route.projectId === undefined ? null : <nav className="mobile-navigation" aria-label={t("web.common.primaryNavigation")}>
-      {NAVIGATION.slice(0, 3).map(([section, Icon, label]) => <button key={section} className={route.section === section ? "active" : ""} onClick={() => { setMobileMore(false); navigate(projectRoute(route.projectId!, section)); }}><Icon size={19} /><span>{t(label)}</span></button>)}
-      <button ref={mobileMoreTrigger} className={NAVIGATION.slice(3).some(([section]) => section === route.section) ? "active" : ""} aria-expanded={mobileMore} onClick={() => setMobileMore(true)}><Menu size={19} /><span>{t("web.nav.more")}</span></button>
+      {NAVIGATION.slice(0, 3).map(([section, Icon, label]) => <button key={section} className={route.section === section ? "active" : ""} disabled={navigationDisabled(section, project)} onClick={() => { setMobileMore(false); navigate(projectRoute(route.projectId!, section)); }}><Icon size={19} /><span>{t(label)}</span></button>)}
+      <button ref={mobileMoreTrigger} className={NAVIGATION.slice(3).some(([section]) => section === route.section) ? "active" : ""} aria-expanded={mobileMore} disabled={project?.availability.markerReady === false} onClick={() => setMobileMore(true)}><Menu size={19} /><span>{t("web.nav.more")}</span></button>
     </nav>}
     {!mobileMore || route.projectId === undefined ? null : <div className="mobile-more-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setMobileMore(false); }}>
       <section ref={mobileMoreSheet} className="mobile-more-sheet" role="dialog" aria-modal="true" aria-labelledby="mobile-more-title">
         <header><div><small>{project?.name ?? route.projectId}</small><h2 id="mobile-more-title">{t("web.nav.more")}</h2></div><button className="icon-button" aria-label={t("web.action.close")} onClick={() => setMobileMore(false)}><X size={17} /></button></header>
         <div>{NAVIGATION.slice(3).map(([section, Icon, label]) => {
           const count = navigationCount(section, project);
-          return <button key={section} className={route.section === section ? "active" : ""} onClick={() => { setMobileMore(false); navigate(projectRoute(route.projectId!, section)); }}><Icon size={18} /><span>{t(label)}</span>{count === undefined ? null : <small>{count}</small>}</button>;
+          return <button key={section} className={route.section === section ? "active" : ""} disabled={navigationDisabled(section, project)} onClick={() => { setMobileMore(false); navigate(projectRoute(route.projectId!, section)); }}><Icon size={18} /><span>{t(label)}</span>{count === undefined ? null : <small>{count}</small>}</button>;
         })}</div>
       </section>
     </div>}
@@ -135,6 +136,10 @@ function navigationCount(section: typeof NAVIGATION[number][0], project?: Projec
   if (section === "audits") return project.counts.audits;
   if (section === "live") return project.counts.activeOrchestrations;
   return undefined;
+}
+
+function navigationDisabled(section: typeof NAVIGATION[number][0], project?: ProjectOverview): boolean {
+  return project?.availability.markerReady === false && section !== "overview";
 }
 
 function routeKey(route: AppRoute): string {

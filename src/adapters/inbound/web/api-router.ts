@@ -82,6 +82,11 @@ async function dispatchFeatureGet(segments: readonly string[], service: ProjectT
 
 async function dispatchPost(request: IncomingMessage, segments: readonly string[], service: ProjectTrackingService) {
   if (same(segments, ["folder-picker"])) return ok(await service.pickFolder(await body(request)));
+  if (same(segments, ["framing", "enter"])) {
+    const input = await body<{ readonly root?: unknown }>(request);
+    if (typeof input.root !== "string" || input.root.trim().length === 0 || input.root.length > 4_096) throw new ClientRequestError(400, "invalid_root");
+    return created(await service.enterProjectFraming({ root: input.root.trim() }));
+  }
   if (same(segments, ["projects"])) return created(await service.createProject(await body(request)));
   if (segments.length === 3 && segments[0] === "projects" && segments[2] === "features") {
     return created(await service.createFeature(id(segments[1]), await body(request)));

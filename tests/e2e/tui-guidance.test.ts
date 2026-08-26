@@ -45,8 +45,8 @@ test("l’accueil explique le parcours vide et la touche d’aide", () => {
     scan: { scan: async () => [] }, cwd: "/workspace", contextRoot: "/workspace", redraw() {},
   });
   view.render(renderer, theme);
-  assert.match(output, /Action recommandée.*Créer ou importer un Project/s);
-  assert.match(output, /Project -> Agent actif -> Feature/);
+  assert.match(output, /Action recommandée.*Cadrer ou importer un Project/s);
+  assert.match(output, /cadrage Project -> publication -> cadrage Feature/);
   output = "";
   view.onKey({ kind: "help" });
   view.render(renderer, theme);

@@ -27,6 +27,8 @@ export interface ForFraming {
     readonly contentLocale: "en" | "fr";
   }): Promise<FramingEntry>;
   locateProject(path: string, initialize: boolean): Promise<Project>;
+  listProjectDrafts(): Promise<readonly ProjectDraft[]>;
+  showProjectDraft(projectId: string): Promise<ProjectDraft | undefined>;
   list(projectId: string): Promise<readonly FramingPlanReference[]>;
   show(projectId: string, framingId?: string): Promise<FramingPlan>;
   showRevision(projectId: string, framingId: string, revision: number): Promise<FramingPlan | undefined>;

@@ -226,8 +226,11 @@ export function createContainer(env, ui = {}) {
             uiState.currentFeature = feature;
         },
         async createHomeView() {
-            const initialProjects = await projects.list();
-            const preferences = await localePreferences.loadPreferences();
+            const [initialProjects, initialDrafts, preferences] = await Promise.all([
+                projects.list(),
+                framing.listProjectDrafts(),
+                localePreferences.loadPreferences(),
+            ]);
             const doctor = createDoctorRuntime(homeDir, env.cwd);
             const inspectHealth = async () => {
                 const [projectSkills, globalSkills, report] = await Promise.all([
@@ -260,7 +263,9 @@ export function createContainer(env, ui = {}) {
             };
             const home = createHomeView({
                 initialProjects,
+                initialDrafts,
                 projects,
+                framing,
                 scan: scanProjects,
                 cwd: env.cwd,
                 contextRoot: uiState.contextRoot,
@@ -277,7 +282,23 @@ export function createContainer(env, ui = {}) {
                 onProjectFocused: (project) => {
                     uiState.currentProject = project;
                 },
+                onDraftFocused: () => {
+                    uiState.currentProject = undefined;
+                    uiState.currentFeature = undefined;
+                    uiState.currentAgent = undefined;
+                },
                 onOpenProject: (project) => openProjectDetail(project),
+                onOpenDraft: (draft, plan) => {
+                    app.push(createResultView({
+                        title: translate("tui.container.framing.title"),
+                        code: draft.materialization === "recovery_required" ? 70 : 0,
+                        output: translate("tui.container.framing.resumed", { title: draft.name, revision: formatNumber(plan.revision) }),
+                        onBack: () => app.pop(),
+                        nextStep: draft.materialization === "recovery_required"
+                            ? translate("tui.home.draft.recovery_required")
+                            : translate("tui.container.framing.next"),
+                    }));
+                },
                 onShowHealth: async () => {
                     const health = await refreshHomeHealth();
                     showHealthReport(app, health.report, health.projectSkills, health.globalSkills);

@@ -3,7 +3,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  */
 
-import { mkdtemp, mkdir, rm } from "node:fs/promises";
+import { access, mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 
@@ -15,12 +15,15 @@ import type { RunningWebServer } from "../../src/adapters/inbound/web/web-server
 
 let sandbox = "";
 let projectRoot = "";
+let materializedRoot = "";
 let server: RunningWebServer | undefined;
 
 test.beforeAll(async () => {
   sandbox = await mkdtemp(resolve(tmpdir(), "arka-norn-web-e2e-"));
   projectRoot = resolve(sandbox, "project");
+  materializedRoot = resolve(sandbox, "materialized-project");
   await mkdir(projectRoot, { recursive: true });
+  await mkdir(materializedRoot, { recursive: true });
   const { AgentSessionId } = await import("../../src/domain/agent/agent-session-id.ts");
   const { createWebRuntime } = await import("../../src/composition/web-runtime.ts");
   server = await createWebRuntime({
@@ -60,7 +63,7 @@ test("local API rejects unauthorized origins and exposes no orchestration contro
   expect(shell.headers.get("content-security-policy")).toContain("default-src 'self'");
 });
 
-test("Project manager enters framing without the legacy wizard or a workflow choice in EN and FR", async ({ page }) => {
+test("Project framing enters and resumes as a draft without marker, Feature or workflow", async ({ page }) => {
   await page.goto(requiredServer().url);
   const brand = await page.locator(".wordmark img").evaluate((element) => ({
     loaded: (element as HTMLImageElement).naturalWidth > 0,
@@ -71,15 +74,53 @@ test("Project manager enters framing without the legacy wizard or a workflow cho
   expect(brand).toEqual({ loaded: true, red: "#c70f43", theme: "dark", typography: expect.stringContaining("Poppins") });
   await expect(page.getByRole("heading", { name: "Projects" })).toBeVisible();
   await expect(page.getByRole("dialog", { name: "Set up your verified workspace" })).toHaveCount(0);
-  await page.getByRole("button", { name: "Create Project" }).click();
-  const projectDialog = page.getByRole("dialog", { name: "Create Project" });
-  const projectName = projectDialog.getByRole("textbox", { name: /^Name/ });
-  await projectName.fill("Demo Project");
+  await page.getByRole("button", { name: "Frame a Project" }).click();
+  const projectDialog = page.getByRole("dialog", { name: "Frame a Project" });
+  await expect(projectDialog.getByRole("textbox", { name: /^Name/ })).toHaveCount(0);
+  await expect(projectDialog.getByText("No marker, Feature or workflow is created now.", { exact: false })).toBeVisible();
   await projectDialog.getByRole("button", { name: "Choose folder" }).click();
   await expect(projectDialog.getByText(projectRoot)).toBeVisible();
-  await projectDialog.getByRole("button", { name: "Register Project" }).click();
+  const continueButton = projectDialog.getByRole("button", { name: "Continue to framing" });
+  await expect(continueButton).toBeEnabled();
+  const entryResponse = page.waitForResponse((response) => response.url().endsWith("/api/v1/framing/enter") && response.request().method() === "POST");
+  await continueButton.click();
+  expect((await entryResponse).status()).toBe(201);
+
+  await expect(page.getByRole("heading", { name: "project", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "This Project is still being framed" })).toBeVisible();
+  await expect(page.getByText("The plan is private and resumable.", { exact: false })).toBeVisible();
+  await expect(page.locator(".sidebar").getByRole("button", { name: /^Features/ })).toBeDisabled();
+  await expect(page.locator(".sidebar").getByRole("button", { name: /^Settings/ })).toBeDisabled();
+  await expect(page.locator(".sidebar").getByRole("button", { name: /^Overview/ })).toBeEnabled();
+  await expect(page.locator(".metric-strip")).toHaveCount(0);
+  await expect(page.locator(".feature-table-section")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Resume" })).toBeVisible();
+  await expect(access(resolve(projectRoot, ".arka-norn", "project.json")).then(() => true).catch(() => false)).resolves.toBe(false);
+
+  await page.getByRole("button", { name: "Resume" }).click();
+  await expect(page.getByRole("heading", { name: "Project frame", exact: true })).toBeVisible();
+  await expect(page.getByText("The plan is being opened")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Copy resume context" })).toBeVisible();
+
+  await page.getByRole("button", { name: "FR" }).click();
+  await expect(page.getByRole("tab", { name: "Plan" })).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("lang", "fr");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator(".mobile-navigation").getByRole("button", { name: "Features" })).toBeDisabled();
+  await expect(page.locator(".mobile-navigation").getByRole("button", { name: "Plus" })).toBeDisabled();
+  expect(await horizontalOverflow(page)).toBeLessThanOrEqual(1);
+});
+
+test("materialized Project keeps the complete tracking experience in EN and FR", async ({ page }) => {
+  await page.goto(requiredServer().url);
+  await createMaterializedProject(page);
+  await page.evaluate(() => { window.location.hash = "#/projects/demo-project/overview"; });
 
   await expect(page.getByRole("heading", { name: "Demo Project" })).toBeVisible();
+  const switchToEnglish = page.getByRole("button", { name: "EN", exact: true });
+  if (await switchToEnglish.count() > 0) await switchToEnglish.click();
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await page.locator(".sidebar").getByRole("button", { name: /^Features/ }).click();
   await page.getByRole("button", { name: "Frame a new Feature" }).click();
   const framingDialog = page.getByRole("dialog", { name: "Frame a new Feature" });
@@ -147,9 +188,20 @@ async function registeredFeatureCount(page: Page): Promise<number | undefined> {
   return page.evaluate(async () => {
     const token = sessionStorage.getItem("arka-norn-web-token");
     const response = await fetch("/api/v1/projects", { headers: { Authorization: `Bearer ${token ?? ""}` } });
-    const envelope = await response.json() as { readonly data?: readonly { readonly featureCount?: number }[] };
-    return envelope.data?.[0]?.featureCount;
+    const envelope = await response.json() as { readonly data?: readonly { readonly id: string; readonly featureCount?: number }[] };
+    return envelope.data?.find((project) => project.id === "demo-project")?.featureCount;
   });
+}
+
+async function createMaterializedProject(page: Page): Promise<void> {
+  const runtime = requiredServer();
+  const origin = new URL(runtime.url).origin;
+  const response = await page.evaluate(async ({ root, token, requestOrigin }) => fetch("/api/v1/projects", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, Origin: requestOrigin, "Content-Type": "application/json" },
+    body: JSON.stringify({ id: "demo-project", name: "Demo Project", root }),
+  }).then(async (result) => ({ status: result.status, body: await result.text() })), { root: materializedRoot, token: runtime.token, requestOrigin: origin });
+  expect(response.status, response.body).toBe(201);
 }
 
 function horizontalOverflow(page: Page): Promise<number> {

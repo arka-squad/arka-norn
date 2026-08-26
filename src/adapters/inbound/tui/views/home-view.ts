@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-import { createHash } from "node:crypto";
-import { basename } from "node:path";
-
-import { DomainError } from "../../../../domain/errors.js";
+import type { FramingPlan } from "../../../../domain/framing/framing-plan.js";
+import type { ProjectDraft } from "../../../../domain/project/project-draft.js";
 import { ProjectId } from "../../../../domain/project/project-id.js";
-import type { Project, ProjectOrchestrationMode } from "../../../../domain/project/project.js";
+import type { Project } from "../../../../domain/project/project.js";
+import type { ForFraming } from "../../../../ports/inbound/for-framing.js";
 import type { ForProjects } from "../../../../ports/inbound/for-projects.js";
 import type { ForScanProjects } from "../../../../ports/inbound/for-scan-projects.js";
 import { titledBox } from "../components/box.js";
@@ -29,21 +28,25 @@ import type { KeyEvent } from "../runtime/input.js";
 import type { Renderer } from "../runtime/render.js";
 import type { Theme } from "../runtime/theme.js";
 import type { Scene } from "../runtime/tui-app.js";
-import { formatNumber, formatShortDate, formatTime, translate, type LocalePreference } from "../../../../application/localization/locale.js";
+import { activeLocale, formatNumber, formatShortDate, formatTime, translate, type LocalePreference } from "../../../../application/localization/locale.js";
 
 type PreferredSurface = "web" | "tui" | "cli";
-type HomeAction = "action:create" | "action:scan" | "action:health" | "action:install" | "action:locale" | "action:surface" | `project:${string}`;
+type HomeAction = "action:create" | "action:scan" | "action:health" | "action:install" | "action:locale" | "action:surface" | `project:${string}` | `draft:${string}`;
 
 export interface HomeViewDeps {
   readonly initialProjects: readonly Project[];
+  readonly initialDrafts?: readonly ProjectDraft[];
   readonly projects: ForProjects;
+  readonly framing?: Pick<ForFraming, "enter" | "listProjectDrafts" | "show">;
   readonly scan: ForScanProjects;
   readonly cwd: string;
   readonly contextRoot: string;
   readonly redraw: () => void;
   readonly now?: () => Date;
   readonly onProjectFocused?: (project: Project | undefined) => void;
+  readonly onDraftFocused?: (draft: ProjectDraft | undefined) => void;
   readonly onOpenProject?: (project: Project) => Promise<void> | void;
+  readonly onOpenDraft?: (draft: ProjectDraft, plan: FramingPlan) => Promise<void> | void;
   readonly onShowHealth?: () => Promise<void> | void;
   readonly onInstallSkills?: () => Promise<void> | void;
   readonly skillHealth?: string;
@@ -69,10 +72,9 @@ const IDENTITY = (value: string): string => value;
 export function createHomeView(deps: HomeViewDeps): HomeView {
   const now = deps.now ?? (() => new Date());
   let projects = [...deps.initialProjects];
-  let mode: "menu" | "create" | "orchestration-mode" | "locale" | "surface" = "menu";
+  let drafts = [...(deps.initialDrafts ?? [])];
+  let mode: "menu" | "create" | "locale" | "surface" = "menu";
   let createPath = deps.cwd;
-  let pendingProject: { readonly id: ProjectId; readonly name: string; readonly root: string } | undefined;
-  let orchestrationMode: ProjectOrchestrationMode = "manual";
   let message: string | undefined;
   let busy = false;
   let helpVisible = false;
@@ -91,6 +93,11 @@ export function createHomeView(deps: HomeViewDeps): HomeView {
         label: `${CIRCLE} ${project.name} - ${translate(project.orchestrationMode === "automatic" ? "tui.home.mode.assisted" : "tui.home.mode.manual")}`,
         value: `project:${project.id.value}` as const,
         description: `${project.root}  ${formatActivity(project.updatedAt, now())}`,
+      })),
+      ...drafts.map((draft) => ({
+        label: `${CIRCLE} ${draft.name} - ${translate("tui.home.draft.label")}`,
+        value: `draft:${draft.id}` as const,
+        description: `${draft.root}  ${translate(`tui.home.draft.${draft.materialization}`)}  ${formatActivity(new Date(draft.updatedAt), now())}`,
       })),
       { label: translate("tui.home.scan.label"), value: "action:scan", description: translate("tui.home.scan.description") },
       { label: translate("tui.home.health.label"), value: "action:health", description: translate("tui.home.health.description", { health: systemHealth }) },
@@ -118,11 +125,18 @@ export function createHomeView(deps: HomeViewDeps): HomeView {
       });
       return;
     }
+    if (value.startsWith("draft:")) {
+      await run(async () => {
+        if (deps.framing === undefined) throw new Error(translate("tui.home.draft.unavailable"));
+        const draft = drafts.find((candidate) => candidate.id === value.slice("draft:".length));
+        if (draft === undefined) throw new Error(translate("tui.home.draft.unavailable"));
+        await deps.onOpenDraft?.(draft, await deps.framing.show(draft.id));
+      });
+      return;
+    }
     if (value === "action:create") {
       mode = "create";
       createPath = deps.cwd;
-      pendingProject = undefined;
-      orchestrationMode = "manual";
       message = undefined;
       deps.redraw();
       return;
@@ -152,45 +166,25 @@ export function createHomeView(deps: HomeViewDeps): HomeView {
       return;
     }
     await run(async () => {
-      const name = basename(root);
-      try {
-        const project = await deps.projects.importFrom({ root });
-        mode = "menu";
-        message = translate("tui.home.project.imported", { name: project.name });
-        await refresh();
-      } catch (error) {
-        if (!(error instanceof DomainError) || error.code !== "PROJECT_MARKER_NOT_FOUND") throw error;
-        pendingProject = { id: deriveProjectId(root, slugify(name)), name, root };
-        mode = "orchestration-mode";
-        message = undefined;
+      if (deps.framing === undefined) throw new Error(translate("tui.home.draft.unavailable"));
+      const entry = await deps.framing.enter({ path: root, contentLocale: activeLocale() });
+      mode = "menu";
+      await refresh();
+      if (entry.projectDraft === null) {
+        message = translate("tui.home.project.imported", { name: entry.project.name });
+        await deps.onOpenProject?.(entry.project);
+      } else {
+        message = translate(entry.resumed ? "tui.home.draft.resumed" : "tui.home.draft.created", { name: entry.projectDraft.name });
+        await deps.onOpenDraft?.(entry.projectDraft, entry.plan);
       }
     });
   }
 
-  async function confirmOrchestrationMode(): Promise<void> {
-    const input = pendingProject;
-    if (input === undefined) {
-      mode = "create";
-      return;
-    }
-    await run(async () => {
-      const project = await deps.projects.create({ ...input, orchestrationMode });
-      pendingProject = undefined;
-      mode = "menu";
-      message = translate("tui.home.project.created", {
-        name: project.name,
-        mode: translate(orchestrationMode === "automatic" ? "tui.home.mode.assistedEnabled" : "tui.home.mode.manualEnabled"),
-      });
-      await refresh();
-    });
-  }
-
-  function toggleOrchestrationMode(): void {
-    orchestrationMode = orchestrationMode === "manual" ? "automatic" : "manual";
-  }
-
   async function refresh(): Promise<void> {
-    projects = [...await deps.projects.list()];
+    [projects, drafts] = await Promise.all([
+      deps.projects.list().then((values) => [...values]),
+      deps.framing?.listProjectDrafts().then((values) => [...values]) ?? Promise.resolve([]),
+    ]);
     menu = buildMenu();
     syncFocus();
   }
@@ -212,9 +206,10 @@ export function createHomeView(deps: HomeViewDeps): HomeView {
     const focused = visibleItems(items(), menu, IDENTITY)[menu.cursor];
     if (focused === undefined || !focused.value.startsWith("project:")) {
       deps.onProjectFocused?.(undefined);
-      return;
+    } else {
+      deps.onProjectFocused?.(projects.find((project) => project.id.value === focused.value.slice("project:".length)));
     }
-    deps.onProjectFocused?.(projects.find((project) => project.id.value === focused.value.slice("project:".length)));
+    deps.onDraftFocused?.(focused?.value.startsWith("draft:") ? drafts.find((draft) => draft.id === focused.value.slice("draft:".length)) : undefined);
   }
 
   function handlePreferenceKey(event: KeyEvent): boolean {
@@ -273,18 +268,6 @@ export function createHomeView(deps: HomeViewDeps): HomeView {
         deps.redraw();
         return "consumed";
       }
-      if (mode === "orchestration-mode") {
-        if (event.kind === "escape") {
-          mode = "create";
-          pendingProject = undefined;
-        } else if ((event.kind === "up" || event.kind === "down" || event.kind === "left" || event.kind === "right") && !busy) {
-          toggleOrchestrationMode();
-        } else if (event.kind === "enter" && !busy) {
-          void confirmOrchestrationMode();
-        }
-        deps.redraw();
-        return "consumed";
-      }
       if (handlePreferenceKey(event)) return "consumed";
       const result = menu.onKey(event);
       if (result !== undefined) syncFocus();
@@ -317,18 +300,6 @@ export function createHomeView(deps: HomeViewDeps): HomeView {
           ], theme).split("\n")) line(value);
           return;
         }
-        if (mode === "orchestration-mode") {
-          const selected = translate(orchestrationMode === "manual" ? "tui.home.delegation.manualChoice" : "tui.home.mode.assisted");
-          for (const value of titledBox(translate("tui.home.delegation.title"), [
-            translate("tui.home.delegation.explanation"),
-            translate("tui.home.delegation.manual"),
-            translate("tui.home.delegation.assisted"),
-            "",
-            translate("tui.home.delegation.choice", { choice: selected }),
-            translate("tui.home.delegation.hint"),
-          ], theme, { border: orchestrationMode === "automatic" ? theme.arkaAccent : theme.arkaRed }).split("\n")) line(value);
-          return;
-        }
         if (mode === "locale") {
           for (const value of titledBox(translate("tui.language.title"), [
             translate("tui.language.choice", { locale: translate(`common.locale.${localePreference}`) }),
@@ -349,21 +320,22 @@ export function createHomeView(deps: HomeViewDeps): HomeView {
   };
 
   function renderHome(theme: Theme): readonly string[] {
+    const projectCount = projects.length + drafts.length;
     const lines = [
       ...titledBox(translate("tui.home.welcome"), [`${translate("tui.context.runtime")} Node ${process.version}`, `${translate("tui.context.root")} ${deps.contextRoot}`, `${translate("tui.home.health.label")}: ${systemHealth}`], theme, { border: theme.arkaRed }).split("\n"),
       "",
       `  ${theme.bold(translate("tui.home.projects"))}`,
     ];
     lines.push(nextActionLine(
-      translate(projects.length === 0 ? "tui.home.next.empty.action" : "tui.home.next.open.action"),
-      translate(projects.length === 0 ? "tui.home.next.empty.reason" : "tui.home.next.open.reason"),
+      translate(projectCount === 0 ? "tui.home.next.empty.action" : "tui.home.next.open.action"),
+      translate(projectCount === 0 ? "tui.home.next.empty.reason" : "tui.home.next.open.reason"),
       theme,
     ));
-    if (projects.length === 0) {
+    if (projectCount === 0) {
       lines.push(`  ${theme.dim(translate("tui.home.guidedPath"))}`);
     }
     if (message !== undefined) lines.push(`  ${busy ? theme.dim(translate("tui.home.loading")) : theme.arkaAccent(message)}`);
-    if (projects.length === 0) lines.push(`  ${theme.dim(translate("tui.home.noProjects"))}`);
+    if (projectCount === 0) lines.push(`  ${theme.dim(translate("tui.home.noProjects"))}`);
     lines.push(...menu.renderLines(theme));
     return lines;
   }
@@ -387,20 +359,10 @@ function visibleItems(items: readonly MenuItem<HomeAction>[], menu: MenuScene, s
   return menu.filterMode ? filterItems(items, menu.filterText, stripAnsi) : items.map((item, index) => ({ ...item, _origIndex: index }));
 }
 
-function deriveProjectId(root: string, code: string): ProjectId {
-  const suffix = createHash("sha1").update(root).digest("hex").slice(0, 8);
-  return ProjectId.of(`${code.slice(0, Math.max(1, 55))}-${suffix}`);
-}
-
-function slugify(name: string): string {
-  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-  if (slug.length === 0) throw new DomainError("INVALID_PROJECT_OPTION", translate("tui.error.invalidProjectName", { name }));
-  return slug;
-}
-
 function formatActivity(value: Date, current: Date): string {
   return value.toDateString() === current.toDateString() ? formatTime(value) : formatShortDate(value);
 }
+
 
 function translateError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);

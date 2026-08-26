@@ -13,23 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { createHash } from "node:crypto";
-import { basename } from "node:path";
-import { DomainError } from "../../../../domain/errors.js";
 import { ProjectId } from "../../../../domain/project/project-id.js";
 import { titledBox } from "../components/box.js";
 import { guidedShortcuts, nextActionLine, renderGuidance } from "../components/guidance.js";
 import { createMenuScene, filterItems } from "../components/menu.js";
-import { formatNumber, formatShortDate, formatTime, translate } from "../../../../application/localization/locale.js";
+import { activeLocale, formatNumber, formatShortDate, formatTime, translate } from "../../../../application/localization/locale.js";
 const CIRCLE = "●";
 const IDENTITY = (value) => value;
 export function createHomeView(deps) {
     const now = deps.now ?? (() => new Date());
     let projects = [...deps.initialProjects];
+    let drafts = [...(deps.initialDrafts ?? [])];
     let mode = "menu";
     let createPath = deps.cwd;
-    let pendingProject;
-    let orchestrationMode = "manual";
     let message;
     let busy = false;
     let helpVisible = false;
@@ -46,6 +42,11 @@ export function createHomeView(deps) {
                 label: `${CIRCLE} ${project.name} - ${translate(project.orchestrationMode === "automatic" ? "tui.home.mode.assisted" : "tui.home.mode.manual")}`,
                 value: `project:${project.id.value}`,
                 description: `${project.root}  ${formatActivity(project.updatedAt, now())}`,
+            })),
+            ...drafts.map((draft) => ({
+                label: `${CIRCLE} ${draft.name} - ${translate("tui.home.draft.label")}`,
+                value: `draft:${draft.id}`,
+                description: `${draft.root}  ${translate(`tui.home.draft.${draft.materialization}`)}  ${formatActivity(new Date(draft.updatedAt), now())}`,
             })),
             { label: translate("tui.home.scan.label"), value: "action:scan", description: translate("tui.home.scan.description") },
             { label: translate("tui.home.health.label"), value: "action:health", description: translate("tui.home.health.description", { health: systemHealth }) },
@@ -72,11 +73,20 @@ export function createHomeView(deps) {
             });
             return;
         }
+        if (value.startsWith("draft:")) {
+            await run(async () => {
+                if (deps.framing === undefined)
+                    throw new Error(translate("tui.home.draft.unavailable"));
+                const draft = drafts.find((candidate) => candidate.id === value.slice("draft:".length));
+                if (draft === undefined)
+                    throw new Error(translate("tui.home.draft.unavailable"));
+                await deps.onOpenDraft?.(draft, await deps.framing.show(draft.id));
+            });
+            return;
+        }
         if (value === "action:create") {
             mode = "create";
             createPath = deps.cwd;
-            pendingProject = undefined;
-            orchestrationMode = "manual";
             message = undefined;
             deps.redraw();
             return;
@@ -112,44 +122,26 @@ export function createHomeView(deps) {
             return;
         }
         await run(async () => {
-            const name = basename(root);
-            try {
-                const project = await deps.projects.importFrom({ root });
-                mode = "menu";
-                message = translate("tui.home.project.imported", { name: project.name });
-                await refresh();
-            }
-            catch (error) {
-                if (!(error instanceof DomainError) || error.code !== "PROJECT_MARKER_NOT_FOUND")
-                    throw error;
-                pendingProject = { id: deriveProjectId(root, slugify(name)), name, root };
-                mode = "orchestration-mode";
-                message = undefined;
-            }
-        });
-    }
-    async function confirmOrchestrationMode() {
-        const input = pendingProject;
-        if (input === undefined) {
-            mode = "create";
-            return;
-        }
-        await run(async () => {
-            const project = await deps.projects.create({ ...input, orchestrationMode });
-            pendingProject = undefined;
+            if (deps.framing === undefined)
+                throw new Error(translate("tui.home.draft.unavailable"));
+            const entry = await deps.framing.enter({ path: root, contentLocale: activeLocale() });
             mode = "menu";
-            message = translate("tui.home.project.created", {
-                name: project.name,
-                mode: translate(orchestrationMode === "automatic" ? "tui.home.mode.assistedEnabled" : "tui.home.mode.manualEnabled"),
-            });
             await refresh();
+            if (entry.projectDraft === null) {
+                message = translate("tui.home.project.imported", { name: entry.project.name });
+                await deps.onOpenProject?.(entry.project);
+            }
+            else {
+                message = translate(entry.resumed ? "tui.home.draft.resumed" : "tui.home.draft.created", { name: entry.projectDraft.name });
+                await deps.onOpenDraft?.(entry.projectDraft, entry.plan);
+            }
         });
-    }
-    function toggleOrchestrationMode() {
-        orchestrationMode = orchestrationMode === "manual" ? "automatic" : "manual";
     }
     async function refresh() {
-        projects = [...await deps.projects.list()];
+        [projects, drafts] = await Promise.all([
+            deps.projects.list().then((values) => [...values]),
+            deps.framing?.listProjectDrafts().then((values) => [...values]) ?? Promise.resolve([]),
+        ]);
         menu = buildMenu();
         syncFocus();
     }
@@ -171,9 +163,11 @@ export function createHomeView(deps) {
         const focused = visibleItems(items(), menu, IDENTITY)[menu.cursor];
         if (focused === undefined || !focused.value.startsWith("project:")) {
             deps.onProjectFocused?.(undefined);
-            return;
         }
-        deps.onProjectFocused?.(projects.find((project) => project.id.value === focused.value.slice("project:".length)));
+        else {
+            deps.onProjectFocused?.(projects.find((project) => project.id.value === focused.value.slice("project:".length)));
+        }
+        deps.onDraftFocused?.(focused?.value.startsWith("draft:") ? drafts.find((draft) => draft.id === focused.value.slice("draft:".length)) : undefined);
     }
     function handlePreferenceKey(event) {
         if (mode !== "locale" && mode !== "surface")
@@ -243,20 +237,6 @@ export function createHomeView(deps) {
                 deps.redraw();
                 return "consumed";
             }
-            if (mode === "orchestration-mode") {
-                if (event.kind === "escape") {
-                    mode = "create";
-                    pendingProject = undefined;
-                }
-                else if ((event.kind === "up" || event.kind === "down" || event.kind === "left" || event.kind === "right") && !busy) {
-                    toggleOrchestrationMode();
-                }
-                else if (event.kind === "enter" && !busy) {
-                    void confirmOrchestrationMode();
-                }
-                deps.redraw();
-                return "consumed";
-            }
             if (handlePreferenceKey(event))
                 return "consumed";
             const result = menu.onKey(event);
@@ -293,19 +273,6 @@ export function createHomeView(deps) {
                         line(value);
                     return;
                 }
-                if (mode === "orchestration-mode") {
-                    const selected = translate(orchestrationMode === "manual" ? "tui.home.delegation.manualChoice" : "tui.home.mode.assisted");
-                    for (const value of titledBox(translate("tui.home.delegation.title"), [
-                        translate("tui.home.delegation.explanation"),
-                        translate("tui.home.delegation.manual"),
-                        translate("tui.home.delegation.assisted"),
-                        "",
-                        translate("tui.home.delegation.choice", { choice: selected }),
-                        translate("tui.home.delegation.hint"),
-                    ], theme, { border: orchestrationMode === "automatic" ? theme.arkaAccent : theme.arkaRed }).split("\n"))
-                        line(value);
-                    return;
-                }
                 if (mode === "locale") {
                     for (const value of titledBox(translate("tui.language.title"), [
                         translate("tui.language.choice", { locale: translate(`common.locale.${localePreference}`) }),
@@ -328,18 +295,19 @@ export function createHomeView(deps) {
         },
     };
     function renderHome(theme) {
+        const projectCount = projects.length + drafts.length;
         const lines = [
             ...titledBox(translate("tui.home.welcome"), [`${translate("tui.context.runtime")} Node ${process.version}`, `${translate("tui.context.root")} ${deps.contextRoot}`, `${translate("tui.home.health.label")}: ${systemHealth}`], theme, { border: theme.arkaRed }).split("\n"),
             "",
             `  ${theme.bold(translate("tui.home.projects"))}`,
         ];
-        lines.push(nextActionLine(translate(projects.length === 0 ? "tui.home.next.empty.action" : "tui.home.next.open.action"), translate(projects.length === 0 ? "tui.home.next.empty.reason" : "tui.home.next.open.reason"), theme));
-        if (projects.length === 0) {
+        lines.push(nextActionLine(translate(projectCount === 0 ? "tui.home.next.empty.action" : "tui.home.next.open.action"), translate(projectCount === 0 ? "tui.home.next.empty.reason" : "tui.home.next.open.reason"), theme));
+        if (projectCount === 0) {
             lines.push(`  ${theme.dim(translate("tui.home.guidedPath"))}`);
         }
         if (message !== undefined)
             lines.push(`  ${busy ? theme.dim(translate("tui.home.loading")) : theme.arkaAccent(message)}`);
-        if (projects.length === 0)
+        if (projectCount === 0)
             lines.push(`  ${theme.dim(translate("tui.home.noProjects"))}`);
         lines.push(...menu.renderLines(theme));
         return lines;
@@ -357,16 +325,6 @@ function nextPreferredSurface(value) { return PREFERRED_SURFACES[(PREFERRED_SURF
 function previousPreferredSurface(value) { return PREFERRED_SURFACES[(PREFERRED_SURFACES.indexOf(value) + PREFERRED_SURFACES.length - 1) % PREFERRED_SURFACES.length]; }
 function visibleItems(items, menu, stripAnsi) {
     return menu.filterMode ? filterItems(items, menu.filterText, stripAnsi) : items.map((item, index) => ({ ...item, _origIndex: index }));
-}
-function deriveProjectId(root, code) {
-    const suffix = createHash("sha1").update(root).digest("hex").slice(0, 8);
-    return ProjectId.of(`${code.slice(0, Math.max(1, 55))}-${suffix}`);
-}
-function slugify(name) {
-    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-    if (slug.length === 0)
-        throw new DomainError("INVALID_PROJECT_OPTION", translate("tui.error.invalidProjectName", { name }));
-    return slug;
 }
 function formatActivity(value, current) {
     return value.toDateString() === current.toDateString() ? formatTime(value) : formatShortDate(value);

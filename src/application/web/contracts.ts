@@ -17,6 +17,9 @@ export interface ProjectListItem {
   readonly featureCount: number;
   readonly health: TrackingHealth;
   readonly updatedAt: string;
+  readonly lifecycle: "draft" | "materialized";
+  readonly materialization?: "draft" | "publishing" | "recovery_required";
+  readonly framing?: FramingSummaryView;
 }
 
 export interface ProjectOverview {
@@ -25,6 +28,12 @@ export interface ProjectOverview {
   readonly root: string;
   readonly health: TrackingHealth;
   readonly orchestrationMode: "manual" | "automatic";
+  readonly lifecycle: "draft" | "materialized";
+  readonly materialization?: "draft" | "publishing" | "recovery_required";
+  readonly availability: {
+    readonly markerReady: boolean;
+    readonly reason: "framing_publication_required" | "project_recovery_required" | null;
+  };
   readonly coverage: { readonly tracked: number; readonly total: number };
   readonly freshness: { readonly observedAt: string; readonly stale: boolean };
   readonly counts: {
@@ -376,6 +385,7 @@ export interface LiveInvalidation {
 
 export interface NornBridge {
   listProjects(): Promise<readonly ProjectListItem[]>;
+  enterProjectFraming(input: { readonly root: string }): Promise<ProjectOverview>;
   getProject(projectId: string): Promise<ProjectOverview>;
   getFeature(projectId: string, featureId: string): Promise<FeatureTrackingView>;
   listFramings(projectId: string): Promise<readonly FramingSummaryView[]>;

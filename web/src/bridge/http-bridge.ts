@@ -34,6 +34,7 @@ export class HttpNornBridge implements NornBridge {
   public constructor(private readonly token: string) {}
 
   public listProjects(): Promise<readonly ProjectListItem[]> { return this.request("/api/v1/projects"); }
+  public enterProjectFraming(input: { readonly root: string }): Promise<ProjectOverview> { return this.request("/api/v1/framing/enter", "POST", input); }
   public getProject(projectId: string): Promise<ProjectOverview> { return this.request(`/api/v1/projects/${encode(projectId)}`); }
   public getFeature(projectId: string, featureId: string): Promise<FeatureTrackingView> { return this.request(`/api/v1/projects/${encode(projectId)}/features/${encode(featureId)}`); }
   public listFramings(projectId: string): Promise<readonly FramingSummaryView[]> { return this.request(`/api/v1/projects/${encode(projectId)}/framing`); }
