@@ -76,10 +76,12 @@ export class GitWorktreeWorkspaceAdapter implements GitWorkspacePort {
     const path = join(this.worktreeRoot, campaignId, task.id);
     await assertMissing(path);
     await mkdir(dirname(path), { recursive: true, mode: 0o700 });
-    await this.git(root, ["check-ref-format", `refs/heads/${branch}`]);
-    const existing = await this.git(root, ["rev-parse", "--verify", "--quiet", `refs/heads/${branch}`], {}, [0, 1]);
-    if (existing.code === 0) throw new Error(`Task branch already exists: ${branch}`);
-    await this.git(root, ["worktree", "add", "-b", branch, path, snapshot.commit]);
+    await this.serializeMutation(async () => {
+      await this.git(root, ["check-ref-format", `refs/heads/${branch}`]);
+      const existing = await this.git(root, ["rev-parse", "--verify", "--quiet", `refs/heads/${branch}`], {}, [0, 1]);
+      if (existing.code === 0) throw new Error(`Task branch already exists: ${branch}`);
+      await this.git(root, ["worktree", "add", "-b", branch, path, snapshot.commit]);
+    });
     return Object.freeze({ campaignId, taskId: task.id, branch, path, baseCommit: snapshot.commit });
   }
 

@@ -84,9 +84,9 @@ test("trois tâches à scopes disjoints s'exécutent en parallèle puis attenden
   assert.deepEqual(preview.tasks.map((task) => task.dependencies), [[], [], []]);
   assert.ok(preview.tasks.every((task) => task.agentId === agent.id.value));
   const run = await runtime.start({ projectId: project.id, previewFingerprint: preview.plan!.fingerprint, actor: "Jeremy", profileByRole: { development: profile.id, integrator: profile.id }, allowCommits: true, applyMode: "human", automaticRiskThreshold: 20, maxParallel: 3, budgetMode: "observe", budgetLimits: [], openBarProfiles: [profile.id], riskPolicyFingerprint: preview.riskPolicyFingerprint });
-  assert.equal(maximumActive, 3, JSON.stringify(run.projection));
-  assert.equal(run.projection.status, "awaiting_application");
   const attemptDiagnostics = (await campaigns.loadAttempts(project.id.value, run.campaignId)).map((attempt) => ({ taskId: attempt.props.taskId, status: attempt.props.status, failureCode: attempt.props.failureCode }));
+  assert.equal(maximumActive, 3, JSON.stringify(attemptDiagnostics));
+  assert.equal(run.projection.status, "awaiting_application", JSON.stringify(attemptDiagnostics));
   assert.deepEqual(run.projection.progress, { attempted: 3, succeeded: 3, failed: 0 }, JSON.stringify(attemptDiagnostics));
   assert.equal(run.artifact?.commits.length, 3);
   assert.equal(run.artifact?.applicationGate?.code, "human_policy");
