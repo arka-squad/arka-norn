@@ -19,5 +19,6 @@ import type { Project } from "../../domain/project/project.js";
 
 export interface AgentRegistryStore {
   load(project: Project): Promise<readonly AgentRegistration[]>;
-  update(project: Project, transform: (agents: readonly AgentRegistration[]) => readonly AgentRegistration[]): Promise<readonly AgentRegistration[]>;
+  loadSnapshot(project: Project): Promise<{ readonly revision: number; readonly agents: readonly AgentRegistration[] }>;
+  update(project: Project, transform: (agents: readonly AgentRegistration[]) => readonly AgentRegistration[], expectedRevision?: number): Promise<readonly AgentRegistration[]>;
 }

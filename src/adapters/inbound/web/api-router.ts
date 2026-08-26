@@ -6,8 +6,9 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import type { ProjectTrackingService } from "../../../application/web/project-tracking-service.js";
-import type { LiveInvalidation } from "../../../application/web/contracts.js";
+import type { AgentMutationInput, LiveInvalidation } from "../../../application/web/contracts.js";
 import { WebMutationError } from "../../../application/web/web-mutation-concurrency.js";
+import { AgentId } from "../../../domain/agent/agent-id.js";
 import type { SseHub } from "./sse-hub.js";
 import { logWebRequestError } from "./web-error-log.js";
 import { resolveLocale, translate, type Locale } from "../../../application/localization/locale.js";
@@ -113,6 +114,8 @@ async function dispatchPost(request: IncomingMessage, segments: readonly string[
     const feature = await service.createFeature(projectId, await body(request, ["id", "name", "root", "pipelineId"]));
     return created(feature, [{ scope: "projects" }, { scope: "project", projectId }, { scope: "feature", projectId, featureId: feature.id }]);
   }
+  const agent = await dispatchAgentPost(request, segments, service);
+  if (agent !== undefined) return agent;
   const framing = await dispatchFramingPost(request, segments, service);
   if (framing !== undefined) return framing;
   if (segments.length === 5 && segments[0] === "projects" && segments[2] === "features" && segments[4] === "product-prompt") {
@@ -139,6 +142,30 @@ async function dispatchPost(request: IncomingMessage, segments: readonly string[
   throw new ClientRequestError(404, "not_found");
 }
 
+async function dispatchAgentPost(request: IncomingMessage, segments: readonly string[], service: ProjectTrackingService): Promise<DispatchResult | undefined> {
+  if (segments.length === 3 && segments[0] === "projects" && segments[2] === "agents") {
+    const projectId = id(segments[1]);
+    const agents = await service.registerAgent(projectId, await agentMutationBody(request));
+    return created(agents, [{ scope: "agents", projectId }, { scope: "project", projectId }]);
+  }
+  if (segments.length === 5 && segments[0] === "projects" && segments[2] === "agents") {
+    const projectId = id(segments[1]);
+    const agentId = webAgentId(segments[3]);
+    const action = segments[4];
+    if (action === "replace") return ok(await service.replaceAgent(projectId, agentId, await agentMutationBody(request)), [{ scope: "agents", projectId }, { scope: "project", projectId }]);
+    if (action === "select") {
+      const input = await body<{ readonly sessionId?: unknown; readonly expectedRegistryRevision?: unknown }>(request, ["sessionId", "expectedRegistryRevision"]);
+      return ok(await service.selectAgent(projectId, agentId, sessionRevisionInput(input)), [{ scope: "agents", projectId }, { scope: "project", projectId }]);
+    }
+    if (action === "deactivate") {
+      const input = await body<{ readonly expectedRegistryRevision?: unknown; readonly confirmation?: unknown }>(request, ["expectedRegistryRevision", "confirmation"]);
+      if (typeof input.confirmation !== "string" || input.confirmation.length > 128) throw new ClientRequestError(400, "invalid_agent_confirmation");
+      return ok(await service.deactivateAgent(projectId, agentId, { expectedRegistryRevision: revision(input.expectedRegistryRevision), confirmation: input.confirmation }), [{ scope: "agents", projectId }, { scope: "project", projectId }]);
+    }
+  }
+  return undefined;
+}
+
 async function dispatchFramingPost(request: IncomingMessage, segments: readonly string[], service: ProjectTrackingService) {
   if (segments.length !== 3 || segments[0] !== "projects" || segments[2] !== "framing") return undefined;
   const input = await body<{ readonly existingFeatureId?: unknown; readonly newFeatureTitle?: unknown }>(request, ["existingFeatureId", "newFeatureTitle"]);
@@ -149,6 +176,40 @@ async function dispatchFramingPost(request: IncomingMessage, segments: readonly 
     ...(typeof input.existingFeatureId === "string" ? { existingFeatureId: id(input.existingFeatureId) } : {}),
     ...(typeof input.newFeatureTitle === "string" ? { newFeatureTitle: input.newFeatureTitle.trim() } : {}),
   }), [{ scope: "project", projectId }]);
+}
+
+async function agentMutationBody(request: IncomingMessage): Promise<AgentMutationInput> {
+  const input = await body<{ readonly provider?: unknown; readonly role?: unknown; readonly sessionId?: unknown; readonly scope?: unknown; readonly expectedRegistryRevision?: unknown }>(request, ["provider", "role", "sessionId", "scope", "expectedRegistryRevision"]);
+  if (typeof input.provider !== "string" || typeof input.role !== "string") throw new ClientRequestError(400, "invalid_agent_identity");
+  const session = sessionRevisionInput(input);
+  return {
+    provider: input.provider,
+    role: input.role,
+    sessionId: session.sessionId,
+    expectedRegistryRevision: session.expectedRegistryRevision,
+    ...(input.scope === undefined ? {} : { scope: agentScope(input.scope) }),
+  };
+}
+
+function sessionRevisionInput(input: { readonly sessionId?: unknown; readonly expectedRegistryRevision?: unknown }): { readonly sessionId: string; readonly expectedRegistryRevision: number } {
+  if (typeof input.sessionId !== "string" || input.sessionId.length > 64) throw new ClientRequestError(400, "invalid_agent_session");
+  return { sessionId: input.sessionId, expectedRegistryRevision: revision(input.expectedRegistryRevision) };
+}
+
+function agentScope(value: unknown): NonNullable<AgentMutationInput["scope"]> {
+  if (!isRecord(value) || Object.keys(value).some((key) => !["featureIds", "paths", "responsibilities"].includes(key))) throw new ClientRequestError(400, "invalid_agent_scope");
+  const arrays = [value["featureIds"], value["paths"], value["responsibilities"]];
+  if (arrays.some((entries) => entries !== undefined && (!Array.isArray(entries) || entries.some((entry) => typeof entry !== "string")))) throw new ClientRequestError(400, "invalid_agent_scope");
+  return {
+    ...(value["featureIds"] === undefined ? {} : { featureIds: value["featureIds"] as readonly string[] }),
+    ...(value["paths"] === undefined ? {} : { paths: value["paths"] as readonly string[] }),
+    ...(value["responsibilities"] === undefined ? {} : { responsibilities: value["responsibilities"] as readonly string[] }),
+  };
+}
+
+function revision(value: unknown): number {
+  if (!Number.isInteger(value) || Number(value) < 0) throw new ClientRequestError(400, "invalid_expected_revision");
+  return Number(value);
 }
 
 async function dispatchAuditPost(request: IncomingMessage, segments: readonly string[], service: ProjectTrackingService) {
@@ -203,11 +264,13 @@ export function sendError(
   response.end(payload);
 }
 
-function errorMessageKey(status: number, code: string): "web.error.unauthorized" | "web.error.generic" | "web.error.projectChanged" | "web.error.projectDraftNotMaterialized" | "web.error.automaticPreflightRequired" {
+function errorMessageKey(status: number, code: string): "web.error.unauthorized" | "web.error.generic" | "web.error.projectChanged" | "web.error.projectDraftNotMaterialized" | "web.error.automaticPreflightRequired" | "web.error.agentRegistryChanged" | "web.error.agentConfirmationRequired" {
   if (status === 401) return "web.error.unauthorized";
   if (code === "project_changed") return "web.error.projectChanged";
   if (code === "project_draft_not_materialized") return "web.error.projectDraftNotMaterialized";
   if (code === "automatic_preflight_required") return "web.error.automaticPreflightRequired";
+  if (code === "agent_registry_changed") return "web.error.agentRegistryChanged";
+  if (code === "agent_confirmation_required") return "web.error.agentConfirmationRequired";
   return "web.error.generic";
 }
 
@@ -243,6 +306,11 @@ async function body<T>(request: IncomingMessage, allowedKeys: readonly string[])
 
 function id(value: string | undefined): string {
   if (value === undefined || !/^[a-z0-9][a-z0-9._-]{0,127}$/.test(value)) throw new ClientRequestError(400, "invalid_id");
+  return value;
+}
+
+function webAgentId(value: string | undefined): string {
+  if (value === undefined || !AgentId.isValid(value)) throw new ClientRequestError(400, "invalid_agent_id");
   return value;
 }
 

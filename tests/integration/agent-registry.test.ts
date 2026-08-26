@@ -44,8 +44,9 @@ test("le registre sérialise les inscriptions concurrentes sans collision et gar
 
   const registryPath = resolve(projectRoot, ".arka-norn", "agents.json");
   const sessionPath = resolve(home, ".arka-norn", "context", "agents.json");
-  const registry = JSON.parse(readFileSync(registryPath, "utf8")) as { readonly schemaVersion: number; readonly agents: readonly unknown[] };
-  assert.equal(registry.schemaVersion, 1);
+  const registry = JSON.parse(readFileSync(registryPath, "utf8")) as { readonly schemaVersion: number; readonly revision: number; readonly agents: readonly unknown[] };
+  assert.equal(registry.schemaVersion, 2);
+  assert.equal(registry.revision, 8);
   assert.equal(registry.agents.length, 8);
   if (process.platform !== "win32") {
     assert.equal(lstatSync(registryPath).mode & 0o777, 0o644);

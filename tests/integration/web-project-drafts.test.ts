@@ -12,6 +12,7 @@ import { test } from "node:test";
 import { FsGovernanceStore } from "../../src/adapters/outbound/filesystem/fs-governance-store.ts";
 import { FsLocalePreferenceStore } from "../../src/adapters/outbound/filesystem/fs-locale-preference-store.ts";
 import { FsOrchestrationConfigurationStore } from "../../src/adapters/outbound/filesystem/fs-orchestration-configuration-store.ts";
+import { FsAgentRegistryStore } from "../../src/adapters/outbound/filesystem/fs-agent-registry-store.ts";
 import { ProjectTrackingService } from "../../src/application/web/project-tracking-service.ts";
 import { createAgentOrchestrationRuntime } from "../../src/composition/agent-orchestration-runtime.ts";
 import { createDoctorRuntime } from "../../src/composition/doctor-runtime.ts";
@@ -45,6 +46,8 @@ test("le Web projette un ProjectDraft et borne ses capacités au cadrage", async
     folderPicker: { pick: async () => projectRoot },
     homeDir: home,
     orchestrationConfigurations: new FsOrchestrationConfigurationStore(),
+    agentRegistry: new FsAgentRegistryStore(),
+    agentsForSession: (sessionId) => createManagementRuntime({ homeDir: home, frameworkRoot: FRAMEWORK_ROOT, sessionId }).agents,
   });
 
   const entered = await service.enterProjectFraming({ root: projectRoot });
@@ -95,6 +98,8 @@ test("le Web change le mode avec prérequis, concurrence optimiste et sans déma
     folderPicker: { pick: async () => projectRoot },
     homeDir: home,
     orchestrationConfigurations: configurations,
+    agentRegistry: new FsAgentRegistryStore(),
+    agentsForSession: (sessionId) => createManagementRuntime({ homeDir: home, frameworkRoot: FRAMEWORK_ROOT, sessionId, clock }).agents,
     now: clock.now,
   });
   const created = await service.createProject({ id: "product", name: "Product", root: projectRoot });

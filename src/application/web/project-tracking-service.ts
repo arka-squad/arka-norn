@@ -31,14 +31,18 @@ import type { Project } from "../../domain/project/project.js";
 import { framingPlanFingerprint } from "../../domain/framing/framing-plan.js";
 import type { DoctorReport, ForDoctor } from "../../ports/inbound/for-doctor.js";
 import type { ForAgentOrchestration } from "../../ports/inbound/for-agent-orchestration.js";
+import type { ForAgents } from "../../ports/inbound/for-agents.js";
 import type { ForPipeline, PipelineAuthorAuthorization } from "../../ports/inbound/for-pipeline.js";
 import type { ForFraming } from "../../ports/inbound/for-framing.js";
 import type { GovernanceStore } from "../../ports/outbound/governance-store.js";
 import type { FolderPicker } from "../../ports/outbound/folder-picker.js";
 import type { OrchestrationConfigurationStore } from "../../ports/outbound/orchestration-configuration-store.js";
+import type { AgentRegistryStore } from "../../ports/outbound/agent-registry-store.js";
+import type { AgentSessionId } from "../../domain/agent/agent-session-id.js";
 import type { ManagementRuntime } from "../../composition/management-runtime.js";
 import type {
-  AgentTrackingView,
+  AgentMutationInput,
+  AgentRegistryView,
   AuditRunView,
   AuditTrackingView,
   CreateGovernanceEventInput,
@@ -67,6 +71,7 @@ import { createProjectDraftListItem, createProjectDraftOverview } from "./projec
 import { CAPABILITY_CATALOG, type CapabilityCatalog } from "../capabilities/capability-registry.js";
 import { buildProjectRelationshipGraph } from "./relationship-graph.js";
 import { projectOrchestrationModeView, setProjectOrchestrationMode } from "./project-orchestration-mode-service.js";
+import { agentRegistryView, deactivateAgent, registerAgent, replaceAgent, selectAgent } from "./agent-management-service.js";
 
 interface TrackingServiceOptions {
   readonly management: ManagementRuntime;
@@ -79,6 +84,8 @@ interface TrackingServiceOptions {
   readonly homeDir: string;
   readonly framing: ForFraming;
   readonly orchestrationConfigurations: OrchestrationConfigurationStore;
+  readonly agentRegistry: AgentRegistryStore;
+  readonly agentsForSession: (sessionId: AgentSessionId) => ForAgents;
   readonly environment?: Readonly<Record<string, string | undefined>>;
   readonly now?: () => Date;
 }
@@ -340,21 +347,18 @@ export class ProjectTrackingService {
     return this.getGovernance(projectId);
   }
 
-  public async getAgents(projectId: string): Promise<readonly AgentTrackingView[]> {
+  public async getAgents(projectId: string): Promise<AgentRegistryView> {
     const project = await this.project(projectId);
-    const [agents, features] = await Promise.all([this.options.management.agents.list(project), this.options.management.features.list(project.id)]);
+    const features = await this.options.management.features.list(project.id);
     const documents = (await Promise.all(features.map((feature) => this.getFeature(projectId, feature.id.value)))).flatMap((feature) => feature.documents);
-    return agents.map((agent) => ({
-      id: agent.id.value,
-      provider: agent.provider,
-      role: agent.role,
-      active: agent.active,
-      featureIds: agent.scope.featureIds.map((id) => id.value),
-      paths: agent.scope.paths,
-      responsibilities: agent.scope.responsibilities,
-      productionIds: documents.filter((document) => document.authorAgentId === agent.id.value).map((document) => document.id),
-    }));
+    const productions = new Map<string, readonly string[]>(documents.flatMap((document) => document.authorAgentId === undefined ? [] : [[document.authorAgentId, documents.filter((item) => item.authorAgentId === document.authorAgentId).map((item) => item.id)] as const]));
+    return agentRegistryView({ management: this.options.management, registry: this.options.agentRegistry }, project, productions);
   }
+
+  public async registerAgent(projectId: string, input: AgentMutationInput): Promise<AgentRegistryView> { await registerAgent(this.agentManagementDeps(), projectId, input); return this.getAgents(projectId); }
+  public async selectAgent(projectId: string, agentId: string, input: { readonly sessionId: string; readonly expectedRegistryRevision: number }): Promise<AgentRegistryView> { await selectAgent(this.agentManagementDeps(), projectId, agentId, input); return this.getAgents(projectId); }
+  public async replaceAgent(projectId: string, agentId: string, input: AgentMutationInput): Promise<AgentRegistryView> { await replaceAgent(this.agentManagementDeps(), projectId, agentId, input); return this.getAgents(projectId); }
+  public async deactivateAgent(projectId: string, agentId: string, input: { readonly expectedRegistryRevision: number; readonly confirmation: string }): Promise<AgentRegistryView> { await deactivateAgent(this.agentManagementDeps(), projectId, agentId, input); return this.getAgents(projectId); }
 
   public async getAudits(projectId: string): Promise<readonly AuditTrackingView[]> {
     const project = await this.project(projectId);
@@ -509,7 +513,7 @@ export class ProjectTrackingService {
     const views = await Promise.all(features.map((feature) => this.getFeature(projectId, feature.id.value)));
     const governance = await this.getGovernance(projectId);
     const agents = await this.getAgents(projectId);
-    return buildProjectRelationshipGraph(project, views, governance, agents);
+    return buildProjectRelationshipGraph(project, views, governance, agents.agents);
   }
 
   public async getPreferences(): Promise<WebPreferences> {
@@ -580,6 +584,8 @@ export class ProjectTrackingService {
   private project(id: string): Promise<Project> {
     return this.options.management.projects.show(ProjectId.of(id));
   }
+
+  private agentManagementDeps() { return { management: this.options.management, registry: this.options.agentRegistry, agentsForSession: this.options.agentsForSession }; }
 
 
   private async feature(project: Project, id: string): Promise<Feature> {

@@ -289,6 +289,9 @@
 .agent-list dl > div { display: grid; grid-template-columns: 120px 1fr; gap: 10px; margin-bottom: 8px; }
 .agent-list dt { color: var(--text-muted); font-size: 10px; }
 .agent-list dd { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 11px; overflow-wrap: anywhere; }
+.agent-list article.is-inactive { opacity: .62; }
+.agent-list article > footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; padding: 10px 14px; border-top: 1px solid var(--border); }
+.agent-list article > footer .button { min-height: 36px; }
 .audit-list { border-top: 1px solid var(--border); }
 .audit-list .audit-row { display: grid; width: 100%; grid-template-columns: 28px minmax(0, 1fr) 100px auto; align-items: center; gap: 12px; min-height: 64px; padding: 10px; border: 0; border-bottom: 1px solid var(--border); background: transparent; color: inherit; text-align: left; }
 .audit-list .audit-row:hover { background: var(--surface-hover); }

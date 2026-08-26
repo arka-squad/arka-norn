@@ -57,6 +57,11 @@ export class InvalidAgentRegistryError extends DomainError {
         super("INVALID_AGENT_REGISTRY", `Invalid agent registry "${path}": ${reason}`);
     }
 }
+export class AgentRegistryChangedError extends DomainError {
+    constructor(expected, actual) {
+        super("AGENT_REGISTRY_CHANGED", `Agent registry changed: expected revision ${expected}, current revision ${actual}.`);
+    }
+}
 export class InvalidFeatureIdError extends DomainError {
     constructor(value, reason) {
         super("INVALID_FEATURE_ID", `Invalid feature id "${value}": ${reason}`);

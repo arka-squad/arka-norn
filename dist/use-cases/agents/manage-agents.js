@@ -17,7 +17,7 @@ import { AgentRegistration } from "../../domain/agent/agent.js";
 import { translate } from "../../application/localization/locale.js";
 import { createReadableAgentId } from "../../domain/agent/agent-id.js";
 import { AgentSessionId } from "../../domain/agent/agent-session-id.js";
-import { AgentAlreadyExistsError, AgentInactiveError, AgentNotFoundError, InvalidAgentOptionError } from "../../domain/errors.js";
+import { AgentAlreadyExistsError, AgentInactiveError, AgentNotFoundError, AgentRegistryChangedError, InvalidAgentOptionError } from "../../domain/errors.js";
 export function manageAgentsUseCaseFactory(deps) {
     const sessionId = deps.sessionId ?? AgentSessionId.MAIN;
     return {
@@ -53,20 +53,20 @@ export function manageAgentsUseCaseFactory(deps) {
                     updatedAt: at,
                 });
                 return [...agents, created];
-            });
+            }, input.expectedRegistryRevision);
             if (created === undefined)
                 throw new Error("Agent registration transaction produced no agent");
             await deps.session.select(sessionId, input.project.id, created.id);
             return created;
         },
-        async deactivate(project, id) {
+        async deactivate(project, id, expectedRegistryRevision) {
             const at = deps.clock.now();
             let updated;
             await deps.registry.update(project, (agents) => {
                 const current = find(agents, id.value);
                 updated = current.deactivate(at);
                 return agents.map((agent) => agent.id.equals(id) ? updated : agent);
-            });
+            }, expectedRegistryRevision);
             if (updated === undefined)
                 throw new Error("Agent deactivation transaction produced no agent");
             await deps.session.clearAgent(project.id, id);
@@ -97,14 +97,17 @@ export function manageAgentsUseCaseFactory(deps) {
                     replacesAgentId: replaced.id,
                 });
                 return [...agents.map((agent) => agent.id.equals(replaced.id) ? agent.deactivate(at, id) : agent), replacement];
-            });
+            }, input.expectedRegistryRevision);
             if (replacement === undefined)
                 throw new Error("Agent replacement transaction produced no agent");
             await deps.session.replaceAgent(input.project.id, input.replacedAgentId, replacement.id);
             return replacement;
         },
-        async select(project, id) {
-            const agent = find(await deps.registry.load(project), id.value);
+        async select(project, id, expectedRegistryRevision) {
+            const snapshot = await deps.registry.loadSnapshot(project);
+            if (expectedRegistryRevision !== undefined && snapshot.revision !== expectedRegistryRevision)
+                throw new AgentRegistryChangedError(expectedRegistryRevision, snapshot.revision);
+            const agent = find(snapshot.agents, id.value);
             if (!agent.active)
                 throw new AgentInactiveError(id.value);
             if (sessionId.equals(AgentSessionId.MAIN) && !isProductRole(agent.role)) {

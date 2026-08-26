@@ -3,6 +3,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  */
 import { WebMutationError } from "../../../application/web/web-mutation-concurrency.js";
+import { AgentId } from "../../../domain/agent/agent-id.js";
 import { logWebRequestError } from "./web-error-log.js";
 import { resolveLocale, translate } from "../../../application/localization/locale.js";
 const MAX_BODY_BYTES = 64 * 1024;
@@ -116,6 +117,9 @@ async function dispatchPost(request, segments, service) {
         const feature = await service.createFeature(projectId, await body(request, ["id", "name", "root", "pipelineId"]));
         return created(feature, [{ scope: "projects" }, { scope: "project", projectId }, { scope: "feature", projectId, featureId: feature.id }]);
     }
+    const agent = await dispatchAgentPost(request, segments, service);
+    if (agent !== undefined)
+        return agent;
     const framing = await dispatchFramingPost(request, segments, service);
     if (framing !== undefined)
         return framing;
@@ -144,6 +148,31 @@ async function dispatchPost(request, segments, service) {
     }
     throw new ClientRequestError(404, "not_found");
 }
+async function dispatchAgentPost(request, segments, service) {
+    if (segments.length === 3 && segments[0] === "projects" && segments[2] === "agents") {
+        const projectId = id(segments[1]);
+        const agents = await service.registerAgent(projectId, await agentMutationBody(request));
+        return created(agents, [{ scope: "agents", projectId }, { scope: "project", projectId }]);
+    }
+    if (segments.length === 5 && segments[0] === "projects" && segments[2] === "agents") {
+        const projectId = id(segments[1]);
+        const agentId = webAgentId(segments[3]);
+        const action = segments[4];
+        if (action === "replace")
+            return ok(await service.replaceAgent(projectId, agentId, await agentMutationBody(request)), [{ scope: "agents", projectId }, { scope: "project", projectId }]);
+        if (action === "select") {
+            const input = await body(request, ["sessionId", "expectedRegistryRevision"]);
+            return ok(await service.selectAgent(projectId, agentId, sessionRevisionInput(input)), [{ scope: "agents", projectId }, { scope: "project", projectId }]);
+        }
+        if (action === "deactivate") {
+            const input = await body(request, ["expectedRegistryRevision", "confirmation"]);
+            if (typeof input.confirmation !== "string" || input.confirmation.length > 128)
+                throw new ClientRequestError(400, "invalid_agent_confirmation");
+            return ok(await service.deactivateAgent(projectId, agentId, { expectedRegistryRevision: revision(input.expectedRegistryRevision), confirmation: input.confirmation }), [{ scope: "agents", projectId }, { scope: "project", projectId }]);
+        }
+    }
+    return undefined;
+}
 async function dispatchFramingPost(request, segments, service) {
     if (segments.length !== 3 || segments[0] !== "projects" || segments[2] !== "framing")
         return undefined;
@@ -157,6 +186,41 @@ async function dispatchFramingPost(request, segments, service) {
         ...(typeof input.existingFeatureId === "string" ? { existingFeatureId: id(input.existingFeatureId) } : {}),
         ...(typeof input.newFeatureTitle === "string" ? { newFeatureTitle: input.newFeatureTitle.trim() } : {}),
     }), [{ scope: "project", projectId }]);
+}
+async function agentMutationBody(request) {
+    const input = await body(request, ["provider", "role", "sessionId", "scope", "expectedRegistryRevision"]);
+    if (typeof input.provider !== "string" || typeof input.role !== "string")
+        throw new ClientRequestError(400, "invalid_agent_identity");
+    const session = sessionRevisionInput(input);
+    return {
+        provider: input.provider,
+        role: input.role,
+        sessionId: session.sessionId,
+        expectedRegistryRevision: session.expectedRegistryRevision,
+        ...(input.scope === undefined ? {} : { scope: agentScope(input.scope) }),
+    };
+}
+function sessionRevisionInput(input) {
+    if (typeof input.sessionId !== "string" || input.sessionId.length > 64)
+        throw new ClientRequestError(400, "invalid_agent_session");
+    return { sessionId: input.sessionId, expectedRegistryRevision: revision(input.expectedRegistryRevision) };
+}
+function agentScope(value) {
+    if (!isRecord(value) || Object.keys(value).some((key) => !["featureIds", "paths", "responsibilities"].includes(key)))
+        throw new ClientRequestError(400, "invalid_agent_scope");
+    const arrays = [value["featureIds"], value["paths"], value["responsibilities"]];
+    if (arrays.some((entries) => entries !== undefined && (!Array.isArray(entries) || entries.some((entry) => typeof entry !== "string"))))
+        throw new ClientRequestError(400, "invalid_agent_scope");
+    return {
+        ...(value["featureIds"] === undefined ? {} : { featureIds: value["featureIds"] }),
+        ...(value["paths"] === undefined ? {} : { paths: value["paths"] }),
+        ...(value["responsibilities"] === undefined ? {} : { responsibilities: value["responsibilities"] }),
+    };
+}
+function revision(value) {
+    if (!Number.isInteger(value) || Number(value) < 0)
+        throw new ClientRequestError(400, "invalid_expected_revision");
+    return Number(value);
 }
 async function dispatchAuditPost(request, segments, service) {
     if (segments.length !== 5 || segments[0] !== "projects" || segments[2] !== "audits")
@@ -212,6 +276,10 @@ function errorMessageKey(status, code) {
         return "web.error.projectDraftNotMaterialized";
     if (code === "automatic_preflight_required")
         return "web.error.automaticPreflightRequired";
+    if (code === "agent_registry_changed")
+        return "web.error.agentRegistryChanged";
+    if (code === "agent_confirmation_required")
+        return "web.error.agentConfirmationRequired";
     return "web.error.generic";
 }
 function requestLocale(request) {
@@ -250,6 +318,11 @@ async function body(request, allowedKeys) {
 function id(value) {
     if (value === undefined || !/^[a-z0-9][a-z0-9._-]{0,127}$/.test(value))
         throw new ClientRequestError(400, "invalid_id");
+    return value;
+}
+function webAgentId(value) {
+    if (value === undefined || !AgentId.isValid(value))
+        throw new ClientRequestError(400, "invalid_agent_id");
     return value;
 }
 function decodeSegment(value) {

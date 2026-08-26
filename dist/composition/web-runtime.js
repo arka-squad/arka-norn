@@ -7,6 +7,7 @@ import { FsGovernanceStore } from "../adapters/outbound/filesystem/fs-governance
 import { FsLocalePreferenceStore } from "../adapters/outbound/filesystem/fs-locale-preference-store.js";
 import { NativeFolderPicker } from "../adapters/outbound/filesystem/native-folder-picker.js";
 import { FsOrchestrationConfigurationStore } from "../adapters/outbound/filesystem/fs-orchestration-configuration-store.js";
+import { FsAgentRegistryStore } from "../adapters/outbound/filesystem/fs-agent-registry-store.js";
 import { startWebServer } from "../adapters/inbound/web/web-server.js";
 import { ProjectTrackingService } from "../application/web/project-tracking-service.js";
 import { createAgentOrchestrationRuntime } from "./agent-orchestration-runtime.js";
@@ -33,6 +34,8 @@ export async function createWebRuntime(options) {
         homeDir: options.homeDir,
         framing: createFramingRuntime({ homeDir: options.homeDir, frameworkRoot: options.frameworkRoot }),
         orchestrationConfigurations: new FsOrchestrationConfigurationStore(),
+        agentRegistry: new FsAgentRegistryStore(),
+        agentsForSession: (sessionId) => createManagementRuntime({ homeDir: options.homeDir, frameworkRoot: options.frameworkRoot, sessionId }).agents,
         ...(options.environment === undefined ? {} : { environment: options.environment }),
     });
     return startWebServer({

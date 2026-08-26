@@ -264,6 +264,25 @@ export interface AgentTrackingView {
   readonly paths: readonly string[];
   readonly responsibilities: readonly string[];
   readonly productionIds: readonly string[];
+  readonly currentSessionIds: readonly string[];
+  readonly replacesAgentId?: string;
+  readonly replacedByAgentId?: string;
+  readonly registeredAt: string;
+  readonly updatedAt: string;
+  readonly registryRevision: number;
+}
+
+export interface AgentRegistryView {
+  readonly registryRevision: number;
+  readonly agents: readonly AgentTrackingView[];
+}
+
+export interface AgentMutationInput {
+  readonly provider: string;
+  readonly role: string;
+  readonly sessionId: string;
+  readonly scope?: { readonly featureIds?: readonly string[]; readonly paths?: readonly string[]; readonly responsibilities?: readonly string[] };
+  readonly expectedRegistryRevision: number;
 }
 
 export interface AuditTrackingView {
@@ -412,7 +431,11 @@ export interface NornBridge {
   getDocument(projectId: string, featureId: string, documentId: string): Promise<HumanDocumentView>;
   getGraph(projectId: string, featureId?: string): Promise<ProjectRelationshipGraph>;
   getGovernance(projectId: string): Promise<GovernanceView>;
-  getAgents(projectId: string): Promise<readonly AgentTrackingView[]>;
+  getAgents(projectId: string): Promise<AgentRegistryView>;
+  registerAgent(projectId: string, input: AgentMutationInput): Promise<AgentRegistryView>;
+  selectAgent(projectId: string, agentId: string, input: { readonly sessionId: string; readonly expectedRegistryRevision: number }): Promise<AgentRegistryView>;
+  replaceAgent(projectId: string, agentId: string, input: AgentMutationInput): Promise<AgentRegistryView>;
+  deactivateAgent(projectId: string, agentId: string, input: { readonly expectedRegistryRevision: number; readonly confirmation: string }): Promise<AgentRegistryView>;
   getAudits(projectId: string): Promise<readonly AuditTrackingView[]>;
   getAudit(projectId: string, auditId: string): Promise<AuditRunView>;
   prepareAudit(projectId: string, input: PrepareAuditInput): Promise<AuditRunView>;

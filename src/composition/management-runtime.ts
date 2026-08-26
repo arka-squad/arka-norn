@@ -161,16 +161,16 @@ function auditAgents(base: ForAgents, audit: AuditTrail, logger: Logger, clock: 
       action: "agent.register", entityType: "agent", root: input.project.root,
       details: { projectId: input.project.id.value, provider: input.provider, role: input.role, sessionId: base.sessionId.value },
     }, () => base.register(input)),
-    deactivate: (project, id) => auditedValue(audit, logger, clock, {
+    deactivate: (project, id, expectedRegistryRevision) => auditedValue(audit, logger, clock, {
       action: "agent.deactivate", entityType: "agent", entityId: id.value, root: project.root,
-    }, () => base.deactivate(project, id)),
+    }, () => base.deactivate(project, id, expectedRegistryRevision)),
     replace: (input) => auditedValue(audit, logger, clock, {
       action: "agent.replace", entityType: "agent", entityId: input.replacedAgentId.value, root: input.project.root,
       details: { provider: input.provider, role: input.role },
     }, () => base.replace(input)),
-    select: (project, id) => auditedValue(audit, logger, clock, {
+    select: (project, id, expectedRegistryRevision) => auditedValue(audit, logger, clock, {
       action: "agent.use", entityType: "agent", entityId: id.value, root: project.root, details: { sessionId: base.sessionId.value },
-    }, () => base.select(project, id)),
+    }, () => base.select(project, id, expectedRegistryRevision)),
   };
 }
 

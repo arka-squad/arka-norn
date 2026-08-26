@@ -65,7 +65,7 @@ test("local API rejects unauthorized origins and exposes no orchestration contro
   expect(capabilityEnvelope.data.capabilities).toHaveLength(15);
   expect(capabilityEnvelope.data.capabilities.find((item) => item.id === "doctor.inspect")?.surfaces).toContain("web");
   expect(capabilityEnvelope.data.capabilities.find((item) => item.id === "project.set_orchestration_mode")?.surfaces).toContain("web");
-  expect(capabilityEnvelope.data.capabilities.find((item) => item.id === "agent.replace")?.surfaces).not.toContain("web");
+  expect(capabilityEnvelope.data.capabilities.find((item) => item.id === "agent.replace")?.surfaces).toContain("web");
   const unexpected = await fetch(`${origin}/api/v1/framing/enter`, {
     method: "POST",
     headers: { Authorization: `Bearer ${runtime.token}`, Origin: origin, "Content-Type": "application/json" },
@@ -167,6 +167,20 @@ test("materialized Project keeps the complete tracking experience in EN and FR",
   expect(modeContract.conflictStatus).toBe(409);
   expect(modeContract.conflictCode).toBe("project_changed");
   expect(modeContract.orchestrationCount).toBe(0);
+  await page.locator(".sidebar").getByRole("button", { name: /^Agents/ }).click();
+  await page.getByRole("button", { name: "Register Agent" }).click();
+  const registerAgent = page.getByRole("dialog", { name: "Register an Agent" });
+  await registerAgent.getByLabel("Provider").fill("Claude");
+  await registerAgent.getByRole("button", { name: "Confirm" }).click();
+  await expect(page.locator(".agent-list article")).toHaveCount(1);
+  await expect(page.getByText("main", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Replace" }).click();
+  const replaceAgent = page.getByRole("dialog", { name: "Replace this Agent" });
+  await replaceAgent.getByLabel("Provider").fill("ChatGPT");
+  await replaceAgent.getByRole("button", { name: "Confirm" }).click();
+  await expect(page.locator(".agent-list article")).toHaveCount(2);
+  await expect(page.locator(".agent-list article.is-inactive")).toHaveCount(1);
+  await page.locator(".sidebar").getByRole("button", { name: /^Overview/ }).click();
   await page.locator(".sidebar").getByRole("button", { name: /^Features/ }).click();
   await page.getByRole("button", { name: "Frame a new Feature" }).click();
   const framingDialog = page.getByRole("dialog", { name: "Frame a new Feature" });

@@ -31,6 +31,7 @@ import { createProjectDraftListItem, createProjectDraftOverview } from "./projec
 import { CAPABILITY_CATALOG } from "../capabilities/capability-registry.js";
 import { buildProjectRelationshipGraph } from "./relationship-graph.js";
 import { projectOrchestrationModeView, setProjectOrchestrationMode } from "./project-orchestration-mode-service.js";
+import { agentRegistryView, deactivateAgent, registerAgent, replaceAgent, selectAgent } from "./agent-management-service.js";
 export class ProjectTrackingService {
     options;
     executions = new FsExecutionRegistryStore();
@@ -274,19 +275,15 @@ export class ProjectTrackingService {
     }
     async getAgents(projectId) {
         const project = await this.project(projectId);
-        const [agents, features] = await Promise.all([this.options.management.agents.list(project), this.options.management.features.list(project.id)]);
+        const features = await this.options.management.features.list(project.id);
         const documents = (await Promise.all(features.map((feature) => this.getFeature(projectId, feature.id.value)))).flatMap((feature) => feature.documents);
-        return agents.map((agent) => ({
-            id: agent.id.value,
-            provider: agent.provider,
-            role: agent.role,
-            active: agent.active,
-            featureIds: agent.scope.featureIds.map((id) => id.value),
-            paths: agent.scope.paths,
-            responsibilities: agent.scope.responsibilities,
-            productionIds: documents.filter((document) => document.authorAgentId === agent.id.value).map((document) => document.id),
-        }));
+        const productions = new Map(documents.flatMap((document) => document.authorAgentId === undefined ? [] : [[document.authorAgentId, documents.filter((item) => item.authorAgentId === document.authorAgentId).map((item) => item.id)]]));
+        return agentRegistryView({ management: this.options.management, registry: this.options.agentRegistry }, project, productions);
     }
+    async registerAgent(projectId, input) { await registerAgent(this.agentManagementDeps(), projectId, input); return this.getAgents(projectId); }
+    async selectAgent(projectId, agentId, input) { await selectAgent(this.agentManagementDeps(), projectId, agentId, input); return this.getAgents(projectId); }
+    async replaceAgent(projectId, agentId, input) { await replaceAgent(this.agentManagementDeps(), projectId, agentId, input); return this.getAgents(projectId); }
+    async deactivateAgent(projectId, agentId, input) { await deactivateAgent(this.agentManagementDeps(), projectId, agentId, input); return this.getAgents(projectId); }
     async getAudits(projectId) {
         const project = await this.project(projectId);
         const index = await readJson(join(project.root, ".arka-norn", "audits", "index.json"));
@@ -432,7 +429,7 @@ export class ProjectTrackingService {
         const views = await Promise.all(features.map((feature) => this.getFeature(projectId, feature.id.value)));
         const governance = await this.getGovernance(projectId);
         const agents = await this.getAgents(projectId);
-        return buildProjectRelationshipGraph(project, views, governance, agents);
+        return buildProjectRelationshipGraph(project, views, governance, agents.agents);
     }
     async getPreferences() {
         const preferences = await this.options.preferences.loadPreferences();
@@ -497,6 +494,7 @@ export class ProjectTrackingService {
     project(id) {
         return this.options.management.projects.show(ProjectId.of(id));
     }
+    agentManagementDeps() { return { management: this.options.management, registry: this.options.agentRegistry, agentsForSession: this.options.agentsForSession }; }
     async feature(project, id) {
         const feature = await this.options.management.features.show(FeatureId.of(id));
         if (!feature.projectId.equals(project.id))

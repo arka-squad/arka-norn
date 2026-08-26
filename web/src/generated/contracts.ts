@@ -148,7 +148,8 @@ export const contracts = {
       "authority": "bounded_mutation",
       "surfaces": [
         "cli",
-        "tui"
+        "tui",
+        "web"
       ],
       "preconditions": [
         "project_materialized",
@@ -163,7 +164,8 @@ export const contracts = {
       "authority": "bounded_mutation",
       "surfaces": [
         "cli",
-        "tui"
+        "tui",
+        "web"
       ],
       "preconditions": [
         "agent_active",
@@ -179,7 +181,8 @@ export const contracts = {
       "authority": "human_confirmation",
       "surfaces": [
         "cli",
-        "tui"
+        "tui",
+        "web"
       ],
       "preconditions": [
         "agent_active",
@@ -195,7 +198,8 @@ export const contracts = {
       "authority": "human_confirmation",
       "surfaces": [
         "cli",
-        "tui"
+        "tui",
+        "web"
       ],
       "preconditions": [
         "agent_registry_revision_current",

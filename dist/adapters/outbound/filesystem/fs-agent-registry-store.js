@@ -17,7 +17,7 @@ import * as fs from "node:fs/promises";
 import { join } from "node:path";
 import { AgentRegistration } from "../../../domain/agent/agent.js";
 import { AgentId } from "../../../domain/agent/agent-id.js";
-import { InvalidAgentRegistryError, PathSecurityError } from "../../../domain/errors.js";
+import { AgentRegistryChangedError, InvalidAgentRegistryError, PathSecurityError } from "../../../domain/errors.js";
 import { FeatureId } from "../../../domain/feature/feature-id.js";
 import { ProjectId } from "../../../domain/project/project-id.js";
 import { readJson, writeJsonAtomic } from "./_shared/atomic-json.js";
@@ -29,22 +29,28 @@ export class FsAgentRegistryStore {
         this.paths = paths;
     }
     async load(project) {
+        return (await this.loadSnapshot(project)).agents;
+    }
+    async loadSnapshot(project) {
         await this.paths.assertMarkerRoot(project.root, project.root);
         await rejectMarkerDirectorySymlink(project.root);
-        return this.loadUnlocked(project);
+        return this.loadSnapshotUnlocked(project);
     }
-    async update(project, transform) {
+    async update(project, transform, expectedRevision) {
         await this.paths.assertMarkerRoot(project.root, project.root);
         await rejectMarkerDirectorySymlink(project.root);
         const path = registryPath(project.root);
         return withFileLock(path, async () => {
-            const current = await this.loadUnlocked(project);
-            const updated = [...transform(current)];
+            const current = await this.loadSnapshotUnlocked(project);
+            if (expectedRevision !== undefined && expectedRevision !== current.revision)
+                throw new AgentRegistryChangedError(expectedRevision, current.revision);
+            const updated = [...transform(current.agents)];
             validateRelations(updated, path, project.id.value);
             const latest = updated.reduce((value, agent) => Math.max(value, agent.updatedAt.getTime()), project.updatedAt.getTime());
             const payload = {
-                schemaVersion: 1,
+                schemaVersion: 2,
                 projectId: project.id.value,
+                revision: current.revision + 1,
                 updatedAt: new Date(latest).toISOString(),
                 agents: updated.map(serialize),
             };
@@ -52,7 +58,7 @@ export class FsAgentRegistryStore {
             return updated;
         });
     }
-    async loadUnlocked(project) {
+    async loadSnapshotUnlocked(project) {
         const path = registryPath(project.root);
         let raw;
         try {
@@ -62,14 +68,14 @@ export class FsAgentRegistryStore {
             throw new InvalidAgentRegistryError(path, error instanceof Error ? error.message : String(error));
         }
         if (raw === undefined)
-            return [];
+            return { revision: 0, agents: [] };
         if (!isRegistry(raw) || raw.projectId !== project.id.value) {
             throw new InvalidAgentRegistryError(path, "schema or projectId mismatch");
         }
         try {
             const agents = raw.agents.map(deserialize);
             validateRelations(agents, path, project.id.value);
-            return agents;
+            return { revision: raw.schemaVersion === 2 ? raw.revision : 0, agents };
         }
         catch (error) {
             if (error instanceof InvalidAgentRegistryError)
@@ -172,9 +178,12 @@ function validateRelations(agents, path, projectId) {
         visit(id);
 }
 function isRegistry(value) {
-    if (!isExactRecord(value, ["schemaVersion", "projectId", "updatedAt", "agents"]))
+    if (!isRecord(value))
         return false;
-    return value["schemaVersion"] === 1
+    const v1 = value["schemaVersion"] === 1 && isExactRecord(value, ["schemaVersion", "projectId", "updatedAt", "agents"]);
+    const v2 = value["schemaVersion"] === 2 && isExactRecord(value, ["schemaVersion", "projectId", "revision", "updatedAt", "agents"])
+        && Number.isInteger(value["revision"]) && Number(value["revision"]) >= 0;
+    return (v1 || v2)
         && typeof value["projectId"] === "string"
         && typeof value["updatedAt"] === "string"
         && isIsoDate(value["updatedAt"])

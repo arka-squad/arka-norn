@@ -19,7 +19,7 @@ import { join } from "node:path";
 
 import { AgentRegistration } from "../../../domain/agent/agent.js";
 import { AgentId } from "../../../domain/agent/agent-id.js";
-import { InvalidAgentRegistryError, PathSecurityError } from "../../../domain/errors.js";
+import { AgentRegistryChangedError, InvalidAgentRegistryError, PathSecurityError } from "../../../domain/errors.js";
 import { FeatureId } from "../../../domain/feature/feature-id.js";
 import { ProjectId } from "../../../domain/project/project-id.js";
 import type { Project } from "../../../domain/project/project.js";
@@ -36,6 +36,16 @@ interface AgentRegistryFileV1 {
   readonly updatedAt: string;
   readonly agents: readonly AgentRegistrationRaw[];
 }
+
+interface AgentRegistryFileV2 {
+  readonly schemaVersion: 2;
+  readonly projectId: string;
+  readonly revision: number;
+  readonly updatedAt: string;
+  readonly agents: readonly AgentRegistrationRaw[];
+}
+
+type AgentRegistryFile = AgentRegistryFileV1 | AgentRegistryFileV2;
 
 interface AgentRegistrationRaw {
   readonly id: string;
@@ -63,23 +73,29 @@ export class FsAgentRegistryStore implements AgentRegistryStore {
   }
 
   public async load(project: Project): Promise<readonly AgentRegistration[]> {
-    await this.paths.assertMarkerRoot(project.root, project.root);
-    await rejectMarkerDirectorySymlink(project.root);
-    return this.loadUnlocked(project);
+    return (await this.loadSnapshot(project)).agents;
   }
 
-  public async update(project: Project, transform: (agents: readonly AgentRegistration[]) => readonly AgentRegistration[]): Promise<readonly AgentRegistration[]> {
+  public async loadSnapshot(project: Project): Promise<{ readonly revision: number; readonly agents: readonly AgentRegistration[] }> {
+    await this.paths.assertMarkerRoot(project.root, project.root);
+    await rejectMarkerDirectorySymlink(project.root);
+    return this.loadSnapshotUnlocked(project);
+  }
+
+  public async update(project: Project, transform: (agents: readonly AgentRegistration[]) => readonly AgentRegistration[], expectedRevision?: number): Promise<readonly AgentRegistration[]> {
     await this.paths.assertMarkerRoot(project.root, project.root);
     await rejectMarkerDirectorySymlink(project.root);
     const path = registryPath(project.root);
     return withFileLock(path, async () => {
-      const current = await this.loadUnlocked(project);
-      const updated = [...transform(current)];
+      const current = await this.loadSnapshotUnlocked(project);
+      if (expectedRevision !== undefined && expectedRevision !== current.revision) throw new AgentRegistryChangedError(expectedRevision, current.revision);
+      const updated = [...transform(current.agents)];
       validateRelations(updated, path, project.id.value);
       const latest = updated.reduce((value, agent) => Math.max(value, agent.updatedAt.getTime()), project.updatedAt.getTime());
-      const payload: AgentRegistryFileV1 = {
-        schemaVersion: 1,
+      const payload: AgentRegistryFileV2 = {
+        schemaVersion: 2,
         projectId: project.id.value,
+        revision: current.revision + 1,
         updatedAt: new Date(latest).toISOString(),
         agents: updated.map(serialize),
       };
@@ -88,7 +104,7 @@ export class FsAgentRegistryStore implements AgentRegistryStore {
     });
   }
 
-  private async loadUnlocked(project: Project): Promise<readonly AgentRegistration[]> {
+  private async loadSnapshotUnlocked(project: Project): Promise<{ readonly revision: number; readonly agents: readonly AgentRegistration[] }> {
     const path = registryPath(project.root);
     let raw: unknown;
     try {
@@ -96,14 +112,14 @@ export class FsAgentRegistryStore implements AgentRegistryStore {
     } catch (error) {
       throw new InvalidAgentRegistryError(path, error instanceof Error ? error.message : String(error));
     }
-    if (raw === undefined) return [];
+    if (raw === undefined) return { revision: 0, agents: [] };
     if (!isRegistry(raw) || raw.projectId !== project.id.value) {
       throw new InvalidAgentRegistryError(path, "schema or projectId mismatch");
     }
     try {
       const agents = raw.agents.map(deserialize);
       validateRelations(agents, path, project.id.value);
-      return agents;
+      return { revision: raw.schemaVersion === 2 ? raw.revision : 0, agents };
     } catch (error) {
       if (error instanceof InvalidAgentRegistryError) throw error;
       throw new InvalidAgentRegistryError(path, error instanceof Error ? error.message : String(error));
@@ -202,9 +218,12 @@ function validateRelations(agents: readonly AgentRegistration[], path: string, p
   for (const id of byId.keys()) visit(id);
 }
 
-function isRegistry(value: unknown): value is AgentRegistryFileV1 {
-  if (!isExactRecord(value, ["schemaVersion", "projectId", "updatedAt", "agents"])) return false;
-  return value["schemaVersion"] === 1
+function isRegistry(value: unknown): value is AgentRegistryFile {
+  if (!isRecord(value)) return false;
+  const v1 = value["schemaVersion"] === 1 && isExactRecord(value, ["schemaVersion", "projectId", "updatedAt", "agents"]);
+  const v2 = value["schemaVersion"] === 2 && isExactRecord(value, ["schemaVersion", "projectId", "revision", "updatedAt", "agents"])
+    && Number.isInteger(value["revision"]) && Number(value["revision"]) >= 0;
+  return (v1 || v2)
     && typeof value["projectId"] === "string"
     && typeof value["updatedAt"] === "string"
     && isIsoDate(value["updatedAt"])

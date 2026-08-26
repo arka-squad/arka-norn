@@ -108,7 +108,7 @@ function ProjectContent(props: {
   if (props.section === "features") return <FeaturesView project={props.project} navigate={props.navigate} onCreated={props.reloadProject} />;
   if (props.section === "documents") return <DocumentsContent project={props.project} revision={props.revision} navigate={props.navigate} />;
   if (props.section === "decisions") return <GovernanceContent projectId={props.projectId} revision={props.revision} reloadProject={props.reloadProject} />;
-  if (props.section === "agents") return <AgentsContent projectId={props.projectId} revision={props.revision} />;
+  if (props.section === "agents") return <AgentsContent project={props.project} revision={props.revision} reloadProject={props.reloadProject} />;
   if (props.section === "audits") return <AuditsContent project={props.project} revision={props.revision} reloadProject={props.reloadProject} />;
   if (props.section === "live") return <LiveContent projectId={props.projectId} revision={props.revision} />;
   if (props.section === "graph") return <GraphContent project={props.project} revision={props.revision} />;
@@ -168,10 +168,10 @@ function GovernanceContent({ projectId, revision, reloadProject }: { readonly pr
   return dataView(governance, (data) => <GovernancePage projectId={projectId} governance={data} onChanged={() => { governance.reload(); reloadProject(); }} />);
 }
 
-function AgentsContent({ projectId, revision }: { readonly projectId: string; readonly revision: number }) {
+function AgentsContent({ project, revision, reloadProject }: { readonly project: ProjectOverview; readonly revision: number; readonly reloadProject: () => void }) {
   const bridge = useBridge();
-  const agents = useAsync(() => bridge.getAgents(projectId), [bridge, projectId, revision]);
-  return dataView(agents, (data) => <AgentsView agents={data} />);
+  const agents = useAsync(() => bridge.getAgents(project.id), [bridge, project.id, revision]);
+  return dataView(agents, (data) => <AgentsView project={project} registry={data} onChanged={() => { agents.reload(); reloadProject(); }} />);
 }
 
 function AuditsContent({ project, revision, reloadProject }: { readonly project: ProjectOverview; readonly revision: number; readonly reloadProject: () => void }) {

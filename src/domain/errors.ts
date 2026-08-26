@@ -23,6 +23,7 @@ export type DomainErrorCode =
   | "AGENT_INACTIVE"
   | "AGENT_SCOPE_VIOLATION"
   | "INVALID_AGENT_REGISTRY"
+  | "AGENT_REGISTRY_CHANGED"
   | "INVALID_FEATURE_ID"
   | "INVALID_FEATURE_OPTION"
   | "FEATURE_ALREADY_EXISTS"
@@ -96,6 +97,12 @@ export class AgentScopeViolationError extends DomainError {
 export class InvalidAgentRegistryError extends DomainError {
   public constructor(path: string, reason: string) {
     super("INVALID_AGENT_REGISTRY", `Invalid agent registry "${path}": ${reason}`);
+  }
+}
+
+export class AgentRegistryChangedError extends DomainError {
+  public constructor(expected: number, actual: number) {
+    super("AGENT_REGISTRY_CHANGED", `Agent registry changed: expected revision ${expected}, current revision ${actual}.`);
   }
 }
 

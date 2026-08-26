@@ -1,5 +1,6 @@
 import type {
-  AgentTrackingView,
+  AgentMutationInput,
+  AgentRegistryView,
   AuditTrackingView,
   AuditRunView,
   CreateGovernanceEventInput,
@@ -51,7 +52,11 @@ export class HttpNornBridge implements NornBridge {
     return this.request(`/api/v1/projects/${encode(projectId)}/graph${query}`);
   }
   public getGovernance(projectId: string): Promise<GovernanceView> { return this.request(`/api/v1/projects/${encode(projectId)}/governance`); }
-  public getAgents(projectId: string): Promise<readonly AgentTrackingView[]> { return this.request(`/api/v1/projects/${encode(projectId)}/agents`); }
+  public getAgents(projectId: string): Promise<AgentRegistryView> { return this.request(`/api/v1/projects/${encode(projectId)}/agents`); }
+  public registerAgent(projectId: string, input: AgentMutationInput): Promise<AgentRegistryView> { return this.request(`/api/v1/projects/${encode(projectId)}/agents`, "POST", input); }
+  public selectAgent(projectId: string, agentId: string, input: { readonly sessionId: string; readonly expectedRegistryRevision: number }): Promise<AgentRegistryView> { return this.request(`/api/v1/projects/${encode(projectId)}/agents/${encode(agentId)}/select`, "POST", input); }
+  public replaceAgent(projectId: string, agentId: string, input: AgentMutationInput): Promise<AgentRegistryView> { return this.request(`/api/v1/projects/${encode(projectId)}/agents/${encode(agentId)}/replace`, "POST", input); }
+  public deactivateAgent(projectId: string, agentId: string, input: { readonly expectedRegistryRevision: number; readonly confirmation: string }): Promise<AgentRegistryView> { return this.request(`/api/v1/projects/${encode(projectId)}/agents/${encode(agentId)}/deactivate`, "POST", input); }
   public getAudits(projectId: string): Promise<readonly AuditTrackingView[]> { return this.request(`/api/v1/projects/${encode(projectId)}/audits`); }
   public getAudit(projectId: string, auditId: string): Promise<AuditRunView> { return this.request(`/api/v1/projects/${encode(projectId)}/audits/${encode(auditId)}`); }
   public prepareAudit(projectId: string, input: PrepareAuditInput): Promise<AuditRunView> { return this.request(`/api/v1/projects/${encode(projectId)}/audits/prepare`, "POST", input); }

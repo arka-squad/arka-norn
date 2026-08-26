@@ -31,6 +31,7 @@ export interface RegisterAgentInput extends AgentScopeInput {
   readonly provider: string;
   readonly role: string;
   readonly id?: AgentId;
+  readonly expectedRegistryRevision?: number;
 }
 
 export interface ReplaceAgentInput extends AgentScopeInput {
@@ -39,6 +40,7 @@ export interface ReplaceAgentInput extends AgentScopeInput {
   readonly provider: string;
   readonly role: string;
   readonly id?: AgentId;
+  readonly expectedRegistryRevision?: number;
 }
 
 export interface ForAgents {
@@ -47,8 +49,8 @@ export interface ForAgents {
   sessions(project: Project): Promise<readonly { readonly sessionId: AgentSessionId; readonly agent: AgentRegistration }[]>;
   show(project: Project, id: AgentId): Promise<AgentRegistration>;
   register(input: RegisterAgentInput): Promise<AgentRegistration>;
-  deactivate(project: Project, id: AgentId): Promise<AgentRegistration>;
+  deactivate(project: Project, id: AgentId, expectedRegistryRevision?: number): Promise<AgentRegistration>;
   replace(input: ReplaceAgentInput): Promise<AgentRegistration>;
-  select(project: Project, id: AgentId): Promise<AgentRegistration>;
+  select(project: Project, id: AgentId, expectedRegistryRevision?: number): Promise<AgentRegistration>;
   current(project: Project): Promise<AgentRegistration | undefined>;
 }
