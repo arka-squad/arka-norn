@@ -22,7 +22,7 @@ import { inspectPipelineUseCaseFactory } from "../application/pipeline/inspect-p
 import { scaffoldPipelineDocumentUseCaseFactory } from "../application/pipeline/scaffold-pipeline-document.js";
 import { validatePipelineDocumentUseCaseFactory } from "../application/pipeline/validate-pipeline-document.js";
 import { AuditUnavailableError } from "../domain/errors.js";
-import { workflowFrom } from "../domain/pipeline/pipeline-catalog.js";
+import { isPipelineCatalogV3, resolvePipelineEntry, workflowFrom } from "../domain/pipeline/pipeline-catalog.js";
 export function createPipelineRuntime(frameworkRoot, options = {}) {
     const source = new FsPipelineDocumentSource(frameworkRoot);
     const validator = new AjvDocumentValidator(frameworkRoot);
@@ -49,14 +49,13 @@ export function createPipelineRuntime(frameworkRoot, options = {}) {
         },
         async showWorkflow(pipelineId) {
             const catalog = await source.loadCatalog();
-            const definition = await source.loadDefinition(pipelineId ?? catalog.defaultPipelineId);
-            const entry = catalog.pipelines.find((candidate) => candidate.id === definition.pipelineId);
-            if (entry === undefined)
-                throw new Error(`Pipeline ${definition.pipelineId} is absent from the catalog.`);
+            const entry = resolvePipelineEntry(catalog, pipelineId);
+            const definition = await source.loadDefinition(entry.id);
             return workflowFrom(entry, definition);
         },
         async defaultWorkflowId() {
-            return (await source.loadCatalog()).defaultPipelineId;
+            const catalog = await source.loadCatalog();
+            return isPipelineCatalogV3(catalog) ? catalog.compatibilityFallbackPipelineId : catalog.defaultPipelineId;
         },
     };
 }

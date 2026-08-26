@@ -1,9 +1,34 @@
 {
-  "schemaVersion": 2,
-  "defaultPipelineId": "arka-norn-essential",
+  "schemaVersion": 3,
+  "newFeatureEntry": "framing_required",
+  "compatibilityFallbackPipelineId": "arka-norn-essential",
   "pipelines": [
     {
+      "id": "arka-norn-complete-2.3",
+      "generation": "2.3",
+      "availability": "framing_calculated",
+      "aliases": [
+        "complete-2.3"
+      ],
+      "name": "Complete 2.3",
+      "description": "Delivery pipeline for a grounded higher-risk plan, with optional technical artifacts only when consumed.",
+      "definition": "pipelines/arka-norn-complete-2.3.json"
+    },
+    {
+      "id": "arka-norn-essential-2.3",
+      "generation": "2.3",
+      "availability": "framing_calculated",
+      "aliases": [
+        "essential-2.3"
+      ],
+      "name": "Essential 2.3",
+      "description": "Delivery pipeline for a grounded framing plan: development, audit and validation.",
+      "definition": "pipelines/arka-norn-essential-2.3.json"
+    },
+    {
       "id": "arka-norn-complete",
+      "generation": "legacy",
+      "availability": "existing_only",
       "aliases": [
         "complete",
         "standard",
@@ -15,6 +40,8 @@
     },
     {
       "id": "arka-norn-essential",
+      "generation": "legacy",
+      "availability": "existing_only",
       "aliases": [
         "essential",
         "essentiel",
@@ -26,26 +53,14 @@
     },
     {
       "id": "arka-norn-fastdev",
+      "generation": "legacy",
+      "availability": "explicit_rework",
       "aliases": [
         "fastdev"
       ],
       "name": "FastDev",
       "description": "Short controlled workflow for bounded fixes, refactors and UX improvements.",
       "definition": "pipelines/arka-norn-fastdev.json"
-    },
-    {
-      "id": "arka-norn-essential-2.3",
-      "aliases": ["essential-2.3"],
-      "name": "Essential 2.3",
-      "description": "Delivery pipeline for a grounded framing plan: development, audit and validation.",
-      "definition": "pipelines/arka-norn-essential-2.3.json"
-    },
-    {
-      "id": "arka-norn-complete-2.3",
-      "aliases": ["complete-2.3"],
-      "name": "Complete 2.3",
-      "description": "Delivery pipeline for a grounded higher-risk plan, with optional technical artifacts only when consumed.",
-      "definition": "pipelines/arka-norn-complete-2.3.json"
     }
   ]
 }

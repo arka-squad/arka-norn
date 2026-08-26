@@ -36,10 +36,20 @@ export class FsPipelineDocumentSource {
         const rawEntries = content["pipelines"];
         if (!Array.isArray(rawEntries))
             throw new Error("pipelines/catalog.json pipelines must be an array.");
+        const version = requireCatalogVersion(content["schemaVersion"]);
+        const entries = rawEntries.map((value, index) => parseCatalogEntry(value, index, version));
+        if (version === 3) {
+            return createPipelineCatalog({
+                schemaVersion: 3,
+                newFeatureEntry: requireEnum(content["newFeatureEntry"], "catalog.newFeatureEntry", ["framing_required"]),
+                compatibilityFallbackPipelineId: requireString(content["compatibilityFallbackPipelineId"], "catalog.compatibilityFallbackPipelineId"),
+                pipelines: entries,
+            });
+        }
         return createPipelineCatalog({
-            schemaVersion: requireCatalogVersion(content["schemaVersion"]),
+            schemaVersion: version,
             defaultPipelineId: requireString(content["defaultPipelineId"], "catalog.defaultPipelineId"),
-            pipelines: rawEntries.map((value, index) => parseCatalogEntry(value, index)),
+            pipelines: entries,
         });
     }
     async loadDefinition(pipelineId, documentContractVersion = 5) {
@@ -175,19 +185,33 @@ function parseStep(value, index) {
 function parseDecisionGate(value) {
     return value === "continue" ? "continue" : "human_decision";
 }
-function parseCatalogEntry(value, index) {
+function parseCatalogEntry(value, index, version) {
     const entry = requireRecord(value, `catalog.pipelines[${index}]`);
     const aliases = entry["aliases"];
     if (!Array.isArray(aliases) || !aliases.every((alias) => typeof alias === "string")) {
         throw new Error(`catalog.pipelines[${index}].aliases must be a string array.`);
     }
+    const id = requireString(entry["id"], `catalog.pipelines[${index}].id`);
+    const generation = version === 3
+        ? requireEnum(entry["generation"], `catalog.pipelines[${index}].generation`, ["2.3", "legacy"])
+        : "legacy";
+    const availability = version === 3
+        ? requireEnum(entry["availability"], `catalog.pipelines[${index}].availability`, ["framing_calculated", "existing_only", "explicit_rework"])
+        : legacyAvailability(id);
     return {
-        id: requireString(entry["id"], `catalog.pipelines[${index}].id`),
+        id,
         aliases,
         name: requireString(entry["name"], `catalog.pipelines[${index}].name`),
         description: requireString(entry["description"], `catalog.pipelines[${index}].description`),
         definitionPath: requireString(entry["definition"], `catalog.pipelines[${index}].definition`),
+        generation,
+        availability,
     };
+}
+function legacyAvailability(id) {
+    if (id === "arka-norn-fastdev")
+        return "explicit_rework";
+    return "existing_only";
 }
 function parseBusinessPolicy(value, index) {
     const policy = requireRecord(value, `pipeline.steps[${index}].businessPolicy`);
@@ -223,9 +247,15 @@ function policyField(index, field) {
 }
 function requireCatalogVersion(value) {
     const version = requirePositiveInteger(value, "catalog.schemaVersion");
-    if (version !== 1 && version !== 2)
+    if (version !== 1 && version !== 2 && version !== 3)
         throw new Error(`Unsupported pipeline catalog schemaVersion: ${version}.`);
     return version;
+}
+function requireEnum(value, field, allowed) {
+    const selected = requireString(value, field);
+    if (!allowed.includes(selected))
+        throw new Error(`${field} must be one of ${allowed.join(", ")}; got ${selected}.`);
+    return selected;
 }
 function requireRecord(value, field) {
     if (typeof value !== "object" || value === null || Array.isArray(value))

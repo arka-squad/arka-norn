@@ -41,10 +41,20 @@ export class FsPipelineDocumentSource implements PipelineDocumentSource {
     if (content === undefined) throw new Error("pipelines/catalog.json must contain a JSON object.");
     const rawEntries = content["pipelines"];
     if (!Array.isArray(rawEntries)) throw new Error("pipelines/catalog.json pipelines must be an array.");
+    const version = requireCatalogVersion(content["schemaVersion"]);
+    const entries = rawEntries.map((value, index) => parseCatalogEntry(value, index, version));
+    if (version === 3) {
+      return createPipelineCatalog({
+        schemaVersion: 3,
+        newFeatureEntry: requireEnum(content["newFeatureEntry"], "catalog.newFeatureEntry", ["framing_required"]) as "framing_required",
+        compatibilityFallbackPipelineId: requireString(content["compatibilityFallbackPipelineId"], "catalog.compatibilityFallbackPipelineId"),
+        pipelines: entries,
+      });
+    }
     return createPipelineCatalog({
-      schemaVersion: requireCatalogVersion(content["schemaVersion"]),
+      schemaVersion: version,
       defaultPipelineId: requireString(content["defaultPipelineId"], "catalog.defaultPipelineId"),
-      pipelines: rawEntries.map((value, index) => parseCatalogEntry(value, index)),
+      pipelines: entries,
     });
   }
 
@@ -181,19 +191,33 @@ function parseDecisionGate(value: unknown): "continue" | "human_decision" {
   return value === "continue" ? "continue" : "human_decision";
 }
 
-function parseCatalogEntry(value: unknown, index: number) {
+function parseCatalogEntry(value: unknown, index: number, version: number) {
   const entry = requireRecord(value, `catalog.pipelines[${index}]`);
   const aliases = entry["aliases"];
   if (!Array.isArray(aliases) || !aliases.every((alias) => typeof alias === "string")) {
     throw new Error(`catalog.pipelines[${index}].aliases must be a string array.`);
   }
+  const id = requireString(entry["id"], `catalog.pipelines[${index}].id`);
+  const generation = version === 3
+    ? requireEnum(entry["generation"], `catalog.pipelines[${index}].generation`, ["2.3", "legacy"]) as "2.3" | "legacy"
+    : "legacy";
+  const availability = version === 3
+    ? requireEnum(entry["availability"], `catalog.pipelines[${index}].availability`, ["framing_calculated", "existing_only", "explicit_rework"]) as "framing_calculated" | "existing_only" | "explicit_rework"
+    : legacyAvailability(id);
   return {
-    id: requireString(entry["id"], `catalog.pipelines[${index}].id`),
+    id,
     aliases,
     name: requireString(entry["name"], `catalog.pipelines[${index}].name`),
     description: requireString(entry["description"], `catalog.pipelines[${index}].description`),
     definitionPath: requireString(entry["definition"], `catalog.pipelines[${index}].definition`),
+    generation,
+    availability,
   };
+}
+
+function legacyAvailability(id: string): "framing_calculated" | "existing_only" | "explicit_rework" {
+  if (id === "arka-norn-fastdev") return "explicit_rework";
+  return "existing_only";
 }
 
 function parseBusinessPolicy(value: unknown, index: number): PipelineBusinessPolicy {
@@ -229,10 +253,16 @@ function policyField(index: number, field: string): string {
   return `pipeline.steps[${index}].businessPolicy.${field}`;
 }
 
-function requireCatalogVersion(value: unknown): 1 | 2 {
+function requireCatalogVersion(value: unknown): 1 | 2 | 3 {
   const version = requirePositiveInteger(value, "catalog.schemaVersion");
-  if (version !== 1 && version !== 2) throw new Error(`Unsupported pipeline catalog schemaVersion: ${version}.`);
+  if (version !== 1 && version !== 2 && version !== 3) throw new Error(`Unsupported pipeline catalog schemaVersion: ${version}.`);
   return version;
+}
+
+function requireEnum(value: unknown, field: string, allowed: readonly string[]): string {
+  const selected = requireString(value, field);
+  if (!allowed.includes(selected)) throw new Error(`${field} must be one of ${allowed.join(", ")}; got ${selected}.`);
+  return selected;
 }
 
 function requireRecord(value: unknown, field: string): Readonly<Record<string, unknown>> {

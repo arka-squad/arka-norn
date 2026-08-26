@@ -27,7 +27,7 @@ import { AuditUnavailableError } from "../domain/errors.js";
 import type { ForPipeline } from "../ports/inbound/for-pipeline.js";
 import type { AuditEvent, AuditTrail } from "../ports/outbound/audit-trail.js";
 import type { Clock } from "../ports/outbound/clock.js";
-import { workflowFrom } from "../domain/pipeline/pipeline-catalog.js";
+import { isPipelineCatalogV3, resolvePipelineEntry, workflowFrom } from "../domain/pipeline/pipeline-catalog.js";
 
 export interface PipelineRuntimeOptions {
   readonly homeDir?: string;
@@ -61,13 +61,13 @@ export function createPipelineRuntime(frameworkRoot: string, options: PipelineRu
     },
     async showWorkflow(pipelineId) {
       const catalog = await source.loadCatalog();
-      const definition = await source.loadDefinition(pipelineId ?? catalog.defaultPipelineId);
-      const entry = catalog.pipelines.find((candidate) => candidate.id === definition.pipelineId);
-      if (entry === undefined) throw new Error(`Pipeline ${definition.pipelineId} is absent from the catalog.`);
+      const entry = resolvePipelineEntry(catalog, pipelineId);
+      const definition = await source.loadDefinition(entry.id);
       return workflowFrom(entry, definition);
     },
     async defaultWorkflowId() {
-      return (await source.loadCatalog()).defaultPipelineId;
+      const catalog = await source.loadCatalog();
+      return isPipelineCatalogV3(catalog) ? catalog.compatibilityFallbackPipelineId : catalog.defaultPipelineId;
     },
   };
 }

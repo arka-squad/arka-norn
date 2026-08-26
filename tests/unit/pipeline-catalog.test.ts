@@ -27,8 +27,10 @@ const ROOT = resolve(import.meta.dirname, "..", "..");
 test("the catalog resolves canonical and deprecated pipeline aliases", async () => {
   const source = new FsPipelineDocumentSource(ROOT);
   const catalog = await source.loadCatalog();
+  assert.equal(catalog.schemaVersion, 3);
   assert.equal(catalog.pipelines.length, 5);
-  assert.equal(catalog.defaultPipelineId, "arka-norn-essential");
+  assert.equal(catalog.newFeatureEntry, "framing_required");
+  assert.equal(catalog.compatibilityFallbackPipelineId, "arka-norn-essential");
   assert.equal((await source.loadDefinition("complete")).pipelineId, "arka-norn-complete");
   assert.equal((await source.loadDefinition("standard")).pipelineId, "arka-norn-complete");
   assert.equal((await source.loadDefinition("essential")).pipelineId, "arka-norn-essential");
@@ -44,12 +46,12 @@ test("unsafe definition paths and unknown aliases are rejected", () => {
   assert.throws(() => createPipelineCatalog({
     schemaVersion: 1,
     defaultPipelineId: "safe",
-    pipelines: [{ id: "safe", aliases: ["standard"], name: "Safe", description: "Safe pipeline", definitionPath: "../evil.json" }],
+    pipelines: [{ id: "safe", aliases: ["standard"], name: "Safe", description: "Safe pipeline", definitionPath: "../evil.json", generation: "legacy", availability: "existing_only" }],
   }), /Unsafe pipeline definition path/);
   const catalog = createPipelineCatalog({
     schemaVersion: 1,
     defaultPipelineId: "safe",
-    pipelines: [{ id: "safe", aliases: ["standard"], name: "Safe", description: "Safe pipeline", definitionPath: "pipeline.json" }],
+    pipelines: [{ id: "safe", aliases: ["standard"], name: "Safe", description: "Safe pipeline", definitionPath: "pipeline.json", generation: "legacy", availability: "existing_only" }],
   });
   assert.equal(resolvePipelineEntry(catalog, "standard").id, "safe");
   assert.throws(() => resolvePipelineEntry(catalog, "unknown"), /Unknown pipeline id/);
