@@ -34,6 +34,7 @@ Maintenance :
   skills <list|install|doctor>
   selftest
   guide
+  version [--update|--skip-reboot|--skip-version|--clear-skip]
   config
   --version | -v
   help | --help | -h

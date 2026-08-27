@@ -36,6 +36,7 @@ import { extractGlobalOptions } from "./global-options.js";
 import { runLocaleCommand } from "./locale-cli.js";
 import { runWebCommand } from "./web-cli.js";
 import { runFramingCommand } from "./framing-cli.js";
+import { runVersionCommand } from "./version-cli.js";
 import { FsLocalePreferenceStore } from "../../outbound/filesystem/fs-locale-preference-store.js";
 import { resolveLocale, runWithLocale, translate } from "../../../application/localization/locale.js";
 import { jsonEnvelope, type CliDiagnostic } from "./cli-envelope.js";
@@ -85,6 +86,12 @@ async function runLocalizedCli(argv: readonly string[], homeDir: string, env: Re
       }
       process.stdout.write(localizedCliGuide());
       return 0;
+    }
+    if (command === "version") {
+      const versionResult = await runVersionCommand(rest, { homeDir });
+      process.stdout.write(versionResult.stdout);
+      process.stderr.write(versionResult.stderr);
+      return versionResult.code;
     }
     if (command === undefined || command === "config") return launchTui();
     if (command === "selftest") return runSelftest(rest);

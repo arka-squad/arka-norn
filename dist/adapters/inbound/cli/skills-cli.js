@@ -18,6 +18,8 @@ import { translate } from "../../../application/localization/locale.js";
 import { createSkillCatalogRuntime } from "../../outbound/skills/skill-catalog.js";
 import { detectHostsFiltered, formatHosts, SUPPORTED_HOSTS } from "../../outbound/skills/host-detector.js";
 import { findOrphanSkills, inspectGlobalSkills, inspectSkills, installSkills } from "../../outbound/skills/skill-installer.js";
+import { createTheme } from "../tui/runtime/theme.js";
+import { renderArkaHeader } from "../tui/components/banner.js";
 import { CliUsageError, parseStrictArguments } from "./strict-arguments.js";
 import { jsonEnvelope } from "./cli-envelope.js";
 export function runSkillsCommand(argv, context) {
@@ -152,6 +154,7 @@ function setup(argv, context, json) {
         ...doctorOrphans.map((orphan) => `  WARN      ${orphan.name} — ${orphan.location}`),
         "",
         doctorOk ? translate("cli.setup.ready") : translate("cli.setup.doctorWarning"),
+        ...(doctorOk && !dryRun ? ["", ...renderNextSteps()] : []),
     ].join("\n");
     const errors = doctorOk ? [] : [translate("cli.setup.doctorWarning")];
     const code = dryRun ? 0 : doctorOk ? 0 : 3;
@@ -170,6 +173,17 @@ function humanSetupPreview(targets, hosts, profile, plan) {
             lines.push(`  ${item.action.padEnd(9)} ${item.file}`);
     }
     return lines.join("\n");
+}
+function renderNextSteps() {
+    const theme = createTheme(process.env, Boolean(process.stdout.isTTY));
+    return [
+        ...renderArkaHeader(theme),
+        `  ${theme.bold(translate("cli.setup.nextTitle"))}`,
+        `    ${theme.arkaAccent("arka-norn web start")}       ${theme.dim(translate("cli.setup.nextUi"))}`,
+        `    ${theme.arkaAccent("arka-norn framing enter .")} ${theme.dim(translate("cli.setup.nextProject"))}`,
+        `    ${theme.dim(translate("cli.setup.nextAgent"))}`,
+        `    ${theme.arkaAccent("arka-norn guide")}           ${theme.dim(translate("cli.setup.nextGuide"))}`,
+    ];
 }
 function parseHostFilter(value) {
     if (value === undefined)
