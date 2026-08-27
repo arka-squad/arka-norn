@@ -118,9 +118,8 @@ async function dispatchPost(request: IncomingMessage, segments: readonly string[
   if (agent !== undefined) return agent;
   const framing = await dispatchFramingPost(request, segments, service);
   if (framing !== undefined) return framing;
-  if (segments.length === 5 && segments[0] === "projects" && segments[2] === "features" && segments[4] === "product-prompt") {
-    return ok(await service.prepareProductPrompt(id(segments[1]), id(segments[3]), await body(request, ["target", "purpose"])));
-  }
+  const featurePost = await dispatchFeaturePost(request, segments, service);
+  if (featurePost !== undefined) return featurePost;
   if (segments.length === 3 && segments[0] === "projects" && segments[2] === "governance") {
     const projectId = id(segments[1]);
     const governance = await service.appendGovernance(projectId, await body(request, ["kind", "targets", "reason", "resolvesEventId", "supersedesEventId"]));
@@ -148,6 +147,22 @@ async function dispatchPost(request: IncomingMessage, segments: readonly string[
 }
 
 async function dispatchAgentPost(request: IncomingMessage, segments: readonly string[], service: ProjectTrackingService): Promise<DispatchResult | undefined> {
+  return dispatchAgentPostImpl(request, segments, service);
+}
+
+async function dispatchFeaturePost(request: IncomingMessage, segments: readonly string[], service: ProjectTrackingService): Promise<DispatchResult | undefined> {
+  if (segments.length !== 5 || segments[0] !== "projects" || segments[2] !== "features") return undefined;
+  if (segments[4] === "product-prompt") {
+    return ok(await service.prepareProductPrompt(id(segments[1]), id(segments[3]), await body(request, ["target", "purpose"])));
+  }
+  if (segments[4] === "orchestration-preview") {
+    await body(request, []);
+    return ok(await service.previewOrchestration(id(segments[1]), id(segments[3])));
+  }
+  return undefined;
+}
+
+async function dispatchAgentPostImpl(request: IncomingMessage, segments: readonly string[], service: ProjectTrackingService): Promise<DispatchResult | undefined> {
   if (segments.length === 3 && segments[0] === "projects" && segments[2] === "agents") {
     const projectId = id(segments[1]);
     const agents = await service.registerAgent(projectId, await agentMutationBody(request));

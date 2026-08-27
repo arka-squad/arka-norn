@@ -383,6 +383,50 @@ export interface OrchestrationTrackingView {
   };
 }
 
+export interface OrchestrationPreviewTaskView {
+  readonly id: string;
+  readonly role: string;
+  readonly dependencies: readonly string[];
+  readonly readScopes: readonly string[];
+  readonly writeScopes: readonly string[];
+  readonly deliverables: readonly string[];
+  readonly validations: readonly string[];
+}
+
+export interface OrchestrationPreviewProfileView {
+  readonly id: string;
+  readonly transport: string;
+  readonly provider: string;
+  readonly model: string;
+  readonly costMetric: string;
+  readonly costObservable: boolean;
+}
+
+export interface OrchestrationPreviewPreflightView {
+  readonly profileId: string;
+  readonly healthy: boolean;
+  readonly code: string;
+  readonly message: string;
+}
+
+export interface OrchestrationPreviewIssueView {
+  readonly code: string;
+  readonly message: string;
+}
+
+export interface OrchestrationPreviewView {
+  readonly schemaVersion: 1;
+  readonly projectId: string;
+  readonly featureId: string;
+  readonly eligible: boolean;
+  readonly planFingerprint: string | null;
+  readonly riskPolicyFingerprint: string;
+  readonly tasks: readonly OrchestrationPreviewTaskView[];
+  readonly profiles: readonly OrchestrationPreviewProfileView[];
+  readonly preflights: readonly OrchestrationPreviewPreflightView[];
+  readonly issues: readonly OrchestrationPreviewIssueView[];
+}
+
 export interface WebPreferences {
   readonly locale: "auto" | "en" | "fr";
   readonly resolvedLocale: "en" | "fr";
@@ -444,6 +488,7 @@ export interface NornBridge {
   cancelAudit(projectId: string, auditId: string): Promise<AuditRunView>;
   resumeAudit(projectId: string, auditId: string): Promise<AuditRunView>;
   getOrchestrations(projectId: string): Promise<readonly OrchestrationTrackingView[]>;
+  previewOrchestration(projectId: string, featureId: string): Promise<OrchestrationPreviewView>;
   getPreferences(): Promise<WebPreferences>;
   savePreferences(input: SaveWebPreferencesInput): Promise<WebPreferences>;
   pickFolder(input: { readonly purpose: "project" | "feature"; readonly defaultPath?: string }): Promise<string | null>;

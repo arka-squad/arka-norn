@@ -257,7 +257,8 @@ export const contracts = {
       "id": "orchestration.preview",
       "authority": "read",
       "surfaces": [
-        "cli"
+        "cli",
+        "web"
       ],
       "preconditions": [
         "project_materialized",

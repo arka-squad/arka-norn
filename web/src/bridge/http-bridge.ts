@@ -13,6 +13,7 @@ import type {
   LiveInvalidation,
   NornBridge,
   OrchestrationTrackingView,
+  OrchestrationPreviewView,
   PrepareAuditInput,
   ProductPromptTarget,
   ProductPromptView,
@@ -65,6 +66,7 @@ export class HttpNornBridge implements NornBridge {
   public cancelAudit(projectId: string, auditId: string): Promise<AuditRunView> { return this.request(`/api/v1/projects/${encode(projectId)}/audits/${encode(auditId)}/cancel`, "POST", {}); }
   public resumeAudit(projectId: string, auditId: string): Promise<AuditRunView> { return this.request(`/api/v1/projects/${encode(projectId)}/audits/${encode(auditId)}/resume`, "POST", {}); }
   public getOrchestrations(projectId: string): Promise<readonly OrchestrationTrackingView[]> { return this.request(`/api/v1/projects/${encode(projectId)}/orchestrations`); }
+  public previewOrchestration(projectId: string, featureId: string): Promise<OrchestrationPreviewView> { return this.request(`/api/v1/projects/${encode(projectId)}/features/${encode(featureId)}/orchestration-preview`, "POST", {}); }
   public getPreferences(): Promise<WebPreferences> { return this.request("/api/v1/preferences"); }
   public savePreferences(input: SaveWebPreferencesInput): Promise<WebPreferences> { return this.request("/api/v1/preferences", "PUT", input); }
   public pickFolder(input: { readonly purpose: "project" | "feature"; readonly defaultPath?: string }): Promise<string | null> { return this.request("/api/v1/folder-picker", "POST", input); }

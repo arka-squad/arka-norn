@@ -10,6 +10,7 @@ import { PipelineRail } from "../components/pipeline-rail";
 import { BackButton, EmptyState, PageTitle, StatusBadge } from "../components/ui";
 import { useI18n } from "../i18n/i18n";
 import { FeatureContinuation } from "./feature-continuation";
+import { OrchestrationPreviewPanel } from "./orchestration-preview-panel";
 
 export function FeatureView({ feature, continuation, navigate }: { readonly feature: FeatureTrackingView; readonly continuation: FeatureContinuationView; readonly navigate: (path: string) => void }) {
   const { t, date, contractLabel } = useI18n();
@@ -26,6 +27,7 @@ export function FeatureView({ feature, continuation, navigate }: { readonly feat
       { label: t("web.feature.updated"), value: date(feature.updatedAt) },
     ]} />
     <FeatureContinuation continuation={continuation} navigate={navigate} />
+    {continuation.orchestrationMode === "automatic" ? <OrchestrationPreviewPanel projectId={feature.projectId} featureId={feature.id} /> : null}
     <section className="pipeline-section"><h2>{t("web.feature.pipelineTitle")}</h2><PipelineRail steps={feature.steps} /></section>
     <div className="feature-columns">
       <section><div className="section-heading"><h2>{t("web.feature.documents")}</h2></div>{feature.documents.length === 0 ? <EmptyState title={t("web.document.empty")} description={t("web.document.emptyDetail")} icon={<FileText size={16} />} /> : <div className="document-list">{feature.documents.map((document) => <button key={document.id} onClick={() => navigate(documentRoute(feature.projectId, feature.id, document.id))}><FileText size={18} /><span><strong>{document.title}</strong><small>{contractLabel(document.stepId)}{document.createdAt === undefined ? "" : ` · ${date(document.createdAt)}`}</small></span>{!document.valid ? <AlertTriangle className="danger" size={17} /> : null}<ArrowRight size={16} /></button>)}</div>}</section>
