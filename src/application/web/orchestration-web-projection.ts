@@ -8,6 +8,20 @@ import { ProjectId } from "../../domain/project/project-id.js";
 import type { OrchestrationV23Runtime } from "../../composition/orchestration-v23-runtime.js";
 import type { OrchestrationAuthorizationInput, OrchestrationPreviewView, OrchestrationRunView } from "./contracts.js";
 
+function runView(run: Awaited<ReturnType<OrchestrationV23Runtime["start"]>>): OrchestrationRunView {
+  return {
+    schemaVersion: 1,
+    campaignId: run.campaignId,
+    status: run.projection.status,
+    progress: { ...run.projection.progress },
+    applicationFingerprint: run.artifact?.fingerprint ?? null,
+    appliedCommit: run.application?.appliedCommit ?? run.artifact?.appliedCommit ?? null,
+    riskScore: run.artifact?.risk.totalScore ?? null,
+    hardDenials: run.artifact === undefined ? [] : [...run.artifact.risk.hardDenials],
+    applicationGate: run.artifact?.applicationGate === undefined ? null : { code: run.artifact.applicationGate.code, message: run.artifact.applicationGate.message },
+  };
+}
+
 export async function previewOrchestrationView(runtime: OrchestrationV23Runtime | undefined, projectId: string, featureId: string): Promise<OrchestrationPreviewView> {
   if (runtime === undefined) throw new Error("Orchestration preview is not configured on this surface.");
   const preview = await runtime.preview({ projectId: ProjectId.of(projectId), featureId: FeatureId.of(featureId) });
@@ -49,16 +63,11 @@ export async function authorizeOrchestrationView(runtime: OrchestrationV23Runtim
     openBarProfiles: input.openBarProfiles,
     riskPolicyFingerprint: input.riskPolicyFingerprint,
   });
-  return {
-    schemaVersion: 1,
-    campaignId: run.campaignId,
-    status: run.projection.status,
-    progress: { ...run.projection.progress },
-    applicationFingerprint: run.artifact?.fingerprint ?? null,
-    appliedCommit: run.application?.appliedCommit ?? run.artifact?.appliedCommit ?? null,
-    riskScore: run.artifact?.risk.totalScore ?? null,
-    hardDenials: run.artifact === undefined ? [] : [...run.artifact.risk.hardDenials],
-    applicationGate: run.artifact?.applicationGate === undefined ? null : { code: run.artifact.applicationGate.code, message: run.artifact.applicationGate.message },
-  };
+  return runView(run);
 }
 
+export async function applyOrchestrationView(runtime: OrchestrationV23Runtime | undefined, projectId: string, input: { readonly campaignId: string; readonly confirmationFingerprint: string }): Promise<OrchestrationRunView> {
+  if (runtime === undefined) throw new Error("Orchestration application is not configured on this surface.");
+  const run = await runtime.apply({ projectId: ProjectId.of(projectId), campaignId: input.campaignId, confirmationFingerprint: input.confirmationFingerprint });
+  return runView(run);
+}

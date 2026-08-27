@@ -70,6 +70,7 @@ export class HttpNornBridge implements NornBridge {
   public getOrchestrations(projectId: string): Promise<readonly OrchestrationTrackingView[]> { return this.request(`/api/v1/projects/${encode(projectId)}/orchestrations`); }
   public previewOrchestration(projectId: string, featureId: string): Promise<OrchestrationPreviewView> { return this.request(`/api/v1/projects/${encode(projectId)}/features/${encode(featureId)}/orchestration-preview`, "POST", {}); }
   public authorizeOrchestration(projectId: string, input: OrchestrationAuthorizationInput): Promise<OrchestrationRunView> { return this.request(`/api/v1/projects/${encode(projectId)}/orchestration-authorize`, "POST", input); }
+  public applyOrchestration(projectId: string, input: { readonly campaignId: string; readonly confirmationFingerprint: string }): Promise<OrchestrationRunView> { return this.request(`/api/v1/projects/${encode(projectId)}/orchestration-apply`, "POST", input); }
   public getPreferences(): Promise<WebPreferences> { return this.request("/api/v1/preferences"); }
   public savePreferences(input: SaveWebPreferencesInput): Promise<WebPreferences> { return this.request("/api/v1/preferences", "PUT", input); }
   public pickFolder(input: { readonly purpose: "project" | "feature"; readonly defaultPath?: string }): Promise<string | null> { return this.request("/api/v1/folder-picker", "POST", input); }

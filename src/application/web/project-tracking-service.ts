@@ -70,7 +70,7 @@ import { createFeatureTrackingView } from "./feature-tracking.js";
 import { framingDetail, framingSummary, revisionMilestone } from "./framing-projection.js";
 import { v23Campaign, v23Dag, v23Tasks } from "./orchestration-v23-projection.js";
 import { createLegacyOrchestrationView } from "./legacy-orchestration-projection.js";
-import { authorizeOrchestrationView, previewOrchestrationView } from "./orchestration-web-projection.js";
+import { applyOrchestrationView, authorizeOrchestrationView, previewOrchestrationView } from "./orchestration-web-projection.js";
 import { createProjectDraftListItem, createProjectDraftOverview } from "./project-draft-projection.js";
 import { CAPABILITY_CATALOG, type CapabilityCatalog } from "../capabilities/capability-registry.js";
 import { buildProjectRelationshipGraph } from "./relationship-graph.js";
@@ -449,6 +449,10 @@ export class ProjectTrackingService {
 
   public async authorizeOrchestration(projectId: string, input: OrchestrationAuthorizationInput): Promise<OrchestrationRunView> {
     return authorizeOrchestrationView(this.options.orchestrationV23, projectId, input);
+  }
+
+  public async applyOrchestration(projectId: string, input: { readonly campaignId: string; readonly confirmationFingerprint: string }): Promise<OrchestrationRunView> {
+    return applyOrchestrationView(this.options.orchestrationV23, projectId, input);
   }
 
   private async getV23Orchestrations(project: Project): Promise<readonly OrchestrationTrackingView[]> {

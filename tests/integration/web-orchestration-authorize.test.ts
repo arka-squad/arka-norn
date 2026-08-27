@@ -57,12 +57,11 @@ test("le Web autorise un run depuis l'empreinte exacte et exige une application 
   git(root, ["add", "."]);
   git(root, ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "commit", "-m", "fixture"]);
   await management.agents.register({ project, provider: "Codex", role: "development", featureIds: [feature.id], paths: [], responsibilities: ["development", "integrator"] });
-  git(root, ["add", "."]);
-  git(root, ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "commit", "-m", "state"]);
-
   const profile = ExecutionProfile.create({ schemaVersion: 1, id: "codex-local", transport: "codex-cli", provider: "openai", model: "gpt-5", capabilities: ["inspect_workspace", "modify_workspace", "run_commands", "read_pipeline"], egressHosts: [], costMeter: { kind: "unknown", observable: false }, enabled: true, createdAt: at, updatedAt: at });
   const configurations = new FsOrchestrationConfigurationStore();
   await configurations.save(project, OrchestrationConfiguration.empty(project.id.value, at).register(profile, at).activate(at));
+  git(root, ["add", "."]);
+  git(root, ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "commit", "-m", "state"]);
 
   const profileRuntime: ExecutionProfileRuntimePort = {
     prepare: async (value) => ({ profileId: value.id, command: "/usr/bin/true", home, environment: {}, fingerprint: "a".repeat(64) }),
@@ -120,6 +119,11 @@ test("le Web autorise un run depuis l'empreinte exacte et exige une application 
   assert.equal(run.applicationGate?.code, "human_policy");
   assert.equal(run.appliedCommit, null);
 
+  const applied = await service.applyOrchestration(project.id.value, { campaignId: run.campaignId, confirmationFingerprint: run.applicationFingerprint! });
+  assert.equal(applied.status, "completed");
+  assert.ok(applied.appliedCommit !== null);
+  assert.equal(git(root, ["rev-parse", "HEAD"]), applied.appliedCommit);
+
   await assert.rejects(
     service.authorizeOrchestration(project.id.value, {
       previewFingerprint: "c".repeat(64),
@@ -139,4 +143,3 @@ test("le Web autorise un run depuis l'empreinte exacte et exige une application 
 });
 
 function git(root: string, args: readonly string[]): string { return execFileSync("git", args, { cwd: root, encoding: "utf8", env: { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1" } }).trim(); }
-

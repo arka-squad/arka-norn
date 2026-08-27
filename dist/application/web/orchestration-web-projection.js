@@ -4,6 +4,19 @@
  */
 import { FeatureId } from "../../domain/feature/feature-id.js";
 import { ProjectId } from "../../domain/project/project-id.js";
+function runView(run) {
+    return {
+        schemaVersion: 1,
+        campaignId: run.campaignId,
+        status: run.projection.status,
+        progress: { ...run.projection.progress },
+        applicationFingerprint: run.artifact?.fingerprint ?? null,
+        appliedCommit: run.application?.appliedCommit ?? run.artifact?.appliedCommit ?? null,
+        riskScore: run.artifact?.risk.totalScore ?? null,
+        hardDenials: run.artifact === undefined ? [] : [...run.artifact.risk.hardDenials],
+        applicationGate: run.artifact?.applicationGate === undefined ? null : { code: run.artifact.applicationGate.code, message: run.artifact.applicationGate.message },
+    };
+}
 export async function previewOrchestrationView(runtime, projectId, featureId) {
     if (runtime === undefined)
         throw new Error("Orchestration preview is not configured on this surface.");
@@ -46,16 +59,12 @@ export async function authorizeOrchestrationView(runtime, projectId, input) {
         openBarProfiles: input.openBarProfiles,
         riskPolicyFingerprint: input.riskPolicyFingerprint,
     });
-    return {
-        schemaVersion: 1,
-        campaignId: run.campaignId,
-        status: run.projection.status,
-        progress: { ...run.projection.progress },
-        applicationFingerprint: run.artifact?.fingerprint ?? null,
-        appliedCommit: run.application?.appliedCommit ?? run.artifact?.appliedCommit ?? null,
-        riskScore: run.artifact?.risk.totalScore ?? null,
-        hardDenials: run.artifact === undefined ? [] : [...run.artifact.risk.hardDenials],
-        applicationGate: run.artifact?.applicationGate === undefined ? null : { code: run.artifact.applicationGate.code, message: run.artifact.applicationGate.message },
-    };
+    return runView(run);
+}
+export async function applyOrchestrationView(runtime, projectId, input) {
+    if (runtime === undefined)
+        throw new Error("Orchestration application is not configured on this surface.");
+    const run = await runtime.apply({ projectId: ProjectId.of(projectId), campaignId: input.campaignId, confirmationFingerprint: input.confirmationFingerprint });
+    return runView(run);
 }
 //# sourceMappingURL=orchestration-web-projection.js.map

@@ -285,7 +285,8 @@ export const contracts = {
       "id": "orchestration.apply",
       "authority": "human_confirmation",
       "surfaces": [
-        "cli"
+        "cli",
+        "web"
       ],
       "preconditions": [
         "application_candidate_verified",

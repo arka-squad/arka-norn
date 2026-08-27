@@ -165,11 +165,21 @@ async function dispatchFeaturePost(request: IncomingMessage, segments: readonly 
 }
 
 async function dispatchOrchestrationPost(request: IncomingMessage, segments: readonly string[], service: ProjectTrackingService): Promise<DispatchResult | undefined> {
-  if (segments.length !== 3 || segments[0] !== "projects" || segments[2] !== "orchestration-authorize") return undefined;
+  if (segments.length !== 3 || segments[0] !== "projects") return undefined;
   const projectId = id(segments[1]);
-  const input = await body<Record<string, unknown>>(request, ["previewFingerprint", "riskPolicyFingerprint", "actor", "profileByRole", "allowCommits", "applyMode", "automaticRiskThreshold", "maxParallel", "budgetMode", "budgetLimits", "openBarProfiles"]);
-  const run = await service.authorizeOrchestration(projectId, orchestrationAuthorizationInput(input));
-  return ok(run, [{ scope: "projects" }, { scope: "project", projectId }, { scope: "orchestration", projectId }]);
+  if (segments[2] === "orchestration-authorize") {
+    const input = await body<Record<string, unknown>>(request, ["previewFingerprint", "riskPolicyFingerprint", "actor", "profileByRole", "allowCommits", "applyMode", "automaticRiskThreshold", "maxParallel", "budgetMode", "budgetLimits", "openBarProfiles"]);
+    const run = await service.authorizeOrchestration(projectId, orchestrationAuthorizationInput(input));
+    return ok(run, [{ scope: "projects" }, { scope: "project", projectId }, { scope: "orchestration", projectId }]);
+  }
+  if (segments[2] === "orchestration-apply") {
+    const input = await body<{ readonly campaignId?: unknown; readonly confirmationFingerprint?: unknown }>(request, ["campaignId", "confirmationFingerprint"]);
+    if (typeof input.campaignId !== "string" || !/^[a-z0-9][a-z0-9._-]{0,119}$/u.test(input.campaignId)) throw new ClientRequestError(400, "invalid_campaign_id");
+    if (typeof input.confirmationFingerprint !== "string" || !/^[a-f0-9]{64}$/u.test(input.confirmationFingerprint)) throw new ClientRequestError(400, "invalid_confirmation_fingerprint");
+    const run = await service.applyOrchestration(projectId, { campaignId: input.campaignId, confirmationFingerprint: input.confirmationFingerprint });
+    return ok(run, [{ scope: "projects" }, { scope: "project", projectId }, { scope: "orchestration", projectId }]);
+  }
+  return undefined;
 }
 
 function orchestrationAuthorizationInput(input: Record<string, unknown>): OrchestrationAuthorizationInput {

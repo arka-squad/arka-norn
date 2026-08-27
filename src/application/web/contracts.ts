@@ -522,6 +522,7 @@ export interface NornBridge {
   getOrchestrations(projectId: string): Promise<readonly OrchestrationTrackingView[]>;
   previewOrchestration(projectId: string, featureId: string): Promise<OrchestrationPreviewView>;
   authorizeOrchestration(projectId: string, input: OrchestrationAuthorizationInput): Promise<OrchestrationRunView>;
+  applyOrchestration(projectId: string, input: { readonly campaignId: string; readonly confirmationFingerprint: string }): Promise<OrchestrationRunView>;
   getPreferences(): Promise<WebPreferences>;
   savePreferences(input: SaveWebPreferencesInput): Promise<WebPreferences>;
   pickFolder(input: { readonly purpose: "project" | "feature"; readonly defaultPath?: string }): Promise<string | null>;

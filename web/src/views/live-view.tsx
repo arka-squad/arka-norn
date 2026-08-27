@@ -1,28 +1,33 @@
 import { Activity, Clock3, FileDiff, FolderLock, Gauge, Radio, ShieldCheck, WalletCards } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import type { OrchestrationTrackingView } from "../../../src/application/web/contracts";
-import { EmptyState, PageTitle } from "../components/ui";
+import { BridgeError } from "../bridge/http-bridge";
+import { useBridge } from "../bridge/context";
+import { Modal } from "../components/modal";
+import { Button, EmptyState, PageTitle } from "../components/ui";
 import { useI18n } from "../i18n/i18n";
 
-export function LiveView({ orchestrations }: { readonly orchestrations: readonly OrchestrationTrackingView[] }) {
+export function LiveView({ orchestrations, projectId, onApplied }: { readonly orchestrations: readonly OrchestrationTrackingView[]; readonly projectId: string; readonly onApplied: () => void }) {
   const { t, date, duration } = useI18n();
   if (orchestrations.length === 0) {
     return <div className="page"><PageTitle title={t("web.live.title")} summary={t("web.live.summary")} /><EmptyState title={t("web.live.empty")} description={t("web.live.emptyDetail")} icon={<Radio size={16} />} /></div>;
   }
   return <div className="page">
     <PageTitle title={t("web.live.title")} summary={t("web.live.summary")} />
-    <div className="execution-list">{orchestrations.map((execution) => <ExecutionCard key={execution.id} execution={execution} date={date} duration={duration} />)}</div>
+    <div className="execution-list">{orchestrations.map((execution) => <ExecutionCard key={execution.id} execution={execution} date={date} duration={duration} projectId={projectId} onApplied={onApplied} />)}</div>
   </div>;
 }
 
-function ExecutionCard({ execution, date, duration }: {
+function ExecutionCard({ execution, date, duration, projectId, onApplied }: {
   readonly execution: OrchestrationTrackingView;
   readonly date: (value: string) => string;
   readonly duration: (value: number) => string;
+  readonly projectId: string;
+  readonly onApplied: () => void;
 }) {
   const { t } = useI18n();
-  if (execution.dag !== undefined) return <DagExecutionCard execution={execution} date={date} duration={duration} />;
+  if (execution.dag !== undefined) return <DagExecutionCard execution={execution} date={date} duration={duration} projectId={projectId} onApplied={onApplied} />;
   return <article>
     <header>
       <span className={execution.heartbeatAlive ? "execution-pulse alive" : "execution-pulse"}><Activity size={18} /></span>
@@ -58,7 +63,7 @@ function ExecutionCard({ execution, date, duration }: {
   </article>;
 }
 
-function DagExecutionCard({ execution, date, duration }: { readonly execution: OrchestrationTrackingView; readonly date: (value: string) => string; readonly duration: (value: number) => string }) {
+function DagExecutionCard({ execution, date, duration, projectId, onApplied }: { readonly execution: OrchestrationTrackingView; readonly date: (value: string) => string; readonly duration: (value: number) => string; readonly projectId: string; readonly onApplied: () => void }) {
   const { t } = useI18n();
   const dag = execution.dag!;
   return <article className="dag-card">
@@ -75,6 +80,7 @@ function DagExecutionCard({ execution, date, duration }: { readonly execution: O
     </div>
     <div className={dag.requiresHumanApproval ? "notice notice-warn" : "notice notice-ok"} role="status">{dag.requiresHumanApproval ? t("web.live.applicationGate") : t("web.live.applicationReady")}</div>
     {dag.applicationGate === undefined ? null : <div className="notice notice-warn"><strong>{t("web.live.applicationReason")}</strong> · {dag.applicationGate.code.replaceAll("_", " ")} · {dag.applicationGate.message}</div>}
+    {dag.requiresHumanApproval && dag.applicationFingerprint !== undefined && (dag.risk?.hardDenials.length ?? 0) === 0 ? <ApplyControl projectId={projectId} campaignId={execution.id} fingerprint={dag.applicationFingerprint} onApplied={onApplied} /> : null}
     <div className="dag-task-list" aria-label={t("web.live.dag")}>
       {dag.tasks.map((task) => <section className="dag-task-row" key={task.id}>
         <div className="dag-task-state"><span className={`execution-status execution-${task.status}`}>{task.status.replaceAll("_", " ")}</span><strong>{task.id.replaceAll("-", " ")}</strong><small>{task.role} · {task.agentId}</small></div>
@@ -90,6 +96,37 @@ function DagExecutionCard({ execution, date, duration }: { readonly execution: O
     {dag.discardedHunkCount === 0 ? null : <div className="notice notice-warn">{t("web.live.discardedHunks")} · {dag.discardedHunkCount}</div>}
     <details><summary>{t("web.live.timeline")}</summary><ol className="compact-list">{execution.timeline.map((event, index) => <li key={`${event.at}:${event.type}:${index}`}>{date(event.at)} · {event.type.replaceAll("_", " ")}</li>)}</ol></details>
   </article>;
+}
+
+function ApplyControl({ projectId, campaignId, fingerprint, onApplied }: { readonly projectId: string; readonly campaignId: string; readonly fingerprint: string; readonly onApplied: () => void }) {
+  const { t } = useI18n();
+  const bridge = useBridge();
+  const [open, setOpen] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const apply = async () => {
+    setBusy(true); setError("");
+    try {
+      await bridge.applyOrchestration(projectId, { campaignId, confirmationFingerprint: fingerprint });
+      setOpen(false); setConfirmed(false); onApplied();
+    } catch (reason) {
+      setError(reason instanceof BridgeError && reason.displayMessage.length > 0 ? reason.displayMessage : t("web.error.generic"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return <><div className="apply-action"><Button variant="primary" onClick={() => setOpen(true)}><ShieldCheck size={15} />{t("web.live.apply")}</Button></div>
+    {open ? <Modal title={t("web.live.applyTitle")} description={t("web.live.applySummary")} icon={<ShieldCheck size={16} />} onClose={() => setOpen(false)} footer={<><Button onClick={() => setOpen(false)}>{t("web.live.applyCancel")}</Button><Button variant="primary" disabled={busy || !confirmed} onClick={() => void apply()}>{t("web.live.applySubmit")}</Button></>}>
+      <div className="apply-sheet">
+        <div className="authorize-fingerprint"><span>{t("web.live.planFingerprint")}</span><code>{fingerprint}</code></div>
+        <label className="authorize-confirm"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />{t("web.live.applyConfirm")}</label>
+        {error.length === 0 ? null : <p className="form-error" role="alert">{error}</p>}
+      </div>
+    </Modal> : null}
+  </>;
 }
 
 function Metric({ icon, label, value }: { readonly icon: ReactNode; readonly label: string; readonly value: string }) {

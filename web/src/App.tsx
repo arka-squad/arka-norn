@@ -183,7 +183,7 @@ function AuditsContent({ project, revision, reloadProject }: { readonly project:
 function LiveContent({ projectId, revision }: { readonly projectId: string; readonly revision: number }) {
   const bridge = useBridge();
   const orchestrations = useAsync(() => bridge.getOrchestrations(projectId), [bridge, projectId, revision]);
-  return dataView(orchestrations, (data) => <LiveView orchestrations={data} />);
+  return dataView(orchestrations, (data) => <LiveView orchestrations={data} projectId={projectId} onApplied={() => orchestrations.reload()} />);
 }
 
 function GraphContent({ project, revision }: { readonly project: ProjectOverview; readonly revision: number }) {

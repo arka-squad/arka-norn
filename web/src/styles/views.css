@@ -494,6 +494,8 @@
 .authorize-fingerprint { display: grid; gap: 5px; padding: 11px 13px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); }
 .authorize-fingerprint > span { color: var(--tx4); font-family: var(--font-mono); font-size: 8px; font-weight: 600; text-transform: uppercase; }
 .authorize-fingerprint code { color: var(--tx2); font-size: 10px; overflow-wrap: anywhere; }
+.apply-action { display: flex; justify-content: flex-end; }
+.apply-sheet { display: grid; gap: 14px; }
 
 @media (max-width: 1050px) {
   .overview-bands, .feature-columns { grid-template-columns: 1fr; }
