@@ -214,6 +214,7 @@ Scripts must depend on `data`, stable diagnostic codes and parameters, never on 
 - [Live framing contract](docs/norn-framing-contract-proposal.md)
 - [Framing Product and UX method](docs/norn-framing-method-research.md)
 - [Migration to live framing](docs/migration-2.3.2.md)
+- [Stability contract 2.3](docs/stability-2.3.md)
 
 Canonical examples are under `examples/feature-complete`, `examples/feature-essential`, `examples/feature-fastdev` and `examples/project-audit-v5`.
 
