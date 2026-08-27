@@ -1,5 +1,11 @@
 # arka.norn
 
+[![npm version](https://img.shields.io/npm/v/arka-norn?color=c71244&label=npm)](https://www.npmjs.com/package/arka-norn)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/arka-squad/arka-norn/blob/main/LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6-3178c6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22.13-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Publish](https://github.com/arka-squad/arka-norn/actions/workflows/publish.yml/badge.svg)](https://github.com/arka-squad/arka-norn/actions/workflows/publish.yml)
+
 arka.norn is a local-first delivery framework for Projects, Features, attributed documents, human decisions, evidence, and auditable workflows.
 
 It gives teams one durable recovery source: the published plan.
