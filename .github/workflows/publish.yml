@@ -60,11 +60,4 @@ jobs:
         run: npm publish --access public
 
       - name: Verify the registry version
-        run: >-
-          node -e 'const { execFileSync } = require("node:child_process");
-          const version = require("./package.json").version;
-          const published = execFileSync("npm", ["view", `arka-norn@${version}`, "version"],
-          { encoding: "utf8" }).trim();
-          if (published !== version) {
-          console.error(`Registry returned ${published || "nothing"}; expected ${version}.`);
-          process.exit(1); }'
+        run: node .github/scripts/verify-registry-version.mjs
