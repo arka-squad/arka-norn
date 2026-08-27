@@ -1,10 +1,9 @@
 import { useState, type FormEvent } from "react";
-import { HeartPulse, Monitor, ShieldAlert, UserRound } from "lucide-react";
+import { HeartPulse, Monitor, UserRound } from "lucide-react";
 
 import type { WebPreferences } from "../../../src/application/web/contracts";
-import type { DoctorReport } from "../../../src/ports/inbound/for-doctor";
 import { useBridge } from "../bridge/context";
-import { DoctorReportView } from "../components/doctor-report";
+import { DoctorPanel } from "../components/doctor-panel";
 import { Button, PageTitle } from "../components/ui";
 import { useI18n } from "../i18n/i18n";
 
@@ -13,8 +12,6 @@ export function SettingsView({ preferences, onChanged }: { readonly preferences:
   const { locale, setLocale, t } = useI18n();
   const [name, setName] = useState(preferences.humanProfile?.name ?? "");
   const [email, setEmail] = useState(preferences.humanProfile?.email ?? "");
-  const [doctor, setDoctor] = useState<DoctorReport>();
-  const [confirmed, setConfirmed] = useState(false);
   const saveProfile = async (event: FormEvent) => {
     event.preventDefault();
     await bridge.savePreferences({ name, email });
@@ -30,9 +27,9 @@ export function SettingsView({ preferences, onChanged }: { readonly preferences:
     onChanged();
   };
   return <div className="page"><PageTitle title={t("web.settings.title")} />
+    <DoctorPanel />
     <section className="settings-section"><div className="settings-heading"><UserRound size={20} /><div><h2>{t("web.settings.profile")}</h2><p>{t("web.settings.profileSummary")}</p></div></div><form className="settings-form" onSubmit={(event) => void saveProfile(event)}><label>{t("web.settings.name")}<input required value={name} onChange={(event) => setName(event.target.value)} /></label><label>{t("web.settings.email")}<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} /></label><Button type="submit" variant="primary">{t("web.action.save")}</Button></form></section>
     <section className="settings-section"><div className="settings-heading"><HeartPulse size={20} /><div><h2>{t("web.settings.locale")}</h2><p>{t("web.settings.system")}: {preferences.resolvedLocale.toUpperCase()}</p></div></div><div className="segmented" role="group" aria-label={t("web.settings.locale")}>{(["auto", "en", "fr"] as const).map((value) => <button key={value} className={preferences.locale === value ? "active" : ""} onClick={() => void changeLocale(value)}>{value === "auto" ? t("web.settings.system") : value.toUpperCase()}</button>)}</div><p className="current-locale">{t("web.settings.display")}: {locale.toUpperCase()}</p></section>
     <section className="settings-section"><div className="settings-heading"><Monitor size={20} /><div><h2>{t("web.settings.surface")}</h2><p>{t("web.settings.surfaceSummary")}</p></div></div><div className="segmented" role="group" aria-label={t("web.settings.surface")}>{(["web", "tui", "cli"] as const).map((value) => <button key={value} className={preferences.preferredSurface === value ? "active" : ""} aria-pressed={preferences.preferredSurface === value} onClick={() => void changeSurface(value)}>{t(`web.settings.surface.${value}`)}</button>)}</div></section>
-    <section className="settings-section"><div className="settings-heading"><ShieldAlert size={20} /><div><h2>{t("web.settings.doctor")}</h2><p>{t("web.settings.doctorSummary")}</p></div></div><div className="doctor-actions"><Button onClick={() => void bridge.inspectDoctor().then(setDoctor)}>{t("web.action.inspectDoctor")}</Button>{doctor === undefined ? null : <><label className="confirm-check"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />{t("web.settings.repairReviewed")}</label><Button variant="danger" disabled={!confirmed} onClick={() => void bridge.repairDoctor({ apply: true, confirmed }).then(setDoctor)}>{t("web.action.applyRepair")}</Button></>}</div>{doctor === undefined ? null : <DoctorReportView report={doctor} />}</section>
   </div>;
 }

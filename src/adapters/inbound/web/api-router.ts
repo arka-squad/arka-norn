@@ -133,11 +133,16 @@ async function dispatchPost(request: IncomingMessage, segments: readonly string[
   }
   const audit = await dispatchAuditPost(request, segments, service);
   if (audit !== undefined) return audit;
-  if (same(segments, ["doctor", "repair"])) {
-    const input = await body<{ readonly apply?: unknown; readonly confirmed?: unknown }>(request, ["apply", "confirmed"]);
-    if (typeof input.apply !== "boolean" || typeof input.confirmed !== "boolean") throw new ClientRequestError(400, "invalid_doctor_repair");
-    const report = await service.repairDoctor({ apply: input.apply, confirmed: input.confirmed });
-    return ok(report, input.apply ? [{ scope: "projects" }] : []);
+  if (same(segments, ["doctor", "repair-preview"])) {
+    await body(request, []);
+    return ok(await service.previewDoctorRepairs());
+  }
+  if (same(segments, ["doctor", "repair-apply"])) {
+    const input = await body<{ readonly fingerprint?: unknown; readonly confirmed?: unknown }>(request, ["fingerprint", "confirmed"]);
+    if (typeof input.fingerprint !== "string" || !/^[a-f0-9]{64}$/u.test(input.fingerprint)) throw new ClientRequestError(400, "invalid_doctor_fingerprint");
+    if (typeof input.confirmed !== "boolean") throw new ClientRequestError(400, "invalid_doctor_confirmation");
+    const outcome = await service.applyDoctorRepairs({ fingerprint: input.fingerprint, confirmed: input.confirmed });
+    return ok(outcome, [{ scope: "projects" }, { scope: "project" }, { scope: "feature" }, { scope: "agents" }]);
   }
   throw new ClientRequestError(404, "not_found");
 }
@@ -250,7 +255,7 @@ export function sendError(
   status: number,
   code: string,
   locale: Locale = "en",
-  params: Readonly<Record<string, string | number | boolean>> = {},
+  params: Readonly<Record<string, unknown>> = {},
 ): void {
   const payload = JSON.stringify({
     schemaVersion: 2,
@@ -264,13 +269,14 @@ export function sendError(
   response.end(payload);
 }
 
-function errorMessageKey(status: number, code: string): "web.error.unauthorized" | "web.error.generic" | "web.error.projectChanged" | "web.error.projectDraftNotMaterialized" | "web.error.automaticPreflightRequired" | "web.error.agentRegistryChanged" | "web.error.agentConfirmationRequired" {
+function errorMessageKey(status: number, code: string): "web.error.unauthorized" | "web.error.generic" | "web.error.projectChanged" | "web.error.projectDraftNotMaterialized" | "web.error.automaticPreflightRequired" | "web.error.agentRegistryChanged" | "web.error.agentConfirmationRequired" | "web.error.repairPlanChanged" {
   if (status === 401) return "web.error.unauthorized";
   if (code === "project_changed") return "web.error.projectChanged";
   if (code === "project_draft_not_materialized") return "web.error.projectDraftNotMaterialized";
   if (code === "automatic_preflight_required") return "web.error.automaticPreflightRequired";
   if (code === "agent_registry_changed") return "web.error.agentRegistryChanged";
   if (code === "agent_confirmation_required") return "web.error.agentConfirmationRequired";
+  if (code === "repair_plan_changed") return "web.error.repairPlanChanged";
   return "web.error.generic";
 }
 

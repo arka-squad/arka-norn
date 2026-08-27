@@ -3,7 +3,7 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  */
 
-import { access, mkdtemp, mkdir, rm } from "node:fs/promises";
+import { access, chmod, mkdtemp, mkdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 
@@ -64,8 +64,21 @@ test("local API rejects unauthorized origins and exposes no orchestration contro
   expect(capabilityEnvelope.data.schemaVersion).toBe(1);
   expect(capabilityEnvelope.data.capabilities).toHaveLength(15);
   expect(capabilityEnvelope.data.capabilities.find((item) => item.id === "doctor.inspect")?.surfaces).toContain("web");
+  expect(capabilityEnvelope.data.capabilities.find((item) => item.id === "doctor.repair_preview")?.surfaces).toContain("web");
+  expect(capabilityEnvelope.data.capabilities.find((item) => item.id === "doctor.repair_apply")?.surfaces).toContain("web");
   expect(capabilityEnvelope.data.capabilities.find((item) => item.id === "project.set_orchestration_mode")?.surfaces).toContain("web");
   expect(capabilityEnvelope.data.capabilities.find((item) => item.id === "agent.replace")?.surfaces).toContain("web");
+  const doctorPreview = await fetch(`${origin}/api/v1/doctor/repair-preview`, { method: "POST", headers: { Authorization: `Bearer ${runtime.token}`, Origin: origin, "Content-Type": "application/json" }, body: "{}" });
+  expect(doctorPreview.status).toBe(200);
+  const doctorPlan = await doctorPreview.json() as { readonly data: { readonly fingerprint: string; readonly expiresAt: string; readonly report: { readonly mode: string } } };
+  expect(doctorPlan.data.fingerprint).toMatch(/^[a-f0-9]{64}$/u);
+  expect(doctorPlan.data.report.mode).toBe("repair-dry-run");
+  expect(Date.parse(doctorPlan.data.expiresAt)).toBeGreaterThan(Date.now());
+  const unconfirmedRepair = await fetch(`${origin}/api/v1/doctor/repair-apply`, { method: "POST", headers: { Authorization: `Bearer ${runtime.token}`, Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify({ fingerprint: doctorPlan.data.fingerprint, confirmed: false }) });
+  expect(unconfirmedRepair.status).toBe(400);
+  expect(await errorCode(unconfirmedRepair)).toBe("invalid_doctor_confirmation");
+  const legacyRepair = await fetch(`${origin}/api/v1/doctor/repair`, { method: "POST", headers: { Authorization: `Bearer ${runtime.token}`, Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify({ apply: true, confirmed: true }) });
+  expect(legacyRepair.status).toBe(404);
   const unexpected = await fetch(`${origin}/api/v1/framing/enter`, {
     method: "POST",
     headers: { Authorization: `Bearer ${runtime.token}`, Origin: origin, "Content-Type": "application/json" },
@@ -227,9 +240,27 @@ test("materialized Project keeps the complete tracking experience in EN and FR",
 
   await moreTrigger.click();
   await more.getByRole("button", { name: "Réglages" }).click();
+  const projectIndex = resolve(sandbox, "home", ".arka-norn", "index", "projects.json");
+  await chmod(projectIndex, 0o644);
   await page.getByRole("button", { name: "Inspecter avec Doctor" }).click();
   await expect(page.locator(".doctor-report")).toBeVisible();
   await expect(page.locator("pre.doctor-output")).toHaveCount(0);
+  await page.getByRole("button", { name: "Simuler les réparations" }).click();
+  await expect(page.getByText("Changements prévus")).toBeVisible();
+  await expect(page.getByText("Rendre le fichier privé (0600)")).toBeVisible();
+  await chmod(projectIndex, 0o600);
+  await page.getByRole("checkbox", { name: /J'ai vérifié le plan/ }).check();
+  await page.getByRole("button", { name: "Appliquer les réparations vérifiées" }).click();
+  await expect(page.getByRole("alert")).toContainText("L'espace de travail a changé");
+  await expect(page.getByText("Ce plan ne contient aucune réparation à appliquer.")).toBeVisible();
+
+  await chmod(projectIndex, 0o644);
+  await page.getByRole("button", { name: "Inspecter avec Doctor" }).click();
+  await page.getByRole("button", { name: "Simuler les réparations" }).click();
+  await page.getByRole("checkbox", { name: /J'ai vérifié le plan/ }).check();
+  await page.getByRole("button", { name: "Appliquer les réparations vérifiées" }).click();
+  await expect(page.getByRole("status")).toContainText("Doctor a inspecté de nouveau");
+  expect((await stat(projectIndex)).mode & 0o777).toBe(0o600);
 
   for (const width of [390, 1024, 1440, 1920]) {
     await page.setViewportSize({ width, height: 900 });

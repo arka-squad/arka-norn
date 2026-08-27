@@ -18,8 +18,6 @@ import { LocalAuditCollector } from "../../adapters/outbound/audit/local-audit-c
 import { AuditService, type AuditProjectContext } from "../audit/audit-service.js";
 import type { FsLocalePreferenceStore } from "../../adapters/outbound/filesystem/fs-locale-preference-store.js";
 import { resolveLocale, translate } from "../localization/locale.js";
-import { roleForStep } from "../agents/agent-orchestration.js";
-import { projectOrchestration } from "../../domain/orchestration/orchestration-projection.js";
 import { projectCampaignEvents } from "../../domain/orchestration/orchestration-event.js";
 import { createGovernanceEvent } from "../../domain/governance/governance-event.js";
 import { reduceGovernance } from "../../domain/governance/governance-ledger.js";
@@ -29,7 +27,7 @@ import { createWebOnboardingState } from "../../domain/onboarding/web-onboarding
 import { ProjectId } from "../../domain/project/project-id.js";
 import type { Project } from "../../domain/project/project.js";
 import { framingPlanFingerprint } from "../../domain/framing/framing-plan.js";
-import type { DoctorReport, ForDoctor } from "../../ports/inbound/for-doctor.js";
+import type { DoctorInspectionReport, DoctorRepairOutcome, DoctorRepairPlan, ForDoctor, ForDoctorRepairs } from "../../ports/inbound/for-doctor.js";
 import type { ForAgentOrchestration } from "../../ports/inbound/for-agent-orchestration.js";
 import type { ForAgents } from "../../ports/inbound/for-agents.js";
 import type { ForPipeline, PipelineAuthorAuthorization } from "../../ports/inbound/for-pipeline.js";
@@ -67,11 +65,14 @@ import type {
 import { createFeatureTrackingView } from "./feature-tracking.js";
 import { framingDetail, framingSummary, revisionMilestone } from "./framing-projection.js";
 import { v23Campaign, v23Dag, v23Tasks } from "./orchestration-v23-projection.js";
+import { createLegacyOrchestrationView } from "./legacy-orchestration-projection.js";
 import { createProjectDraftListItem, createProjectDraftOverview } from "./project-draft-projection.js";
 import { CAPABILITY_CATALOG, type CapabilityCatalog } from "../capabilities/capability-registry.js";
 import { buildProjectRelationshipGraph } from "./relationship-graph.js";
 import { projectOrchestrationModeView, setProjectOrchestrationMode } from "./project-orchestration-mode-service.js";
 import { agentRegistryView, deactivateAgent, registerAgent, replaceAgent, selectAgent } from "./agent-management-service.js";
+import { createDoctorRepairCoordinator, DoctorRepairPlanChangedError, type DoctorExclusiveRunner } from "../doctor/doctor-repair-coordinator.js";
+import { WebMutationError } from "./web-mutation-concurrency.js";
 
 interface TrackingServiceOptions {
   readonly management: ManagementRuntime;
@@ -86,6 +87,7 @@ interface TrackingServiceOptions {
   readonly orchestrationConfigurations: OrchestrationConfigurationStore;
   readonly agentRegistry: AgentRegistryStore;
   readonly agentsForSession: (sessionId: AgentSessionId) => ForAgents;
+  readonly doctorExclusive?: DoctorExclusiveRunner;
   readonly environment?: Readonly<Record<string, string | undefined>>;
   readonly now?: () => Date;
 }
@@ -98,6 +100,7 @@ export class ProjectTrackingService {
   private readonly campaignsV23: FsOrchestrationCampaignV23Store;
   private readonly eventsV23: FsOrchestrationEventStore;
   private readonly now: () => Date;
+  private readonly doctorRepairs: ForDoctorRepairs;
 
   public constructor(private readonly options: TrackingServiceOptions) {
     this.workers = new FsOrchestrationWorkerStateStore(options.homeDir);
@@ -105,6 +108,10 @@ export class ProjectTrackingService {
     this.campaignsV23 = new FsOrchestrationCampaignV23Store(options.homeDir);
     this.eventsV23 = new FsOrchestrationEventStore(options.homeDir);
     this.now = options.now ?? (() => new Date());
+    this.doctorRepairs = createDoctorRepairCoordinator(options.doctor, {
+      now: this.now,
+      ...(options.doctorExclusive === undefined ? {} : { exclusive: options.doctorExclusive }),
+    });
   }
 
   public getCapabilities(): CapabilityCatalog {
@@ -414,51 +421,18 @@ export class ProjectTrackingService {
     const [registry, campaigns] = await Promise.all([this.executions.load(project), this.campaigns.load(project)]);
     const legacy = await Promise.all(registry.executions.map(async (record) => {
       const worker = await this.workers.load(project.id, record.id).catch(() => undefined);
-      const startedAt = record.attempts.at(-1)?.startedAt;
-      const endedAt = record.attempts.at(-1)?.endedAt;
-      const heartbeatAlive = worker !== undefined && this.now().getTime() - worker.updatedAt.getTime() < 60_000;
-      const lastEvent = record.events.at(-1);
       const campaign = campaigns.find((candidate) => candidate.missionIds.includes(record.id));
-      const changedFiles = campaign?.status === "awaiting_application"
-        ? summarizeChanges((await this.workspaces.changes(project, campaign).catch(() => undefined))?.changes ?? [])
+      const changes = campaign?.status === "awaiting_application"
+        ? (await this.workspaces.changes(project, campaign).catch(() => undefined))?.changes
         : undefined;
-      const changed = changedFiles === undefined ? undefined : { created: changedFiles.created, modified: changedFiles.modified, deleted: changedFiles.deleted, renamed: changedFiles.renamed };
-      const role = roleForStep(record.order.preconditions.nextStepId);
-      return {
-        id: record.id,
-        status: record.status,
-        ...(record.order.scope.featureId === undefined ? {} : { featureId: record.order.scope.featureId.value }),
-        stepId: record.order.preconditions.nextStepId,
-        ...(role === undefined ? {} : { role }),
-        provider: record.target.provider,
-        ...(record.target.model === undefined ? {} : { model: record.target.model }),
-        ...(record.providerSessionId === undefined ? {} : { providerSessionId: record.providerSessionId }),
-        ...(startedAt === undefined ? {} : { startedAt: startedAt.toISOString() }),
-        updatedAt: record.updatedAt.toISOString(),
-        ...(startedAt === undefined ? {} : { durationMs: (endedAt ?? this.now()).getTime() - startedAt.getTime() }),
-        ...(worker === undefined ? {} : { heartbeatAt: worker.updatedAt.toISOString() }),
-        heartbeatAlive,
-        ...(lastEvent === undefined ? {} : { lastEvent: { type: lastEvent.type, at: lastEvent.at.toISOString() } }),
-        timeline: record.events.slice(-20).map((event) => ({ type: event.type, at: event.at.toISOString() })),
-        stale: (record.status === "planned" || record.status === "running") && !heartbeatAlive,
-        providerUsage: { available: false as const },
-        proofReferences: record.proofReferences,
-        projection: projectOrchestration({ projectId, ...(campaign === undefined ? {} : { campaign }), execution: record, ...(changed === undefined ? {} : { changed }), now: this.now() }),
-        ...(record.suspensionReason === undefined ? {} : { suspension: record.suspensionReason }),
-        ...(campaign === undefined ? {} : { campaign: {
-          id: campaign.id,
-          status: campaign.status,
-          revision: campaign.revision,
-          workspaceMode: campaign.workspaceMode,
-          completedMissions: campaign.missionIds.length,
-          maximumMissions: campaign.maxMissions,
-          currentStepId: campaign.currentStepId,
-          decisionCount: campaign.decisions.length,
-          ...(campaign.runtimeVersion === undefined ? {} : { runtimeVersion: campaign.runtimeVersion }),
-          ...(changedFiles === undefined ? {} : { changedFiles }),
-          ...(campaign.actionRequired === undefined ? {} : { actionRequired: { kind: campaign.actionRequired.kind, reason: campaign.actionRequired.reason } }),
-        } }),
-      };
+      return createLegacyOrchestrationView({
+        projectId,
+        record,
+        ...(worker === undefined ? {} : { worker }),
+        ...(campaign === undefined ? {} : { campaign }),
+        ...(changes === undefined ? {} : { changes }),
+        now: this.now,
+      });
     }));
     return [...await this.getV23Orchestrations(project), ...legacy];
   }
@@ -572,13 +546,24 @@ export class ProjectTrackingService {
     return this.getFeature(projectId, feature.id.value);
   }
 
-  public inspectDoctor(): Promise<DoctorReport> {
-    return this.options.doctor.run();
+  public inspectDoctor(): Promise<DoctorInspectionReport> {
+    return this.doctorRepairs.inspect();
   }
 
-  public repairDoctor(input: { readonly apply: boolean; readonly confirmed: boolean }): Promise<DoctorReport> {
-    if (input.apply && !input.confirmed) throw new Error("Doctor apply requires explicit confirmation.");
-    return this.options.doctor.run({ repair: true, apply: input.apply });
+  public previewDoctorRepairs(): Promise<DoctorRepairPlan> {
+    return this.doctorRepairs.preview();
+  }
+
+  public async applyDoctorRepairs(input: { readonly fingerprint: string; readonly confirmed: boolean }): Promise<DoctorRepairOutcome> {
+    if (!input.confirmed) throw new WebMutationError(400, "invalid_doctor_confirmation");
+    try {
+      return await this.doctorRepairs.apply({ fingerprint: input.fingerprint, confirmed: true });
+    } catch (error) {
+      if (error instanceof DoctorRepairPlanChangedError) {
+        throw new WebMutationError(409, "repair_plan_changed", { plan: error.plan });
+      }
+      throw error;
+    }
   }
 
   private project(id: string): Promise<Project> {
@@ -650,27 +635,6 @@ function parseAuditEntry(value: unknown): readonly AuditTrackingView[] {
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function summarizeChanges(changes: readonly { readonly path: string; readonly previousPath?: string; readonly kind: "created" | "modified" | "deleted" | "renamed"; readonly binary: boolean }[]) {
-  const created = changes.filter((change) => change.kind === "created").length;
-  const modified = changes.filter((change) => change.kind === "modified").length;
-  const deleted = changes.filter((change) => change.kind === "deleted").length;
-  const renamed = changes.filter((change) => change.kind === "renamed").length;
-  return {
-    total: changes.length,
-    created,
-    modified,
-    deleted,
-    renamed,
-    files: changes.slice(0, 100).map((change) => ({
-      path: change.path,
-      ...(change.previousPath === undefined ? {} : { previousPath: change.previousPath }),
-      kind: change.kind,
-      binary: change.binary,
-      risk: change.binary || change.kind === "deleted" ? "high" as const : change.kind === "modified" || change.kind === "renamed" ? "medium" as const : "low" as const,
-    })),
-  };
 }
 
 function auditRunView(run: Awaited<ReturnType<AuditService["requiredRun"]>>): AuditRunView {

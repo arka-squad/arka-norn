@@ -5,15 +5,16 @@ import { useI18n } from "../i18n/i18n";
 
 export function DoctorReportView({ report }: { readonly report: DoctorReport }) {
   const { t } = useI18n();
+  const needsAttention = report.summary.warn > 0 || report.summary.fail > 0;
   const mode = report.mode === "inspect"
     ? t("web.settings.doctorModeInspect")
     : report.mode === "repair-dry-run"
       ? t("web.settings.doctorModePreview")
       : t("web.settings.doctorModeApplied");
-  const title = report.ok ? t("web.settings.doctorHealthy") : t("web.settings.doctorAttention");
-  return <section className={`doctor-report ${report.ok ? "healthy" : "attention"}`} aria-live="polite">
+  const title = needsAttention ? t("web.settings.doctorAttention") : t("web.settings.doctorHealthy");
+  return <section className={`doctor-report ${needsAttention ? "attention" : "healthy"}`} aria-live="polite">
     <header>
-      <span className="doctor-report-icon">{report.ok ? <CheckCircle2 size={20} /> : <AlertTriangle size={20} />}</span>
+      <span className="doctor-report-icon">{needsAttention ? <AlertTriangle size={20} /> : <CheckCircle2 size={20} />}</span>
       <div><small>{mode}</small><h3>{title}</h3><p>{report.checks.length} {t("web.settings.doctorChecks").toLowerCase()}</p></div>
       <dl className="doctor-summary">
         <SummaryCount label={t("web.settings.doctorPassed")} value={report.summary.pass} tone="pass" />
@@ -22,6 +23,7 @@ export function DoctorReportView({ report }: { readonly report: DoctorReport }) 
       </dl>
     </header>
     <div className="doctor-checks">{report.checks.map((check) => <DoctorCheckRow key={check.id} check={check} />)}</div>
+    {report.mode === "inspect" ? null : <DoctorRepairList repairs={report.repairs} />}
   </section>;
 }
 
@@ -47,4 +49,12 @@ function DoctorCheckRow({ check }: { readonly check: DoctorCheck }) {
 
 function doctorCheckLabel(id: string, contractLabel: (field: string) => string): string {
   return id.split(".").map((part) => contractLabel(part)).join(" · ");
+}
+
+function DoctorRepairList({ repairs }: { readonly repairs: DoctorReport["repairs"] }) {
+  const { t } = useI18n();
+  if (repairs.length === 0) return <p className="doctor-no-repairs">{t("web.settings.repairNone")}</p>;
+  return <section className="doctor-repair-list"><h4>{t("web.settings.repairTargets")}</h4>{repairs.map((repair) => <article key={`${repair.action}:${repair.target}`}>
+    <Wrench size={15} /><div><strong>{t(`web.settings.repair.${repair.action}`)}</strong><code>{repair.target}</code></div>
+  </article>)}</section>;
 }

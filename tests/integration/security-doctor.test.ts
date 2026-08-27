@@ -119,7 +119,7 @@ test("doctor considère le socle core prêt même si les skills de rôles resten
   assert.match(skills?.message ?? "", /10\/10 core healthy; 11 optional missing; 0 divergent/);
 });
 
-test("doctor échoue lorsque le socle core est incomplet", async (context) => {
+test("doctor distingue une installation de skills absente de la santé du runtime", async (context) => {
   const home = mkdtempSync(join(tmpdir(), "arka-norn-doctor-missing-core-"));
   const target = resolve(home, "project");
   mkdirSync(target, { recursive: true });
@@ -128,9 +128,9 @@ test("doctor échoue lorsque le socle core est incomplet", async (context) => {
   const report = await createDoctorRuntime(home, target).run();
   const skills = report.checks.find((check) => check.id === "skills.installation");
 
-  assert.equal(skills?.status, "fail");
+  assert.equal(skills?.status, "warn");
   assert.match(skills?.message ?? "", /0\/10 core healthy/);
-  assert.equal(report.ok, false);
+  assert.equal(report.ok, true);
 });
 
 test("doctor valide les registres Agent puis expose toute corruption", async (context) => {

@@ -25,6 +25,8 @@ describe("DoctorReportView", () => {
     expect(html).toContain(catalogs.fr["web.settings.doctorModePreview"].replace("'", "&#x27;"));
     expect(html).toContain("Index · Projects");
     expect(html).toContain(catalogs.fr["web.settings.doctorRepairable"]);
+    expect(html).toContain(catalogs.fr["web.settings.repair.remove_abandoned_lock"]);
+    expect(html).toContain("/tmp/features.lock");
     expect(html).not.toContain("schemaVersion");
     expect(html).not.toContain("repair-dry-run");
     expect(html).not.toContain("remove_abandoned_lock");

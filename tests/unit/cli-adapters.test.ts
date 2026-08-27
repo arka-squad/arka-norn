@@ -85,8 +85,8 @@ test("les adaptateurs CLI de catalogue, skills, doctor et migration sont appelé
   assert.equal(runSkillsCommand(["unknown", "--json"], skillsContext).code, 64);
 
   const doctor = await runDoctorCommand(["--json"], { cwd: fixture.cwd, homeDir: fixture.home });
-  assert.equal(doctor.code, 3);
-  assert.equal((await runDoctorCommand([], { cwd: fixture.cwd, homeDir: fixture.home })).code, 3);
+  assert.equal(doctor.code, 0);
+  assert.equal((await runDoctorCommand([], { cwd: fixture.cwd, homeDir: fixture.home })).code, 0);
   assert.equal((await runDoctorCommand(["--apply"], { cwd: fixture.cwd, homeDir: fixture.home })).code, 64);
   assert.equal((await runDoctorCommand(["--bogus", "--json"], { cwd: fixture.cwd, homeDir: fixture.home })).code, 64);
 

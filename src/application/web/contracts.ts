@@ -6,7 +6,7 @@
 import type { GovernanceEventKind, GovernanceTarget } from "../../domain/governance/governance-event.js";
 import type { WebOnboardingProgress, WebOnboardingState } from "../../domain/onboarding/web-onboarding-state.js";
 import type { OrchestrationProjection } from "../../domain/orchestration/orchestration-projection.js";
-import type { DoctorReport } from "../../ports/inbound/for-doctor.js";
+import type { DoctorInspectionReport, DoctorRepairOutcome, DoctorRepairPlan } from "../../ports/inbound/for-doctor.js";
 import type { CapabilityCatalog, CapabilityInvalidationScope } from "../capabilities/capability-registry.js";
 
 export type TrackingHealth = "healthy" | "attention" | "blocked" | "invalid";
@@ -450,7 +450,8 @@ export interface NornBridge {
   createProject(input: { readonly id: string; readonly name: string; readonly root: string }): Promise<ProjectOverview>;
   createFeature(projectId: string, input: { readonly id: string; readonly name: string; readonly root: string; readonly pipelineId?: string }): Promise<FeatureTrackingView>;
   appendGovernance(projectId: string, input: CreateGovernanceEventInput): Promise<GovernanceView>;
-  inspectDoctor(): Promise<DoctorReport>;
-  repairDoctor(input: { readonly apply: boolean; readonly confirmed: boolean }): Promise<DoctorReport>;
+  inspectDoctor(): Promise<DoctorInspectionReport>;
+  previewDoctorRepairs(): Promise<DoctorRepairPlan>;
+  applyDoctorRepairs(input: { readonly fingerprint: string; readonly confirmed: boolean }): Promise<DoctorRepairOutcome>;
   subscribe(listener: (event: LiveInvalidation) => void, signal?: AbortSignal): Promise<void>;
 }

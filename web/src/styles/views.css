@@ -385,6 +385,11 @@
 .segmented button.active { background: var(--surface-hover); box-shadow: inset 0 0 0 1px var(--border); color: var(--tx1); font-weight: 600; }
 .current-locale { color: var(--text-muted); font-size: 10px; }
 .doctor-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.doctor-workflow { display: grid; min-width: 0; gap: 12px; }
+.doctor-workflow .doctor-report { grid-column: auto; }
+.doctor-plan-meta { display: grid; grid-template-columns: minmax(140px, .5fr) minmax(180px, 1fr) auto; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-card); color: var(--text-soft); font-size: 10px; }
+.doctor-plan-meta code { color: var(--tx2); }
+.doctor-applied { margin: 0; padding: 10px 12px; border-radius: var(--radius-md); background: var(--green-soft); color: var(--green); font-size: 11px; }
 .confirm-check { display: flex; align-items: center; gap: 7px; color: var(--text-soft); font-size: 11px; }
 .confirm-check input { width: 16px; min-height: 16px; }
 .doctor-report { grid-column: 2; min-width: 0; border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--surface-card); overflow: hidden; }
@@ -412,6 +417,14 @@
 .doctor-check-warn .doctor-check-status { color: var(--amber); }
 .doctor-check-fail .doctor-check-status { color: var(--red); }
 .doctor-repairable { display: inline-flex; grid-column: 2 / -1; width: fit-content; align-items: center; gap: 5px; padding: 3px 7px; border: 1px solid rgba(217, 119, 6, .25); border-radius: 6px; background: var(--amber-soft); color: var(--amber); font-family: var(--font-mono); font-size: 8px; font-weight: 600; text-transform: uppercase; }
+.doctor-repair-list { padding: 14px 15px; border-top: 1px solid var(--app-border-subtle); }
+.doctor-repair-list h4 { margin: 0 0 9px; font-size: 11px; }
+.doctor-repair-list article { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; padding: 9px 0; border-top: 1px solid var(--app-border-subtle); }
+.doctor-repair-list article:first-of-type { border-top: 0; }
+.doctor-repair-list article svg { color: var(--amber); }
+.doctor-repair-list article div { display: grid; gap: 3px; }
+.doctor-repair-list code { color: var(--text-muted); font-size: 9px; overflow-wrap: anywhere; }
+.doctor-no-repairs { margin: 0; padding: 13px 15px; border-top: 1px solid var(--app-border-subtle); color: var(--text-muted); font-size: 10px; }
 .graph-page { width: 100%; max-width: none; height: calc(100vh - 55px); padding-bottom: 25px; }
 .graph-page .page-title { margin-bottom: 15px; }
 .graph-filter { display: flex; align-items: center; gap: 9px; color: var(--text-muted); font-size: 10px; font-weight: 700; }

@@ -226,7 +226,8 @@ export const contracts = {
       "authority": "read",
       "surfaces": [
         "cli",
-        "tui"
+        "tui",
+        "web"
       ],
       "preconditions": [
         "doctor_findings_exist"
@@ -238,7 +239,8 @@ export const contracts = {
       "authority": "human_confirmation",
       "surfaces": [
         "cli",
-        "tui"
+        "tui",
+        "web"
       ],
       "preconditions": [
         "exact_repair_preview",

@@ -39,6 +39,27 @@ export interface DoctorReport {
   readonly summary: { readonly pass: number; readonly warn: number; readonly fail: number };
 }
 
+export type DoctorInspectionReport = DoctorReport & { readonly mode: "inspect" };
+export type DoctorRepairPreviewReport = DoctorReport & { readonly mode: "repair-dry-run" };
+export type DoctorRepairApplyReport = DoctorReport & { readonly mode: "repair-apply" };
+
+export interface DoctorRepairPlan {
+  readonly report: DoctorRepairPreviewReport;
+  readonly fingerprint: string;
+  readonly expiresAt: string;
+}
+
+export interface DoctorRepairOutcome {
+  readonly repair: DoctorRepairApplyReport;
+  readonly report: DoctorInspectionReport;
+}
+
 export interface ForDoctor {
   run(input?: { readonly repair?: boolean; readonly apply?: boolean }): Promise<DoctorReport>;
+}
+
+export interface ForDoctorRepairs {
+  inspect(): Promise<DoctorInspectionReport>;
+  preview(): Promise<DoctorRepairPlan>;
+  apply(input: { readonly fingerprint: string; readonly confirmed: true }): Promise<DoctorRepairOutcome>;
 }

@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowRight, Boxes, CheckCircle2, FileWarning, GitBranch, GitPullRequest, LockKeyhole, Radio } from "lucide-react";
+import { AlertTriangle, ArrowRight, Boxes, CheckCircle2, FileWarning, GitBranch, GitPullRequest, HeartPulse, LockKeyhole, Radio } from "lucide-react";
 
 import type { ProjectOverview } from "../../../src/application/web/contracts";
 import { featureRoute, framingRoute, projectRoute } from "../app/router";
@@ -6,7 +6,7 @@ import { pipelineName } from "../app/product-labels";
 import { useBridge } from "../bridge/context";
 import { FramingCard } from "../components/framing-card";
 import { MetricStrip } from "../components/metric-strip";
-import { EmptyState, PageTitle, StatusBadge } from "../components/ui";
+import { Button, EmptyState, PageTitle, StatusBadge } from "../components/ui";
 import { useI18n } from "../i18n/i18n";
 import { OrchestrationModeControl } from "./orchestration-mode-control";
 
@@ -26,7 +26,7 @@ export function ProjectOverviewView({ project, navigate, onChanged = () => undef
   }
   const attention = project.features.filter((feature) => feature.health !== "healthy");
   return <div className="page">
-    <PageTitle title={project.name} summary={project.root} actions={<StatusBadge health={project.health} />} />
+    <PageTitle title={project.name} summary={project.root} actions={<><StatusBadge health={project.health} />{project.health === "healthy" ? null : <Button onClick={() => navigate(projectRoute(project.id, "settings"))}><HeartPulse size={15} />{t("web.action.inspectDoctor")}</Button>}</>} />
     <FramingCard {...(project.framing === undefined ? { onStart: async () => { const framing = await bridge.startFraming(project.id, {}); navigate(framingRoute(project.id, framing.framingId)); } } : { framing: project.framing, onOpen: () => navigate(framingRoute(project.id, project.framing!.framingId)) })} startLabel={t("web.framing.frameProject")} />
     <OrchestrationModeControl project={project} onChanged={onChanged} />
     <MetricStrip items={[

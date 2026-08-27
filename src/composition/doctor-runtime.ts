@@ -39,7 +39,7 @@ export function createDoctorRuntime(homeDir: string, targetDir: string = process
         skills.inspect(targetDir, "all"),
         inspectPipelineCatalog(pipelines),
       ]);
-      const skillStatus = allSkillHealth.divergent > 0 || coreSkillHealth.missing > 0 ? "fail" : "pass";
+      const skillStatus = allSkillHealth.divergent > 0 ? "fail" : coreSkillHealth.missing > 0 ? "warn" : "pass";
       const optionalMissing = allSkillHealth.missing - coreSkillHealth.missing;
       return [
         ...runtime,

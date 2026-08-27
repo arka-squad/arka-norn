@@ -79,4 +79,11 @@ describe("FeatureTable", () => {
     expect(html).toContain("0 enabled profile(s) out of 0");
     expect(html).toContain("Change mode");
   });
+
+  it("surfaces Doctor from a Project that needs attention", () => {
+    const bridge = { startFraming: () => Promise.reject(new Error("not used")) } as unknown as NornBridge;
+    const attention = { ...project, health: "attention" as const, features: [{ ...project.features[0]!, health: "attention" as const }] };
+    const html = renderToStaticMarkup(<BridgeContext.Provider value={bridge}><I18nProvider initialLocale="en"><ProjectOverviewView project={attention} navigate={() => undefined} /></I18nProvider></BridgeContext.Provider>);
+    expect(html).toContain("Inspect Doctor");
+  });
 });
