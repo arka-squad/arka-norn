@@ -21,6 +21,8 @@ import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 
+import { prependStubHost } from "../helpers/stub-host.ts";
+
 interface SkillDefinition {
   readonly name: string;
 }
@@ -33,6 +35,9 @@ test("install déploie réellement chaque skill dans un target et un home tempor
   const target = join(sandbox, "target");
   const home = join(sandbox, "home");
   context.after(() => rmSync(sandbox, { recursive: true, force: true }));
+  const previousPath = process.env.PATH;
+  process.env.PATH = prependStubHost(sandbox);
+  context.after(() => { process.env.PATH = previousPath; });
   const isolatedEnv = { ...process.env, ARKA_NORN_HOME: home, HOME: home, USERPROFILE: home };
 
   const result = spawnSync(process.execPath, [BIN, "install", "--target", target, "--global"], {
@@ -136,6 +141,9 @@ test("install dry-run ne crée rien et un conflit exige --force avec backup", (c
   const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-install-safe-"));
   const target = join(sandbox, "target");
   context.after(() => rmSync(sandbox, { recursive: true, force: true }));
+  const previousPath = process.env.PATH;
+  process.env.PATH = prependStubHost(sandbox);
+  context.after(() => { process.env.PATH = previousPath; });
 
   const preview = spawnSync(process.execPath, [BIN, "install", "--target", target, "--dry-run", "--json"], { cwd: ROOT, encoding: "utf8" });
   assert.equal(preview.status, 0, preview.stderr);

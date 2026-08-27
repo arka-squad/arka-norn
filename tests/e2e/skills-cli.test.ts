@@ -21,12 +21,17 @@ import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 
+import { prependStubHost } from "../helpers/stub-host.ts";
+
 const ROOT = resolve(import.meta.dirname, "..", "..");
 const BIN = resolve(ROOT, "bin", "arka-norn.mjs");
 
 test("skills list/install/doctor partagent le catalogue et détectent une divergence", (context) => {
   const target = mkdtempSync(join(tmpdir(), "arka-norn-skills-cli-"));
   context.after(() => rmSync(target, { recursive: true, force: true }));
+  const previousPath = process.env.PATH;
+  process.env.PATH = prependStubHost(target);
+  context.after(() => { process.env.PATH = previousPath; });
 
   const listed = run(["skills", "list", "--json"], target);
   assert.equal(listed.status, 0, listed.stderr);
@@ -74,8 +79,11 @@ test("skills global installe et diagnostique les 21 rendus sans masquer une dive
   const sandbox = mkdtempSync(join(tmpdir(), "arka-norn-skills-global-cli-"));
   const target = join(sandbox, "project");
   const home = join(sandbox, "home");
-  const env = { ...process.env, ARKA_NORN_HOME: home, HOME: home, USERPROFILE: home };
   context.after(() => rmSync(sandbox, { recursive: true, force: true }));
+  const previousPath = process.env.PATH;
+  process.env.PATH = prependStubHost(sandbox);
+  context.after(() => { process.env.PATH = previousPath; });
+  const env = { ...process.env, ARKA_NORN_HOME: home, HOME: home, USERPROFILE: home };
   mkdirSync(target, { recursive: true });
 
   const installed = run(["skills", "install", "--target", target, "--profile", "all", "--global", "--json"], target, env);

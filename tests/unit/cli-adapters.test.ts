@@ -33,6 +33,7 @@ import { runSkillsCommand } from "../../src/adapters/inbound/cli/skills-cli.ts";
 import { CliUsageError, parseStrictArguments } from "../../src/adapters/inbound/cli/strict-arguments.ts";
 import { runWebCommand } from "../../src/adapters/inbound/cli/web-cli.ts";
 import { runWorkflowCommand } from "../../src/adapters/inbound/cli/workflow-cli.ts";
+import { prependStubHost } from "../helpers/stub-host.ts";
 import { AgentSessionId } from "../../src/domain/agent/agent-session-id.ts";
 
 const ROOT = resolve(import.meta.dirname, "..", "..");
@@ -71,6 +72,9 @@ test("les arguments CLI stricts couvrent les options, relations et erreurs", () 
 
 test("les adaptateurs CLI de catalogue, skills, doctor et migration sont appelés directement", async (context) => {
   const fixture = createFixture(context);
+  const previousPath = process.env.PATH;
+  process.env.PATH = prependStubHost(fixture.cwd);
+  context.after(() => { process.env.PATH = previousPath; });
   const skillsContext = { cwd: fixture.cwd, homeDir: fixture.home, frameworkRoot: ROOT };
 
   assert.equal((await runWorkflowCommand(["list", "--json"], ROOT)).code, 0);

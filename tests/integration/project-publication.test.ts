@@ -71,7 +71,10 @@ test("Doctor propose puis applique la reprise exacte d'une publication interromp
   const fixture = await groundedFixture(context, "doctor");
   const drafts = new FsProjectDraftStore(fixture.home);
   const draft = await drafts.verify(fixture.projectId);
-  const publicationTime = after(draft.updatedAt, 1_000);
+  // Base the interrupted publication on the draft timestamp without pushing it
+  // into the future, so Doctor recovery (which uses the real clock) never
+  // observes updatedAt < createdAt under a fast or parallel test run.
+  const publicationTime = new Date(Math.max(Date.parse(draft.updatedAt), Date.now()));
   await assert.rejects(
     publicationStore(fixture.home, drafts, "staged").publish({ draft, plan: fixture.plan, now: publicationTime }),
     /Simulated publication interruption/u,
