@@ -1,5 +1,30 @@
 # Changelog
 
+## 2.3.3 - 2026-08-27
+
+### Added
+
+- Norn Web can now inspect, preview and apply Doctor repairs with a fingerprinted, expiring dry run that refuses a diverged plan.
+- Norn Web exposes the orchestration preview as human rows: task DAG, per-role profiles, cost signals, preflight causes and risk policy, without starting a run.
+- Norn Web adds an authorization sheet that binds the exact preview fingerprint, per-role profile selection, commit, apply mode, budget mode and parallelism.
+- Norn Web can apply a verified campaign candidate from the DAG tracker under the 2.3 invariants, mirroring the expert CLI path.
+- Added the 2.3 stability contract documenting Project, Plan, Feature, Lot and Run and the read-only legacy status.
+
+### Changed
+
+- `orchestration.preview`, `orchestration.authorize` and `orchestration.apply` are now available on the Web surface in addition to the CLI.
+
+### Security
+
+- Every Web orchestration input is revalidated server-side; a diverged or missing preview fingerprint blocks authorization, and application refuses a dirty or diverged baseline.
+
+### Distribution
+
+- Added a package link guard that forbids dead relative Markdown links and pins excluded-file references to the release tag.
+- Added a release adoption and parity gate to `release:verify` that packs the exact tarball and verifies README, skills, Web, CLI and migrations from it.
+- Package and manifest versions are 2.3.3.
+
+ ## 2.3.2 - 2026-08-26
 ## 2.3.2 - 2026-08-26
 
 ### Added

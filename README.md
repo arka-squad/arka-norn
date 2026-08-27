@@ -15,7 +15,7 @@ Then open Codex or Claude Code in your folder and run `/arka-norn`.
 
 arka.norn is a local Project tracking and delivery framework for Features, published documents, human decisions, evidence and auditable workflows. `arka-norn` is its command. It provides a Project manager Web interface, an interactive TUI and a scriptable CLI without making an external SaaS the source of truth.
 
-Version 2.3.2 adds a live framing engine before delivery. The same resumable plan frames a Project into Feature candidates or a Feature into Lots, then hands one exact published revision to the 2.3 delivery DAG. Legacy 2.2 campaigns are inspection-only, while existing v4 Features keep their historical workflows. English remains canonical for contracts and machine data.
+Version 2.3.3 brings orchestration control to Norn Web: preview a run, authorize it against the exact plan fingerprint, and apply a verified candidate under the 2.3 invariants, alongside Doctor inspect, preview and repair. It builds on the 2.3 live framing engine, where one resumable plan frames a Project into Feature candidates or a Feature into Lots, then hands one exact published revision to the 2.3 delivery DAG. Legacy 2.2 campaigns are inspection-only, while existing v4 Features keep their historical workflows. English remains canonical for contracts and machine data.
 
 ## Requirements
 
