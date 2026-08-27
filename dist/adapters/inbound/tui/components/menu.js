@@ -36,8 +36,19 @@ export function createMenuScene(items, options) {
     let filterMode = false;
     let filterText = "";
     let filtered = items.map((it, i) => ({ ...it, _origIndex: i }));
+    cursor = items.findIndex((item) => item.heading !== true);
+    if (cursor === -1)
+        cursor = 0;
     function visible() {
         return filterMode ? filtered : items;
+    }
+    function isSelectable(item) {
+        return item !== undefined && item.heading !== true;
+    }
+    function firstSelectable() {
+        const vis = visible();
+        const index = vis.findIndex((item) => isSelectable(item));
+        return index === -1 ? 0 : index;
     }
     function effectiveMax() {
         const vis = visible();
@@ -60,21 +71,31 @@ export function createMenuScene(items, options) {
     }
     function applyFilter(stripAnsi) {
         filtered = filterItems(items, filterText, stripAnsi);
-        cursor = 0;
+        cursor = filtered.findIndex((item) => item.heading !== true);
+        if (cursor === -1)
+            cursor = 0;
         viewOffset = 0;
     }
     function moveUp() {
         const vis = visible();
         if (vis.length === 0)
             return;
-        cursor = (cursor - 1 + vis.length) % vis.length;
+        for (let step = 0; step < vis.length; step += 1) {
+            cursor = (cursor - 1 + vis.length) % vis.length;
+            if (isSelectable(vis[cursor]))
+                break;
+        }
         adjustViewport();
     }
     function moveDown() {
         const vis = visible();
         if (vis.length === 0)
             return;
-        cursor = (cursor + 1) % vis.length;
+        for (let step = 0; step < vis.length; step += 1) {
+            cursor = (cursor + 1) % vis.length;
+            if (isSelectable(vis[cursor]))
+                break;
+        }
         adjustViewport();
     }
     function selectCurrent() {
@@ -82,7 +103,7 @@ export function createMenuScene(items, options) {
         if (vis.length === 0)
             return;
         const item = vis[cursor];
-        if (item === undefined)
+        if (item === undefined || !isSelectable(item))
             return;
         options.onSelect(item.value);
     }
@@ -90,7 +111,7 @@ export function createMenuScene(items, options) {
         filterMode = false;
         filterText = "";
         filtered = items.map((it, i) => ({ ...it, _origIndex: i }));
-        cursor = 0;
+        cursor = firstSelectable();
         viewOffset = 0;
     }
     function handleFilterMode(event, stripAnsi) {
@@ -179,6 +200,12 @@ export function createMenuScene(items, options) {
                     continue;
                 }
                 const active = realIndex === cursor;
+                if (item.heading === true) {
+                    if (index > 0)
+                        lines.push("");
+                    lines.push(`  ${theme.dim(item.label.toUpperCase())}`);
+                    continue;
+                }
                 const marker = active ? theme.arkaRed(ANGLE_RIGHT) : " ";
                 const label = active ? theme.bold(item.label) : item.label;
                 const desc = item.description !== undefined ? theme.gray(` ${EM_DASH} ${item.description}`) : "";

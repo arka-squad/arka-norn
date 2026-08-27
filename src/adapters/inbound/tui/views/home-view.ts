@@ -31,7 +31,7 @@ import type { Scene } from "../runtime/tui-app.js";
 import { activeLocale, formatNumber, formatShortDate, formatTime, translate, type LocalePreference } from "../../../../application/localization/locale.js";
 
 type PreferredSurface = "web" | "tui" | "cli";
-type HomeAction = "action:create" | "action:scan" | "action:health" | "action:install" | "action:locale" | "action:surface" | `project:${string}` | `draft:${string}`;
+type HomeAction = "action:create" | "action:scan" | "action:health" | "action:install" | "action:locale" | "action:surface" | "heading:projects" | "heading:maintenance" | "heading:preferences" | `project:${string}` | `draft:${string}`;
 
 export interface HomeViewDeps {
   readonly initialProjects: readonly Project[];
@@ -87,30 +87,37 @@ export function createHomeView(deps: HomeViewDeps): HomeView {
   syncFocus();
 
   function items(): readonly MenuItem<HomeAction>[] {
-    return [
-      { label: translate("tui.home.create.label"), value: "action:create", description: translate("tui.home.create.description") },
-      ...projects.map((project) => ({
+    const entries: MenuItem<HomeAction>[] = [];
+    entries.push({ label: translate("tui.home.section.projects"), value: "heading:projects", heading: true });
+    entries.push({ label: translate("tui.home.create.label"), value: "action:create", description: translate("tui.home.create.description") });
+    for (const project of projects) {
+      entries.push({
         label: `${CIRCLE} ${project.name} - ${translate(project.orchestrationMode === "automatic" ? "tui.home.mode.assisted" : "tui.home.mode.manual")}`,
-        value: `project:${project.id.value}` as const,
+        value: `project:${project.id.value}`,
         description: `${project.root}  ${formatActivity(project.updatedAt, now())}`,
-      })),
-      ...drafts.map((draft) => ({
+      });
+    }
+    for (const draft of drafts) {
+      entries.push({
         label: `${CIRCLE} ${draft.name} - ${translate("tui.home.draft.label")}`,
-        value: `draft:${draft.id}` as const,
+        value: `draft:${draft.id}`,
         description: `${draft.root}  ${translate(`tui.home.draft.${draft.materialization}`)}  ${formatActivity(new Date(draft.updatedAt), now())}`,
-      })),
-      { label: translate("tui.home.scan.label"), value: "action:scan", description: translate("tui.home.scan.description") },
-      { label: translate("tui.home.health.label"), value: "action:health", description: translate("tui.home.health.description", { health: systemHealth }) },
-      { label: translate("tui.home.skills.label"), value: "action:install", description: translate("tui.home.skills.description", { health: skillHealth }) },
-      { label: `${translate("tui.language")}: ${translate(`common.locale.${localePreference}`)}`, value: "action:locale", description: translate("tui.language.description") },
-      { label: `${translate("tui.surface")}: ${translate(`tui.surface.${preferredSurface}`)}`, value: "action:surface", description: translate("tui.surface.description") },
-    ];
+      });
+    }
+    entries.push({ label: translate("tui.home.section.maintenance"), value: "heading:maintenance", heading: true });
+    entries.push({ label: translate("tui.home.scan.label"), value: "action:scan", description: translate("tui.home.scan.description") });
+    entries.push({ label: translate("tui.home.health.label"), value: "action:health", description: translate("tui.home.health.description", { health: systemHealth }) });
+    entries.push({ label: translate("tui.home.skills.label"), value: "action:install", description: translate("tui.home.skills.description", { health: skillHealth }) });
+    entries.push({ label: translate("tui.home.section.preferences"), value: "heading:preferences", heading: true });
+    entries.push({ label: `${translate("tui.language")}: ${translate(`common.locale.${localePreference}`)}`, value: "action:locale", description: translate("tui.language.description") });
+    entries.push({ label: `${translate("tui.surface")}: ${translate(`tui.surface.${preferredSurface}`)}`, value: "action:surface", description: translate("tui.surface.description") });
+    return entries;
   }
 
   function buildMenu(): MenuScene {
     return createMenuScene<HomeAction>(items(), {
       hint: translate("tui.home.menu.hint"),
-      maxVisible: 12,
+      maxVisible: 16,
       onSelect: (value) => void select(value),
     });
   }

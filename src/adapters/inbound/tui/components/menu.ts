@@ -28,6 +28,8 @@ export interface MenuItem<V = string> {
   readonly label: string;
   readonly value: V;
   readonly description?: string;
+  /** A non-selectable section header used to group the list. */
+  readonly heading?: boolean;
 }
 
 interface IndexedMenuItem<V> extends MenuItem<V> {
@@ -74,9 +76,21 @@ export function createMenuScene<V = string>(items: readonly MenuItem<V>[], optio
   let filterMode = false;
   let filterText = "";
   let filtered: readonly IndexedMenuItem<V>[] = items.map((it, i) => ({ ...it, _origIndex: i }));
+  cursor = items.findIndex((item) => item.heading !== true);
+  if (cursor === -1) cursor = 0;
 
   function visible(): readonly MenuItem<V>[] {
     return filterMode ? filtered : items;
+  }
+
+  function isSelectable(item: MenuItem<V> | undefined): boolean {
+    return item !== undefined && item.heading !== true;
+  }
+
+  function firstSelectable(): number {
+    const vis = visible();
+    const index = vis.findIndex((item) => isSelectable(item));
+    return index === -1 ? 0 : index;
   }
 
   function effectiveMax(): number {
@@ -101,21 +115,28 @@ export function createMenuScene<V = string>(items: readonly MenuItem<V>[], optio
 
   function applyFilter(stripAnsi: (s: string) => string): void {
     filtered = filterItems(items, filterText, stripAnsi);
-    cursor = 0;
+    cursor = filtered.findIndex((item) => item.heading !== true);
+    if (cursor === -1) cursor = 0;
     viewOffset = 0;
   }
 
   function moveUp(): void {
     const vis = visible();
     if (vis.length === 0) return;
-    cursor = (cursor - 1 + vis.length) % vis.length;
+    for (let step = 0; step < vis.length; step += 1) {
+      cursor = (cursor - 1 + vis.length) % vis.length;
+      if (isSelectable(vis[cursor])) break;
+    }
     adjustViewport();
   }
 
   function moveDown(): void {
     const vis = visible();
     if (vis.length === 0) return;
-    cursor = (cursor + 1) % vis.length;
+    for (let step = 0; step < vis.length; step += 1) {
+      cursor = (cursor + 1) % vis.length;
+      if (isSelectable(vis[cursor])) break;
+    }
     adjustViewport();
   }
 
@@ -123,7 +144,7 @@ export function createMenuScene<V = string>(items: readonly MenuItem<V>[], optio
     const vis = visible();
     if (vis.length === 0) return;
     const item = vis[cursor];
-    if (item === undefined) return;
+    if (item === undefined || !isSelectable(item)) return;
     options.onSelect(item.value);
   }
 
@@ -131,7 +152,7 @@ export function createMenuScene<V = string>(items: readonly MenuItem<V>[], optio
     filterMode = false;
     filterText = "";
     filtered = items.map((it, i) => ({ ...it, _origIndex: i }));
-    cursor = 0;
+    cursor = firstSelectable();
     viewOffset = 0;
   }
 
@@ -219,6 +240,11 @@ export function createMenuScene<V = string>(items: readonly MenuItem<V>[], optio
         const item = vis[realIndex];
         if (item === undefined) { lines.push(""); continue; }
         const active = realIndex === cursor;
+        if (item.heading === true) {
+          if (index > 0) lines.push("");
+          lines.push(`  ${theme.dim(item.label.toUpperCase())}`);
+          continue;
+        }
         const marker = active ? theme.arkaRed(ANGLE_RIGHT) : " ";
         const label = active ? theme.bold(item.label) : item.label;
         const desc = item.description !== undefined ? theme.gray(` ${EM_DASH} ${item.description}`) : "";

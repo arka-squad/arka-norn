@@ -11,7 +11,7 @@ From a provider chat, an Agent can frame a Project or a Feature, connect that wo
 <!-- README IMAGE: hero -->
 ![arka.norn hero — one plan, verified delivery](docs/assets/readme/hero-signed-delivery.png)
 
-Version 2.3.5 adds a branded setup with clear next steps and an 'arka-norn version' update check (update, skip until reboot, or skip the version). It builds on 2.3 orchestration control in Norn Web: preview a run, authorize it against the exact plan fingerprint, and apply a verified candidate under the 2.3 invariants, alongside Doctor inspect, preview, and repair, over the 2.3 live framing engine that frames a Project into Feature candidates or a Feature into bounded Lots and hands one exact published revision to the 2.3 delivery DAG.
+Version 2.3.6 adds a post-install welcome and a grouped interactive menu, on top of the 2.3.5 branded setup and 'arka-norn version' update check. It builds on 2.3 orchestration control in Norn Web: preview a run, authorize it against the exact plan fingerprint, and apply a verified candidate under the 2.3 invariants, alongside Doctor inspect, preview, and repair, over the 2.3 live framing engine that frames a Project into Feature candidates or a Feature into bounded Lots and hands one exact published revision to the 2.3 delivery DAG.
 
 Legacy 2.2 campaigns are inspection-only. Existing v4 Features keep their historical workflows. English remains canonical for contracts and machine data.
 
@@ -100,7 +100,16 @@ There are exactly two human stabilizations:
 2. **Publication and route binding**
    Binds publication, decomposition, and the calculated delivery route.
 
-An empty repository is never audited. It moves to explicit greenfield design. Implemented code receives an intent-blind structural reading before targeted confrontation.
+### Discovery and grounding
+
+Before the first stabilization, Norn probes the repository and adapts how it discovers the ground truth. It never runs a blind audit on an empty folder, and it never invents facts about code it has not read.
+
+- **Empty** — no audit and no code reader. Norn moves straight to explicitly greenfield technical design.
+- **Skeleton** — reads only manifests and declared constraints.
+- **Implemented** — performs a first intent-blind reading of the structure and public surfaces, then confronts those findings with the Product intent.
+- **Indeterminate** — reduces its authority and avoids broad positive or negative claims.
+
+Positive facts require the current snapshot and a `file:line` anchor; absence claims require an inventory attestation.
 
 ### Framing outputs
 

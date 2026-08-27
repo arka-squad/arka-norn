@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.3.6 - 2026-08-27
+
+### Added
+
+- A post-install welcome now prints the Arka Labs banner and the exact next steps (setup, web start, framing enter, guide) after a global install.
+
+### Changed
+
+- The interactive home menu is grouped into Projects, Maintenance, and Preferences sections instead of one flat list, and navigation skips the section headers.
+- The README replaces the dense audit sentence with a clear 'Discovery and grounding' section aligned with the empty, skeleton, implemented, and indeterminate repository probes.
+
+### Distribution
+
+- Package and manifest versions are 2.3.6.
+
+ ## 2.3.5 - 2026-08-27
 ## 2.3.5 - 2026-08-27
 
 ### Added
