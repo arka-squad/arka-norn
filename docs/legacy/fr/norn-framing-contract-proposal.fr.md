@@ -1,6 +1,6 @@
 # Contrat du moteur de cadrage Norn — proposition
 
-> Proposition de travail. Consommateurs nommés : future spécification d'intégration, implémentation du moteur et recette UX. La méthode et les raisons Product restent dans [`norn-framing-method-research.md`](./norn-framing-method-research.md) ; ce document ne les recopie pas.
+> Proposition de travail. Consommateurs nommés : future spécification d'intégration, implémentation du moteur et recette UX. La méthode et les raisons Product restent dans [`norn-framing-method-research.fr.md`](./norn-framing-method-research.fr.md) ; ce document ne les recopie pas.
 
 ## Conclusion proposée
 

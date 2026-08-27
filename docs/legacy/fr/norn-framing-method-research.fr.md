@@ -2,7 +2,7 @@
 
 > Brouillon de travail. Ce document rassemble la réflexion en cours et les sources externes utiles. Il ne constitue pas encore un contrat de pipeline validé.
 
-La traduction de cette méthode en contrat, états, commandes et découpage d'implémentation est maintenue dans [`norn-framing-contract-proposal.md`](./norn-framing-contract-proposal.md). Ce document-ci reste la source Product et UX ; le document compagnon est destiné à la future spécification et au code.
+La traduction de cette méthode en contrat, états, commandes et découpage d'implémentation est maintenue dans [`norn-framing-contract-proposal.fr.md`](./norn-framing-contract-proposal.fr.md). Ce document-ci reste la source Product et UX ; le document compagnon est destiné à la future spécification et au code.
 
 ## Intention
 
