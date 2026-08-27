@@ -85,7 +85,8 @@
     "doctor": "node bin/arka-norn.mjs doctor",
     "skills": "node bin/arka-norn.mjs skills list",
     "audit:dependencies": "node scripts/audit-gate.mjs --omit=dev && node scripts/audit-gate.mjs",
-    "release:verify": "npm run check && npm run test:coverage && npm run test:coverage:cli && npm run benchmark && npm run audit:dependencies && npm pack --dry-run --ignore-scripts"
+    "release:adoption": "node scripts/release-adoption-gate.mjs",
+    "release:verify": "npm run check && npm run test:coverage && npm run test:coverage:cli && npm run benchmark && npm run audit:dependencies && npm run release:adoption"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "0.3.145",
