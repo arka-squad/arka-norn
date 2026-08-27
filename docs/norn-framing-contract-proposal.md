@@ -43,7 +43,7 @@ The framing engine never pretends to execute delivery. The pipeline engine no lo
 
 ## Public contracts
 
-The canonical runtime types live in [`src/domain/framing/framing-plan.ts`](https://github.com/arka-squad/arka-norn/blob/v2.3.6/src/domain/framing/framing-plan.ts). JSON Schema consumers use:
+The canonical runtime types live in [`src/domain/framing/framing-plan.ts`](https://github.com/arka-squad/arka-norn/blob/v2.3.7/src/domain/framing/framing-plan.ts). JSON Schema consumers use:
 
 - [`schemas/framing-plan.schema.json`](../schemas/framing-plan.schema.json);
 - [`schemas/framing-delta.schema.json`](../schemas/framing-delta.schema.json);
@@ -85,7 +85,7 @@ It records exact inventory counters, ignored roots, access and truncation signal
 - optional immutable publication metadata;
 - controller-derived authority, grounding, attention, next action, and recommended pipeline.
 
-The model cannot write derived state, stabilization records, publication authority, or fingerprints. [`assertPlan`](https://github.com/arka-squad/arka-norn/blob/v2.3.6/src/domain/framing/framing-plan.ts) recomputes and verifies those fields after every read and mutation.
+The model cannot write derived state, stabilization records, publication authority, or fingerprints. [`assertPlan`](https://github.com/arka-squad/arka-norn/blob/v2.3.7/src/domain/framing/framing-plan.ts) recomputes and verifies those fields after every read and mutation.
 
 ### KnowledgeItem
 
@@ -103,7 +103,7 @@ Model deductions are visible and correctable. Positive source facts require the 
 
 ### PlanDelta
 
-The Agent submits elementary operations against a mandatory `baseRevision`; it never rewrites a complete plan. Supported operations add or supersede knowledge, resolve decisions, and propose a decomposition. Unknown fields and malformed operations are rejected before mutation by [`framing-delta-validation.ts`](https://github.com/arka-squad/arka-norn/blob/v2.3.6/src/domain/framing/framing-delta-validation.ts).
+The Agent submits elementary operations against a mandatory `baseRevision`; it never rewrites a complete plan. Supported operations add or supersede knowledge, resolve decisions, and propose a decomposition. Unknown fields and malformed operations are rejected before mutation by [`framing-delta-validation.ts`](https://github.com/arka-squad/arka-norn/blob/v2.3.7/src/domain/framing/framing-delta-validation.ts).
 
 Disjoint stale operations may merge. A stale mutation of the same semantic key is never last-write-wins: alternatives and a blocking open contradiction are preserved for confrontation.
 
@@ -126,7 +126,7 @@ The resume packet transports the plan identity, current revision and fingerprint
 
 ## Repository behavior
 
-The adapter in [`fs-repository-probe.ts`](https://github.com/arka-squad/arka-norn/blob/v2.3.6/src/adapters/outbound/filesystem/fs-repository-probe.ts) counts files independently of bounded display samples and ignores build outputs, dependencies, Git metadata, Norn metadata, and GitNexus caches.
+The adapter in [`fs-repository-probe.ts`](https://github.com/arka-squad/arka-norn/blob/v2.3.7/src/adapters/outbound/filesystem/fs-repository-probe.ts) counts files independently of bounded display samples and ignores build outputs, dependencies, Git metadata, Norn metadata, and GitNexus caches.
 
 Behavior depends on repository nature:
 
@@ -139,7 +139,7 @@ Symlinks, submodules, access failures, scope escape, and truncated inventory are
 
 ## Persistence and recovery
 
-[`fs-framing-store.ts`](https://github.com/arka-squad/arka-norn/blob/v2.3.6/src/adapters/outbound/filesystem/fs-framing-store.ts) stores mutable work outside the product repository:
+[`fs-framing-store.ts`](https://github.com/arka-squad/arka-norn/blob/v2.3.7/src/adapters/outbound/filesystem/fs-framing-store.ts) stores mutable work outside the product repository:
 
 ```text
 $ARKA_NORN_HOME/framing/<project>/<framing-id>/
@@ -205,7 +205,7 @@ New 2.3 pipelines are defined in:
 - [`pipelines/arka-norn-essential-2.3.json`](../pipelines/arka-norn-essential-2.3.json);
 - [`pipelines/arka-norn-complete-2.3.json`](../pipelines/arka-norn-complete-2.3.json).
 
-They begin after framing. [`orchestration-v23-plan-builder.ts`](https://github.com/arka-squad/arka-norn/blob/v2.3.6/src/composition/orchestration-v23-plan-builder.ts) accepts only an exact, signed, grounded Feature plan and maps its Lots to task plans. A missing, tampered, unpublished, or divergent plan blocks orchestration.
+They begin after framing. [`orchestration-v23-plan-builder.ts`](https://github.com/arka-squad/arka-norn/blob/v2.3.7/src/composition/orchestration-v23-plan-builder.ts) accepts only an exact, signed, grounded Feature plan and maps its Lots to task plans. A missing, tampered, unpublished, or divergent plan blocks orchestration.
 
 ## Web projection
 
@@ -227,9 +227,9 @@ Starting a new Feature asks for the outcome only. Resume uses the active Agent p
 
 The primary regression suites are:
 
-- [`tests/unit/framing-plan.test.ts`](https://github.com/arka-squad/arka-norn/blob/v2.3.6/tests/unit/framing-plan.test.ts);
-- [`tests/integration/framing-engine.test.ts`](https://github.com/arka-squad/arka-norn/blob/v2.3.6/tests/integration/framing-engine.test.ts);
-- [`tests/e2e/framing-cli.test.ts`](https://github.com/arka-squad/arka-norn/blob/v2.3.6/tests/e2e/framing-cli.test.ts);
-- [`web/src/views/framing-view.test.tsx`](https://github.com/arka-squad/arka-norn/blob/v2.3.6/web/src/views/framing-view.test.tsx).
+- [`tests/unit/framing-plan.test.ts`](https://github.com/arka-squad/arka-norn/blob/v2.3.7/tests/unit/framing-plan.test.ts);
+- [`tests/integration/framing-engine.test.ts`](https://github.com/arka-squad/arka-norn/blob/v2.3.7/tests/integration/framing-engine.test.ts);
+- [`tests/e2e/framing-cli.test.ts`](https://github.com/arka-squad/arka-norn/blob/v2.3.7/tests/e2e/framing-cli.test.ts);
+- [`web/src/views/framing-view.test.tsx`](https://github.com/arka-squad/arka-norn/blob/v2.3.7/web/src/views/framing-view.test.tsx).
 
 They cover repository classification, crash recovery, concurrency, exact two-gate behavior, local invalidation, Feature materialization, publication integrity, orchestration linkage, and human Web rendering.

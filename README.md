@@ -17,7 +17,7 @@ From a provider chat, an Agent can frame a Project or a Feature, connect that wo
 <!-- README IMAGE: hero -->
 ![arka.norn hero — one plan, verified delivery](docs/assets/readme/hero-signed-delivery.png)
 
-Version 2.3.6 adds a post-install welcome and a grouped interactive menu, on top of the 2.3.5 branded setup and 'arka-norn version' update check. It builds on 2.3 orchestration control in Norn Web: preview a run, authorize it against the exact plan fingerprint, and apply a verified candidate under the 2.3 invariants, alongside Doctor inspect, preview, and repair, over the 2.3 live framing engine that frames a Project into Feature candidates or a Feature into bounded Lots and hands one exact published revision to the 2.3 delivery DAG.
+Version 2.3.7 ships a reliable publish pipeline, on top of the post-install welcome, the grouped interactive menu, the branded setup and the 'arka-norn version' update check. It builds on 2.3 orchestration control in Norn Web: preview a run, authorize it against the exact plan fingerprint, and apply a verified candidate under the 2.3 invariants, alongside Doctor inspect, preview, and repair, over the 2.3 live framing engine that frames a Project into Feature candidates or a Feature into bounded Lots and hands one exact published revision to the 2.3 delivery DAG.
 
 Legacy 2.2 campaigns are inspection-only. Existing v4 Features keep their historical workflows. English remains canonical for contracts and machine data.
 

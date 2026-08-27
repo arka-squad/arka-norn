@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.3.7 - 2026-08-27
+
+### Fixed
+
+- The publish workflow now retries the registry version check with a bounded backoff, so a successful publish no longer shows a false failure while npm propagates the new version.
+
+### Distribution
+
+- Package and manifest versions are 2.3.7.
+
+ ## 2.3.6 - 2026-08-27
 ## 2.3.6 - 2026-08-27
 
 ### Added
