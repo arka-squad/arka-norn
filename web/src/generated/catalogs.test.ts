@@ -30,6 +30,8 @@ describe("generated Web contracts", () => {
     expect(contracts.capabilities.find((capability) => capability.id === "agent.replace")?.surfaces).toContain("web");
     expect(contracts.capabilities.find((capability) => capability.id === "doctor.repair_preview")?.surfaces).toContain("web");
     expect(contracts.capabilities.find((capability) => capability.id === "doctor.repair_apply")?.surfaces).toContain("web");
-    expect(contracts.capabilities.find((capability) => capability.id === "orchestration.authorize")?.surfaces).not.toContain("web");
+    expect(contracts.capabilities.find((capability) => capability.id === "orchestration.preview")?.surfaces).toContain("web");
+    expect(contracts.capabilities.find((capability) => capability.id === "orchestration.authorize")?.surfaces).toContain("web");
+    expect(contracts.capabilities.find((capability) => capability.id === "orchestration.apply")?.surfaces).not.toContain("web");
   });
 });

@@ -33,7 +33,7 @@ const DEFINITIONS = [
     descriptor("doctor.repair_preview", "read", ["cli", "tui", "web"], ["doctor_findings_exist"], []),
     descriptor("doctor.repair_apply", "human_confirmation", ["cli", "tui", "web"], ["exact_repair_preview", "explicit_confirmation"], ["projects", "project", "feature", "agents"]),
     descriptor("orchestration.preview", "read", ["cli", "web"], ["project_materialized", "framing_plan_published"], []),
-    descriptor("orchestration.authorize", "expert_authorization", ["cli"], ["orchestration_preview_current", "execution_profiles_admissible"], ["orchestration"]),
+    descriptor("orchestration.authorize", "expert_authorization", ["cli", "web"], ["orchestration_preview_current", "execution_profiles_admissible"], ["orchestration"]),
     descriptor("orchestration.apply", "human_confirmation", ["cli"], ["application_candidate_verified", "application_gate_satisfied"], ["project", "feature", "orchestration"]),
 ];
 export const CAPABILITY_CATALOG = createCapabilityCatalog(DEFINITIONS);

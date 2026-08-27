@@ -427,6 +427,38 @@ export interface OrchestrationPreviewView {
   readonly issues: readonly OrchestrationPreviewIssueView[];
 }
 
+export interface OrchestrationBudgetLimitInput {
+  readonly profileId: string;
+  readonly metric: "cli_quota_percent" | "currency_eur" | "calls" | "duration_seconds";
+  readonly maximum: number;
+}
+
+export interface OrchestrationAuthorizationInput {
+  readonly previewFingerprint: string;
+  readonly riskPolicyFingerprint: string;
+  readonly actor: string;
+  readonly profileByRole: Readonly<Record<string, string>>;
+  readonly allowCommits: boolean;
+  readonly applyMode: "human" | "automatic";
+  readonly automaticRiskThreshold: number;
+  readonly maxParallel: number | "all";
+  readonly budgetMode: "admission" | "hard-stop" | "observe";
+  readonly budgetLimits: readonly OrchestrationBudgetLimitInput[];
+  readonly openBarProfiles: readonly string[];
+}
+
+export interface OrchestrationRunView {
+  readonly schemaVersion: 1;
+  readonly campaignId: string;
+  readonly status: string;
+  readonly progress: { readonly attempted: number; readonly succeeded: number; readonly failed: number };
+  readonly applicationFingerprint: string | null;
+  readonly appliedCommit: string | null;
+  readonly riskScore: number | null;
+  readonly hardDenials: readonly string[];
+  readonly applicationGate: { readonly code: string; readonly message: string } | null;
+}
+
 export interface WebPreferences {
   readonly locale: "auto" | "en" | "fr";
   readonly resolvedLocale: "en" | "fr";
@@ -489,6 +521,7 @@ export interface NornBridge {
   resumeAudit(projectId: string, auditId: string): Promise<AuditRunView>;
   getOrchestrations(projectId: string): Promise<readonly OrchestrationTrackingView[]>;
   previewOrchestration(projectId: string, featureId: string): Promise<OrchestrationPreviewView>;
+  authorizeOrchestration(projectId: string, input: OrchestrationAuthorizationInput): Promise<OrchestrationRunView>;
   getPreferences(): Promise<WebPreferences>;
   savePreferences(input: SaveWebPreferencesInput): Promise<WebPreferences>;
   pickFolder(input: { readonly purpose: "project" | "feature"; readonly defaultPath?: string }): Promise<string | null>;

@@ -6,7 +6,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import type { ProjectTrackingService } from "../../../application/web/project-tracking-service.js";
-import type { AgentMutationInput, LiveInvalidation } from "../../../application/web/contracts.js";
+import type { AgentMutationInput, LiveInvalidation, OrchestrationAuthorizationInput, OrchestrationBudgetLimitInput } from "../../../application/web/contracts.js";
 import { WebMutationError } from "../../../application/web/web-mutation-concurrency.js";
 import { AgentId } from "../../../domain/agent/agent-id.js";
 import type { SseHub } from "./sse-hub.js";
@@ -120,6 +120,8 @@ async function dispatchPost(request: IncomingMessage, segments: readonly string[
   if (framing !== undefined) return framing;
   const featurePost = await dispatchFeaturePost(request, segments, service);
   if (featurePost !== undefined) return featurePost;
+  const orchestration = await dispatchOrchestrationPost(request, segments, service);
+  if (orchestration !== undefined) return orchestration;
   if (segments.length === 3 && segments[0] === "projects" && segments[2] === "governance") {
     const projectId = id(segments[1]);
     const governance = await service.appendGovernance(projectId, await body(request, ["kind", "targets", "reason", "resolvesEventId", "supersedesEventId"]));
@@ -160,6 +162,76 @@ async function dispatchFeaturePost(request: IncomingMessage, segments: readonly 
     return ok(await service.previewOrchestration(id(segments[1]), id(segments[3])));
   }
   return undefined;
+}
+
+async function dispatchOrchestrationPost(request: IncomingMessage, segments: readonly string[], service: ProjectTrackingService): Promise<DispatchResult | undefined> {
+  if (segments.length !== 3 || segments[0] !== "projects" || segments[2] !== "orchestration-authorize") return undefined;
+  const projectId = id(segments[1]);
+  const input = await body<Record<string, unknown>>(request, ["previewFingerprint", "riskPolicyFingerprint", "actor", "profileByRole", "allowCommits", "applyMode", "automaticRiskThreshold", "maxParallel", "budgetMode", "budgetLimits", "openBarProfiles"]);
+  const run = await service.authorizeOrchestration(projectId, orchestrationAuthorizationInput(input));
+  return ok(run, [{ scope: "projects" }, { scope: "project", projectId }, { scope: "orchestration", projectId }]);
+}
+
+function orchestrationAuthorizationInput(input: Record<string, unknown>): OrchestrationAuthorizationInput {
+  if (typeof input.previewFingerprint !== "string" || !/^[a-f0-9]{64}$/u.test(input.previewFingerprint)) throw new ClientRequestError(400, "invalid_preview_fingerprint");
+  if (typeof input.riskPolicyFingerprint !== "string" || !/^[a-f0-9]{64}$/u.test(input.riskPolicyFingerprint)) throw new ClientRequestError(400, "invalid_risk_policy_fingerprint");
+  if (typeof input.actor !== "string" || input.actor.trim().length === 0 || input.actor.length > 200) throw new ClientRequestError(400, "invalid_actor");
+  if (typeof input.allowCommits !== "boolean") throw new ClientRequestError(400, "invalid_allow_commits");
+  if (input.applyMode !== "human" && input.applyMode !== "automatic") throw new ClientRequestError(400, "invalid_apply_mode");
+  if (input.budgetMode !== "admission" && input.budgetMode !== "hard-stop" && input.budgetMode !== "observe") throw new ClientRequestError(400, "invalid_budget_mode");
+  if (!Number.isInteger(input.automaticRiskThreshold) || (input.automaticRiskThreshold as number) < 0 || (input.automaticRiskThreshold as number) > 20) throw new ClientRequestError(400, "invalid_risk_threshold");
+  return {
+    previewFingerprint: input.previewFingerprint,
+    riskPolicyFingerprint: input.riskPolicyFingerprint,
+    actor: input.actor.trim(),
+    profileByRole: roleProfileMap(input.profileByRole),
+    allowCommits: input.allowCommits,
+    applyMode: input.applyMode,
+    automaticRiskThreshold: input.automaticRiskThreshold as number,
+    maxParallel: parallelismInput(input.maxParallel),
+    budgetMode: input.budgetMode,
+    budgetLimits: budgetLimitsInput(input.budgetLimits),
+    openBarProfiles: stringArrayInput(input.openBarProfiles, "invalid_open_bar"),
+  };
+}
+
+function roleProfileMap(value: unknown): Readonly<Record<string, string>> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) throw new ClientRequestError(400, "invalid_profile_by_role");
+  const output: Record<string, string> = {};
+  for (const [role, profile] of Object.entries(value)) {
+    if (!/^[a-z0-9][a-z0-9._-]{0,79}$/u.test(role) || typeof profile !== "string" || !/^[a-z0-9][a-z0-9._-]{0,79}$/u.test(profile)) throw new ClientRequestError(400, "invalid_profile_by_role");
+    output[role] = profile;
+  }
+  if (Object.keys(output).length === 0) throw new ClientRequestError(400, "invalid_profile_by_role");
+  return output;
+}
+
+function parallelismInput(value: unknown): number | "all" {
+  if (value === "all") return "all";
+  if (!Number.isInteger(value) || (value as number) < 1 || (value as number) > 32) throw new ClientRequestError(400, "invalid_max_parallel");
+  return value as number;
+}
+
+function budgetLimitsInput(value: unknown): readonly OrchestrationBudgetLimitInput[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) throw new ClientRequestError(400, "invalid_budget_limits");
+  return value.map((entry) => {
+    if (typeof entry !== "object" || entry === null) throw new ClientRequestError(400, "invalid_budget_limits");
+    const limit = entry as Record<string, unknown>;
+    if (typeof limit.profileId !== "string" || !/^[a-z0-9][a-z0-9._-]{0,79}$/u.test(limit.profileId)) throw new ClientRequestError(400, "invalid_budget_limits");
+    if (limit.metric !== "cli_quota_percent" && limit.metric !== "currency_eur" && limit.metric !== "calls" && limit.metric !== "duration_seconds") throw new ClientRequestError(400, "invalid_budget_limits");
+    if (typeof limit.maximum !== "number" || !Number.isFinite(limit.maximum) || limit.maximum <= 0) throw new ClientRequestError(400, "invalid_budget_limits");
+    return { profileId: limit.profileId, metric: limit.metric, maximum: limit.maximum };
+  });
+}
+
+function stringArrayInput(value: unknown, code: string): readonly string[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) throw new ClientRequestError(400, code);
+  return value.map((entry) => {
+    if (typeof entry !== "string" || !/^[a-z0-9][a-z0-9._-]{0,79}$/u.test(entry)) throw new ClientRequestError(400, code);
+    return entry;
+  });
 }
 
 async function dispatchAgentPostImpl(request: IncomingMessage, segments: readonly string[], service: ProjectTrackingService): Promise<DispatchResult | undefined> {

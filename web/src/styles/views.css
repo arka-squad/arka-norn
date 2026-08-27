@@ -477,6 +477,23 @@
 .preview-issue-list > li { display: grid; gap: 3px; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--red) 24%, var(--border)); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--red) 5%, var(--surface)); }
 .preview-issue-list strong { color: var(--red); font-size: 10.5px; }
 .preview-issue-list small { color: var(--text-soft); font-size: 9.5px; overflow-wrap: anywhere; }
+.preview-actions { display: flex; flex-wrap: wrap; gap: 9px; }
+.preview-run-started { margin: 0; padding: 10px 12px; border-radius: var(--radius-md); background: var(--green-soft); color: var(--green); font-size: 11px; }
+.authorize-sheet { display: grid; gap: 15px; }
+.authorize-field { display: grid; gap: 5px; }
+.authorize-field > span { color: var(--tx3); font-family: var(--font-mono); font-size: 8.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+.authorize-field input, .authorize-field select, .authorize-role select { height: 34px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); color: var(--tx1); font-size: 12px; }
+.authorize-roles { display: grid; gap: 10px; margin: 0; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-lg); }
+.authorize-roles legend { padding: 0 6px; color: var(--tx3); font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+.authorize-role { display: grid; grid-template-columns: minmax(120px, .5fr) minmax(0, 1fr); align-items: center; gap: 12px; }
+.authorize-role > span { color: var(--text-soft); font-size: 11px; }
+.authorize-hint { margin: 0; color: var(--amber); font-size: 10px; }
+.authorize-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.authorize-toggle, .authorize-confirm { display: flex; align-items: center; gap: 8px; color: var(--text-soft); font-size: 11px; }
+.authorize-toggle input, .authorize-confirm input { width: 16px; min-height: 16px; }
+.authorize-fingerprint { display: grid; gap: 5px; padding: 11px 13px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); }
+.authorize-fingerprint > span { color: var(--tx4); font-family: var(--font-mono); font-size: 8px; font-weight: 600; text-transform: uppercase; }
+.authorize-fingerprint code { color: var(--tx2); font-size: 10px; overflow-wrap: anywhere; }
 
 @media (max-width: 1050px) {
   .overview-bands, .feature-columns { grid-template-columns: 1fr; }

@@ -60,6 +60,8 @@ import type {
   ProductPromptTarget,
   ProductPromptView,
   OrchestrationPreviewView,
+  OrchestrationAuthorizationInput,
+  OrchestrationRunView,
   SaveWebPreferencesInput,
   TrackingHealth,
   WebPreferences,
@@ -68,6 +70,7 @@ import { createFeatureTrackingView } from "./feature-tracking.js";
 import { framingDetail, framingSummary, revisionMilestone } from "./framing-projection.js";
 import { v23Campaign, v23Dag, v23Tasks } from "./orchestration-v23-projection.js";
 import { createLegacyOrchestrationView } from "./legacy-orchestration-projection.js";
+import { authorizeOrchestrationView, previewOrchestrationView } from "./orchestration-web-projection.js";
 import { createProjectDraftListItem, createProjectDraftOverview } from "./project-draft-projection.js";
 import { CAPABILITY_CATALOG, type CapabilityCatalog } from "../capabilities/capability-registry.js";
 import { buildProjectRelationshipGraph } from "./relationship-graph.js";
@@ -441,28 +444,11 @@ export class ProjectTrackingService {
   }
 
   public async previewOrchestration(projectId: string, featureId: string): Promise<OrchestrationPreviewView> {
-    if (this.options.orchestrationV23 === undefined) throw new Error("Orchestration preview is not configured on this surface.");
-    const preview = await this.options.orchestrationV23.preview({ projectId: ProjectId.of(projectId), featureId: FeatureId.of(featureId) });
-    return {
-      schemaVersion: 1,
-      projectId,
-      featureId,
-      eligible: preview.eligible,
-      planFingerprint: preview.plan?.fingerprint ?? null,
-      riskPolicyFingerprint: preview.riskPolicyFingerprint,
-      tasks: preview.tasks.map((task) => ({
-        id: task.id,
-        role: task.role,
-        dependencies: [...task.dependencies],
-        readScopes: [...task.readScopes],
-        writeScopes: [...task.writeScopes],
-        deliverables: [...task.deliverables],
-        validations: [...task.validations],
-      })),
-      profiles: preview.profiles.map((profile) => ({ ...profile })),
-      preflights: preview.preflights.map((preflight) => ({ profileId: preflight.profileId, healthy: preflight.healthy, code: preflight.code, message: preflight.message })),
-      issues: preview.issues.map((issue) => ({ ...issue })),
-    };
+    return previewOrchestrationView(this.options.orchestrationV23, projectId, featureId);
+  }
+
+  public async authorizeOrchestration(projectId: string, input: OrchestrationAuthorizationInput): Promise<OrchestrationRunView> {
+    return authorizeOrchestrationView(this.options.orchestrationV23, projectId, input);
   }
 
   private async getV23Orchestrations(project: Project): Promise<readonly OrchestrationTrackingView[]> {

@@ -270,7 +270,8 @@ export const contracts = {
       "id": "orchestration.authorize",
       "authority": "expert_authorization",
       "surfaces": [
-        "cli"
+        "cli",
+        "web"
       ],
       "preconditions": [
         "orchestration_preview_current",

@@ -23,7 +23,9 @@ test("le registre de capacités couvre exactement le contrat public et reste hon
   assert.equal(capabilityAvailableOn("agent.replace", "web"), true);
   assert.equal(capabilityAvailableOn("doctor.repair_preview", "web"), true);
   assert.equal(capabilityAvailableOn("doctor.repair_apply", "web"), true);
-  assert.equal(capabilityAvailableOn("orchestration.authorize", "web"), false);
+  assert.equal(capabilityAvailableOn("orchestration.preview", "web"), true);
+  assert.equal(capabilityAvailableOn("orchestration.authorize", "web"), true);
+  assert.equal(capabilityAvailableOn("orchestration.apply", "web"), false);
   for (const capability of CAPABILITY_CATALOG.capabilities) {
     assert.ok(capability.surfaces.length > 0);
     if (capability.authority !== "read") assert.ok(capability.invalidations.length > 0, capability.id);
