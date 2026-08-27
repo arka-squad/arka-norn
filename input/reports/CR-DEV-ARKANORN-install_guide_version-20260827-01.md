@@ -72,3 +72,15 @@ Deux ajouts jour-1 demandés par l'utilisateur :
 | Réutilisation de `renderArkaHeader` (logo TUI) | Charte cohérente entre TUI, setup et version |
 | Message next-steps seulement si setup sain et non dry-run | Ne pas guider sur un état incomplet |
 
+---
+
+## Ajout — rappel de version stratégique (2.3.5)
+
+| Fichier | Action | Rôle |
+|---|---|---|
+| `src/adapters/outbound/filesystem/fs-version-cache-store.ts` | Créé | Cache local de la dernière version npn connue (0600) |
+| `src/adapters/inbound/cli/version-reminder.ts` | Créé | Ligne de rappel lue depuis le cache uniquement, refresh détaché best-effort |
+| `src/adapters/inbound/cli/main-cli.ts` | Modifié | Rappel discret après `setup`/`install` et `web start|restart|foreground` |
+| `tests/integration/version-reminder.test.ts` | Créé | 4 tests : sans cache, cache à jour, mise à jour, skip actif |
+
+Le rappel n'ajoute aucune latence réseau au chemin critique : il ne lit que le cache, respecte un skip actif, et déclenche un rafraîchissement en arrière-plan non attendu (TTL 24 h) pour la prochaine invocation. Vérifié en direct sur `setup` : « Update available: 2.3.5 -> 9.9.9. Run 'arka-norn version'. »

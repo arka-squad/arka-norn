@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.3.5 - 2026-08-27
+
+### Added
+
+- The successful setup screen now shows the Arka Labs banner and the exact next steps to start the Web cockpit and frame a first Project.
+- Added an 'arka-norn version' command that checks the published npm version and offers to update, skip until the next reboot, or skip the version entirely.
+- Setup and 'web start' show a discreet, cache-only update reminder that never adds network latency and refreshes in the background.
+
+### Distribution
+
+- Package and manifest versions are 2.3.5.
+
+ ## 2.3.4 - 2026-08-27
 ## 2.3.4 - 2026-08-27
 
 ### Fixed

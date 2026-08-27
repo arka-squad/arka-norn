@@ -37,6 +37,7 @@ import { runLocaleCommand } from "./locale-cli.js";
 import { runWebCommand } from "./web-cli.js";
 import { runFramingCommand } from "./framing-cli.js";
 import { runVersionCommand } from "./version-cli.js";
+import { versionReminderLine } from "./version-reminder.js";
 import { FsLocalePreferenceStore } from "../../outbound/filesystem/fs-locale-preference-store.js";
 import { resolveLocale, runWithLocale, translate } from "../../../application/localization/locale.js";
 import { jsonEnvelope, type CliDiagnostic } from "./cli-envelope.js";
@@ -179,11 +180,24 @@ async function runLocalizedCli(argv: readonly string[], homeDir: string, env: Re
     };
     process.stdout.write(publicResult.stdout);
     process.stderr.write(publicResult.stderr);
+    if (!wantsJson && result.code === 0 && shouldRemind(command, rest)) {
+      const reminder = await versionReminderLine({ homeDir }).catch(() => undefined);
+      if (reminder !== undefined) process.stdout.write(`\n  ${reminder}\n`);
+    }
     return result.code;
   } catch (error) {
     process.stderr.write(`${translate("common.error", { message: error instanceof Error ? error.message : String(error) })}\n`);
     return 70;
   }
+}
+
+function shouldRemind(command: string | undefined, rest: readonly string[]): boolean {
+  if (command === "setup" || command === "install") return true;
+  if (command === "web") {
+    const action = rest.find((token) => !token.startsWith("-"));
+    return action === undefined || action === "start" || action === "restart" || action === "foreground";
+  }
+  return false;
 }
 
 function normalizePublicJson(result: CliExecution, command: string, extraWarnings: readonly string[]): CliExecution {
