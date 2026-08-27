@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.3.4 - 2026-08-27
+
+### Fixed
+
+- Host-coupled skills and install tests now provision a stub Agent host on PATH, so the release gates pass on runners without a real codex or claude binary.
+- The interrupted-publication recovery test bases its timestamp on the real clock, removing a parallel-run flake where recovery observed an updatedAt earlier than createdAt.
+
+### Distribution
+
+- Package and manifest versions are 2.3.4.
+
+ ## 2.3.3 - 2026-08-27
 ## 2.3.3 - 2026-08-27
 
 ### Added

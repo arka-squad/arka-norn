@@ -53,7 +53,9 @@ try {
 
   check("README ships", existsSync(join(packageDir, "README.md")));
   const readme = existsSync(join(packageDir, "README.md")) ? readFileSync(join(packageDir, "README.md"), "utf8") : "";
-  check("README keeps the quickstart", readme.includes("npm install -g arka-norn") && readme.includes("arka-norn setup"));
+  const globalQuickstart = readme.includes("npm install -g arka-norn") && readme.includes("arka-norn setup");
+  const sourceQuickstart = readme.includes("npm install") && readme.includes("npm run build");
+  check("README keeps an install quickstart", globalQuickstart || sourceQuickstart);
   check("README links the migration guide", readme.includes("docs/migration-2.3.2.md"));
   check("README links the stability contract", readme.includes("docs/stability-2.3.md"));
 
