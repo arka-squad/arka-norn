@@ -45,18 +45,27 @@ Supported execution transports for automatic runs:
 
 ## Install
 
-```bash
-npm install
-npm run build
-node bin/arka-norn.mjs --version
-node bin/arka-norn.mjs doctor
-```
-
-Open the cockpit:
+Install the published npm package for everyday use. It includes the built CLI, TUI, and Web interface; no source checkout or build step is needed.
 
 ```bash
-node bin/arka-norn.mjs
+npm install --global arka-norn
+arka-norn --version
 ```
+
+From the local repository you want to manage, check its health:
+
+```bash
+cd /path/to/your/project
+arka-norn doctor
+```
+
+Replace `/path/to/your/project` with your repository's path. Open the interactive cockpit from that directory:
+
+```bash
+arka-norn
+```
+
+All usage examples below use the installed `arka-norn` command. To work on arka.norn itself, follow [Development from source](#development-from-source).
 
 ## Start in a provider chat
 
@@ -126,10 +135,10 @@ Positive facts require the current snapshot and a `file:line` anchor; absence cl
 Open Project tracking in the browser:
 
 ```bash
-node bin/arka-norn.mjs web start
-node bin/arka-norn.mjs web status
-node bin/arka-norn.mjs web restart
-node bin/arka-norn.mjs web stop
+arka-norn web start
+arka-norn web status
+arka-norn web restart
+arka-norn web stop
 ```
 
 `web` without an action is an alias for `web start`.
@@ -143,13 +152,6 @@ Useful options:
 - `--json`
 
 `web restart` preserves the current port and browser session. `web stop` followed by `web start` creates a new secure session. Use `web foreground` only when the server must remain attached to the current terminal.
-
-From a source checkout, the equivalent shortcuts are:
-
-- `npm run web:start`
-- `npm run web:status`
-- `npm run web:restart`
-- `npm run web:stop`
 
 ### Web interface
 
@@ -215,8 +217,8 @@ See [Automatic orchestration](https://github.com/arka-squad/arka-norn/blob/main/
 Install the generated Agent skills:
 
 ```bash
-node bin/arka-norn.mjs install --global
-node bin/arka-norn.mjs skills doctor
+arka-norn install --global
+arka-norn skills doctor
 ```
 
 ## Language
@@ -387,7 +389,37 @@ Canonical examples are under:
 - `examples/feature-fastdev`
 - `examples/project-audit-v5`
 
-## Quality
+## Development from source
+
+Use this path to contribute to arka.norn or test source changes. Run these commands in a checkout of **arka-norn itself**, separate from the repository you want to manage:
+
+```bash
+git clone https://github.com/arka-squad/arka-norn.git
+cd arka-norn
+npm ci
+node bin/arka-norn.mjs --version
+```
+
+`npm ci` installs the development dependencies and runs the build through the `prepare` script. After editing the source, rebuild explicitly:
+
+```bash
+npm run build
+```
+
+From the checkout root, use `node bin/arka-norn.mjs <command>` to test the local build in place of `arka-norn <command>`. The globally installed `arka-norn` command still runs the npm version.
+
+The source checkout also provides Web shortcuts:
+
+```bash
+npm run web:start
+npm run web:status
+npm run web:restart
+npm run web:stop
+```
+
+### Quality
+
+Run these contributor checks from the source checkout:
 
 ```bash
 npm run lint
